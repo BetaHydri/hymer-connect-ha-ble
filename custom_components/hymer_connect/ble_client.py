@@ -8,7 +8,7 @@ physically near the vehicle.
 Requires:
   - bleak (BLE GATT client library)
   - Python ssl module with MemoryBIO (TLS over arbitrary transport)
-  - BLE hardware (Pi 4 built-in or USB adapter)
+  - BLE hardware (Pi 4 built-in BT 5.0 or USB adapter)
 
 Architecture:
   Phone (BLE) ──► SCU ──► CAN/LIN/PIA devices
@@ -16,6 +16,16 @@ Architecture:
   Pi/HA (cloud) ──► Azure SignalR ──► SCU         ← signalr_client.py
 
 The BLE path is ~50ms latency vs ~500ms-2s for the cloud path.
+
+Pairing (one-time at vehicle):
+  The SCU requires physical button confirmation on the vehicle's touchscreen
+  display to allow a new BLE client to pair. This is the same flow used when
+  pairing a new smartphone with the EHG app. After the button press, the SCU
+  returns a new remoteAccessToken bound to the Pi's BLE MAC address. The SCU
+  supports multiple paired clients simultaneously (phone + Pi).
+
+  Flow: Pi scans → initiates pairing → SCU display prompts "Allow?" →
+        user presses ALLOW → SCU returns remoteAccessToken → stored locally
 
 Status: EXPERIMENTAL — not yet verified on real hardware.
 """
