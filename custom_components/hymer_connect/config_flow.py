@@ -20,6 +20,8 @@ from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     BRANDS,
     CONF_ACCESS_TOKEN,
+    CONF_BLE_ADDRESS,
+    CONF_BLE_ENABLED,
     CONF_BRAND,
     CONF_EHG_REFRESH_TOKEN,
     CONF_REFRESH_TOKEN,
@@ -172,12 +174,18 @@ class HymerConnectOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the options."""
+        """Manage the options — tank capacity + BLE settings."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(
             CONF_TANK_CAPACITY, DEFAULT_TANK_CAPACITY_LITERS
+        )
+        current_ble_enabled = self._config_entry.options.get(
+            CONF_BLE_ENABLED, False
+        )
+        current_ble_address = self._config_entry.options.get(
+            CONF_BLE_ADDRESS, ""
         )
 
         return self.async_show_form(
@@ -188,6 +196,19 @@ class HymerConnectOptionsFlow(OptionsFlow):
                         CONF_TANK_CAPACITY,
                         default=current_capacity,
                     ): vol.All(vol.Coerce(int), vol.Range(min=30, max=200)),
+                    vol.Optional(
+                        CONF_BLE_ENABLED,
+                        default=current_ble_enabled,
+                    ): bool,
+                    vol.Optional(
+                        CONF_BLE_ADDRESS,
+                        default=current_ble_address,
+                    ): str,
                 }
             ),
+            description_placeholders={
+                "ble_help": "Enable BLE direct path for local SCU control (experimental). "
+                "Requires BLE hardware and physical SCU pairing. "
+                "Leave address empty to auto-scan.",
+            },
         )

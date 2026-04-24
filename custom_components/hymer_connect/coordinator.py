@@ -20,7 +20,14 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
-from .const import CONF_TANK_CAPACITY, DEFAULT_SCAN_INTERVAL, DEFAULT_TANK_CAPACITY_LITERS, DOMAIN
+from .const import (
+    CONF_BLE_ADDRESS,
+    CONF_BLE_ENABLED,
+    CONF_TANK_CAPACITY,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TANK_CAPACITY_LITERS,
+    DOMAIN,
+)
 from .signalr_client import HymerSignalRClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +75,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cached_rest_data: dict[str, Any] = {}
         self._signalr_lock = asyncio.Lock()  # prevent concurrent reconnect attempts
         self._shutting_down = False  # suppress reconnects during HA shutdown/unload
+        # BLE dual-path support (experimental)
+        self._ble_client = None  # ScuBleClient instance when BLE is enabled
+        self._ble_connected = False
+        self._connection_mode = "cloud"  # "ble" or "cloud"
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -84,6 +95,21 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def signalr_client(self) -> HymerSignalRClient | None:
         """Return the active SignalR client for sending commands."""
         return self._signalr
+
+    @property
+    def connection_mode(self) -> str:
+        """Return the current connection mode: 'ble' or 'cloud'."""
+        return self._connection_mode
+
+    @property
+    def ble_enabled(self) -> bool:
+        """Return True if BLE direct path is enabled in options."""
+        return bool(self.config_entry.options.get(CONF_BLE_ENABLED, False))
+
+    @property
+    def ble_address(self) -> str:
+        """Return the configured SCU BLE address."""
+        return self.config_entry.options.get(CONF_BLE_ADDRESS, "")
 
     @property
     def tank_capacity(self) -> int:
@@ -262,6 +288,85 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._signalr:
             await self._signalr.stop()
             self._signalr = None
+
+    async def start_ble(self) -> bool:
+        """Attempt to connect to SCU via BLE direct path.
+
+        Returns True if BLE connection + TLS handshake succeeded.
+        Falls back gracefully — caller should use cloud SignalR if this fails.
+        """
+        if not self.ble_enabled:
+            return False
+
+        ble_address = self.ble_address
+        if not ble_address:
+            _LOGGER.info("BLE enabled but no SCU address configured — attempting scan")
+            try:
+                from .ble_client import ScuBleClient
+                scanner = ScuBleClient(scu_address="")
+                devices = await scanner.scan_for_scu(timeout=10.0)
+                if devices:
+                    ble_address = devices[0]["address"]
+                    _LOGGER.info("BLE scan found SCU: %s (%s)", devices[0].get("name"), ble_address)
+                else:
+                    _LOGGER.warning("BLE scan found no SCU devices")
+                    return False
+            except Exception:
+                _LOGGER.warning("BLE scan failed", exc_info=True)
+                return False
+
+        try:
+            from .ble_client import ScuBleClient, BleTransportError
+
+            self._ble_client = ScuBleClient(
+                scu_address=ble_address,
+                on_pia_response=self._on_ble_pia_response,
+            )
+            await self._ble_client.connect()
+            await self._ble_client.establish_tls()
+            self._ble_connected = True
+            self._connection_mode = "ble"
+            _LOGGER.info("BLE direct path established to SCU %s", ble_address)
+
+            # Start BLE listen loop in background
+            self.hass.async_create_task(self._ble_listen_loop())
+            return True
+        except Exception as err:
+            _LOGGER.warning("BLE connection failed, will use cloud: %s", err)
+            self._ble_client = None
+            self._ble_connected = False
+            self._connection_mode = "cloud"
+            return False
+
+    def _on_ble_pia_response(self, b64_payload: str) -> None:
+        """Handle PIA response received via BLE — same decoder as SignalR."""
+        from .pia_decoder import decode_pia_payload
+        sensor_data = decode_pia_payload(b64_payload)
+        if sensor_data:
+            self._on_signalr_update(sensor_data)
+
+    async def _ble_listen_loop(self) -> None:
+        """Background loop receiving PIA data from SCU via BLE."""
+        if not self._ble_client:
+            return
+        try:
+            await self._ble_client.listen()
+        except Exception:
+            _LOGGER.warning("BLE listen loop ended", exc_info=True)
+            self._ble_connected = False
+            self._connection_mode = "cloud"
+            # Fall back to cloud SignalR
+            _LOGGER.info("Falling back to cloud SignalR after BLE disconnect")
+            await self.start_signalr()
+
+    async def stop_ble(self) -> None:
+        """Disconnect the BLE client."""
+        if self._ble_client:
+            await self._ble_client.disconnect()
+            self._ble_client = None
+        self._ble_connected = False
+        if self._connection_mode == "ble":
+            self._connection_mode = "cloud"
 
     async def async_ensure_signalr_healthy(self) -> None:
         """Ensure SignalR is connected and healthy, reconnecting if needed.

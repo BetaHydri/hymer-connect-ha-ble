@@ -74,6 +74,11 @@ CONF_EHG_TOKEN = "ehg_access_token"
 CONF_EHG_REFRESH_TOKEN = "ehg_refresh_token"
 CONF_TANK_CAPACITY = "tank_capacity_liters"
 
+# BLE dual-path config keys
+CONF_BLE_ADDRESS = "ble_scu_address"
+CONF_BLE_ENABLED = "ble_enabled"
+CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
+
 # Default diesel tank capacity (litres) — user can override in Options
 # Common Sprinter tanks: 71 L (314/316 CDI), 93 L (419/519 CDI standard)
 DEFAULT_TANK_CAPACITY_LITERS = 93

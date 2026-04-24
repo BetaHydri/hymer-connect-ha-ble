@@ -197,10 +197,14 @@
       "init": {
         "title": "HYMER Connect Options",
         "data": {
-          "tank_capacity_liters": "Diesel tank capacity (liters)"
+          "tank_capacity_liters": "Diesel tank capacity (liters)",
+          "ble_enabled": "Enable BLE direct path (experimental)",
+          "ble_scu_address": "SCU Bluetooth address (leave empty to auto-scan)"
         },
         "data_description": {
-          "tank_capacity_liters": "Size of the diesel tank in liters. Common values: 71 L (Sprinter 314/316 CDI), 93 L (Sprinter 419/519 CDI standard). Used to compute fuel level in liters, consumption (L/100km), and estimated range."
+          "tank_capacity_liters": "Size of the diesel tank in liters. Common values: 71 L (Sprinter 314/316 CDI), 93 L (Sprinter 419/519 CDI standard). Used to compute fuel level in liters, consumption (L/100km), and estimated range.",
+          "ble_enabled": "Connect directly to the SCU via Bluetooth Low Energy instead of the cloud. Requires BLE hardware (e.g. Raspberry Pi 4 built-in) and one-time physical pairing at the vehicle. Falls back to cloud if BLE is unavailable.",
+          "ble_scu_address": "The Bluetooth MAC address of the SCU (e.g. XX:XX:XX:XX:XX:XX). Leave empty to auto-scan for nearby SCU devices on startup."
         }
       }
     }
