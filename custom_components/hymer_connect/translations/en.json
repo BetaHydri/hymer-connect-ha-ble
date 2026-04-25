@@ -15,15 +15,15 @@
         }
       },
       "vehicle": {
-        "title": "Vehicle Activation",
-        "description": "Enter the activation code from the QR sticker on your vehicle. This links your account to the vehicle — the same step as scanning the QR code in the EHG app. Optionally provide the SCU Bluetooth address for direct BLE communication.",
+        "title": "Vehicle Activation (optional)",
+        "description": "For BLE pairing: enter the activation code from the QR sticker on your vehicle and the SCU Bluetooth address. For cloud-only mode: leave both fields empty and skip this step — the integration will auto-discover your vehicle.",
         "data": {
-          "qr_activation_token": "QR code activation token",
+          "qr_activation_token": "QR code activation token (optional)",
           "ble_scu_address": "SCU Bluetooth address (optional)"
         },
         "data_description": {
-          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here.",
-          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). Leave empty to auto-scan. Required for direct BLE path — at first connection the SCU will prompt you to press ALLOW on the vehicle touchscreen."
+          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here. Leave empty for cloud-only mode (requires EHG refresh token from mitmproxy).",
+          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). Leave empty to auto-scan or skip BLE. Required for direct BLE path — at first connection the SCU will prompt you to press ALLOW on the vehicle touchscreen."
         }
       },
       "reauth_confirm": {

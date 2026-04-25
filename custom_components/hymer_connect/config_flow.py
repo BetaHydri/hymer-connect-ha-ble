@@ -127,7 +127,13 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle vehicle activation — QR code token + SCU BLE address.
 
-        Mirrors the EHG app pairing flow:
+        This step is optional. Users who already have an EHG refresh token
+        (from mitmproxy) can skip it by leaving both fields empty — the
+        integration falls back to cloud-only mode and auto-discovers the
+        vehicle URN at runtime.
+
+        For BLE pairing, both the QR activation token and the SCU BLE
+        address are needed:
           1. User scans/enters the QR code text from the vehicle sticker
           2. User provides the SCU Bluetooth MAC address (or leaves empty to auto-scan)
           3. At runtime, BLE pairing happens: SCU prompts "Allow?" on touchscreen,
@@ -140,9 +146,8 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
             ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
 
-            if not qr_token:
-                errors[CONF_QR_TOKEN] = "qr_token_required"
-            else:
+            if qr_token:
+                # QR token provided — resolve vehicle via API
                 try:
                     vehicle_info = await self._api.get_vehicle_by_token(qr_token)
                     vehicle_urn = vehicle_info.get("urn", "")
@@ -156,21 +161,29 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._data[CONF_SCU_URN] = scu_urn
                         self._data[CONF_BLE_ADDRESS] = ble_address
                         self._data[CONF_BLE_ENABLED] = bool(ble_address)
-                        brand_name = BRANDS.get(
-                            self._data[CONF_BRAND], self._data[CONF_BRAND]
-                        )
-                        return self.async_create_entry(
-                            title=f"HYMER Connect ({brand_name})",
-                            data=self._data,
-                        )
                 except HymerConnectApiError:
                     errors["base"] = "invalid_qr_token"
+            else:
+                # No QR token — cloud-only mode, auto-discover at runtime
+                self._data[CONF_VEHICLE_URN] = ""
+                self._data[CONF_SCU_URN] = ""
+                self._data[CONF_BLE_ADDRESS] = ""
+                self._data[CONF_BLE_ENABLED] = False
+
+            if not errors:
+                brand_name = BRANDS.get(
+                    self._data[CONF_BRAND], self._data[CONF_BRAND]
+                )
+                return self.async_create_entry(
+                    title=f"HYMER Connect ({brand_name})",
+                    data=self._data,
+                )
 
         return self.async_show_form(
             step_id="vehicle",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_QR_TOKEN): str,
+                    vol.Optional(CONF_QR_TOKEN, default=""): str,
                     vol.Optional(CONF_BLE_ADDRESS, default=""): str,
                 }
             ),
