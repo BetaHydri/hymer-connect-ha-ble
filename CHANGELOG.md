@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Coordinator reads BLE settings from both `data` and `options`** — The `ble_enabled` and `ble_address` properties now check `options` first (user-configurable post-setup), falling back to `data` (set during config flow). This means BLE settings from the config flow are immediately effective without requiring a separate options flow visit.
 
+- **BLE has priority over cloud (SignalR)** — The coordinator's `_async_update_data()` now tries BLE first on every 60-second poll. If BLE connects, SignalR is stopped to avoid duplicate data. If BLE disconnects, the listen loop immediately falls back to cloud SignalR. On the next poll, BLE is retried — if it recovers, SignalR is stopped again. Full failover cycle: BLE → Cloud → BLE.
+
+- **Vehicle activation step is optional** — Cloud-only users can skip Step 2 by leaving both QR code and BLE address empty. The integration falls back to auto-discovering the vehicle at runtime. QR code is required when a BLE address is provided (validation error otherwise).
+
+- **Reconfigure flow** — Added `async_step_reconfigure()` for adding QR code, BLE address, or EHG refresh token to an existing config entry post-setup. Accessible via Settings → Integrations → HYMER Connect → ⋮ → Reconfigure.
+
+- **Auto-pairing in coordinator** — `start_ble()` automatically triggers `pair_mobile()` when no EHG refresh token exists and a QR activation token is in the config data. Gets `confirmationToken` from cloud API, sends `PairMobileRequest` over BLE/TLS, waits for user to press ALLOW, stores the returned refresh token in the config entry.
+
+- **Pairing button instruction** — Config flow, coordinator logs (WARNING level), and BLE timeout errors all instruct the user to press the PAIRING button on the SCU control panel before the first connection, matching the EHG app's UX flow.
+
+- **DEBUG-level BLE logging** — Added debug logging for BLE scan (device count, candidates), GATT connect, UART notifications (byte count), PairMobileRequest frame size, and encrypted payload size. Enable with `logger: logs: custom_components.hymer_connect: debug` for troubleshooting.
+
+- **Manifest updated** — Added `bleak>=0.21.0` to requirements, `bluetooth` to dependencies, bumped version to 2.37.0, documentation and issue tracker URLs point to `hymer-connect-ha-ble`.
+
 ### Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — The PairMobileRequest/Response protobuf field layout, the BLE pairing ceremony (activation token + confirmation token + SCU touchscreen ALLOW + refresh token minting), and the `hymer_token_tool` RUNBOOK documenting the full 4-step pairing sequence were invaluable for implementing the BLE pairing path in this integration.

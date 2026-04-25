@@ -572,7 +572,9 @@ class ScuBleClient:
         """Scan for nearby SCU devices advertising the NUS service."""
         if not HAS_BLEAK:
             raise BleTransportError("bleak is not installed")
+_LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
         discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
+        _LOGGER.debug("BLE scan found %d total devices", len(discovered))
         results = []
         for _, (device, adv) in discovered.items():
             name = device.name or adv.local_name or ""
@@ -585,6 +587,8 @@ class ScuBleClient:
                     "service_uuids": uuids,
                 })
         results.sort(key=lambda x: x.get("rssi") or -999, reverse=True)
+        _LOGGER.debug("BLE scan matched %d SCU candidates: %s", len(results),
+                      [(r["address"], r["name"], r["rssi"]) for r in results])
         return results
 
     async def connect(self) -> None:
@@ -593,8 +597,10 @@ class ScuBleClient:
             return
 
         self._loop = asyncio.get_running_loop()
+        _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
         await client.connect()
+        _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
         services = await client.get_services()
         rx_char = None
@@ -720,10 +726,14 @@ class ScuBleClient:
         )
 
         # Build and send PairMobileRequest
+        _LOGGER.debug("Building PairMobileRequest (device_name=%s, activation_token_len=%d)",
+                      mobile_device_name, len(activation_token))
         pair_frame = build_pair_mobile_frame(
             activation_token, confirmation_token, mobile_device_name,
         )
+        _LOGGER.debug("PairMobileRequest frame: %d bytes", len(pair_frame))
         encrypted = self._tls.encrypt(pair_frame)
+        _LOGGER.debug("Sending encrypted PairMobileRequest: %d bytes", len(encrypted))
         await self._write_to_scu(encrypted)
 
         # Wait for PairMobileResponse (user must press ALLOW on SCU touchscreen)
@@ -822,6 +832,8 @@ class ScuBleClient:
         """Handle incoming NUS TX notification from SCU."""
         if self._loop is None:
             return
+        payload = bytes(data)
+        _LOGGER.debug("BLE UART RX: %d bytes", len(payload))
         self._loop.call_soon_threadsafe(
-            self._uart_queue.put_nowait, bytes(data)
+            self._uart_queue.put_nowait, payload
         )
