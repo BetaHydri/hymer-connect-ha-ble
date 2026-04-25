@@ -23,6 +23,8 @@ from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
+    CONF_EHG_REFRESH_TOKEN,
+    CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
@@ -332,6 +334,46 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             await self._ble_client.connect()
             await self._ble_client.establish_tls()
+
+            # If no EHG refresh token yet, attempt BLE pairing to obtain one
+            if not self._ehg_refresh_token:
+                qr_token = self.config_entry.data.get(CONF_QR_TOKEN, "")
+                if qr_token:
+                    _LOGGER.info(
+                        "No EHG refresh token — attempting BLE pairing with SCU %s",
+                        ble_address,
+                    )
+                    try:
+                        confirmation = await self.api.get_confirmation_token()
+                        confirmation_token = confirmation.get("token", "")
+                        if not confirmation_token:
+                            _LOGGER.warning("Cloud did not return a confirmation token")
+                        else:
+                            pair_result = await self._ble_client.pair_mobile(
+                                activation_token=qr_token,
+                                confirmation_token=confirmation_token,
+                                mobile_device_name="homeassistant",
+                            )
+                            if pair_result.remote_access_refresh_token:
+                                self._ehg_refresh_token = pair_result.remote_access_refresh_token
+                                # Persist to config entry so it survives restarts
+                                self.hass.config_entries.async_update_entry(
+                                    self.config_entry,
+                                    data={
+                                        **self.config_entry.data,
+                                        CONF_EHG_REFRESH_TOKEN: self._ehg_refresh_token,
+                                    },
+                                )
+                                _LOGGER.info(
+                                    "BLE pairing successful — EHG refresh token obtained and stored"
+                                )
+                            else:
+                                _LOGGER.warning(
+                                    "BLE pairing completed but no refresh token was returned"
+                                )
+                    except Exception as pair_err:
+                        _LOGGER.warning("BLE pairing failed: %s", pair_err)
+
             self._ble_connected = True
             self._connection_mode = "ble"
             _LOGGER.info("BLE direct path established to SCU %s", ble_address)

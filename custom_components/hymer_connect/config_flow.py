@@ -245,6 +245,85 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration — add QR code / BLE address to an existing entry.
+
+        Accessible via Settings → Integrations → HYMER Connect → ⋮ → Reconfigure.
+        Allows users who initially set up cloud-only to add BLE pairing later
+        (e.g. after installing the RPi in the vehicle).
+        """
+        errors: dict[str, str] = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
+            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
+            ehg_refresh_token = user_input.get(CONF_EHG_REFRESH_TOKEN, "").strip()
+
+            data_updates: dict[str, Any] = {}
+
+            if qr_token:
+                # Re-authenticate to get a fresh API client
+                session = async_create_clientsession(self.hass)
+                api = HymerConnectApi(
+                    session, brand=reconfigure_entry.data.get(CONF_BRAND, "hymer"),
+                )
+                try:
+                    await api.authenticate(
+                        reconfigure_entry.data[CONF_USERNAME],
+                        reconfigure_entry.data[CONF_PASSWORD],
+                    )
+                    vehicle_info = await api.get_vehicle_by_token(qr_token)
+                    vehicle_urn = vehicle_info.get("urn", "")
+                    scu_urn = vehicle_info.get("smartUnitUrn", "")
+                    if not scu_urn:
+                        try:
+                            scc_vehicles = await api.get_vehicles()
+                            if scc_vehicles:
+                                scu_urn = scc_vehicles[0].get("smartUnitUrn", "")
+                        except HymerConnectApiError:
+                            pass
+                    if vehicle_urn:
+                        data_updates[CONF_VEHICLE_URN] = vehicle_urn
+                        data_updates[CONF_SCU_URN] = scu_urn
+                    else:
+                        errors["base"] = "invalid_qr_token"
+                except HymerConnectApiError:
+                    errors["base"] = "invalid_qr_token"
+
+            if ble_address:
+                data_updates[CONF_BLE_ADDRESS] = ble_address
+                data_updates[CONF_BLE_ENABLED] = True
+
+            if ehg_refresh_token:
+                data_updates[CONF_EHG_REFRESH_TOKEN] = ehg_refresh_token
+
+            if not errors and data_updates:
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    data_updates=data_updates,
+                )
+            if not errors and not data_updates:
+                errors["base"] = "no_changes"
+
+        current_qr = ""
+        current_ble = reconfigure_entry.data.get(CONF_BLE_ADDRESS, "")
+        current_ehg = reconfigure_entry.data.get(CONF_EHG_REFRESH_TOKEN, "")
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_QR_TOKEN, default=current_qr): str,
+                    vol.Optional(CONF_BLE_ADDRESS, default=current_ble): str,
+                    vol.Optional(CONF_EHG_REFRESH_TOKEN, default=current_ehg): str,
+                }
+            ),
+            errors=errors,
+        )
+
 
 class HymerConnectOptionsFlow(OptionsFlow):
     """Handle options for HYMER Connect."""

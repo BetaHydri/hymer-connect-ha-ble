@@ -15,15 +15,15 @@
         }
       },
       "vehicle": {
-        "title": "Vehicle Activation (optional)",
-        "description": "For BLE pairing: enter the activation code from the QR sticker on your vehicle and the SCU Bluetooth address. For cloud-only mode: leave both fields empty and skip this step — the integration will auto-discover your vehicle.",
+        "title": "Vehicle Activation",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed. If you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
-          "qr_activation_token": "QR code activation token (optional)",
-          "ble_scu_address": "SCU Bluetooth address (optional)"
+          "qr_activation_token": "QR code activation token",
+          "ble_scu_address": "SCU Bluetooth address"
         },
         "data_description": {
-          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here. Leave empty for cloud-only mode (requires EHG refresh token from mitmproxy).",
-          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). Leave empty to auto-scan or skip BLE. Required for direct BLE path — at first connection the SCU will prompt you to press ALLOW on the vehicle touchscreen."
+          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here.",
+          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). At first connection, the SCU will prompt you to press ALLOW on the vehicle touchscreen. Leave empty to auto-scan."
         }
       },
       "reauth_confirm": {
@@ -33,13 +33,28 @@
           "username": "Email",
           "password": "Password"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure HYMER Connect",
+        "description": "Add or update the QR code activation token, SCU Bluetooth address, or EHG refresh token. Leave a field empty to keep the current value.",
+        "data": {
+          "qr_activation_token": "QR code activation token",
+          "ble_scu_address": "SCU Bluetooth address",
+          "ehg_refresh_token": "EHG Remote Access Refresh Token"
+        },
+        "data_description": {
+          "qr_activation_token": "Paste the text from the vehicle QR sticker to link the vehicle and enable BLE pairing.",
+          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF) to enable the BLE direct path.",
+          "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here."
+        }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
       "invalid_auth": "Invalid email or password",
-      "invalid_qr_token": "Invalid QR activation token — could not resolve vehicle",
+      "invalid_qr_token": "Invalid QR activation token \u2014 could not resolve vehicle",
       "qr_token_required": "QR activation token is required",
+      "no_changes": "No changes provided \u2014 enter at least one field",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
