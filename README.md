@@ -254,6 +254,35 @@ The BLE direct path allows your Home Assistant instance to communicate with the 
 
 > **Non-HAOS installs** (Container, Core, Supervised): You may need to install `bluez` and `dbus` on the host OS manually. The `bleak` Python package is declared in the integration's `manifest.json` and will be installed automatically by HA.
 
+### Paired Device Lifecycle
+
+The SCU supports **multiple paired clients simultaneously** (e.g. phone + RPi). Each paired device receives its own independent `remote_access_refresh_token` with **no expiry**. Removing one device does not affect the others.
+
+**After a successful BLE pairing, you never need the QR code again.** The token is persisted in the HA config entry and survives restarts, reboots, and updates.
+
+**When is re-pairing (QR code) needed?**
+
+| Scenario | Re-pair needed? | Affects other devices? |
+|---|---|---|
+| HA restart / reboot / update | ❌ No | — |
+| SCU reboot / 12V cycle | ❌ No | — |
+| HA integration reconfigured (Reconfigure) | ❌ No | — |
+| Phone re-paired with EHG app | ❌ No | ❌ RPi token stays valid |
+| **Delete integration from HA** | ✅ Yes (config entry + token deleted) | ❌ Phone still works |
+| **Remove device in EHG app** | ✅ Yes (cloud revokes that device's token) | ❌ Other devices unaffected |
+| **SCU factory reset** | ✅ Yes (all paired devices wiped) | ✅ All devices must re-pair |
+
+**What happens when a token is revoked?**
+
+If someone removes the HA device via the EHG app's paired device management:
+
+1. The cloud marks the RPi's refresh token as revoked
+2. The integration's next `POST /remoteAccessToken` call returns **401 Forbidden**
+3. The coordinator catches this and triggers HA's **reauth flow**
+4. You must re-pair: enter the QR code again (via Reconfigure or re-add the integration) and press ALLOW on the SCU touchscreen
+
+> **Tip:** The `mobile_device_name` sent during pairing defaults to `"homeassistant"`. This is the name that appears in the EHG app's paired devices list, making it easy to identify which device is the RPi vs. your phone.
+
 > **⏳ Sensors show "unknown" until the vehicle connects.** The SCU (Smart Interface Unit) in your vehicle must establish a SignalR WebSocket connection to the cloud before sensor data flows. This happens automatically when:
 > - The vehicle's 12V main switch is ON, and
 > - The SCU has cellular connectivity (built-in SIM card).
