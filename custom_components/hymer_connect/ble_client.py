@@ -757,7 +757,8 @@ class ScuBleClient:
             if remaining <= 0:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press ALLOW on the vehicle touchscreen?"
+                    "did you press the PAIRING button on the SCU control panel "
+                    "and then ALLOW on the vehicle touchscreen?"
                 )
             try:
                 incoming = await asyncio.wait_for(
@@ -766,7 +767,8 @@ class ScuBleClient:
             except asyncio.TimeoutError as err:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press ALLOW on the vehicle touchscreen?"
+                    "did you press the PAIRING button on the SCU control panel "
+                    "and then ALLOW on the vehicle touchscreen?"
                 ) from err
 
             outbound, plaintext_chunks = self._tls.feed_encrypted(incoming)

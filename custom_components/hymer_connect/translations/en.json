@@ -16,7 +16,7 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed. If you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ Before the first connection, press the PAIRING button on the SCU control panel in your vehicle (same button you pressed when pairing the EHG app). The SCU will then prompt 'Allow?' on the touchscreen when the integration connects.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address"
