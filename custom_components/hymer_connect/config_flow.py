@@ -134,11 +134,10 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
         For BLE pairing, both the QR activation token and the SCU BLE
         address are needed:
-          1. User scans/enters the QR code text from the vehicle sticker
+          1. User presses VERBINDUNG (connection) button on SCU control panel
           2. User provides the SCU Bluetooth MAC address (or leaves empty to auto-scan)
-          3. At runtime, BLE pairing happens: SCU prompts "Allow?" on touchscreen,
-             user presses ALLOW, SCU issues a remoteAccessToken bound to the
-             RPi's BLE MAC — stored as the EHG refresh token.
+          3. At runtime, BLE pairing happens: Pi connects via BLE/TLS,
+             sends PairMobileRequest, SCU returns remoteAccessToken
         """
         errors: dict[str, str] = {}
 

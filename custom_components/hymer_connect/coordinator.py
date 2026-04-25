@@ -354,8 +354,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if qr_token:
                     _LOGGER.warning(
                         "No EHG refresh token — attempting BLE pairing with SCU %s. "
-                        "IMPORTANT: Press the PAIRING button on the SCU control panel "
-                        "in the vehicle, then press ALLOW on the SCU touchscreen when prompted. "
+                        "IMPORTANT: Press the VERBINDUNG (connection) button on the SCU "
+                        "control panel in the vehicle now. "
                         "Waiting up to 60 seconds...",
                         ble_address,
                     )

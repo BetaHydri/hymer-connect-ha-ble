@@ -18,18 +18,19 @@ Architecture:
 The BLE path is ~50ms latency vs ~500ms-2s for the cloud path.
 
 Pairing (one-time at vehicle):
-  The SCU requires physical button confirmation on the vehicle's touchscreen
-  display to allow a new BLE client to pair. This is the same flow used when
-  pairing a new smartphone with the EHG app. After the button press, the SCU
-  returns a new remoteAccessToken bound to the Pi's BLE MAC address. The SCU
+  The SCU requires pressing the VERBINDUNG (connection) button on the vehicle's
+  control panel display to allow a new BLE client to pair. This is the same
+  button used when pairing a new smartphone with the EHG app. After the button
+  press, the SCU enters pairing mode and accepts the PairMobileRequest. The SCU
+  returns a new remoteAccessToken bound to the device's BLE address. The SCU
   supports multiple paired clients simultaneously (phone + Pi).
 
-  Flow: Pi scans → initiates pairing → SCU display prompts "Allow?" →
-        user presses ALLOW → SCU returns remoteAccessToken → stored locally
+  Flow: User presses Verbindung button on SCU → Pi connects via BLE/TLS →
+        sends PairMobileRequest → SCU returns remoteAccessToken → stored locally
 
 Credits:
   The PairMobileRequest/Response protobuf field layout and the full BLE pairing
-  ceremony (activation token + confirmation token + SCU touchscreen ALLOW +
+  ceremony (activation token + confirmation token + SCU Verbindung button +
   remote-access refresh token minting) were reverse-engineered by Dan Simms
   (dan-simms1/hymer-connect-ha) in the standalone hymer_token_tool. The protobuf
   field numbers, nesting structure, and frame encoding in this module are derived
@@ -84,7 +85,7 @@ APP_TLS_MAX_VERSION = ssl.TLSVersion.TLSv1_1
 DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_TLS_TIMEOUT = 20.0
 DEFAULT_SCAN_TIMEOUT = 8.0
-DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press ALLOW on SCU
+DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press Verbindung button on SCU
 WAKE_UP_COMMAND = bytes((0x0A,))
 DEFAULT_GATT_MTU = 23
 
@@ -572,7 +573,7 @@ class ScuBleClient:
         """Scan for nearby SCU devices advertising the NUS service."""
         if not HAS_BLEAK:
             raise BleTransportError("bleak is not installed")
-_LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
+        _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
         discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
         _LOGGER.debug("BLE scan found %d total devices", len(discovered))
         results = []
@@ -702,17 +703,16 @@ _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
         """Perform the SCU mobile-device pairing ceremony over BLE/TLS.
 
         This mirrors the EHG app's pairing flow:
-          1. Send PairMobileRequest (activation token + confirmation token)
-          2. SCU displays "Allow?" on the vehicle touchscreen
-          3. User physically presses ALLOW
-          4. SCU returns PairMobileResponse with the remote-access tokens
-          5. Send PairMobileConfirmation(success=true)
+          1. User presses VERBINDUNG (connection) button on SCU control panel
+          2. Send PairMobileRequest (activation token + confirmation token)
+          3. SCU processes the request and returns tokens
+          4. Send PairMobileConfirmation(success=true)
 
         Args:
             activation_token: The QR code text from the vehicle sticker.
             confirmation_token: One-time token from POST /confirmationToken.
             mobile_device_name: Friendly name for this device (default: "homeassistant").
-            timeout: Seconds to wait for user to press ALLOW on SCU (default: 60s).
+            timeout: Seconds to wait for SCU pairing response (default: 60s).
 
         Returns:
             PairMobileResponse with remote_access_token and remote_access_refresh_token.
@@ -721,7 +721,7 @@ _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
             raise BleTransportError("TLS not established — call connect() and establish_tls() first")
 
         _LOGGER.info(
-            "Starting BLE pairing with SCU %s — waiting up to %ds for user to press ALLOW",
+            "Starting BLE pairing with SCU %s \u2014 press VERBINDUNG button on SCU, waiting up to %ds",
             self._scu_address, int(timeout),
         )
 
@@ -736,7 +736,7 @@ _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
         _LOGGER.debug("Sending encrypted PairMobileRequest: %d bytes", len(encrypted))
         await self._write_to_scu(encrypted)
 
-        # Wait for PairMobileResponse (user must press ALLOW on SCU touchscreen)
+        # Wait for PairMobileResponse (user must press Verbindung button on SCU)
         response_frame = await self._receive_next_frame(timeout)
         pair_response = decode_pair_mobile_response(response_frame)
 
@@ -767,8 +767,8 @@ _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
             if remaining <= 0:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press the PAIRING button on the SCU control panel "
-                    "and then ALLOW on the vehicle touchscreen?"
+                    "did you press the VERBINDUNG (connection) button "
+                    "on the SCU control panel?"
                 )
             try:
                 incoming = await asyncio.wait_for(
@@ -777,8 +777,8 @@ _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
             except asyncio.TimeoutError as err:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press the PAIRING button on the SCU control panel "
-                    "and then ALLOW on the vehicle touchscreen?"
+                    "did you press the VERBINDUNG (connection) button "
+                    "on the SCU control panel?"
                 ) from err
 
             outbound, plaintext_chunks = self._tls.feed_encrypted(incoming)

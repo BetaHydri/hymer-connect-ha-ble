@@ -222,10 +222,9 @@ Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the 
 3. **Step 1 — Login:** Select your brand, enter email and password. Leave the EHG refresh token field empty — BLE pairing will obtain it automatically
 4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
 5. The integration resolves the vehicle URN and creates the config entry
-6. **Press the PAIRING button** on the SCU control panel in the vehicle (same button used when pairing the EHG phone app)
-7. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request
-8. **Press ALLOW on the vehicle's SCU touchscreen** when prompted
-9. The integration receives and stores the EHG refresh token automatically — done!
+6. **Press the VERBINDUNG (connection) button** on the SCU control panel in the vehicle (same button used when pairing the EHG phone app)
+7. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request automatically
+8. The integration receives and stores the EHG refresh token — done!
 
 > **SCU Bluetooth address — optional but recommended.** If you leave the field empty, the integration auto-scans for nearby SCU devices on each connection attempt. This works but adds a few seconds of scan time. Providing the address skips the scan and connects directly.
 >

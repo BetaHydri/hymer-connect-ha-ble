@@ -16,14 +16,14 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ Before the first connection, press the PAIRING button on the SCU control panel in your vehicle (same button you pressed when pairing the EHG app). The SCU will then prompt 'Allow?' on the touchscreen when the integration connects.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection \u2014 no mitmproxy needed.\n\n\u26a0\ufe0f When the integration connects for the first time, press the VERBINDUNG (connection) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address"
         },
         "data_description": {
           "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here.",
-          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). At first connection, the SCU will prompt you to press ALLOW on the vehicle touchscreen. Leave empty to auto-scan."
+          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). At first connection, press the VERBINDUNG button on the SCU control panel. Leave empty to auto-scan."
         }
       },
       "reauth_confirm": {
