@@ -556,7 +556,23 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not self._scu_urn and self._vehicle_urn:
             self._scu_urn = self._vehicle_urn
 
-        # --- SignalR connection management ---
+        # --- Connection management: try BLE first, fall back to SignalR ---
+
+        # Attempt BLE direct path if enabled and not already connected
+        if self.ble_enabled and not self._ble_connected:
+            try:
+                ble_ok = await self.start_ble()
+                if ble_ok:
+                    _LOGGER.info("Using BLE direct path to SCU")
+            except Exception:
+                _LOGGER.debug("BLE connection attempt failed", exc_info=True)
+
+        # If BLE is active, skip SignalR — data comes via BLE listen loop
+        if self._ble_connected:
+            rest_data["signalr_sensors"] = self._signalr_data
+            return rest_data
+
+        # --- SignalR connection management (cloud fallback) ---
         signalr_connected = (
             self._signalr is not None and self._signalr.connected
         )
