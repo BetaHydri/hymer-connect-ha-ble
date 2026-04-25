@@ -285,26 +285,43 @@ The BLE direct path allows your Home Assistant instance to communicate with the 
 
 **Finding the SCU Bluetooth address:**
 
-The SCU doesn't always advertise its name, so you may need to scan manually. Open the **Terminal** add-on in HA and run:
+Open the **Terminal** add-on in HA and run:
 
 ```bash
 bluetoothctl
 scan on
 ```
 
-Wait ~10 seconds. Look for the device with the **strongest and most frequent RSSI** — that's typically the SCU (it's the closest BLE device inside the vehicle). Note its MAC address (e.g. `C5:D9:A0:14:C5:37`).
+Wait ~10 seconds. Look for the device with the **strongest and most frequent RSSI** — that's typically the SCU (it's the closest BLE device inside the vehicle). Note its MAC address.
 
-To confirm it's the SCU, check its advertised services:
+To confirm it's the SCU, stop scanning and inspect the device:
 
 ```bash
 scan off
-info C5:D9:A0:14:C5:37
+info <MAC_ADDRESS>
 exit
 ```
 
-If it shows the Nordic UART Service UUID (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`) or a name containing "SCU" or "HYMER", it's your SCU.
+The SCU identifies itself as **`HYMER <SCU_ID_SUFFIX>`** — for example `HYMER 00013970` for SCU ID `S481.01.00.013.970`. Example output:
 
-Alternatively, check the **EHG app** on your phone — the paired device settings may show the SCU's Bluetooth address.
+```
+Device C5:D9:A0:14:C5:37 (random)
+        Name: HYMER 00013970
+        Alias: HYMER 00013970
+        Paired: no
+        Bonded: no
+        UUID: Bond Management        (0000181e-0000-1000-8000-00805f9b34fb)
+        UUID: SDP                    (00000001-0000-1000-8000-00805f9b34fb)
+        RSSI: 0xffffffc0 (-64)
+```
+
+**Key indicators that confirm it's the SCU:**
+- **Name** starts with `HYMER` followed by the last digits of your SCU ID (printed on the QR code sticker)
+- **Bond Management UUID** (`0000181e`) is present — the SCU supports explicit BLE bonding
+- **Address type is `random`** — the SCU uses a BLE random address, which may change after a reboot. For this reason, **auto-scan (leaving the address empty) is recommended** over hardcoding the MAC address
+- The **Nordic UART Service UUID** (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`) is NOT visible in advertising data — it is only exposed after a GATT connection is established. The integration matches by name (`HYMER` or `SCU`) during auto-scan
+
+Alternatively, check the **EHG app** on your phone — the paired device or connection settings may show the SCU's Bluetooth address.
 
 > **Note:** The SCU must have **12V main switch ON** to be discoverable via BLE. In standby (12V off), the SCU may not advertise. If you leave the BLE address empty, the integration will auto-scan at each connection attempt.
 
