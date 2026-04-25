@@ -317,7 +317,20 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 devices = await scanner.scan_for_scu(timeout=10.0)
                 if devices:
                     ble_address = devices[0]["address"]
-                    _LOGGER.info("BLE scan found SCU: %s (%s)", devices[0].get("name"), ble_address)
+                    scu_name = devices[0].get("name", "")
+                    _LOGGER.info("BLE scan found SCU: %s (%s)", scu_name, ble_address)
+                    # Persist discovered address so it's available for Reconfigure
+                    # and survives restarts without re-scanning
+                    self.hass.config_entries.async_update_entry(
+                        self.config_entry,
+                        data={
+                            **self.config_entry.data,
+                            CONF_BLE_ADDRESS: ble_address,
+                        },
+                    )
+                    _LOGGER.info(
+                        "SCU BLE address %s stored in config entry", ble_address
+                    )
                 else:
                     _LOGGER.warning("BLE scan found no SCU devices")
                     return False
