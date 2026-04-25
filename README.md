@@ -273,6 +273,31 @@ The BLE direct path allows your Home Assistant instance to communicate with the 
 2. **Verify** the adapter is detected: **Settings → Devices & Services → Bluetooth** should show your adapter (e.g. `hci0`)
 3. **Provide the SCU BLE address** during HYMER Connect setup (Step 2 — Vehicle Activation), or leave it empty to auto-scan
 
+**Finding the SCU Bluetooth address:**
+
+The SCU doesn't always advertise its name, so you may need to scan manually. Open the **Terminal** add-on in HA and run:
+
+```bash
+bluetoothctl
+scan on
+```
+
+Wait ~10 seconds. Look for the device with the **strongest and most frequent RSSI** — that's typically the SCU (it's the closest BLE device inside the vehicle). Note its MAC address (e.g. `C5:D9:A0:14:C5:37`).
+
+To confirm it's the SCU, check its advertised services:
+
+```bash
+scan off
+info C5:D9:A0:14:C5:37
+exit
+```
+
+If it shows the Nordic UART Service UUID (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`) or a name containing "SCU" or "HYMER", it's your SCU.
+
+Alternatively, check the **EHG app** on your phone — the paired device settings may show the SCU's Bluetooth address.
+
+> **Note:** The SCU must have **12V main switch ON** to be discoverable via BLE. In standby (12V off), the SCU may not advertise. If you leave the BLE address empty, the integration will auto-scan at each connection attempt.
+
 > **Non-HAOS installs** (Container, Core, Supervised): You may need to install `bluez` and `dbus` on the host OS manually. The `bleak` Python package is declared in the integration's `manifest.json` and will be installed automatically by HA.
 
 ### Paired Device Lifecycle
