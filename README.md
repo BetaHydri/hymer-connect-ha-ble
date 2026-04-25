@@ -220,11 +220,21 @@ Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the 
 1. **Enable the Bluetooth integration** in HA first (see [BLE Prerequisites](#ble-direct-path--prerequisites))
 2. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
 3. **Step 1 — Login:** Select your brand, enter email and password. Leave the EHG refresh token field empty — BLE pairing will obtain it automatically
-4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Enter the **SCU Bluetooth address** (e.g. `AA:BB:CC:DD:EE:FF`)
+4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
 5. The integration resolves the vehicle URN and creates the config entry
-6. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request
-7. **Press ALLOW on the vehicle's SCU touchscreen** when prompted
-8. The integration receives and stores the EHG refresh token automatically — done!
+6. **Press the PAIRING button** on the SCU control panel in the vehicle (same button used when pairing the EHG phone app)
+7. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request
+8. **Press ALLOW on the vehicle's SCU touchscreen** when prompted
+9. The integration receives and stores the EHG refresh token automatically — done!
+
+> **SCU Bluetooth address — optional but recommended.** If you leave the field empty, the integration auto-scans for nearby SCU devices on each connection attempt. This works but adds a few seconds of scan time. Providing the address skips the scan and connects directly.
+>
+> **How to find the SCU Bluetooth address:**
+> - **Option 1 — HA Terminal:** Open the Terminal add-on and run `bluetoothctl`, then `scan on`. Wait ~10 seconds. The SCU is typically the device with the **strongest and most frequent RSSI** (it's the closest BLE device inside the vehicle). Note its MAC address. Run `scan off` and `exit`. To confirm, run `info <MAC>` and check for the Nordic UART Service UUID (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`).
+> - **Option 2 — EHG app:** Check the paired device or connection settings in the HYMER Connect phone app — it may show the SCU's Bluetooth address.
+> - **Option 3 — Skip it:** Leave the field empty and let auto-scan find it. You can always add the address later via Reconfigure.
+>
+> **Note:** The SCU must have **12V main switch ON** to be discoverable via BLE.
 
 ### Path B: Cloud-Only (legacy — requires mitmproxy)
 
