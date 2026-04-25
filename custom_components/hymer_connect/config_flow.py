@@ -24,8 +24,11 @@ from .const import (
     CONF_BLE_ENABLED,
     CONF_BRAND,
     CONF_EHG_REFRESH_TOKEN,
+    CONF_QR_TOKEN,
     CONF_REFRESH_TOKEN,
+    CONF_SCU_URN,
     CONF_TANK_CAPACITY,
+    CONF_VEHICLE_URN,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
 )
@@ -47,6 +50,11 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self._data: dict[str, Any] = {}
+        self._api: HymerConnectApi | None = None
+
     @staticmethod
     def async_get_options_flow(
         config_entry: ConfigEntry,
@@ -59,13 +67,13 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> dict[str, str]:
         """Try to authenticate and return tokens."""
         session = async_create_clientsession(self.hass)
-        api = HymerConnectApi(session, brand=brand)
-        return await api.authenticate(username, password)
+        self._api = HymerConnectApi(session, brand=brand)
+        return await self._api.authenticate(username, password)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step."""
+        """Handle the initial step — login credentials."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -83,28 +91,89 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error during authentication")
                 errors["base"] = "unknown"
             else:
-                # Normalize email to lowercase for unique ID
                 unique_id = user_input[CONF_USERNAME].lower()
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
-                brand_name = BRANDS.get(
-                    user_input[CONF_BRAND], user_input[CONF_BRAND]
-                )
-                return self.async_create_entry(
-                    title=f"HYMER Connect ({brand_name})",
-                    data={
-                        CONF_BRAND: user_input[CONF_BRAND],
-                        CONF_USERNAME: user_input[CONF_USERNAME],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                        CONF_ACCESS_TOKEN: tokens["access_token"],
-                        CONF_REFRESH_TOKEN: tokens["refresh_token"],
-                        CONF_EHG_REFRESH_TOKEN: user_input.get(CONF_EHG_REFRESH_TOKEN, ""),
-                    },
-                )
+                self._data = {
+                    CONF_BRAND: user_input[CONF_BRAND],
+                    CONF_USERNAME: user_input[CONF_USERNAME],
+                    CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    CONF_ACCESS_TOKEN: tokens["access_token"],
+                    CONF_REFRESH_TOKEN: tokens["refresh_token"],
+                    CONF_EHG_REFRESH_TOKEN: user_input.get(CONF_EHG_REFRESH_TOKEN, ""),
+                }
+                return await self.async_step_vehicle()
 
         return self.async_show_form(
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
+            errors=errors,
+        )
+
+    async def _async_resolve_scu_urn(self) -> str:
+        """Fetch SCU URN from the SCC vehicle list."""
+        if self._api is None:
+            return ""
+        try:
+            scc_vehicles = await self._api.get_vehicles()
+            if scc_vehicles:
+                return scc_vehicles[0].get("smartUnitUrn", "")
+        except HymerConnectApiError:
+            _LOGGER.debug("Could not fetch SCC vehicles for SCU URN")
+        return ""
+
+    async def async_step_vehicle(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle vehicle activation — QR code token + SCU BLE address.
+
+        Mirrors the EHG app pairing flow:
+          1. User scans/enters the QR code text from the vehicle sticker
+          2. User provides the SCU Bluetooth MAC address (or leaves empty to auto-scan)
+          3. At runtime, BLE pairing happens: SCU prompts "Allow?" on touchscreen,
+             user presses ALLOW, SCU issues a remoteAccessToken bound to the
+             RPi's BLE MAC — stored as the EHG refresh token.
+        """
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
+            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
+
+            if not qr_token:
+                errors[CONF_QR_TOKEN] = "qr_token_required"
+            else:
+                try:
+                    vehicle_info = await self._api.get_vehicle_by_token(qr_token)
+                    vehicle_urn = vehicle_info.get("urn", "")
+                    scu_urn = vehicle_info.get("smartUnitUrn", "")
+                    if not scu_urn:
+                        scu_urn = await self._async_resolve_scu_urn()
+                    if not vehicle_urn:
+                        errors["base"] = "invalid_qr_token"
+                    else:
+                        self._data[CONF_VEHICLE_URN] = vehicle_urn
+                        self._data[CONF_SCU_URN] = scu_urn
+                        self._data[CONF_BLE_ADDRESS] = ble_address
+                        self._data[CONF_BLE_ENABLED] = bool(ble_address)
+                        brand_name = BRANDS.get(
+                            self._data[CONF_BRAND], self._data[CONF_BRAND]
+                        )
+                        return self.async_create_entry(
+                            title=f"HYMER Connect ({brand_name})",
+                            data=self._data,
+                        )
+                except HymerConnectApiError:
+                    errors["base"] = "invalid_qr_token"
+
+        return self.async_show_form(
+            step_id="vehicle",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_QR_TOKEN): str,
+                    vol.Optional(CONF_BLE_ADDRESS, default=""): str,
+                }
+            ),
             errors=errors,
         )
 

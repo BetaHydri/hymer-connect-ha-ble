@@ -34,6 +34,8 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **v2.36.6** — **Fridge door + window contact now update in real time!** Fixed depth-filter bug in PIA protobuf decoder that silently dropped real-time SCU push updates. `binary_sensor.hymer_fridge_door` and `binary_sensor.hymer_heater_window_contact` now track open/close events live.
 
+> **v2.37.0** — **BLE pairing + QR code config flow!** The config flow now mirrors the EHG app: login → enter QR code activation token → provide SCU Bluetooth address. The integration can now perform the full SCU pairing ceremony over BLE/TLS (activation token + confirmation token → user presses ALLOW on SCU touchscreen → receives remote-access refresh token). No more mitmproxy needed when your HA instance has BLE hardware. Credits to Dan Simms (`dan-simms1/hymer-connect-ha`) for reverse-engineering the pairing protocol.
+
 ### Energy Dashboard
 
 Monitor your motorhome's complete power flow at a glance — solar production, lithium battery state (SOC, SoH, voltage, temperature), habitation load draw, and charging status. All data comes directly from the vehicle's SCU via SignalR, updated every 60 seconds.
@@ -80,7 +82,7 @@ Control your vehicle's electrical systems from Home Assistant:
 
 > **12V availability guard:** When the 12V main switch is off, all light entities and the water pump switch become **unavailable** in Home Assistant. Dashboard tile cards automatically gray them out and disable interaction, preventing commands to components that won't respond without habitation power. The fridge, boiler, heater, and the main switch itself remain controllable regardless of 12V state.
 
-> **12V and passive sensors:** With 12V off, the SCU enters standby and stops pushing **passive sensor data** (door state, temperatures, water levels) to the cloud. Commands (fridge on/off, lights) still work because the SCU echoes command responses. The EHG app can still see passive sensor changes in standby because it connects via **BLE** directly to the SCU — Home Assistant only has the cloud/SignalR path. To see fridge door open/close events or heater window contact changes in HA, **12V must be ON**.
+> **12V and passive sensors:** With 12V off, the SCU enters standby and stops pushing **passive sensor data** (door state, temperatures, water levels) to the cloud. Commands (fridge on/off, lights) still work because the SCU echoes command responses. The EHG app can still see passive sensor changes in standby because it connects via **BLE** directly to the SCU. With the BLE dual-path enabled (v2.37.0+), Home Assistant can also communicate directly with the SCU via BLE when the RPi is physically near the vehicle, bypassing the cloud path entirely (~50ms latency vs ~500ms–2s).
 
 ### 💡 Light Controls
 
@@ -211,11 +213,15 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 
 1. Go to **Settings > Devices & Services > + Add Integration**
 2. Search for **HYMER Connect**
-3. Select your brand and enter your HYMER Connect app credentials
-4. Paste your **EHG Remote Access Refresh Token** (see below)
-5. The integration creates sensor entities for your vehicle
+3. **Step 1 — Login:** Select your brand, enter your HYMER Connect app email and password, and optionally paste your EHG Remote Access Refresh Token (if you already have one from a previous mitmproxy capture)
+4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** from the sticker on your vehicle (scan the QR code with any phone camera/QR reader app and paste the text). Optionally enter the **SCU Bluetooth address** (e.g. `AA:BB:CC:DD:EE:FF`) for direct BLE communication
+5. The integration resolves the vehicle URN and SCU URN from the QR token and creates sensor entities
 
-> **Without the refresh token**, the integration provides only REST API data (vehicle model, VIN, year). **With the refresh token**, you get ~100 real-time entities via SignalR.
+> **QR code:** The QR code is on a sticker inside your vehicle (typically near the SCU unit or in the owner documentation). It contains a text activation token that links your EHG account to the vehicle — the same code the EHG app asks you to scan during initial setup.
+
+> **BLE pairing:** If you provide the SCU Bluetooth address and your HA instance has BLE hardware (e.g. Raspberry Pi 4), the integration can perform the full pairing ceremony at first connection — no mitmproxy needed. The SCU will prompt "Allow?" on the vehicle touchscreen; press ALLOW and the integration receives the remote-access refresh token automatically.
+
+> **Without the refresh token**, the integration provides only REST API data (vehicle model, VIN, year). **With the refresh token** (either from BLE pairing or mitmproxy capture), you get ~130 real-time entities via SignalR.
 
 > **⏳ Sensors show "unknown" until the vehicle connects.** The SCU (Smart Interface Unit) in your vehicle must establish a SignalR WebSocket connection to the cloud before sensor data flows. This happens automatically when:
 > - The vehicle's 12V main switch is ON, and
@@ -418,6 +424,7 @@ graph TD
 
     subgraph "Home Assistant"
         HA["HYMER Connect Integration"]
+        BLE["BLE Client<br/>(local, ~50ms)"]
     end
 
     REG ---|"registered at<br/>manufacturing"| SIU
@@ -431,6 +438,8 @@ graph TD
     BUS <--> DEV
     HA -->|"vehicle info"| API
     RAT --> REG
+    BLE <-->|"BLE/TLS<br/>NUS GATT"| SIU
+    HA --> BLE
 ```
 
 ### Token Types

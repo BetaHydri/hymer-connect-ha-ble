@@ -103,13 +103,21 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @property
     def ble_enabled(self) -> bool:
-        """Return True if BLE direct path is enabled in options."""
-        return bool(self.config_entry.options.get(CONF_BLE_ENABLED, False))
+        """Return True if BLE direct path is enabled (options override data)."""
+        return bool(
+            self.config_entry.options.get(
+                CONF_BLE_ENABLED,
+                self.config_entry.data.get(CONF_BLE_ENABLED, False),
+            )
+        )
 
     @property
     def ble_address(self) -> str:
-        """Return the configured SCU BLE address."""
-        return self.config_entry.options.get(CONF_BLE_ADDRESS, "")
+        """Return the configured SCU BLE address (options override data)."""
+        return (
+            self.config_entry.options.get(CONF_BLE_ADDRESS)
+            or self.config_entry.data.get(CONF_BLE_ADDRESS, "")
+        )
 
     @property
     def tank_capacity(self) -> int:

@@ -74,6 +74,9 @@ CONF_EHG_TOKEN = "ehg_access_token"
 CONF_EHG_REFRESH_TOKEN = "ehg_refresh_token"
 CONF_TANK_CAPACITY = "tank_capacity_liters"
 
+# Vehicle activation
+CONF_QR_TOKEN = "qr_activation_token"
+
 # BLE dual-path config keys
 CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"

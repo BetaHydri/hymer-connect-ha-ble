@@ -14,6 +14,18 @@
           "ehg_refresh_token": "Required for real-time sensor data via SignalR. This is a long-lived token obtained during BLE pairing. Capture it via mitmproxy — see the README for instructions."
         }
       },
+      "vehicle": {
+        "title": "Vehicle Activation",
+        "description": "Enter the activation code from the QR sticker on your vehicle. This links your account to the vehicle — the same step as scanning the QR code in the EHG app. Optionally provide the SCU Bluetooth address for direct BLE communication.",
+        "data": {
+          "qr_activation_token": "QR code activation token",
+          "ble_scu_address": "SCU Bluetooth address (optional)"
+        },
+        "data_description": {
+          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here.",
+          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). Leave empty to auto-scan. Required for direct BLE path — at first connection the SCU will prompt you to press ALLOW on the vehicle touchscreen."
+        }
+      },
       "reauth_confirm": {
         "title": "[%key:common::config_flow::title::reauth%]",
         "description": "The HYMER Connect integration needs to re-authenticate your account.",
@@ -26,6 +38,8 @@
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
       "invalid_auth": "Invalid email or password",
+      "invalid_qr_token": "Invalid QR activation token — could not resolve vehicle",
+      "qr_token_required": "QR activation token is required",
       "unknown": "Unexpected error occurred"
     },
     "abort": {

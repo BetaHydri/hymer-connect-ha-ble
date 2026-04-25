@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.37.0] - 2026-04-25
+
+### Added
+
+- **BLE pairing protocol — `pair_mobile()` in `ble_client.py`** — Implemented the full SCU mobile-device pairing ceremony over BLE/TLS, matching the EHG app's flow: send `PairMobileRequest` (activation token + confirmation token + device name) → wait for user to press ALLOW on SCU touchscreen → receive `PairMobileResponse` with `remote_access_token` and `remote_access_refresh_token` → send `PairMobileConfirmation(success=true)`. This eliminates the need for the mitmproxy token capture workflow when the HA instance (e.g. RPi4) has BLE hardware and is physically near the vehicle. The protobuf field layout was reverse-engineered by Dan Simms (`dan-simms1/hymer-connect-ha`) in the standalone `hymer_token_tool`.
+
+- **Two-step config flow with QR code activation** — The config flow now mirrors the EHG app's setup process: **Step 1** (Login) collects brand, email, password, and optional EHG refresh token. **Step 2** (Vehicle Activation) collects the QR code activation token text from the vehicle sticker and optionally the SCU Bluetooth MAC address. The QR token is resolved via `GET /api/ehg/v1/vehicles/byToken` to obtain the vehicle URN and SCU URN, which are stored in the config entry for use by the coordinator and BLE client.
+
+- **Protobuf encoding/decoding for PairMobileRequest/Response** — Added minimal protobuf wire-format helpers (varint, length-delimited, string, bool fields) with no external dependency. Field numbers match the decompiled EHG app exactly: `BleProtocol(1) → Request(1/2/3/8) → User.PairMobileDevice(4) → activation_token(1), confirmation_token(2), device_name(3), wait_for_confirmation(4)`. Response decoder extracts `remote_access_token(1)`, `remote_access_refresh_token(2)`, and `confirmation_required(3)` from the `Response.mobilePair(9)` field.
+
+- **`PairMobileResponse` dataclass** — New return type for `ScuBleClient.pair_mobile()` containing `remote_access_token`, `remote_access_refresh_token`, `confirmation_required`, `request_id`, `status`, `timestamp`.
+
+- **`CONF_QR_TOKEN` config key** — New constant for the QR code activation token text input in the config flow.
+
+### Changed
+
+- **Config flow is now two steps** — Previously a single-step login form that created the config entry immediately. Now advances to a vehicle activation step after successful login. The config entry now includes `vehicle_urn`, `scu_urn`, `ble_scu_address`, and `ble_enabled` in the entry data (in addition to the existing auth tokens).
+
+- **Coordinator reads BLE settings from both `data` and `options`** — The `ble_enabled` and `ble_address` properties now check `options` first (user-configurable post-setup), falling back to `data` (set during config flow). This means BLE settings from the config flow are immediately effective without requiring a separate options flow visit.
+
+### Credits
+
+- **Dan Simms** (`dan-simms1/hymer-connect-ha`) — The PairMobileRequest/Response protobuf field layout, the BLE pairing ceremony (activation token + confirmation token + SCU touchscreen ALLOW + refresh token minting), and the `hymer_token_tool` RUNBOOK documenting the full 4-step pairing sequence were invaluable for implementing the BLE pairing path in this integration.
+
 ## [2.36.6] - 2026-04-25
 
 ### Fixed

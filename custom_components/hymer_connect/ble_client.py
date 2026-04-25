@@ -27,6 +27,14 @@ Pairing (one-time at vehicle):
   Flow: Pi scans → initiates pairing → SCU display prompts "Allow?" →
         user presses ALLOW → SCU returns remoteAccessToken → stored locally
 
+Credits:
+  The PairMobileRequest/Response protobuf field layout and the full BLE pairing
+  ceremony (activation token + confirmation token + SCU touchscreen ALLOW +
+  remote-access refresh token minting) were reverse-engineered by Dan Simms
+  (dan-simms1/hymer-connect-ha) in the standalone hymer_token_tool. The protobuf
+  field numbers, nesting structure, and frame encoding in this module are derived
+  from his ble.py and scu.py implementation.
+
 Status: EXPERIMENTAL — not yet verified on real hardware.
 """
 
@@ -34,10 +42,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
+import random
 import ssl
 import struct
 import time
 import zlib
+from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,8 +84,279 @@ APP_TLS_MAX_VERSION = ssl.TLSVersion.TLSv1_1
 DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_TLS_TIMEOUT = 20.0
 DEFAULT_SCAN_TIMEOUT = 8.0
+DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press ALLOW on SCU
 WAKE_UP_COMMAND = bytes((0x0A,))
 DEFAULT_GATT_MTU = 23
+
+# PIA protocol version (matches EHG app 2.10.14)
+APP_PIA_VERSION = "v0.32.0"
+
+# ---------------------------------------------------------------------------
+# Protobuf wire format helpers (minimal, no external dependency)
+# ---------------------------------------------------------------------------
+# Field numbers and nesting structure derived from Dan Simms'
+# hymer_token_tool (dan-simms1/hymer-connect-ha), which decoded them
+# from the decompiled EHG Hermes/React Native app bundle.
+
+_WIRE_VARINT = 0
+_WIRE_LEN = 2
+
+# BleProtocol envelope
+_BLE_PROTOCOL_REQUEST_FIELD = 1
+_BLE_PROTOCOL_RESPONSE_FIELD = 2
+
+# Request envelope
+_REQUEST_ID_FIELD = 1
+_REQUEST_VERSION_FIELD = 2
+_REQUEST_TIMESTAMP_FIELD = 3
+_REQUEST_USER_FIELD = 8
+
+# UserRequestTopic branches
+_USER_PAIR_MOBILE_DEVICE_FIELD = 4
+_USER_PAIR_MOBILE_CONFIRMATION_FIELD = 6
+
+# PairMobileRequest fields
+_PAIR_REQ_ACTIVATION_TOKEN_FIELD = 1
+_PAIR_REQ_CONFIRMATION_TOKEN_FIELD = 2
+_PAIR_REQ_MOBILE_DEVICE_NAME_FIELD = 3
+_PAIR_REQ_WAIT_FOR_CONFIRMATION_FIELD = 4
+
+# PairMobileConfirmation
+_PAIR_CONFIRM_SUCCESS_FIELD = 1
+
+# Response envelope
+_RESPONSE_ID_FIELD = 1
+_RESPONSE_STATUS_FIELD = 2
+_RESPONSE_TIMESTAMP_FIELD = 3
+_RESPONSE_MOBILE_PAIR_FIELD = 9
+
+# PairMobileResponse fields
+_PAIR_RESP_ACCESS_TOKEN_FIELD = 1
+_PAIR_RESP_REFRESH_TOKEN_FIELD = 2
+_PAIR_RESP_CONFIRMATION_REQUIRED_FIELD = 3
+
+
+def _encode_varint(value: int) -> bytes:
+    """Encode a non-negative integer as a protobuf varint."""
+    buf = bytearray()
+    while True:
+        b = value & 0x7F
+        value >>= 7
+        if value:
+            buf.append(b | 0x80)
+        else:
+            buf.append(b)
+            return bytes(buf)
+
+
+def _decode_varint(data: bytes, offset: int) -> tuple[int, int]:
+    """Decode a protobuf varint, return (value, next_offset)."""
+    value = shift = 0
+    while offset < len(data):
+        b = data[offset]
+        value |= (b & 0x7F) << shift
+        offset += 1
+        if not (b & 0x80):
+            return value, offset
+        shift += 7
+    raise ValueError("unterminated protobuf varint")
+
+
+def _encode_key(field: int, wire_type: int) -> bytes:
+    return _encode_varint((field << 3) | wire_type)
+
+
+def _encode_varint_field(field: int, value: int) -> bytes:
+    return _encode_key(field, _WIRE_VARINT) + _encode_varint(value)
+
+
+def _encode_bool_field(field: int, value: bool) -> bytes:
+    return _encode_varint_field(field, 1 if value else 0)
+
+
+def _encode_string_field(field: int, value: str) -> bytes:
+    encoded = value.encode("utf-8")
+    return _encode_key(field, _WIRE_LEN) + _encode_varint(len(encoded)) + encoded
+
+
+def _encode_bytes_field(field: int, value: bytes) -> bytes:
+    return _encode_key(field, _WIRE_LEN) + _encode_varint(len(value)) + value
+
+
+def _decode_len_delimited(data: bytes, offset: int) -> tuple[bytes, int]:
+    length, offset = _decode_varint(data, offset)
+    end = offset + length
+    if end > len(data):
+        raise ValueError("protobuf length-delimited field overruns buffer")
+    return data[offset:end], end
+
+
+def _skip_field(data: bytes, offset: int, wire_type: int) -> int:
+    if wire_type == _WIRE_VARINT:
+        _, offset = _decode_varint(data, offset)
+    elif wire_type == _WIRE_LEN:
+        _, offset = _decode_len_delimited(data, offset)
+    elif wire_type == 1:  # 64-bit
+        offset += 8
+    elif wire_type == 5:  # 32-bit
+        offset += 4
+    else:
+        raise ValueError(f"unsupported wire type {wire_type}")
+    return offset
+
+
+# ---------------------------------------------------------------------------
+# PairMobileRequest / Response builders
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PairMobileResponse:
+    """Decoded SCU PairMobileResponse."""
+
+    remote_access_token: str
+    remote_access_refresh_token: str
+    confirmation_required: bool
+    request_id: int | None = None
+    status: int | None = None
+    timestamp: int | None = None
+
+
+def _build_pair_mobile_request_payload(
+    activation_token: str,
+    confirmation_token: str,
+    mobile_device_name: str,
+) -> bytes:
+    """Build the inner PairMobileRequest protobuf."""
+    return b"".join((
+        _encode_string_field(_PAIR_REQ_ACTIVATION_TOKEN_FIELD, activation_token),
+        _encode_string_field(_PAIR_REQ_CONFIRMATION_TOKEN_FIELD, confirmation_token),
+        _encode_string_field(_PAIR_REQ_MOBILE_DEVICE_NAME_FIELD, mobile_device_name),
+        _encode_bool_field(_PAIR_REQ_WAIT_FOR_CONFIRMATION_FIELD, True),
+    ))
+
+
+def _build_pair_mobile_confirmation_payload(success: bool = True) -> bytes:
+    """Build the PairMobileConfirmation protobuf."""
+    return _encode_bool_field(_PAIR_CONFIRM_SUCCESS_FIELD, success)
+
+
+def build_pair_mobile_frame(
+    activation_token: str,
+    confirmation_token: str,
+    mobile_device_name: str,
+) -> bytes:
+    """Build a complete BLE PIA frame containing PairMobileRequest.
+
+    Protobuf nesting:
+      BleProtocol.request(1) → Request → User(8) → PairMobileDevice(4)
+    """
+    request_id = math.ceil(random.random() * 1_000_000) + 1
+    timestamp = round(time.time())
+
+    pair_mobile = _build_pair_mobile_request_payload(
+        activation_token, confirmation_token, mobile_device_name,
+    )
+    user_topic = _encode_bytes_field(_USER_PAIR_MOBILE_DEVICE_FIELD, pair_mobile)
+    request_msg = b"".join((
+        _encode_varint_field(_REQUEST_ID_FIELD, request_id),
+        _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
+        _encode_varint_field(_REQUEST_TIMESTAMP_FIELD, timestamp),
+        _encode_bytes_field(_REQUEST_USER_FIELD, user_topic),
+    ))
+    ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+    return encode_ble_pia_frame(ble_protocol)
+
+
+def build_pair_mobile_confirmation_frame(success: bool = True) -> bytes:
+    """Build a BLE PIA frame containing PairMobileConfirmation."""
+    request_id = math.ceil(random.random() * 1_000_000) + 1
+    timestamp = round(time.time())
+
+    confirm = _build_pair_mobile_confirmation_payload(success)
+    user_topic = _encode_bytes_field(_USER_PAIR_MOBILE_CONFIRMATION_FIELD, confirm)
+    request_msg = b"".join((
+        _encode_varint_field(_REQUEST_ID_FIELD, request_id),
+        _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
+        _encode_varint_field(_REQUEST_TIMESTAMP_FIELD, timestamp),
+        _encode_bytes_field(_REQUEST_USER_FIELD, user_topic),
+    ))
+    ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+    return encode_ble_pia_frame(ble_protocol)
+
+
+def decode_pair_mobile_response(frame: bytes) -> PairMobileResponse:
+    """Decode a BLE PIA frame containing the SCU's PairMobileResponse.
+
+    Protobuf nesting:
+      BleProtocol.response(2) → Response → mobilePair(9) → tokens
+    """
+    payload = decode_ble_pia_frame(frame)
+
+    # Unwrap BleProtocol → Response
+    response_payload: bytes | None = None
+    offset = 0
+    while offset < len(payload):
+        key, offset = _decode_varint(payload, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _BLE_PROTOCOL_RESPONSE_FIELD and wt == _WIRE_LEN:
+            response_payload, offset = _decode_len_delimited(payload, offset)
+        else:
+            offset = _skip_field(payload, offset, wt)
+    if response_payload is None:
+        raise BleTransportError("BleProtocol does not contain a Response")
+
+    # Unwrap Response → mobilePair
+    request_id = status = timestamp = None
+    mobile_pair_payload: bytes | None = None
+    offset = 0
+    while offset < len(response_payload):
+        key, offset = _decode_varint(response_payload, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_VARINT:
+            val, offset = _decode_varint(response_payload, offset)
+            if fn == _RESPONSE_ID_FIELD:
+                request_id = val
+            elif fn == _RESPONSE_STATUS_FIELD:
+                status = val
+            elif fn == _RESPONSE_TIMESTAMP_FIELD:
+                timestamp = val
+        elif fn == _RESPONSE_MOBILE_PAIR_FIELD and wt == _WIRE_LEN:
+            mobile_pair_payload, offset = _decode_len_delimited(response_payload, offset)
+        else:
+            offset = _skip_field(response_payload, offset, wt)
+    if mobile_pair_payload is None:
+        raise BleTransportError("Response does not contain mobilePair field")
+
+    # Unwrap mobilePair → tokens
+    access_token = ""
+    refresh_token = ""
+    confirmation_required = False
+    offset = 0
+    while offset < len(mobile_pair_payload):
+        key, offset = _decode_varint(mobile_pair_payload, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_LEN:
+            val, offset = _decode_len_delimited(mobile_pair_payload, offset)
+            text = val.decode("utf-8")
+            if fn == _PAIR_RESP_ACCESS_TOKEN_FIELD:
+                access_token = text
+            elif fn == _PAIR_RESP_REFRESH_TOKEN_FIELD:
+                refresh_token = text
+        elif wt == _WIRE_VARINT:
+            val, offset = _decode_varint(mobile_pair_payload, offset)
+            if fn == _PAIR_RESP_CONFIRMATION_REQUIRED_FIELD:
+                confirmation_required = bool(val)
+        else:
+            offset = _skip_field(mobile_pair_payload, offset, wt)
+
+    return PairMobileResponse(
+        remote_access_token=access_token,
+        remote_access_refresh_token=refresh_token,
+        confirmation_required=confirmation_required,
+        request_id=request_id,
+        status=status,
+        timestamp=timestamp,
+    )
 
 
 class BleTransportError(RuntimeError):
@@ -403,6 +685,98 @@ class ScuBleClient:
                             self._on_pia_response(base64.b64encode(payload).decode())
                     except BleTransportError as err:
                         _LOGGER.warning("BLE PIA frame decode error: %s", err)
+
+    async def pair_mobile(
+        self,
+        activation_token: str,
+        confirmation_token: str,
+        mobile_device_name: str = "homeassistant",
+        timeout: float = DEFAULT_PAIR_TIMEOUT,
+    ) -> PairMobileResponse:
+        """Perform the SCU mobile-device pairing ceremony over BLE/TLS.
+
+        This mirrors the EHG app's pairing flow:
+          1. Send PairMobileRequest (activation token + confirmation token)
+          2. SCU displays "Allow?" on the vehicle touchscreen
+          3. User physically presses ALLOW
+          4. SCU returns PairMobileResponse with the remote-access tokens
+          5. Send PairMobileConfirmation(success=true)
+
+        Args:
+            activation_token: The QR code text from the vehicle sticker.
+            confirmation_token: One-time token from POST /confirmationToken.
+            mobile_device_name: Friendly name for this device (default: "homeassistant").
+            timeout: Seconds to wait for user to press ALLOW on SCU (default: 60s).
+
+        Returns:
+            PairMobileResponse with remote_access_token and remote_access_refresh_token.
+        """
+        if not self._tls_established:
+            raise BleTransportError("TLS not established — call connect() and establish_tls() first")
+
+        _LOGGER.info(
+            "Starting BLE pairing with SCU %s — waiting up to %ds for user to press ALLOW",
+            self._scu_address, int(timeout),
+        )
+
+        # Build and send PairMobileRequest
+        pair_frame = build_pair_mobile_frame(
+            activation_token, confirmation_token, mobile_device_name,
+        )
+        encrypted = self._tls.encrypt(pair_frame)
+        await self._write_to_scu(encrypted)
+
+        # Wait for PairMobileResponse (user must press ALLOW on SCU touchscreen)
+        response_frame = await self._receive_next_frame(timeout)
+        pair_response = decode_pair_mobile_response(response_frame)
+
+        _LOGGER.info(
+            "BLE pairing response received from SCU %s (status=%s, confirmation_required=%s)",
+            self._scu_address, pair_response.status, pair_response.confirmation_required,
+        )
+
+        # Send confirmation
+        confirm_frame = build_pair_mobile_confirmation_frame(success=True)
+        encrypted = self._tls.encrypt(confirm_frame)
+        await self._write_to_scu(encrypted)
+        _LOGGER.info("BLE pairing confirmation sent to SCU %s", self._scu_address)
+
+        if pair_response.remote_access_refresh_token:
+            _LOGGER.info("BLE pairing successful — remote-access refresh token obtained")
+        else:
+            _LOGGER.warning("BLE pairing response did not contain a refresh token")
+
+        return pair_response
+
+    async def _receive_next_frame(self, timeout: float) -> bytes:
+        """Wait for the next complete BLE PIA frame from the SCU."""
+        deadline = self._loop.time() + timeout
+        acc = _FrameAccumulator()
+        while True:
+            remaining = deadline - self._loop.time()
+            if remaining <= 0:
+                raise BleTransportError(
+                    "Timed out waiting for SCU response — "
+                    "did you press ALLOW on the vehicle touchscreen?"
+                )
+            try:
+                incoming = await asyncio.wait_for(
+                    self._uart_queue.get(), timeout=remaining,
+                )
+            except asyncio.TimeoutError as err:
+                raise BleTransportError(
+                    "Timed out waiting for SCU response — "
+                    "did you press ALLOW on the vehicle touchscreen?"
+                ) from err
+
+            outbound, plaintext_chunks = self._tls.feed_encrypted(incoming)
+            if outbound:
+                await self._write_to_scu(outbound)
+
+            for chunk in plaintext_chunks:
+                frames = acc.feed(chunk)
+                if frames:
+                    return frames[0]
 
     async def disconnect(self) -> None:
         """Disconnect from the SCU."""
