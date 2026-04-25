@@ -402,6 +402,21 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
+            # If we had a stored address and it failed, clear it so next
+            # attempt re-scans (SCU may have changed its random BLE address)
+            if ble_address and self.config_entry.data.get(CONF_BLE_ADDRESS):
+                _LOGGER.info(
+                    "Clearing stored BLE address %s — will re-scan on next attempt "
+                    "(SCU may have changed its random BLE address after reboot)",
+                    ble_address,
+                )
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={
+                        **self.config_entry.data,
+                        CONF_BLE_ADDRESS: "",
+                    },
+                )
             return False
 
     def _on_ble_pia_response(self, b64_payload: str) -> None:
