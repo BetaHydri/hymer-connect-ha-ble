@@ -163,8 +163,11 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._data[CONF_BLE_ENABLED] = bool(ble_address)
                 except HymerConnectApiError:
                     errors["base"] = "invalid_qr_token"
+            elif ble_address:
+                # BLE address without QR token — can't pair without activation token
+                errors[CONF_QR_TOKEN] = "qr_token_required"
             else:
-                # No QR token — cloud-only mode, auto-discover at runtime
+                # No QR token, no BLE — cloud-only mode, auto-discover at runtime
                 self._data[CONF_VEHICLE_URN] = ""
                 self._data[CONF_SCU_URN] = ""
                 self._data[CONF_BLE_ADDRESS] = ""
