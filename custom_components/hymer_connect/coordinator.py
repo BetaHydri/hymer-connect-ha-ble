@@ -564,6 +564,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ble_ok = await self.start_ble()
                 if ble_ok:
                     _LOGGER.info("Using BLE direct path to SCU")
+                    # Stop SignalR if it was running as fallback — avoid duplicate data
+                    if self._signalr and self._signalr.connected:
+                        _LOGGER.info("BLE recovered — stopping cloud SignalR fallback")
+                        await self.stop_signalr()
             except Exception:
                 _LOGGER.debug("BLE connection attempt failed", exc_info=True)
 
