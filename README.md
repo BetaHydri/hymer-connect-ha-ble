@@ -200,28 +200,49 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 
 1. Open HACS in Home Assistant
 2. Click the three dots menu > **Custom repositories**
-3. Add `https://github.com/BetaHydri/hymer-connect-ha` as **Integration**
+3. Add `https://github.com/BetaHydri/hymer-connect-ha-ble` as **Integration**
 4. Search for "HYMER Connect" and install
 5. Restart Home Assistant
 
 ### Manual
 
-1. Copy the `hymer_connect` folder into your `custom_components/` directory
+1. Copy the `hymer_connect` folder from this repo into your `custom_components/` directory
 2. Restart Home Assistant
 
 ## Configuration
 
-1. Go to **Settings > Devices & Services > + Add Integration**
-2. Search for **HYMER Connect**
-3. **Step 1 — Login:** Select your brand, enter your HYMER Connect app email and password, and optionally paste your EHG Remote Access Refresh Token (if you already have one from a previous mitmproxy capture)
-4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** from the sticker on your vehicle (scan the QR code with any phone camera/QR reader app and paste the text). Optionally enter the **SCU Bluetooth address** (e.g. `AA:BB:CC:DD:EE:FF`) for direct BLE communication
-5. The integration resolves the vehicle URN and SCU URN from the QR token and creates sensor entities
+The integration supports two setup paths. Both require your HYMER Connect email and password.
 
-> **QR code:** The QR code is on a sticker inside your vehicle (typically near the SCU unit or in the owner documentation). It contains a text activation token that links your EHG account to the vehicle — the same code the EHG app asks you to scan during initial setup.
+### Path A: BLE Pairing (recommended — no mitmproxy needed)
 
-> **BLE pairing:** If you provide the SCU Bluetooth address and your HA instance has BLE hardware (e.g. Raspberry Pi 4), the integration can perform the full pairing ceremony at first connection — no mitmproxy needed. The SCU will prompt "Allow?" on the vehicle touchscreen; press ALLOW and the integration receives the remote-access refresh token automatically.
+Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the vehicle) and you are physically at the vehicle.
 
-> **Without the refresh token**, the integration provides only REST API data (vehicle model, VIN, year). **With the refresh token** (either from BLE pairing or mitmproxy capture), you get ~130 real-time entities via SignalR.
+1. **Enable the Bluetooth integration** in HA first (see [BLE Prerequisites](#ble-direct-path--prerequisites))
+2. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
+3. **Step 1 — Login:** Select your brand, enter email and password. Leave the EHG refresh token field empty — BLE pairing will obtain it automatically
+4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Enter the **SCU Bluetooth address** (e.g. `AA:BB:CC:DD:EE:FF`)
+5. The integration resolves the vehicle URN and creates the config entry
+6. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request
+7. **Press ALLOW on the vehicle's SCU touchscreen** when prompted
+8. The integration receives and stores the EHG refresh token automatically — done!
+
+### Path B: Cloud-Only (legacy — requires mitmproxy)
+
+Use this when your HA instance does not have BLE hardware or you cannot be at the vehicle during setup.
+
+1. Capture the EHG refresh token via mitmproxy first (see [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token))
+2. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
+3. **Step 1 — Login:** Select your brand, enter email, password, and paste the **EHG Remote Access Refresh Token**
+4. **Step 2 — Vehicle Activation:** Leave both fields empty and submit
+5. The integration auto-discovers your vehicle via the cloud and creates sensor entities
+
+### Adding BLE Later (Reconfigure)
+
+Already set up cloud-only and want to add BLE? No need to delete and re-add:
+
+1. Go to **Settings → Devices & Services → HYMER Connect → ⋮ → Reconfigure**
+2. Enter the QR code activation token, SCU Bluetooth address, or a new EHG refresh token
+3. The integration reloads with the updated settings
 
 ### BLE Direct Path — Prerequisites
 
