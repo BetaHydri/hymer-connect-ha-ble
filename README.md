@@ -223,6 +223,37 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 
 > **Without the refresh token**, the integration provides only REST API data (vehicle model, VIN, year). **With the refresh token** (either from BLE pairing or mitmproxy capture), you get ~130 real-time entities via SignalR.
 
+### BLE Direct Path — Prerequisites
+
+The BLE direct path allows your Home Assistant instance to communicate with the SCU over Bluetooth Low Energy, bypassing the cloud entirely. This enables local pairing (no mitmproxy needed) and ~50ms command latency.
+
+**Hardware:**
+
+| Requirement | Details |
+|---|---|
+| **BLE-capable host** | Raspberry Pi 4 (built-in BT 5.0), Pi 5, or any Linux host with a BLE adapter |
+| **Physical proximity** | The HA host must be within BLE range of the SCU (~10m, inside the vehicle) |
+
+**Software (all included in HAOS — no manual installation needed):**
+
+| Component | Included? | Notes |
+|---|---|---|
+| **BlueZ** (Linux Bluetooth stack) | ✅ HAOS | Already part of the OS image |
+| **D-Bus** | ✅ HAOS | Required by BlueZ, included |
+| **`bleak`** (Python BLE library) | ✅ HA Core | Shipped with Home Assistant Core (used by the built-in Bluetooth integration) |
+| **Home Assistant Bluetooth integration** | ✅ Available | Must be **enabled** — see below |
+
+**Setup (one-time):**
+
+1. **Enable the Bluetooth integration** in Home Assistant:
+   - Go to **Settings → Devices & Services → + Add Integration**
+   - Search for **Bluetooth** and add it
+   - This activates the BLE adapter and makes `bleak` available to custom integrations
+2. **Verify** the adapter is detected: **Settings → Devices & Services → Bluetooth** should show your adapter (e.g. `hci0`)
+3. **Provide the SCU BLE address** during HYMER Connect setup (Step 2 — Vehicle Activation), or leave it empty to auto-scan
+
+> **Non-HAOS installs** (Container, Core, Supervised): You may need to install `bluez` and `dbus` on the host OS manually. The `bleak` Python package is declared in the integration's `manifest.json` and will be installed automatically by HA.
+
 > **⏳ Sensors show "unknown" until the vehicle connects.** The SCU (Smart Interface Unit) in your vehicle must establish a SignalR WebSocket connection to the cloud before sensor data flows. This happens automatically when:
 > - The vehicle's 12V main switch is ON, and
 > - The SCU has cellular connectivity (built-in SIM card).
@@ -234,6 +265,23 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 ## Obtaining the EHG Refresh Token
 
 The HYMER Connect cloud requires a special **EHG Remote Access Refresh Token** to stream real-time sensor data. This token is created during the initial Bluetooth (BLE) pairing between your phone and your vehicle's Smart Interface Unit (SIU). It is stored inside the Hymer Connect app and **never expires**.
+
+### Option A: BLE Pairing (recommended, v2.37.0+)
+
+If your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the vehicle), the integration can obtain the token automatically during the pairing ceremony — **no mitmproxy, no patched APK, no proxy setup needed**.
+
+1. Enable the **Bluetooth** integration in HA (see [BLE Prerequisites](#ble-direct-path--prerequisites))
+2. Add the **HYMER Connect** integration
+3. In **Step 2 — Vehicle Activation**, enter the QR code text and the SCU BLE address
+4. The integration connects to the SCU via BLE, establishes a TLS session, and sends a pairing request
+5. **Press ALLOW** on the vehicle's SCU touchscreen when prompted
+6. The SCU returns the remote-access refresh token, which is stored automatically
+
+> **You must be physically at the vehicle** for BLE pairing. The RPi/HA host must be within BLE range (~10m) of the SCU.
+
+### Option B: mitmproxy Capture (legacy)
+
+If your HA instance does not have BLE hardware, or you cannot be at the vehicle during setup, you can still capture the token from your phone's network traffic using the mitmproxy method.
 
 Since there is no public API to generate this token, you must capture it **once** from your phone's network traffic using a proxy tool. This repo includes a **one-click capture script** that automates the process. After that, the integration refreshes it automatically.
 
