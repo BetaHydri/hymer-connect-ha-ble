@@ -685,40 +685,38 @@ class ScuBleClient:
 
             # Try OS-level bonding if VERBINDUNG was pressed on the SCU.
             # The SCU requires bonding before it will respond to TLS.
-            # If bonding fails (AuthenticationFailed = VERBINDUNG not pressed),
-            # the SCU may disconnect the BLE link. Check connection state
-            # and raise if the link died — no point attempting TLS on a dead link.
+            #
+            # bleak's client.pair() calls Device1.Pair() on D-Bus but does NOT
+            # register a pairing agent. BlueZ waits ~8s for an agent response
+            # that never comes → AuthenticationCanceled. We use bluetoothctl
+            # instead, which has a built-in NoInputNoOutput agent for JustWorks
+            # pairing (same as the Android "Koppeln?" dialog).
+            #
             # Stale bonding records were already cleared before connect().
             bonded = False
             try:
-                _LOGGER.debug("Attempting OS-level BLE bonding with SCU")
-                await client.pair()
-                bonded = True
-                _LOGGER.info("BLE bonding successful with SCU %s", self._scu_address)
-            except Exception as bond_err:
-                bond_str = str(bond_err)
-                if "AuthenticationFailed" in bond_str or "AuthenticationRejected" in bond_str:
-                    _LOGGER.info(
-                        "BLE bonding rejected (VERBINDUNG not pressed?) — %s",
-                        bond_err,
-                    )
-                elif "AuthenticationCanceled" in bond_str:
-                    _LOGGER.info(
-                        "BLE bonding canceled by SCU — %s",
-                        bond_err,
-                    )
-                elif "AlreadyExists" in bond_str:
-                    bonded = True
-                    _LOGGER.debug("BLE already bonded with SCU — proceeding to TLS")
+                _LOGGER.debug("Attempting BLE bonding via bluetoothctl agent")
+                bonded = await self._pair_via_bluetoothctl()
+                if bonded:
+                    _LOGGER.info("BLE bonding successful with SCU %s", self._scu_address)
                 else:
-                    _LOGGER.warning("BLE bonding failed: %s", bond_err)
+                    _LOGGER.info("BLE bonding via bluetoothctl did not succeed")
+            except Exception as bond_err:
+                _LOGGER.warning("BLE bonding failed: %s", bond_err)
 
-                # Check if the SCU dropped the link after failed bonding
-                if not client.is_connected:
+            # bluetoothctl pairing may have disrupted the GATT connection.
+            # Check if we need to reconnect before proceeding to notify/TLS.
+            if not client.is_connected:
+                if not bonded:
                     raise BleTransportError(
                         f"SCU disconnected after bonding failure — "
-                        f"press VERBINDUNG on the SCU control panel first: {bond_err}"
-                    ) from bond_err
+                        f"press VERBINDUNG on the SCU control panel first"
+                    )
+                # Bonded but disconnected — reconnect with the new bond
+                _LOGGER.debug("Reconnecting after successful bonding")
+                client = BleakClient(self._scu_address, timeout=self._connect_timeout)
+                await client.connect()
+                _LOGGER.debug("BLE GATT reconnected after bonding")
 
             # Start receiving NUS TX notifications
             await client.start_notify(UART_TX_UUID, self._on_uart_notify)
@@ -959,3 +957,67 @@ class ScuBleClient:
         self._loop.call_soon_threadsafe(
             self._uart_queue.put_nowait, payload
         )
+
+    async def _pair_via_bluetoothctl(self) -> bool:
+        """Pair with the SCU using bluetoothctl's built-in agent.
+
+        bleak's client.pair() does not register a pairing agent on D-Bus.
+        BlueZ needs an agent to respond to the SCU's pairing IO capability
+        exchange (JustWorks). Without it, pairing times out after ~8s with
+        AuthenticationCanceled.
+
+        bluetoothctl provides a built-in NoInputNoOutput agent that handles
+        JustWorks pairing automatically — same as the Android bonding dialog.
+        """
+        import subprocess
+
+        addr = self._scu_address
+        _LOGGER.debug("bluetoothctl: setting agent NoInputNoOutput and pairing %s", addr)
+
+        # Build the command sequence for bluetoothctl
+        commands = f"agent NoInputNoOutput\ndefault-agent\npair {addr}\n"
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "bluetoothctl",
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=commands.encode()),
+                timeout=30.0,
+            )
+            output = stdout.decode(errors="replace")
+            err_output = stderr.decode(errors="replace")
+            _LOGGER.debug("bluetoothctl stdout: %s", output[:500])
+            if err_output:
+                _LOGGER.debug("bluetoothctl stderr: %s", err_output[:200])
+
+            # Check for success indicators
+            if "Pairing successful" in output:
+                return True
+            if "Already Paired" in output:
+                _LOGGER.debug("bluetoothctl: device already paired")
+                return True
+            if "Failed to pair" in output or "AuthenticationFailed" in output:
+                _LOGGER.info("bluetoothctl: pairing failed — %s", output[:200])
+                return False
+            if "AuthenticationCanceled" in output:
+                _LOGGER.info("bluetoothctl: pairing canceled by SCU — %s", output[:200])
+                return False
+
+            _LOGGER.info("bluetoothctl: unexpected output — %s", output[:300])
+            return False
+        except asyncio.TimeoutError:
+            _LOGGER.warning("bluetoothctl: pairing timed out after 30s")
+            return False
+        except FileNotFoundError:
+            _LOGGER.warning("bluetoothctl not found — falling back to bleak pair()")
+            # Fall back to bleak's pair() if bluetoothctl isn't available
+            if self._client:
+                await self._client.pair()
+                return True
+            return False
+        except Exception as err:
+            _LOGGER.warning("bluetoothctl pairing error: %s", err)
+            return False
