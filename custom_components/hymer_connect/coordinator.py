@@ -81,6 +81,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_client = None  # ScuBleClient instance when BLE is enabled
         self._ble_connected = False
         self._connection_mode = "cloud"  # "ble" or "cloud"
+        self._ble_consecutive_failures = 0  # TLS timeout counter for backoff
+        self._ble_next_attempt: float = 0.0  # monotonic time of next BLE attempt
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -592,18 +594,48 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # --- Connection management: try BLE first, fall back to SignalR ---
 
-        # Attempt BLE direct path if enabled and not already connected
+        # Attempt BLE direct path if enabled and not already connected.
+        # After consecutive TLS failures (SCU ignores ClientHello without
+        # bonding/VERBINDUNG), back off exponentially to avoid wasting ~20s
+        # per poll on a guaranteed timeout.
         if self.ble_enabled and not self._ble_connected:
-            try:
-                ble_ok = await self.start_ble()
-                if ble_ok:
-                    _LOGGER.info("Using BLE direct path to SCU")
-                    # Stop SignalR if it was running as fallback — avoid duplicate data
-                    if self._signalr and self._signalr.connected:
-                        _LOGGER.info("BLE recovered — stopping cloud SignalR fallback")
-                        await self.stop_signalr()
-            except Exception:
-                _LOGGER.debug("BLE connection attempt failed", exc_info=True)
+            now_mono = time.monotonic()
+            if now_mono < self._ble_next_attempt:
+                remaining = int(self._ble_next_attempt - now_mono)
+                _LOGGER.debug(
+                    "BLE attempt deferred — %d consecutive failures, "
+                    "next attempt in %ds",
+                    self._ble_consecutive_failures, remaining,
+                )
+            else:
+                try:
+                    ble_ok = await self.start_ble()
+                    if ble_ok:
+                        self._ble_consecutive_failures = 0
+                        self._ble_next_attempt = 0.0
+                        _LOGGER.info("Using BLE direct path to SCU")
+                        # Stop SignalR if it was running as fallback
+                        if self._signalr and self._signalr.connected:
+                            _LOGGER.info("BLE recovered — stopping cloud SignalR fallback")
+                            await self.stop_signalr()
+                    else:
+                        self._ble_consecutive_failures += 1
+                        # Back off: 2min, 5min, 10min, max 30min
+                        backoff = min(30 * 60, 120 * (2 ** min(self._ble_consecutive_failures - 1, 4)))
+                        self._ble_next_attempt = time.monotonic() + backoff
+                        _LOGGER.info(
+                            "BLE failed %d times — backing off %d min before next attempt",
+                            self._ble_consecutive_failures, backoff // 60,
+                        )
+                except Exception:
+                    self._ble_consecutive_failures += 1
+                    backoff = min(30 * 60, 120 * (2 ** min(self._ble_consecutive_failures - 1, 4)))
+                    self._ble_next_attempt = time.monotonic() + backoff
+                    _LOGGER.debug(
+                        "BLE connection attempt failed (attempt %d, backoff %dmin)",
+                        self._ble_consecutive_failures, backoff // 60,
+                        exc_info=True,
+                    )
 
         # If BLE is active, skip SignalR — data comes via BLE listen loop
         if self._ble_connected:
