@@ -123,6 +123,20 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             or self.config_entry.data.get(CONF_BLE_ADDRESS, "")
         )
 
+    def _ble_backoff_seconds(self) -> int:
+        """Return backoff delay in seconds based on consecutive BLE failures.
+
+        First 5 failures: no extra backoff (normal 60s poll interval suffices).
+        This keeps the retry cadence fast enough to catch the SCU pairing window
+        (~60-120s after pressing VERBINDUNG).
+        After 5: escalate to 5min, 10min, max 15min.
+        """
+        n = self._ble_consecutive_failures
+        if n <= 5:
+            return 0  # rely on normal poll interval (60s)
+        excess = n - 5
+        return min(15 * 60, 5 * 60 * min(excess, 3))
+
     @property
     def tank_capacity(self) -> int:
         """Return the configured diesel tank capacity in liters."""
@@ -596,8 +610,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Attempt BLE direct path if enabled and not already connected.
         # After consecutive TLS failures (SCU ignores ClientHello without
-        # bonding/VERBINDUNG), back off exponentially to avoid wasting ~20s
-        # per poll on a guaranteed timeout.
+        # bonding/VERBINDUNG), back off to avoid wasting ~20s per poll.
+        # Keep first 5 attempts at normal poll interval (60s) so we don't
+        # miss the SCU pairing window (~60-120s after pressing VERBINDUNG).
+        # After 5 failures, escalate: 5min, 10min, max 15min.
         if self.ble_enabled and not self._ble_connected:
             now_mono = time.monotonic()
             if now_mono < self._ble_next_attempt:
@@ -620,20 +636,19 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             await self.stop_signalr()
                     else:
                         self._ble_consecutive_failures += 1
-                        # Back off: 2min, 5min, 10min, max 30min
-                        backoff = min(30 * 60, 120 * (2 ** min(self._ble_consecutive_failures - 1, 4)))
+                        backoff = self._ble_backoff_seconds()
                         self._ble_next_attempt = time.monotonic() + backoff
                         _LOGGER.info(
-                            "BLE failed %d times — backing off %d min before next attempt",
-                            self._ble_consecutive_failures, backoff // 60,
+                            "BLE failed %d times — next attempt in %ds",
+                            self._ble_consecutive_failures, backoff,
                         )
                 except Exception:
                     self._ble_consecutive_failures += 1
-                    backoff = min(30 * 60, 120 * (2 ** min(self._ble_consecutive_failures - 1, 4)))
+                    backoff = self._ble_backoff_seconds()
                     self._ble_next_attempt = time.monotonic() + backoff
                     _LOGGER.debug(
-                        "BLE connection attempt failed (attempt %d, backoff %dmin)",
-                        self._ble_consecutive_failures, backoff // 60,
+                        "BLE connection attempt failed (attempt %d, next in %ds)",
+                        self._ble_consecutive_failures, backoff,
                         exc_info=True,
                     )
 
