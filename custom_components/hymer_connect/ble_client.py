@@ -603,7 +603,22 @@ class ScuBleClient:
         await client.connect()
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
-        services = await client.get_services()
+        # Get services — handle both plain BleakClient (has get_services())
+        # and HA's HaBleakClientWrapper (uses .services property)
+        if hasattr(client, "get_services"):
+            services = await client.get_services()
+        else:
+            services = client.services
+            if services is None:
+                # Some wrappers need a connect first, then services populate
+                await asyncio.sleep(0.5)
+                services = client.services
+        if services is None:
+            await client.disconnect()
+            raise BleTransportError(
+                f"SCU {self._scu_address}: could not discover GATT services"
+            )
+        _LOGGER.debug("BLE GATT services discovered: %d services", len(list(services)))
         rx_char = None
         tx_char = None
         for service in services:
