@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -54,6 +55,8 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._data: dict[str, Any] = {}
         self._api: HymerConnectApi | None = None
+        self._ble_pairing_task: asyncio.Task | None = None
+        self._ble_pairing_error: str = ""
 
     @staticmethod
     def async_get_options_flow(
@@ -159,7 +162,8 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._data[CONF_VEHICLE_URN] = vehicle_urn
                         self._data[CONF_SCU_URN] = scu_urn
                         self._data[CONF_BLE_ADDRESS] = ble_address
-                        self._data[CONF_BLE_ENABLED] = True  # QR token = BLE intent, enable even without MAC (auto-scan)
+                        self._data[CONF_BLE_ENABLED] = True
+                        self._data[CONF_QR_TOKEN] = qr_token
                 except HymerConnectApiError:
                     errors["base"] = "invalid_qr_token"
             elif ble_address:
@@ -173,6 +177,9 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_BLE_ENABLED] = False
 
             if not errors:
+                # If BLE is enabled with QR token, offer the pairing step
+                if self._data.get(CONF_BLE_ENABLED) and self._data.get(CONF_QR_TOKEN):
+                    return await self.async_step_ble_pairing()
                 brand_name = BRANDS.get(
                     self._data[CONF_BRAND], self._data[CONF_BRAND]
                 )
@@ -190,6 +197,125 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def _async_do_ble_pairing(self) -> None:
+        """Background task: connect BLE, establish TLS, pair with SCU.
+
+        Stores the EHG refresh token in self._data on success, or sets
+        self._ble_pairing_error on failure.
+        """
+        from .ble_client import ScuBleClient, BleTransportError
+
+        ble_address = self._data.get(CONF_BLE_ADDRESS, "")
+        qr_token = self._data.get(CONF_QR_TOKEN, "")
+
+        try:
+            # Auto-scan if no MAC address provided
+            if not ble_address:
+                scanner = ScuBleClient(scu_address="")
+                devices = await scanner.scan_for_scu(timeout=10.0)
+                if not devices:
+                    self._ble_pairing_error = "ble_no_scu_found"
+                    return
+                ble_address = devices[0]["address"]
+                self._data[CONF_BLE_ADDRESS] = ble_address
+                _LOGGER.info("BLE scan found SCU: %s", ble_address)
+
+            client = ScuBleClient(
+                scu_address=ble_address,
+                connect_timeout=15.0,
+                tls_timeout=30.0,
+            )
+
+            # Step 1: GATT connect + notifications
+            await client.connect()
+
+            try:
+                # Step 2: TLS handshake
+                await client.establish_tls()
+
+                # Step 3: Get confirmation token from cloud API
+                confirmation = await self._api.get_confirmation_token()
+                confirmation_token = confirmation.get("token", "")
+                if not confirmation_token:
+                    self._ble_pairing_error = "ble_no_confirmation_token"
+                    return
+
+                # Step 4: PairMobileRequest → PairMobileResponse
+                pair_result = await client.pair_mobile(
+                    activation_token=qr_token,
+                    confirmation_token=confirmation_token,
+                    mobile_device_name="homeassistant",
+                    timeout=120.0,
+                )
+
+                if pair_result.remote_access_refresh_token:
+                    self._data[CONF_EHG_REFRESH_TOKEN] = (
+                        pair_result.remote_access_refresh_token
+                    )
+                    _LOGGER.info("BLE pairing successful — EHG refresh token obtained")
+                else:
+                    self._ble_pairing_error = "ble_no_refresh_token"
+            finally:
+                await client.disconnect()
+
+        except BleTransportError as err:
+            _LOGGER.warning("BLE pairing failed: %s", err)
+            self._ble_pairing_error = "ble_pairing_failed"
+        except Exception as err:
+            _LOGGER.warning("BLE pairing unexpected error: %s", err)
+            self._ble_pairing_error = "ble_pairing_failed"
+
+    async def async_step_ble_pairing(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show progress while BLE pairing runs in the background."""
+        if not self._ble_pairing_task:
+            self._ble_pairing_error = ""
+            self._ble_pairing_task = self.hass.async_create_task(
+                self._async_do_ble_pairing()
+            )
+
+        if not self._ble_pairing_task.done():
+            return self.async_show_progress(
+                step_id="ble_pairing",
+                progress_action="ble_pairing",
+                progress_task=self._ble_pairing_task,
+            )
+
+        # Task finished — advance to result step
+        return self.async_show_progress_done(next_step_id="ble_result")
+
+    async def async_step_ble_result(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show BLE pairing result and create the config entry."""
+        brand_name = BRANDS.get(
+            self._data[CONF_BRAND], self._data[CONF_BRAND]
+        )
+
+        if self._ble_pairing_error:
+            # Pairing failed — still create the entry (cloud-only mode).
+            # The user can retry pairing later via the coordinator's
+            # auto-pairing when they're at the vehicle.
+            _LOGGER.info(
+                "BLE pairing did not complete (%s) — creating entry in cloud-only mode. "
+                "Pairing will be retried automatically when near the vehicle.",
+                self._ble_pairing_error,
+            )
+            return self.async_create_entry(
+                title=f"HYMER Connect ({brand_name})",
+                data=self._data,
+                description_placeholders={
+                    "pairing_status": self._ble_pairing_error,
+                },
+            )
+
+        # Pairing succeeded — EHG token is in self._data
+        return self.async_create_entry(
+            title=f"HYMER Connect ({brand_name})",
+            data=self._data,
         )
 
     async def async_step_reauth(

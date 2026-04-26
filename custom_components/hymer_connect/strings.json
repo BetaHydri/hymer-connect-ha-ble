@@ -47,7 +47,18 @@
           "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF) to enable the BLE direct path.",
           "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here."
         }
+      },
+      "ble_pairing": {
+        "title": "BLE Pairing with SCU",
+        "description": "Press the **VERBINDUNG** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. This can take up to 2 minutes.\n\nDo NOT close this dialog."
+      },
+      "ble_result": {
+        "title": "BLE Pairing Complete",
+        "description": "BLE pairing was successful! The EHG refresh token has been obtained and stored. The integration will use this token for real-time sensor data via SignalR."
       }
+    },
+    "progress": {
+      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press VERBINDUNG on the vehicle control panel."
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
@@ -55,6 +66,10 @@
       "invalid_qr_token": "Invalid QR activation token \u2014 could not resolve vehicle",
       "qr_token_required": "QR activation token is required",
       "no_changes": "No changes provided \u2014 enter at least one field",
+      "ble_no_scu_found": "No SCU found via Bluetooth scan \u2014 make sure you are near the vehicle",
+      "ble_no_confirmation_token": "Could not obtain confirmation token from cloud API",
+      "ble_no_refresh_token": "BLE pairing completed but SCU did not return a refresh token",
+      "ble_pairing_failed": "BLE pairing failed \u2014 make sure you pressed VERBINDUNG on the SCU and are near the vehicle",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
