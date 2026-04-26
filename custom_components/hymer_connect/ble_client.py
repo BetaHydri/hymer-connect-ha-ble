@@ -665,6 +665,21 @@ class ScuBleClient:
         mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
         self._write_chunk_size = max(20, min(242, mtu - 3))
 
+        # Attempt BLE bonding (OS-level pairing) — required by SCU before TLS.
+        # On Android this shows a "Koppeln?" dialog; on Linux/bleak it's programmatic.
+        pair_method = getattr(client, "pair", None)
+        if callable(pair_method):
+            try:
+                _LOGGER.debug("BLE requesting OS-level bonding with %s", self._scu_address)
+                pair_result = await pair_method()
+                _LOGGER.info("BLE bonding result for %s: %s", self._scu_address, pair_result)
+            except NotImplementedError:
+                _LOGGER.debug("BLE bonding not supported on this backend — continuing without")
+            except Exception as bond_err:
+                _LOGGER.warning("BLE bonding failed for %s: %s — continuing anyway", self._scu_address, bond_err)
+        else:
+            _LOGGER.debug("BLE client does not expose pair() method — skipping bonding")
+
         # Start receiving notifications
         await client.start_notify(UART_TX_UUID, self._on_uart_notify)
 
