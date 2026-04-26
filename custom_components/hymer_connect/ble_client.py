@@ -71,6 +71,7 @@ UART_TX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # SCU → Phone/Pi (notif
 POWER_SERVICE_UUID = "fff40001-13c9-42f3-9d46-e1d1aa2a7232"
 POWER_STATE_UUID = "fff40002-13c9-42f3-9d46-e1d1aa2a7232"
 POWER_CONTROL_UUID = "fff40003-13c9-42f3-9d46-e1d1aa2a7232"
+BONDING_STATE_UUID = "fff40004-13c9-42f3-9d46-e1d1aa2a7232"  # Bonding state check (challenge-response)
 
 # BLE PIA frame format: 2-byte magic + 4-byte length + 4-byte CRC32 + payload
 BLE_PIA_MAGIC = bytes((0xA0, 0xCB))
@@ -737,6 +738,24 @@ class ScuBleClient:
             mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
             self._write_chunk_size = max(20, min(242, mtu - 3))
 
+            # Check SCU bonding state before attempting pair.
+            # The fff40004 characteristic tells us if VERBINDUNG was pressed.
+            try:
+                challenge = bytes(random.getrandbits(8) for _ in range(4))
+                await client.write_gatt_char(BONDING_STATE_UUID, challenge)
+                response = await client.read_gatt_char(BONDING_STATE_UUID)
+                if response and len(response) >= 5 and response[:4] == challenge:
+                    bond_state = response[4]
+                    _LOGGER.info(
+                        "SCU bonding state: %d (%s)",
+                        bond_state,
+                        "pairing mode ACTIVE" if bond_state else "not in pairing mode",
+                    )
+                else:
+                    _LOGGER.debug("SCU bonding state check: no valid response")
+            except Exception as bs_err:
+                _LOGGER.debug("SCU bonding state check failed: %s", bs_err)
+
             # Try OS-level bonding if VERBINDUNG was pressed on the SCU.
             # The SCU requires bonding before it will respond to TLS.
             #
@@ -972,6 +991,51 @@ class ScuBleClient:
         client = self._client
         self._client = None
         if client is not None:
+            try:
+                await client.stop_notify(UART_TX_UUID)
+            except Exception:
+                pass
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+        _LOGGER.info("BLE disconnected from SCU %s", self._scu_address)
+
+    async def check_bonding_state(self) -> int | None:
+        """Check the SCU's bonding state via the fff40004 characteristic.
+
+        The EHG app uses a challenge-response protocol:
+        1. Write 4 random bytes to fff40004
+        2. Read back from fff40004
+        3. First 4 bytes of response = echo of challenge
+        4. 5th byte = bonding state (0 = not in pairing mode, 1+ = pairing mode)
+
+        Returns the bonding state byte, or None if the characteristic
+        is not available or the challenge-response fails.
+        """
+        if not self._client or not self._connected:
+            return None
+
+        try:
+            challenge = bytes(random.getrandbits(8) for _ in range(4))
+            await self._client.write_gatt_char(BONDING_STATE_UUID, challenge)
+            response = await self._client.read_gatt_char(BONDING_STATE_UUID)
+
+            if response and len(response) >= 5:
+                echo = response[:4]
+                state = response[4]
+                if echo == challenge:
+                    _LOGGER.debug("SCU bonding state: %d (challenge matched)", state)
+                    return state
+                else:
+                    _LOGGER.debug(
+                        "SCU bonding state challenge mismatch: sent %s, got %s",
+                        challenge.hex(), echo.hex(),
+                    )
+            return None
+        except Exception as err:
+            _LOGGER.debug("Could not read SCU bonding state: %s", err)
+            return None
             try:
                 await client.stop_notify(UART_TX_UUID)
             except Exception:
