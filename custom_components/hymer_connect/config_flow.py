@@ -159,7 +159,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._data[CONF_VEHICLE_URN] = vehicle_urn
                         self._data[CONF_SCU_URN] = scu_urn
                         self._data[CONF_BLE_ADDRESS] = ble_address
-                        self._data[CONF_BLE_ENABLED] = bool(ble_address)
+                        self._data[CONF_BLE_ENABLED] = True  # QR token = BLE intent, enable even without MAC (auto-scan)
                 except HymerConnectApiError:
                     errors["base"] = "invalid_qr_token"
             elif ble_address:
