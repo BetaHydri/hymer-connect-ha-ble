@@ -997,12 +997,12 @@ class ScuBleClient:
             def Release(self) -> None:
                 pass
 
-            @method()
-            def RequestConfirmation(self, device: "o", passkey: "u") -> None:  # noqa: N802,F821
+            @method(name="RequestConfirmation")
+            def request_confirmation(self, device: str, passkey: int) -> None:
                 _LOGGER.debug("D-Bus agent: auto-confirming passkey for %s", device)
 
-            @method()
-            def AuthorizeService(self, device: "o", uuid: "s") -> None:  # noqa: N802,F821
+            @method(name="AuthorizeService")
+            def authorize_service(self, device: str, uuid: str) -> None:
                 _LOGGER.debug("D-Bus agent: auto-authorizing service %s", uuid)
 
             @method()
@@ -1015,18 +1015,16 @@ class ScuBleClient:
             agent = JustWorksAgent()
             bus.export(obj_path, agent)
 
-            # Register agent with BlueZ
-            agent_manager = await bus.get_proxy_object(
-                "org.bluez", "/org/bluez",
-            )
+            # Register agent with BlueZ AgentManager1
+            introspection = await bus.introspect("org.bluez", "/org/bluez")
+            agent_manager = bus.get_proxy_object("org.bluez", "/org/bluez", introspection)
             agent_iface = agent_manager.get_interface("org.bluez.AgentManager1")
             await agent_iface.call_register_agent(obj_path, "NoInputNoOutput")
             _LOGGER.debug("D-Bus agent: registered, calling Device1.Pair()")
 
             # Call Pair on the device
-            device_obj = await bus.get_proxy_object(
-                "org.bluez", device_path,
-            )
+            dev_introspection = await bus.introspect("org.bluez", device_path)
+            device_obj = bus.get_proxy_object("org.bluez", device_path, dev_introspection)
             device_iface = device_obj.get_interface("org.bluez.Device1")
 
             try:
