@@ -290,29 +290,31 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_ble_result(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show BLE pairing result and create the config entry."""
+        """Show BLE pairing result and create/update the config entry."""
+        from homeassistant.config_entries import SOURCE_RECONFIGURE
+
+        is_reconfigure = self.source == SOURCE_RECONFIGURE
+
+        if self._ble_pairing_error:
+            _LOGGER.info(
+                "BLE pairing did not complete (%s) — %s. "
+                "Pairing will be retried automatically when near the vehicle.",
+                self._ble_pairing_error,
+                "updating entry" if is_reconfigure else "creating entry in cloud-only mode",
+            )
+        else:
+            _LOGGER.info("BLE pairing succeeded — EHG refresh token obtained")
+
+        if is_reconfigure:
+            reconfigure_entry = self._get_reconfigure_entry()
+            return self.async_update_reload_and_abort(
+                reconfigure_entry,
+                data_updates=self._data,
+            )
+
         brand_name = BRANDS.get(
             self._data[CONF_BRAND], self._data[CONF_BRAND]
         )
-
-        if self._ble_pairing_error:
-            # Pairing failed — still create the entry (cloud-only mode).
-            # The user can retry pairing later via the coordinator's
-            # auto-pairing when they're at the vehicle.
-            _LOGGER.info(
-                "BLE pairing did not complete (%s) — creating entry in cloud-only mode. "
-                "Pairing will be retried automatically when near the vehicle.",
-                self._ble_pairing_error,
-            )
-            return self.async_create_entry(
-                title=f"HYMER Connect ({brand_name})",
-                data=self._data,
-                description_placeholders={
-                    "pairing_status": self._ble_pairing_error,
-                },
-            )
-
-        # Pairing succeeded — EHG token is in self._data
         return self.async_create_entry(
             title=f"HYMER Connect ({brand_name})",
             data=self._data,
@@ -416,6 +418,8 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     if vehicle_urn:
                         data_updates[CONF_VEHICLE_URN] = vehicle_urn
                         data_updates[CONF_SCU_URN] = scu_urn
+                        data_updates[CONF_QR_TOKEN] = qr_token
+                        data_updates[CONF_BLE_ENABLED] = True
                     else:
                         errors["base"] = "invalid_qr_token"
                 except HymerConnectApiError:
@@ -429,6 +433,27 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_updates[CONF_EHG_REFRESH_TOKEN] = ehg_refresh_token
 
             if not errors and data_updates:
+                # If BLE pairing data is present, trigger pairing step
+                qr_for_pair = data_updates.get(CONF_QR_TOKEN) or reconfigure_entry.data.get(CONF_QR_TOKEN, "")
+                ble_enabled = data_updates.get(CONF_BLE_ENABLED, reconfigure_entry.data.get(CONF_BLE_ENABLED, False))
+                if qr_for_pair and ble_enabled and not data_updates.get(CONF_EHG_REFRESH_TOKEN):
+                    # Merge updates into _data for the pairing task
+                    self._data = {**reconfigure_entry.data, **data_updates}
+                    self._data[CONF_QR_TOKEN] = qr_for_pair
+                    # Re-authenticate API for the pairing task
+                    session = async_create_clientsession(self.hass)
+                    self._api = HymerConnectApi(
+                        session, brand=self._data.get(CONF_BRAND, "hymer"),
+                    )
+                    try:
+                        await self._api.authenticate(
+                            self._data[CONF_USERNAME],
+                            self._data[CONF_PASSWORD],
+                        )
+                    except Exception:
+                        _LOGGER.warning("Re-auth failed for BLE pairing in reconfigure")
+                    return await self.async_step_ble_pairing()
+
                 return self.async_update_reload_and_abort(
                     reconfigure_entry,
                     data_updates=data_updates,
