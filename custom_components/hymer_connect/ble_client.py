@@ -964,14 +964,24 @@ class ScuBleClient:
         _LOGGER.info("BLE disconnected from SCU %s", self._scu_address)
 
     async def _write_to_scu(self, data: bytes) -> None:
-        """Write data to SCU via NUS RX characteristic in chunks."""
+        """Write data to SCU via NUS RX characteristic in chunks.
+
+        For large payloads (> 10 chunks), add a small delay between
+        chunks to avoid overwhelming the SCU's NUS RX buffer. The SCU
+        needs time to process each chunk before the next arrives.
+        """
         if not data or self._client is None:
             return
-        for offset in range(0, len(data), self._write_chunk_size):
+        total_chunks = (len(data) + self._write_chunk_size - 1) // self._write_chunk_size
+        use_pacing = total_chunks > 10  # Pace large writes
+        for i, offset in enumerate(range(0, len(data), self._write_chunk_size)):
             chunk = data[offset : offset + self._write_chunk_size]
             await self._client.write_gatt_char(
                 UART_RX_UUID, chunk, response=self._write_response
             )
+            # Pace large writes to avoid ATT buffer overflow on SCU
+            if use_pacing and i < total_chunks - 1:
+                await asyncio.sleep(0.01)  # 10ms between chunks
 
     async def _next_uart_data(self, deadline: float) -> bytes:
         """Wait for the next UART notification from SCU."""
