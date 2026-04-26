@@ -93,6 +93,30 @@ DEFAULT_GATT_MTU = 23
 APP_PIA_VERSION = "v0.32.0"
 
 # ---------------------------------------------------------------------------
+# D-Bus BLE Pairing Agent (module-level to avoid annotation closure issues)
+# ---------------------------------------------------------------------------
+try:
+    from dbus_fast.service import ServiceInterface, method as dbus_method
+
+    class _JustWorksAgent(ServiceInterface):
+        """NoInputNoOutput BLE pairing agent for JustWorks pairing."""
+
+        def __init__(self) -> None:
+            super().__init__("org.bluez.Agent1")
+
+        @dbus_method()
+        def Release(self) -> None:  # noqa: N802
+            """Called when the agent is unregistered."""
+
+        @dbus_method()
+        def Cancel(self) -> None:  # noqa: N802
+            """Called when a pairing request is canceled."""
+
+    _HAS_DBUS_AGENT = True
+except Exception:
+    _HAS_DBUS_AGENT = False
+
+# ---------------------------------------------------------------------------
 # Protobuf wire format helpers (minimal, no external dependency)
 # ---------------------------------------------------------------------------
 # Field numbers and nesting structure derived from Dan Simms'
@@ -961,14 +985,18 @@ class ScuBleClient:
     async def _pair_via_bluetoothctl(self) -> bool:
         """Pair with the SCU using a D-Bus pairing agent.
 
-        bleak's client.pair() calls Device1.Pair() on D-Bus but does NOT
-        register a pairing agent. BlueZ needs an agent to respond to the
-        SCU's IO capability exchange (JustWorks). Without it, pairing
-        times out after ~8s with AuthenticationCanceled.
-
-        Uses raw D-Bus messages to register a NoInputNoOutput agent,
-        avoiding dbus-fast ServiceInterface annotation issues.
+        Uses a module-level ServiceInterface for Release/Cancel, plus a
+        message handler for RequestConfirmation/AuthorizeService that
+        auto-replies (JustWorks). The agent is exported at a temporary
+        D-Bus path and registered with BlueZ's AgentManager1.
         """
+        if not _HAS_DBUS_AGENT:
+            _LOGGER.warning("dbus-fast agent not available — falling back to bleak pair()")
+            if self._client:
+                await self._client.pair()
+                return True
+            return False
+
         try:
             from dbus_fast.aio import MessageBus
             from dbus_fast import BusType, Message, MessageType
@@ -989,27 +1017,34 @@ class ScuBleClient:
         try:
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
 
-            # Handle agent method calls from BlueZ (RequestConfirmation, etc.)
-            def message_handler(msg: Message) -> bool:
+            # Export the module-level agent object for Release/Cancel
+            agent = _JustWorksAgent()
+            bus.export(agent_path, agent)
+
+            # Also handle RequestConfirmation/AuthorizeService via message handler
+            # (these methods have parameters that the minimal ServiceInterface
+            # doesn't define, so BlueZ would get a method-not-found error)
+            def agent_method_handler(msg: Message) -> bool:
                 if msg.message_type != MessageType.METHOD_CALL:
                     return False
                 if msg.path != agent_path:
                     return False
                 if msg.interface != "org.bluez.Agent1":
                     return False
+                member = msg.member
+                if member in ("RequestConfirmation", "AuthorizeService",
+                              "RequestAuthorization", "DisplayPasskey",
+                              "DisplayPinCode", "RequestPasskey",
+                              "RequestPinCode"):
+                    _LOGGER.debug("D-Bus agent: auto-accepting %s", member)
+                    reply = Message.new_method_return(msg)
+                    bus.send_message(reply)
+                    return True
+                return False
 
-                _LOGGER.debug(
-                    "D-Bus agent: received %s from BlueZ", msg.member
-                )
+            bus.add_message_handler(agent_method_handler)
 
-                # Auto-reply to all agent methods (JustWorks)
-                reply = Message.new_method_return(msg)
-                bus.send_message(reply)
-                return True
-
-            bus.add_message_handler(message_handler)
-
-            # Register agent with AgentManager1 via raw message
+            # Register agent with AgentManager1
             register_msg = Message(
                 destination="org.bluez",
                 path="/org/bluez",
@@ -1020,7 +1055,8 @@ class ScuBleClient:
             )
             reply = await bus.call(register_msg)
             if reply.message_type == MessageType.ERROR:
-                _LOGGER.warning("D-Bus agent: RegisterAgent failed: %s", reply.body)
+                _LOGGER.warning("D-Bus agent: RegisterAgent failed: %s %s",
+                                reply.error_name, reply.body)
                 return False
             _LOGGER.debug("D-Bus agent: registered, calling Device1.Pair()")
 
@@ -1051,7 +1087,6 @@ class ScuBleClient:
             _LOGGER.warning("D-Bus agent pairing error: %s", err)
             return False
         finally:
-            # Unregister agent
             if bus:
                 try:
                     unreg_msg = Message(
