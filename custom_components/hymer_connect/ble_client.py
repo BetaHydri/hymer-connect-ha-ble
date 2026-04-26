@@ -668,11 +668,36 @@ class ScuBleClient:
             mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
             self._write_chunk_size = max(20, min(242, mtu - 3))
 
-            # Skip OS-level bonding — the SCU rejects pair() with AuthenticationFailed
-            # when not in pairing mode, and disconnects the BLE link. Instead, proceed
-            # directly to TLS + PairMobileRequest, which handles pairing at the
-            # application protocol level (same as the EHG app).
-            _LOGGER.debug("Skipping OS-level bonding — proceeding to TLS directly")
+            # Try OS-level bonding if VERBINDUNG was pressed on the SCU.
+            # The SCU requires bonding before it will respond to TLS.
+            # If bonding fails (AuthenticationFailed = VERBINDUNG not pressed),
+            # the SCU may disconnect the BLE link. Check connection state
+            # and raise if the link died — no point attempting TLS on a dead link.
+            bonded = False
+            try:
+                _LOGGER.debug("Attempting OS-level BLE bonding with SCU")
+                await client.pair()
+                bonded = True
+                _LOGGER.info("BLE bonding successful with SCU %s", self._scu_address)
+            except Exception as bond_err:
+                bond_str = str(bond_err)
+                if "AuthenticationFailed" in bond_str or "AuthenticationRejected" in bond_str:
+                    _LOGGER.info(
+                        "BLE bonding rejected (VERBINDUNG not pressed?) — %s",
+                        bond_err,
+                    )
+                elif "AlreadyExists" in bond_str:
+                    bonded = True
+                    _LOGGER.debug("BLE already bonded with SCU — proceeding to TLS")
+                else:
+                    _LOGGER.warning("BLE bonding failed: %s", bond_err)
+
+                # Check if the SCU dropped the link after failed bonding
+                if not client.is_connected:
+                    raise BleTransportError(
+                        f"SCU disconnected after bonding failure — "
+                        f"press VERBINDUNG on the SCU control panel first: {bond_err}"
+                    ) from bond_err
 
             # Start receiving NUS TX notifications
             await client.start_notify(UART_TX_UUID, self._on_uart_notify)
