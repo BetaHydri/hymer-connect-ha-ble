@@ -424,9 +424,18 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
-            # If we had a stored address and it failed, clear it so next
-            # attempt re-scans (SCU may have changed its random BLE address)
-            if ble_address and self.config_entry.data.get(CONF_BLE_ADDRESS):
+            # Only clear the stored BLE address on connection-level failures
+            # (timeout, device not found). Don't clear on bonding rejection —
+            # the SCU address is still valid, bonding just needs VERBINDUNG.
+            err_str = str(err)
+            is_bonding_rejection = (
+                "AuthenticationFailed" in err_str
+                or "AuthenticationCanceled" in err_str
+                or "AuthenticationRejected" in err_str
+                or "VERBINDUNG" in err_str
+                or "0x0e" in err_str
+            )
+            if ble_address and self.config_entry.data.get(CONF_BLE_ADDRESS) and not is_bonding_rejection:
                 _LOGGER.info(
                     "Clearing stored BLE address %s — will re-scan on next attempt "
                     "(SCU may have changed its random BLE address after reboot)",

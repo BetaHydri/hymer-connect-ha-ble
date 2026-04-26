@@ -673,8 +673,21 @@ class ScuBleClient:
             # If bonding fails (AuthenticationFailed = VERBINDUNG not pressed),
             # the SCU may disconnect the BLE link. Check connection state
             # and raise if the link died — no point attempting TLS on a dead link.
+            #
+            # IMPORTANT: Clear stale bonding records first. BlueZ retains
+            # bonding keys from previous failed attempts. When the SCU sees
+            # a device it thinks is "already paired but with wrong keys", it
+            # instantly rejects (~100ms) even when VERBINDUNG is pressed.
+            # Removing the stale record forces a fresh bonding negotiation.
             bonded = False
             try:
+                _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
+                try:
+                    await client.unpair()
+                except Exception:
+                    pass  # No existing bond to remove — that's fine
+                await asyncio.sleep(0.5)  # Let BlueZ settle after unpair
+
                 _LOGGER.debug("Attempting OS-level BLE bonding with SCU")
                 await client.pair()
                 bonded = True
@@ -684,6 +697,11 @@ class ScuBleClient:
                 if "AuthenticationFailed" in bond_str or "AuthenticationRejected" in bond_str:
                     _LOGGER.info(
                         "BLE bonding rejected (VERBINDUNG not pressed?) — %s",
+                        bond_err,
+                    )
+                elif "AuthenticationCanceled" in bond_str:
+                    _LOGGER.info(
+                        "BLE bonding canceled by SCU — %s",
                         bond_err,
                     )
                 elif "AlreadyExists" in bond_str:
