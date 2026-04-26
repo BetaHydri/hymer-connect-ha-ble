@@ -473,6 +473,25 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     data_updates=data_updates,
                 )
             if not errors and not data_updates:
+                # No new data entered — but if BLE is already enabled with
+                # a stored QR token, allow re-triggering BLE pairing
+                stored_qr = reconfigure_entry.data.get(CONF_QR_TOKEN, "")
+                stored_ble = reconfigure_entry.data.get(CONF_BLE_ENABLED, False)
+                stored_ehg = reconfigure_entry.data.get(CONF_EHG_REFRESH_TOKEN, "")
+                if stored_qr and stored_ble and not stored_ehg:
+                    self._data = {**reconfigure_entry.data}
+                    session = async_create_clientsession(self.hass)
+                    self._api = HymerConnectApi(
+                        session, brand=self._data.get(CONF_BRAND, "hymer"),
+                    )
+                    try:
+                        await self._api.authenticate(
+                            self._data[CONF_USERNAME],
+                            self._data[CONF_PASSWORD],
+                        )
+                    except Exception:
+                        _LOGGER.warning("Re-auth failed for BLE pairing in reconfigure")
+                    return await self.async_step_ble_pairing()
                 errors["base"] = "no_changes"
 
         current_qr = ""
