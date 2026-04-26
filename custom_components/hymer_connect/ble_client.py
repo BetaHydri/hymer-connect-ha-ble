@@ -626,6 +626,21 @@ class ScuBleClient:
 
     async def _connect_inner(self, retry: bool = True) -> None:
         """Inner connect logic, handles stale BlueZ notify recovery."""
+        # Clear stale BlueZ bonding records BEFORE connecting.
+        # BlueZ retains bonding keys from previous failed attempts. When
+        # the SCU sees a device it thinks is "already paired but with wrong
+        # keys", it instantly rejects bonding even when VERBINDUNG is pressed.
+        # Removing the stale record forces a fresh bonding negotiation.
+        # Must be done before connect() — unpair() on a connected client
+        # drops the GATT session entirely.
+        _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
+        try:
+            tmp_client = BleakClient(self._scu_address)
+            await tmp_client.unpair()
+        except Exception:
+            pass  # No existing bond to remove — that's fine
+        await asyncio.sleep(0.3)  # Let BlueZ settle
+
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
         await client.connect()
@@ -673,21 +688,9 @@ class ScuBleClient:
             # If bonding fails (AuthenticationFailed = VERBINDUNG not pressed),
             # the SCU may disconnect the BLE link. Check connection state
             # and raise if the link died — no point attempting TLS on a dead link.
-            #
-            # IMPORTANT: Clear stale bonding records first. BlueZ retains
-            # bonding keys from previous failed attempts. When the SCU sees
-            # a device it thinks is "already paired but with wrong keys", it
-            # instantly rejects (~100ms) even when VERBINDUNG is pressed.
-            # Removing the stale record forces a fresh bonding negotiation.
+            # Stale bonding records were already cleared before connect().
             bonded = False
             try:
-                _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
-                try:
-                    await client.unpair()
-                except Exception:
-                    pass  # No existing bond to remove — that's fine
-                await asyncio.sleep(0.5)  # Let BlueZ settle after unpair
-
                 _LOGGER.debug("Attempting OS-level BLE bonding with SCU")
                 await client.pair()
                 bonded = True
