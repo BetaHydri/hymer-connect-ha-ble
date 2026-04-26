@@ -69,6 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Exponential backoff for BLE failures** — First 5 failures retry at normal 60s poll interval (catches the SCU pairing window). After 5 failures, escalates to 5min/10min/max 15min.
 
+- **D-Bus pairing agent** — `bleak.pair()` has no D-Bus agent; `bluetoothctl` blocked in HAOS; `dbus-fast` ServiceInterface annotations fail at import. Solution: pure raw D-Bus messages with `add_message_handler()` + introspection XML that tells BlueZ the agent supports `RequestConfirmation`, `AuthorizeService`, etc. Auto-accepts all JustWorks callbacks.
+
+- **GATT write pacing** — Large BLE payloads (PairMobileRequest = 1253 bytes = 63 chunks at 20 bytes) overwhelm the SCU's NUS RX buffer, causing `ATT error 0x0e`. Added 10ms inter-chunk delay for writes >10 chunks.
+
+- **Stale/corrupt bond recovery** — After ATT error 0x0e, bond keys become corrupt. SCU rejects GATT with `device disconnected`. Now detects bonded + disconnect → clears stale bond → retries with fresh bonding.
+
+- **BlueZ bond status check** — `_connect_inner()` now checks the `Paired` D-Bus property before calling `unpair()`. Preserves valid bonds, only clears stale/failed ones.
+
 ### Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — The PairMobileRequest/Response protobuf field layout, the BLE pairing ceremony (activation token + confirmation token + SCU touchscreen ALLOW + refresh token minting), and the `hymer_token_tool` RUNBOOK documenting the full 4-step pairing sequence were invaluable for implementing the BLE pairing path in this integration.
