@@ -93,30 +93,6 @@ DEFAULT_GATT_MTU = 23
 APP_PIA_VERSION = "v0.32.0"
 
 # ---------------------------------------------------------------------------
-# D-Bus BLE Pairing Agent (module-level to avoid annotation closure issues)
-# ---------------------------------------------------------------------------
-try:
-    from dbus_fast.service import ServiceInterface, method as dbus_method
-
-    class _JustWorksAgent(ServiceInterface):
-        """NoInputNoOutput BLE pairing agent for JustWorks pairing."""
-
-        def __init__(self) -> None:
-            super().__init__("org.bluez.Agent1")
-
-        @dbus_method()
-        def Release(self) -> None:  # noqa: N802
-            """Called when the agent is unregistered."""
-
-        @dbus_method()
-        def Cancel(self) -> None:  # noqa: N802
-            """Called when a pairing request is canceled."""
-
-    _HAS_DBUS_AGENT = True
-except Exception:
-    _HAS_DBUS_AGENT = False
-
-# ---------------------------------------------------------------------------
 # Protobuf wire format helpers (minimal, no external dependency)
 # ---------------------------------------------------------------------------
 # Field numbers and nesting structure derived from Dan Simms'
@@ -983,20 +959,12 @@ class ScuBleClient:
         )
 
     async def _pair_via_bluetoothctl(self) -> bool:
-        """Pair with the SCU using a D-Bus pairing agent.
+        """Pair with the SCU using a D-Bus pairing agent (raw messages only).
 
-        Uses a module-level ServiceInterface for Release/Cancel, plus a
-        message handler for RequestConfirmation/AuthorizeService that
-        auto-replies (JustWorks). The agent is exported at a temporary
-        D-Bus path and registered with BlueZ's AgentManager1.
+        Registers an agent path with BlueZ, handles all agent method calls
+        via add_message_handler (including Introspect so BlueZ can find the
+        object), then calls Device1.Pair().
         """
-        if not _HAS_DBUS_AGENT:
-            _LOGGER.warning("dbus-fast agent not available — falling back to bleak pair()")
-            if self._client:
-                await self._client.pair()
-                return True
-            return False
-
         try:
             from dbus_fast.aio import MessageBus
             from dbus_fast import BusType, Message, MessageType
@@ -1011,38 +979,62 @@ class ScuBleClient:
         agent_path = "/org/bluez/agent_hymer"
         device_path = f"/org/bluez/hci0/dev_{addr.replace(':', '_')}"
 
+        # Introspection XML for the agent — tells BlueZ what methods we support
+        AGENT_INTROSPECT_XML = """<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.bluez.Agent1">
+    <method name="Release"/>
+    <method name="RequestConfirmation">
+      <arg name="device" type="o" direction="in"/>
+      <arg name="passkey" type="u" direction="in"/>
+    </method>
+    <method name="AuthorizeService">
+      <arg name="device" type="o" direction="in"/>
+      <arg name="uuid" type="s" direction="in"/>
+    </method>
+    <method name="RequestAuthorization">
+      <arg name="device" type="o" direction="in"/>
+    </method>
+    <method name="Cancel"/>
+  </interface>
+  <interface name="org.freedesktop.DBus.Introspectable">
+    <method name="Introspect">
+      <arg name="xml" type="s" direction="out"/>
+    </method>
+  </interface>
+</node>"""
+
         _LOGGER.debug("D-Bus agent: registering NoInputNoOutput agent for %s", addr)
 
         bus = None
         try:
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
 
-            # Export the module-level agent object for Release/Cancel
-            agent = _JustWorksAgent()
-            bus.export(agent_path, agent)
-
-            # Also handle RequestConfirmation/AuthorizeService via message handler
-            # (these methods have parameters that the minimal ServiceInterface
-            # doesn't define, so BlueZ would get a method-not-found error)
-            def agent_method_handler(msg: Message) -> bool:
+            # Handle ALL method calls to the agent path — including Introspect
+            def agent_handler(msg: Message) -> bool:
                 if msg.message_type != MessageType.METHOD_CALL:
                     return False
                 if msg.path != agent_path:
                     return False
-                if msg.interface != "org.bluez.Agent1":
-                    return False
-                member = msg.member
-                if member in ("RequestConfirmation", "AuthorizeService",
-                              "RequestAuthorization", "DisplayPasskey",
-                              "DisplayPinCode", "RequestPasskey",
-                              "RequestPinCode"):
-                    _LOGGER.debug("D-Bus agent: auto-accepting %s", member)
+
+                # Handle Introspect — BlueZ needs this to find our agent
+                if (msg.interface == "org.freedesktop.DBus.Introspectable"
+                        and msg.member == "Introspect"):
+                    reply = Message.new_method_return(msg, "s", [AGENT_INTROSPECT_XML])
+                    bus.send_message(reply)
+                    return True
+
+                # Handle all Agent1 methods — auto-accept everything
+                if msg.interface == "org.bluez.Agent1":
+                    _LOGGER.debug("D-Bus agent: auto-accepting %s", msg.member)
                     reply = Message.new_method_return(msg)
                     bus.send_message(reply)
                     return True
+
                 return False
 
-            bus.add_message_handler(agent_method_handler)
+            bus.add_message_handler(agent_handler)
 
             # Register agent with AgentManager1
             register_msg = Message(
