@@ -626,20 +626,38 @@ class ScuBleClient:
 
     async def _connect_inner(self, retry: bool = True) -> None:
         """Inner connect logic, handles stale BlueZ notify recovery."""
-        # Clear stale BlueZ bonding records BEFORE connecting.
-        # BlueZ retains bonding keys from previous failed attempts. When
-        # the SCU sees a device it thinks is "already paired but with wrong
-        # keys", it instantly rejects bonding even when VERBINDUNG is pressed.
-        # Removing the stale record forces a fresh bonding negotiation.
-        # Must be done before connect() — unpair() on a connected client
-        # drops the GATT session entirely.
-        _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
+        # Clear stale BlueZ bonding records BEFORE connecting — but only
+        # if the device is NOT already successfully bonded. Calling unpair()
+        # on a bonded device removes the keys and breaks active connections.
+        _LOGGER.debug("Checking BlueZ bond status for %s", self._scu_address)
+        is_already_bonded = False
         try:
-            tmp_client = BleakClient(self._scu_address)
-            await tmp_client.unpair()
+            from dbus_fast.aio import MessageBus
+            from dbus_fast import BusType, Message, MessageType
+            tmp_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+            try:
+                introspection = await tmp_bus.introspect("org.bluez", dev_path)
+                dev_obj = tmp_bus.get_proxy_object("org.bluez", dev_path, introspection)
+                props_iface = dev_obj.get_interface("org.freedesktop.DBus.Properties")
+                paired = await props_iface.call_get("org.bluez.Device1", "Paired")
+                is_already_bonded = bool(paired.value) if paired else False
+            except Exception:
+                pass  # Device not known to BlueZ — that's fine
+            tmp_bus.disconnect()
         except Exception:
-            pass  # No existing bond to remove — that's fine
-        await asyncio.sleep(0.3)  # Let BlueZ settle
+            pass
+
+        if is_already_bonded:
+            _LOGGER.debug("Device %s is already bonded — skipping unpair", self._scu_address)
+        else:
+            _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
+            try:
+                tmp_client = BleakClient(self._scu_address)
+                await tmp_client.unpair()
+            except Exception:
+                pass
+            await asyncio.sleep(0.3)
 
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)

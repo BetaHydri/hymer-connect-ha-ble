@@ -369,6 +369,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not self._ehg_refresh_token:
                 qr_token = self.config_entry.data.get(CONF_QR_TOKEN, "")
                 if qr_token:
+                    self._ble_pairing_in_progress = True  # prevent concurrent BLE attempts
                     _LOGGER.warning(
                         "No EHG refresh token — attempting BLE pairing with SCU %s. "
                         "IMPORTANT: Press the VERBINDUNG (connection) button on the SCU "
@@ -406,6 +407,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 )
                     except Exception as pair_err:
                         _LOGGER.warning("BLE pairing failed: %s", pair_err)
+                    finally:
+                        self._ble_pairing_in_progress = False
 
             self._ble_connected = True
             self._connection_mode = "ble"
