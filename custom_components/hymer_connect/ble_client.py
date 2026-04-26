@@ -966,14 +966,12 @@ class ScuBleClient:
         SCU's IO capability exchange (JustWorks). Without it, pairing
         times out after ~8s with AuthenticationCanceled.
 
-        We register a temporary NoInputNoOutput agent on D-Bus, call
-        Device1.Pair(), then unregister the agent. This provides the
-        JustWorks pairing response that the SCU expects.
+        Uses raw D-Bus messages to register a NoInputNoOutput agent,
+        avoiding dbus-fast ServiceInterface annotation issues.
         """
         try:
             from dbus_fast.aio import MessageBus
-            from dbus_fast.service import ServiceInterface, method
-            from dbus_fast import BusType
+            from dbus_fast import BusType, Message, MessageType
         except ImportError:
             _LOGGER.warning("dbus-fast not available — falling back to bleak pair()")
             if self._client:
@@ -982,75 +980,89 @@ class ScuBleClient:
             return False
 
         addr = self._scu_address
-        obj_path = "/org/bluez/agent_hymer"
+        agent_path = "/org/bluez/agent_hymer"
         device_path = f"/org/bluez/hci0/dev_{addr.replace(':', '_')}"
 
         _LOGGER.debug("D-Bus agent: registering NoInputNoOutput agent for %s", addr)
 
-        class JustWorksAgent(ServiceInterface):
-            """Minimal BLE pairing agent — accepts all JustWorks requests."""
-
-            def __init__(self):
-                super().__init__("org.bluez.Agent1")
-
-            @method()
-            def Release(self) -> None:
-                pass
-
-            @method(name="RequestConfirmation")
-            def request_confirmation(self, device: str, passkey: int) -> None:
-                _LOGGER.debug("D-Bus agent: auto-confirming passkey for %s", device)
-
-            @method(name="AuthorizeService")
-            def authorize_service(self, device: str, uuid: str) -> None:
-                _LOGGER.debug("D-Bus agent: auto-authorizing service %s", uuid)
-
-            @method()
-            def Cancel(self) -> None:
-                pass
-
         bus = None
         try:
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-            agent = JustWorksAgent()
-            bus.export(obj_path, agent)
 
-            # Register agent with BlueZ AgentManager1
-            introspection = await bus.introspect("org.bluez", "/org/bluez")
-            agent_manager = bus.get_proxy_object("org.bluez", "/org/bluez", introspection)
-            agent_iface = agent_manager.get_interface("org.bluez.AgentManager1")
-            await agent_iface.call_register_agent(obj_path, "NoInputNoOutput")
+            # Handle agent method calls from BlueZ (RequestConfirmation, etc.)
+            def message_handler(msg: Message) -> bool:
+                if msg.message_type != MessageType.METHOD_CALL:
+                    return False
+                if msg.path != agent_path:
+                    return False
+                if msg.interface != "org.bluez.Agent1":
+                    return False
+
+                _LOGGER.debug(
+                    "D-Bus agent: received %s from BlueZ", msg.member
+                )
+
+                # Auto-reply to all agent methods (JustWorks)
+                reply = Message.new_method_return(msg)
+                bus.send_message(reply)
+                return True
+
+            bus.add_message_handler(message_handler)
+
+            # Register agent with AgentManager1 via raw message
+            register_msg = Message(
+                destination="org.bluez",
+                path="/org/bluez",
+                interface="org.bluez.AgentManager1",
+                member="RegisterAgent",
+                signature="os",
+                body=[agent_path, "NoInputNoOutput"],
+            )
+            reply = await bus.call(register_msg)
+            if reply.message_type == MessageType.ERROR:
+                _LOGGER.warning("D-Bus agent: RegisterAgent failed: %s", reply.body)
+                return False
             _LOGGER.debug("D-Bus agent: registered, calling Device1.Pair()")
 
             # Call Pair on the device
-            dev_introspection = await bus.introspect("org.bluez", device_path)
-            device_obj = bus.get_proxy_object("org.bluez", device_path, dev_introspection)
-            device_iface = device_obj.get_interface("org.bluez.Device1")
-
+            pair_msg = Message(
+                destination="org.bluez",
+                path=device_path,
+                interface="org.bluez.Device1",
+                member="Pair",
+            )
             try:
-                await asyncio.wait_for(device_iface.call_pair(), timeout=15.0)
+                reply = await asyncio.wait_for(bus.call(pair_msg), timeout=15.0)
+                if reply.message_type == MessageType.ERROR:
+                    err_name = reply.error_name or ""
+                    err_body = str(reply.body) if reply.body else ""
+                    if "AlreadyExists" in err_name:
+                        _LOGGER.debug("D-Bus agent: already paired")
+                        return True
+                    _LOGGER.warning("D-Bus agent: Pair failed: %s %s", err_name, err_body)
+                    return False
                 _LOGGER.info("D-Bus agent: pairing successful with %s", addr)
-                paired = True
-            except Exception as pair_err:
-                pair_str = str(pair_err)
-                if "AlreadyExists" in pair_str:
-                    _LOGGER.debug("D-Bus agent: already paired")
-                    paired = True
-                else:
-                    _LOGGER.warning("D-Bus agent: pairing failed: %s", pair_err)
-                    paired = False
-
-            # Unregister agent
-            try:
-                await agent_iface.call_unregister_agent(obj_path)
-            except Exception:
-                pass
-
-            return paired
+                return True
+            except asyncio.TimeoutError:
+                _LOGGER.warning("D-Bus agent: Pair timed out after 15s")
+                return False
 
         except Exception as err:
             _LOGGER.warning("D-Bus agent pairing error: %s", err)
             return False
         finally:
+            # Unregister agent
             if bus:
+                try:
+                    unreg_msg = Message(
+                        destination="org.bluez",
+                        path="/org/bluez",
+                        interface="org.bluez.AgentManager1",
+                        member="UnregisterAgent",
+                        signature="o",
+                        body=[agent_path],
+                    )
+                    await bus.call(unreg_msg)
+                except Exception:
+                    pass
                 bus.disconnect()
