@@ -668,13 +668,32 @@ class ScuBleClient:
             # bond keys are stale/corrupt. Clear them and retry once.
             if is_already_bonded and retry and "disconnect" in str(connect_err).lower():
                 _LOGGER.warning(
-                    "Bonded device rejected connection — clearing stale bond and retrying: %s",
+                    "Bonded device rejected connection — clearing stale bond via D-Bus RemoveDevice: %s",
                     connect_err,
                 )
+                # BleakClient.unpair() doesn't reliably clear bonds.
+                # Use D-Bus Adapter1.RemoveDevice() directly.
                 try:
-                    await client.unpair()
-                except Exception:
-                    pass
+                    from dbus_fast.aio import MessageBus
+                    from dbus_fast import BusType, Message, MessageType
+                    rm_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+                    dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                    rm_msg = Message(
+                        destination="org.bluez",
+                        path="/org/bluez/hci0",
+                        interface="org.bluez.Adapter1",
+                        member="RemoveDevice",
+                        signature="o",
+                        body=[dev_path],
+                    )
+                    reply = await rm_bus.call(rm_msg)
+                    if reply.message_type == MessageType.ERROR:
+                        _LOGGER.debug("RemoveDevice failed: %s", reply.body)
+                    else:
+                        _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
+                    rm_bus.disconnect()
+                except Exception as rm_err:
+                    _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
                 await asyncio.sleep(0.5)
                 await self._connect_inner(retry=False)
                 return
