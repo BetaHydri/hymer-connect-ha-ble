@@ -622,57 +622,88 @@ class ScuBleClient:
             return
 
         self._loop = asyncio.get_running_loop()
+        await self._connect_inner()
+
+    async def _connect_inner(self, retry: bool = True) -> None:
+        """Inner connect logic, handles stale BlueZ notify recovery."""
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
         await client.connect()
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
-        # Get services — handle both plain BleakClient (has get_services())
-        # and HA's HaBleakClientWrapper (uses .services property)
-        if hasattr(client, "get_services"):
-            services = await client.get_services()
-        else:
-            services = client.services
-            if services is None:
-                # Some wrappers need a connect first, then services populate
-                await asyncio.sleep(0.5)
+        try:
+            # Get services — handle both plain BleakClient (has get_services())
+            # and HA's HaBleakClientWrapper (uses .services property)
+            if hasattr(client, "get_services"):
+                services = await client.get_services()
+            else:
                 services = client.services
-        if services is None:
-            await client.disconnect()
-            raise BleTransportError(
-                f"SCU {self._scu_address}: could not discover GATT services"
-            )
-        _LOGGER.debug("BLE GATT services discovered: %d services", len(list(services)))
-        rx_char = None
-        tx_char = None
-        for service in services:
-            for char in service.characteristics:
-                uuid = str(char.uuid).lower()
-                if uuid == UART_RX_UUID:
-                    rx_char = char
-                elif uuid == UART_TX_UUID:
-                    tx_char = char
+                if services is None:
+                    # Some wrappers need a connect first, then services populate
+                    await asyncio.sleep(0.5)
+                    services = client.services
+            if services is None:
+                raise BleTransportError(
+                    f"SCU {self._scu_address}: could not discover GATT services"
+                )
+            _LOGGER.debug("BLE GATT services discovered: %d services", len(list(services)))
+            rx_char = None
+            tx_char = None
+            for service in services:
+                for char in service.characteristics:
+                    uuid = str(char.uuid).lower()
+                    if uuid == UART_RX_UUID:
+                        rx_char = char
+                    elif uuid == UART_TX_UUID:
+                        tx_char = char
 
-        if rx_char is None or tx_char is None:
-            await client.disconnect()
-            raise BleTransportError(
-                f"SCU {self._scu_address} does not expose Nordic UART Service"
-            )
+            if rx_char is None or tx_char is None:
+                raise BleTransportError(
+                    f"SCU {self._scu_address} does not expose Nordic UART Service"
+                )
 
-        # Determine write mode (write-with-response preferred)
-        props = {p.lower() for p in rx_char.properties}
-        self._write_response = "write" in props
-        mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
-        self._write_chunk_size = max(20, min(242, mtu - 3))
+            # Determine write mode (write-with-response preferred)
+            props = {p.lower() for p in rx_char.properties}
+            self._write_response = "write" in props
+            mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
+            self._write_chunk_size = max(20, min(242, mtu - 3))
 
-        # Skip OS-level bonding — the SCU rejects pair() with AuthenticationFailed
-        # when not in pairing mode, and disconnects the BLE link. Instead, proceed
-        # directly to TLS + PairMobileRequest, which handles pairing at the
-        # application protocol level (same as the EHG app).
-        _LOGGER.debug("Skipping OS-level bonding — proceeding to TLS directly")
+            # Skip OS-level bonding — the SCU rejects pair() with AuthenticationFailed
+            # when not in pairing mode, and disconnects the BLE link. Instead, proceed
+            # directly to TLS + PairMobileRequest, which handles pairing at the
+            # application protocol level (same as the EHG app).
+            _LOGGER.debug("Skipping OS-level bonding — proceeding to TLS directly")
 
-        # Start receiving notifications
-        await client.start_notify(UART_TX_UUID, self._on_uart_notify)
+            # Start receiving NUS TX notifications
+            await client.start_notify(UART_TX_UUID, self._on_uart_notify)
+        except Exception as err:
+            # Guarantee the raw BleakClient is disconnected on any setup failure
+            # so BlueZ releases the GATT session and notify acquisition.
+            _LOGGER.debug("BLE setup failed, disconnecting raw client: %s", err)
+            try:
+                await client.stop_notify(UART_TX_UUID)
+            except Exception:
+                pass
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+
+            # "Notify acquired" / "NotPermitted" means BlueZ kept a stale
+            # notify acquisition from a prior session that didn't clean up.
+            # The only reliable fix is a full disconnect + reconnect so BlueZ
+            # starts a fresh D-Bus GATT session without the stale state.
+            err_str = str(err)
+            if retry and ("Notify acquired" in err_str or "NotPermitted" in err_str):
+                _LOGGER.warning(
+                    "Stale BlueZ notify acquisition — disconnecting and "
+                    "reconnecting with fresh GATT session: %s", err,
+                )
+                await asyncio.sleep(1.0)  # let BlueZ settle
+                await self._connect_inner(retry=False)
+                return
+
+            raise
 
         self._client = client
         self._connected = True
