@@ -959,65 +959,100 @@ class ScuBleClient:
         )
 
     async def _pair_via_bluetoothctl(self) -> bool:
-        """Pair with the SCU using bluetoothctl's built-in agent.
+        """Pair with the SCU using a D-Bus pairing agent.
 
-        bleak's client.pair() does not register a pairing agent on D-Bus.
-        BlueZ needs an agent to respond to the SCU's pairing IO capability
-        exchange (JustWorks). Without it, pairing times out after ~8s with
-        AuthenticationCanceled.
+        bleak's client.pair() calls Device1.Pair() on D-Bus but does NOT
+        register a pairing agent. BlueZ needs an agent to respond to the
+        SCU's IO capability exchange (JustWorks). Without it, pairing
+        times out after ~8s with AuthenticationCanceled.
 
-        bluetoothctl provides a built-in NoInputNoOutput agent that handles
-        JustWorks pairing automatically — same as the Android bonding dialog.
+        We register a temporary NoInputNoOutput agent on D-Bus, call
+        Device1.Pair(), then unregister the agent. This provides the
+        JustWorks pairing response that the SCU expects.
         """
-        import subprocess
-
-        addr = self._scu_address
-        _LOGGER.debug("bluetoothctl: setting agent NoInputNoOutput and pairing %s", addr)
-
-        # Build the command sequence for bluetoothctl
-        commands = f"agent NoInputNoOutput\ndefault-agent\npair {addr}\n"
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "bluetoothctl",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(input=commands.encode()),
-                timeout=30.0,
-            )
-            output = stdout.decode(errors="replace")
-            err_output = stderr.decode(errors="replace")
-            _LOGGER.debug("bluetoothctl stdout: %s", output[:500])
-            if err_output:
-                _LOGGER.debug("bluetoothctl stderr: %s", err_output[:200])
-
-            # Check for success indicators
-            if "Pairing successful" in output:
-                return True
-            if "Already Paired" in output:
-                _LOGGER.debug("bluetoothctl: device already paired")
-                return True
-            if "Failed to pair" in output or "AuthenticationFailed" in output:
-                _LOGGER.info("bluetoothctl: pairing failed — %s", output[:200])
-                return False
-            if "AuthenticationCanceled" in output:
-                _LOGGER.info("bluetoothctl: pairing canceled by SCU — %s", output[:200])
-                return False
-
-            _LOGGER.info("bluetoothctl: unexpected output — %s", output[:300])
-            return False
-        except asyncio.TimeoutError:
-            _LOGGER.warning("bluetoothctl: pairing timed out after 30s")
-            return False
-        except FileNotFoundError:
-            _LOGGER.warning("bluetoothctl not found — falling back to bleak pair()")
-            # Fall back to bleak's pair() if bluetoothctl isn't available
+            from dbus_fast.aio import MessageBus
+            from dbus_fast.service import ServiceInterface, method
+            from dbus_fast import BusType
+        except ImportError:
+            _LOGGER.warning("dbus-fast not available — falling back to bleak pair()")
             if self._client:
                 await self._client.pair()
                 return True
             return False
+
+        addr = self._scu_address
+        obj_path = "/org/bluez/agent_hymer"
+        device_path = f"/org/bluez/hci0/dev_{addr.replace(':', '_')}"
+
+        _LOGGER.debug("D-Bus agent: registering NoInputNoOutput agent for %s", addr)
+
+        class JustWorksAgent(ServiceInterface):
+            """Minimal BLE pairing agent — accepts all JustWorks requests."""
+
+            def __init__(self):
+                super().__init__("org.bluez.Agent1")
+
+            @method()
+            def Release(self) -> None:
+                pass
+
+            @method()
+            def RequestConfirmation(self, device: "o", passkey: "u") -> None:  # noqa: N802,F821
+                _LOGGER.debug("D-Bus agent: auto-confirming passkey for %s", device)
+
+            @method()
+            def AuthorizeService(self, device: "o", uuid: "s") -> None:  # noqa: N802,F821
+                _LOGGER.debug("D-Bus agent: auto-authorizing service %s", uuid)
+
+            @method()
+            def Cancel(self) -> None:
+                pass
+
+        bus = None
+        try:
+            bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            agent = JustWorksAgent()
+            bus.export(obj_path, agent)
+
+            # Register agent with BlueZ
+            agent_manager = await bus.get_proxy_object(
+                "org.bluez", "/org/bluez",
+            )
+            agent_iface = agent_manager.get_interface("org.bluez.AgentManager1")
+            await agent_iface.call_register_agent(obj_path, "NoInputNoOutput")
+            _LOGGER.debug("D-Bus agent: registered, calling Device1.Pair()")
+
+            # Call Pair on the device
+            device_obj = await bus.get_proxy_object(
+                "org.bluez", device_path,
+            )
+            device_iface = device_obj.get_interface("org.bluez.Device1")
+
+            try:
+                await asyncio.wait_for(device_iface.call_pair(), timeout=15.0)
+                _LOGGER.info("D-Bus agent: pairing successful with %s", addr)
+                paired = True
+            except Exception as pair_err:
+                pair_str = str(pair_err)
+                if "AlreadyExists" in pair_str:
+                    _LOGGER.debug("D-Bus agent: already paired")
+                    paired = True
+                else:
+                    _LOGGER.warning("D-Bus agent: pairing failed: %s", pair_err)
+                    paired = False
+
+            # Unregister agent
+            try:
+                await agent_iface.call_unregister_agent(obj_path)
+            except Exception:
+                pass
+
+            return paired
+
         except Exception as err:
-            _LOGGER.warning("bluetoothctl pairing error: %s", err)
+            _LOGGER.warning("D-Bus agent pairing error: %s", err)
             return False
+        finally:
+            if bus:
+                bus.disconnect()

@@ -221,10 +221,18 @@ Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the 
 2. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
 3. **Step 1 — Login:** Select your brand, enter email and password. Leave the EHG refresh token field empty — BLE pairing will obtain it automatically
 4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
-5. The integration resolves the vehicle URN and creates the config entry
-6. **Press the VERBINDUNG (connection) button** on the SCU control panel in the vehicle (same button used when pairing the EHG phone app)
-7. On first data refresh, the coordinator connects to the SCU via BLE, performs the TLS handshake, and sends the pairing request automatically
-8. The integration receives and stores the EHG refresh token — done!
+5. **Press the VERBINDUNG (connection) button** on the SCU control panel in the vehicle **before** submitting Step 2 (the pairing window is ~60–120 seconds)
+6. **Step 3 — BLE Pairing:** A progress spinner appears: *"Waiting for SCU to accept BLE pairing..."*. The integration automatically:
+   - Scans for the SCU (if no MAC provided)
+   - Clears any stale BlueZ bonding records
+   - Connects via GATT and performs OS-level BLE bonding (JustWorks via `bluetoothctl`)
+   - Establishes a TLS 1.0/1.1 session over the Nordic UART Service
+   - Sends the PairMobileRequest with your QR activation token
+   - Receives the EHG refresh token from the SCU
+7. On success, the token is stored and the integration is ready — done!
+8. On failure (timeout, VERBINDUNG not pressed), the entry is created in **cloud-only mode**. You can retry via **Reconfigure** (see below)
+
+> **Timing is important:** Press VERBINDUNG ~30 seconds before submitting Step 2. The SCU's pairing window is short (~60–120 seconds). If you miss it, use Reconfigure to retry.
 
 > **SCU Bluetooth address — optional but recommended.** If you leave the field empty, the integration auto-scans for nearby SCU devices on each connection attempt. This works but adds a few seconds of scan time. Providing the address skips the scan and connects directly.
 >
@@ -245,13 +253,15 @@ Use this when your HA instance does not have BLE hardware or you cannot be at th
 4. **Step 2 — Vehicle Activation:** Leave both fields empty and submit
 5. The integration auto-discovers your vehicle via the cloud and creates sensor entities
 
-### Adding BLE Later (Reconfigure)
+### Adding BLE Later / Retry Pairing (Reconfigure)
 
-Already set up cloud-only and want to add BLE? No need to delete and re-add:
+Already set up cloud-only and want to add BLE? Or pairing failed and you want to retry? No need to delete and re-add:
 
-1. Go to **Settings → Devices & Services → HYMER Connect → ⋮ → Reconfigure**
-2. Enter the QR code activation token, SCU Bluetooth address, or a new EHG refresh token
-3. The integration reloads with the updated settings
+1. **Press VERBINDUNG** on the SCU control panel
+2. Go to **Settings → Devices & Services → HYMER Connect → ⋮ → Reconfigure**
+3. Enter the QR code activation token (if not already stored), SCU Bluetooth address, or a new EHG refresh token
+4. Submit — if BLE is enabled and no EHG token was manually provided, the Step 3 BLE pairing spinner will appear
+5. The integration attempts pairing and reloads with the updated settings
 
 ### BLE Direct Path — Prerequisites
 
@@ -269,6 +279,7 @@ The BLE direct path allows your Home Assistant instance to communicate with the 
 | Component | Included? | Notes |
 |---|---|---|
 | **BlueZ** (Linux Bluetooth stack) | ✅ HAOS | Already part of the OS image |
+| **bluetoothctl** (BlueZ CLI tool) | ✅ HAOS | Required for BLE bonding (provides JustWorks pairing agent) |
 | **D-Bus** | ✅ HAOS | Required by BlueZ, included |
 | **`bleak`** (Python BLE library) | ✅ HA Core | Shipped with Home Assistant Core (used by the built-in Bluetooth integration) |
 | **Home Assistant Bluetooth integration** | ✅ Available | Must be **enabled** — see below |
