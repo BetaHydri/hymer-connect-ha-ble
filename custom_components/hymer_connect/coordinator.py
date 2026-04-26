@@ -399,6 +399,12 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return True
         except Exception as err:
             _LOGGER.warning("BLE connection failed, will use cloud: %s", err)
+            # Disconnect the BLE client to release GATT resources (notifications, etc.)
+            if self._ble_client:
+                try:
+                    await self._ble_client.disconnect()
+                except Exception:
+                    pass
             self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
