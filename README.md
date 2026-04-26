@@ -273,6 +273,8 @@ The BLE direct path allows your Home Assistant instance to communicate with the 
 | **`bleak`** (Python BLE library) | ✅ HA Core | Shipped with Home Assistant Core (used by the built-in Bluetooth integration) |
 | **Home Assistant Bluetooth integration** | ✅ Available | Must be **enabled** — see below |
 
+> **TLS 1.0/1.1 compatibility:** The SCU firmware only supports TLS 1.0 and TLS 1.1 with legacy ciphers (`AES128-SHA`, `AES256-SHA`). Modern HAOS (Python 3.14+, OpenSSL 3.x) disables these protocols by default. The integration handles this automatically by lowering the OpenSSL security level (`@SECLEVEL=0`) — no manual configuration needed.
+
 **Setup (one-time):**
 
 1. **Enable the Bluetooth integration** in Home Assistant:

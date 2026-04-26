@@ -39,6 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Manifest updated** — Added `bleak>=0.21.0` to requirements, `bluetooth` to dependencies, bumped version to 2.37.0, documentation and issue tracker URLs point to `hymer-connect-ha-ble`.
 
+### Fixed (hardware testing 2026-04-26)
+
+- **TLS 1.0/1.1 on Python 3.14 / OpenSSL 3.x** — The SCU firmware only speaks TLS 1.0/1.1 with `AES128-SHA`/`AES256-SHA`, but modern HAOS (Python 3.14 + OpenSSL 3.x) disables these legacy protocols by default. Fixed by setting `@SECLEVEL=0` in the cipher string and clearing `OP_NO_TLSv1` / `OP_NO_TLSv1_1` flags. Without this, the TLS handshake fails with `[SSL: NO_PROTOCOLS_AVAILABLE]`.
+
+- **HA BleakClient wrapper compatibility** — Home Assistant wraps `bleak.BleakClient` with `HaBleakClientWrapper`, which does not expose the `get_services()` method. Fixed to use the `.services` property with fallback.
+
+- **BLE bonding before TLS** — The SCU requires OS-level BLE bonding (`client.pair()`) before it will respond to TLS handshakes. Without bonding, the TLS ClientHello is sent but the SCU never replies (20-second timeout). Bonding requires the user to press the VERBINDUNG button on the SCU control panel first.
+
+- **BLE disconnect on failure** — Previously failed BLE attempts left the GATT connection open, causing `Notify acquired` and `already connected` errors on retry. Now properly calls `disconnect()` before clearing the client reference.
+
+- **Auto-scan BLE enabled** — Providing a QR token in config flow Step 2 now always sets `ble_enabled = True`, even without a MAC address. Previously `bool("")` was `False`, preventing auto-scan from working.
+
 ### Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — The PairMobileRequest/Response protobuf field layout, the BLE pairing ceremony (activation token + confirmation token + SCU touchscreen ALLOW + refresh token minting), and the `hymer_token_tool` RUNBOOK documenting the full 4-step pairing sequence were invaluable for implementing the BLE pairing path in this integration.
