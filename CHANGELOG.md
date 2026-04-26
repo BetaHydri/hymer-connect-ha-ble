@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Auto-scan BLE enabled** — Providing a QR token in config flow Step 2 now always sets `ble_enabled = True`, even without a MAC address. Previously `bool("")` was `False`, preventing auto-scan from working.
 
+- **BlueZ stale notify acquisition leak** — When `start_notify()` failed (e.g. `[org.bluez.Error.NotPermitted] Notify acquired`), `self._client` was never assigned because it was set *after* `start_notify()`. The coordinator's `disconnect()` found `None` and skipped cleanup, leaking the raw `BleakClient`. BlueZ retained the stale D-Bus notify acquisition, causing every subsequent BLE connect attempt to fail identically — a permanent poison loop. Fixed by wrapping all post-GATT-connect setup in `try/except` that guarantees `client.disconnect()` on any failure. On `Notify acquired`: fully disconnect, wait 1s for BlueZ to settle, then reconnect with a fresh GATT session (one retry, no infinite recursion).
+
+- **Skip OS-level BLE bonding** — `client.pair()` consistently fails with `AuthenticationFailed` when the SCU is not in pairing mode, and the SCU disconnects the BLE link after the failed attempt. Removed OS-level bonding; the integration now proceeds directly from GATT connect → notify → TLS. The SCU may handle pairing at the PIA protocol level (`PairMobileRequest`) rather than requiring OS-level BLE bonding. The EHG Android app's bonding dialog may be an Android-specific user consent UI rather than an SCU requirement.
+
 ### Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — The PairMobileRequest/Response protobuf field layout, the BLE pairing ceremony (activation token + confirmation token + SCU touchscreen ALLOW + refresh token minting), and the `hymer_token_tool` RUNBOOK documenting the full 4-step pairing sequence were invaluable for implementing the BLE pairing path in this integration.
