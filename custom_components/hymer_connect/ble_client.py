@@ -661,7 +661,24 @@ class ScuBleClient:
 
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
-        await client.connect()
+        try:
+            await client.connect()
+        except Exception as connect_err:
+            # If bonded but connection fails with "device disconnected", the
+            # bond keys are stale/corrupt. Clear them and retry once.
+            if is_already_bonded and retry and "disconnect" in str(connect_err).lower():
+                _LOGGER.warning(
+                    "Bonded device rejected connection — clearing stale bond and retrying: %s",
+                    connect_err,
+                )
+                try:
+                    await client.unpair()
+                except Exception:
+                    pass
+                await asyncio.sleep(0.5)
+                await self._connect_inner(retry=False)
+                return
+            raise
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
         try:
