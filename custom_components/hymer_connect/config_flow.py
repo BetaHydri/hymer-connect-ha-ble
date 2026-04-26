@@ -210,6 +210,16 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         ble_address = self._data.get(CONF_BLE_ADDRESS, "")
         qr_token = self._data.get(CONF_QR_TOKEN, "")
 
+        # Tell the coordinator to skip BLE attempts while we're pairing
+        # to prevent a concurrent connect/pair from racing and killing
+        # our bonding negotiation.
+        coordinator = None
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+            if coordinator and hasattr(coordinator, "_ble_pairing_in_progress"):
+                coordinator._ble_pairing_in_progress = True
+                break
+
         try:
             # Auto-scan if no MAC address provided
             if not ble_address:
@@ -266,6 +276,10 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         except Exception as err:
             _LOGGER.warning("BLE pairing unexpected error: %s", err)
             self._ble_pairing_error = "ble_pairing_failed"
+        finally:
+            # Release the pairing lock so the coordinator can resume BLE attempts
+            if coordinator and hasattr(coordinator, "_ble_pairing_in_progress"):
+                coordinator._ble_pairing_in_progress = False
 
     async def async_step_ble_pairing(
         self, user_input: dict[str, Any] | None = None

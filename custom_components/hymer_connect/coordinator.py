@@ -83,6 +83,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._connection_mode = "cloud"  # "ble" or "cloud"
         self._ble_consecutive_failures = 0  # TLS timeout counter for backoff
         self._ble_next_attempt: float = 0.0  # monotonic time of next BLE attempt
+        self._ble_pairing_in_progress = False  # set by config_flow during Step 3 BLE pairing
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -623,10 +624,14 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Keep first 5 attempts at normal poll interval (60s) so we don't
         # miss the SCU pairing window (~60-120s after pressing VERBINDUNG).
         # After 5 failures, escalate: 5min, 10min, max 15min.
+        #
+        # Skip BLE if the config flow pairing task is actively running —
+        # a concurrent connect/pair would race and sabotage the pairing.
         if self.ble_enabled and not self._ble_connected:
-            now_mono = time.monotonic()
-            if now_mono < self._ble_next_attempt:
-                remaining = int(self._ble_next_attempt - now_mono)
+            if self._ble_pairing_in_progress:
+                _LOGGER.debug("BLE attempt skipped — config flow pairing in progress")
+            elif time.monotonic() < self._ble_next_attempt:
+                remaining = int(self._ble_next_attempt - time.monotonic())
                 _LOGGER.debug(
                     "BLE attempt deferred — %d consecutive failures, "
                     "next attempt in %ds",
