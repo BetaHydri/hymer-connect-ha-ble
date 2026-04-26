@@ -373,15 +373,39 @@ class TlsTransportError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 class _TlsOverBle:
-    """TLS client using ssl.MemoryBIO for transport over BLE GATT."""
+    """TLS client using ssl.MemoryBIO for transport over BLE GATT.
+
+    The SCU firmware only speaks TLS 1.0/1.1 with legacy ciphers.
+    Modern Python/OpenSSL (3.12+, OpenSSL 3.x) disables these by default.
+    We must explicitly lower the security level to allow them.
+    """
 
     def __init__(self) -> None:
         self._context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self._context.check_hostname = False
         self._context.verify_mode = ssl.CERT_NONE
+
+        # Lower OpenSSL security level to 0 to allow TLS 1.0/1.1 + legacy ciphers.
+        # This is required because the SCU firmware does not support TLS 1.2+.
+        # Security level 0 permits all ciphers and protocols.
+        # This MUST be set BEFORE setting min/max version and ciphers.
+        try:
+            self._context.set_ciphers("@SECLEVEL=0:" + APP_TLS_CIPHERS)
+        except ssl.SSLError:
+            # Fallback: try without security level prefix (older OpenSSL)
+            self._context.set_ciphers(APP_TLS_CIPHERS)
+
+        # Clear OP_NO_TLSv1 and OP_NO_TLSv1_1 flags that OpenSSL 3.x sets by default
+        self._context.options &= ~ssl.OP_NO_TLSv1
+        self._context.options &= ~ssl.OP_NO_TLSv1_1
+
         self._context.minimum_version = APP_TLS_MIN_VERSION
         self._context.maximum_version = APP_TLS_MAX_VERSION
-        self._context.set_ciphers(APP_TLS_CIPHERS)
+
+        _LOGGER.debug(
+            "BLE TLS context: min=%s max=%s ciphers=%s",
+            APP_TLS_MIN_VERSION, APP_TLS_MAX_VERSION, APP_TLS_CIPHERS,
+        )
 
         self._incoming = ssl.MemoryBIO()
         self._outgoing = ssl.MemoryBIO()
