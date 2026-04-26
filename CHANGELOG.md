@@ -53,7 +53,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BlueZ stale notify acquisition leak** — When `start_notify()` failed (e.g. `[org.bluez.Error.NotPermitted] Notify acquired`), `self._client` was never assigned because it was set *after* `start_notify()`. The coordinator's `disconnect()` found `None` and skipped cleanup, leaking the raw `BleakClient`. BlueZ retained the stale D-Bus notify acquisition, causing every subsequent BLE connect attempt to fail identically — a permanent poison loop. Fixed by wrapping all post-GATT-connect setup in `try/except` that guarantees `client.disconnect()` on any failure. On `Notify acquired`: fully disconnect, wait 1s for BlueZ to settle, then reconnect with a fresh GATT session (one retry, no infinite recursion).
 
-- **Skip OS-level BLE bonding** — `client.pair()` consistently fails with `AuthenticationFailed` when the SCU is not in pairing mode, and the SCU disconnects the BLE link after the failed attempt. Removed OS-level bonding; the integration now proceeds directly from GATT connect → notify → TLS. The SCU may handle pairing at the PIA protocol level (`PairMobileRequest`) rather than requiring OS-level BLE bonding. The EHG Android app's bonding dialog may be an Android-specific user consent UI rather than an SCU requirement.
+- **BLE bonding requires D-Bus pairing agent** — `bleak.pair()` calls `Device1.Pair()` on D-Bus but does NOT register a pairing agent. BlueZ waits ~8s for an agent response that never comes, then cancels with `AuthenticationCanceled` — even when VERBINDUNG is pressed on the SCU. Tried `bluetoothctl` subprocess but HAOS already has HA's agent registered (`Failed to register agent object`). Fixed by using `dbus-fast` (shipped with HA Core) to register a temporary `NoInputNoOutput` agent directly on D-Bus, call `Device1.Pair()`, auto-confirm JustWorks requests, then unregister.
+
+- **BLE `unpair()` on connected client kills GATT** — `BleakClient.unpair()` removes the device from BlueZ entirely (`RemoveDevice`), terminating the active GATT session. Then `pair()` fails instantly because there's no connection. Fixed by calling `unpair()` via a temporary `BleakClient` *before* the main `connect()`.
+
+- **Coordinator/config flow BLE race condition** — The coordinator's 60s poll was starting a concurrent BLE `connect()`/`pair()` while the config flow's Step 3 pairing task was mid-bonding. The concurrent `unpair()` killed the active bonding negotiation, causing `InProgress` → `AuthenticationCanceled`. Fixed by adding `_ble_pairing_in_progress` flag — coordinator skips BLE while config flow pairing is active.
+
+- **BLE address cleared on bonding rejection** — The stored BLE address was cleared on every failure, forcing a re-scan even when the address was valid (bonding just needed VERBINDUNG). Now only clears the address on connection-level failures (timeout, device not found), not on bonding rejection.
+
+### Added
+
+- **Step 3 BLE Pairing UI** — After Step 2 (Vehicle QR + BLE MAC), the config flow shows a progress spinner: *"Waiting for SCU to accept BLE pairing..."*. Background task runs the full BLE ceremony (scan → GATT connect → bonding → TLS → PairMobileRequest). On success, EHG token is stored. On failure, entry is created in cloud-only mode.
+
+- **Reconfigure triggers BLE pairing** — The Reconfigure flow (⋮ → Reconfigure) now routes to the Step 3 BLE pairing spinner when QR token + BLE is enabled and no EHG token was manually provided. Allows retrying BLE pairing without deleting and re-adding the integration.
+
+- **Exponential backoff for BLE failures** — First 5 failures retry at normal 60s poll interval (catches the SCU pairing window). After 5 failures, escalates to 5min/10min/max 15min.
 
 ### Credits
 
