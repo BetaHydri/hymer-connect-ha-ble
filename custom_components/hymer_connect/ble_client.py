@@ -665,18 +665,34 @@ class ScuBleClient:
         mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
         self._write_chunk_size = max(20, min(242, mtu - 3))
 
-        # Attempt BLE bonding (OS-level pairing) — required by SCU before TLS.
-        # On Android this shows a "Koppeln?" dialog; on Linux/bleak it's programmatic.
+        # Attempt BLE bonding (OS-level pairing).
+        # The SCU may disconnect after bonding (successful or failed).
+        # If it disconnects, we reconnect — the bond persists at the OS level.
         pair_method = getattr(client, "pair", None)
+        bonded = False
         if callable(pair_method):
             try:
                 _LOGGER.debug("BLE requesting OS-level bonding with %s", self._scu_address)
                 pair_result = await pair_method()
                 _LOGGER.info("BLE bonding result for %s: %s", self._scu_address, pair_result)
+                bonded = True
             except NotImplementedError:
                 _LOGGER.debug("BLE bonding not supported on this backend — continuing without")
             except Exception as bond_err:
-                _LOGGER.warning("BLE bonding failed for %s: %s — continuing anyway", self._scu_address, bond_err)
+                _LOGGER.warning("BLE bonding failed for %s: %s", self._scu_address, bond_err)
+                # Check if we're still connected after bonding attempt
+                is_connected = getattr(client, "is_connected", False)
+                if callable(is_connected):
+                    is_connected = is_connected
+                if not is_connected:
+                    _LOGGER.info("SCU disconnected after bonding attempt — reconnecting")
+                    try:
+                        await client.connect()
+                        _LOGGER.info("BLE reconnected to %s after bonding", self._scu_address)
+                    except Exception as reconn_err:
+                        raise BleTransportError(
+                            f"Failed to reconnect after bonding: {reconn_err}"
+                        ) from reconn_err
         else:
             _LOGGER.debug("BLE client does not expose pair() method — skipping bonding")
 
