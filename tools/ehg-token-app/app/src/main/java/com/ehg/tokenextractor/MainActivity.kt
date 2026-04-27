@@ -159,9 +159,12 @@ class MainActivity : AppCompatActivity() {
 
                 // Step 2: Get confirmation token
                 log("Step 2: Getting confirmation token...")
+                log("  QR token: ${qrToken.take(20)}... (${qrToken.length} chars)")
                 val confirmationToken = api.getConfirmationToken(qrToken)
                 if (confirmationToken == null) {
-                    log("ERROR: Could not get confirmation token. Check QR code.")
+                    log("ERROR: Could not get confirmation token.")
+                    api.lastError?.let { log("  Detail: $it") }
+                    log("  Check QR code — should start with 'eyJ' (JWT format)")
                     return@launch
                 }
                 log("✅ Confirmation token received (${confirmationToken.length} chars)")

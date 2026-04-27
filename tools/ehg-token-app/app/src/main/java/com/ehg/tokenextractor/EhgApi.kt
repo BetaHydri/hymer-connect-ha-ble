@@ -55,16 +55,26 @@ class EhgApi(private val brand: String) {
         }
     }
 
-    suspend fun getConfirmationToken(activationToken: String): String? = withContext(Dispatchers.IO) {
-        val token = accessToken ?: return@withContext null
+    var lastError: String? = null
+        private set
 
-        // First get the vehicle URN from the activation token
+    suspend fun getConfirmationToken(activationToken: String): String? = withContext(Dispatchers.IO) {
+        val token = accessToken ?: run {
+            lastError = "No access token"
+            return@withContext null
+        }
+
+        // First validate the activation token against the vehicle
         val byTokenUrl = URL("$BASE_URL$ENDPOINT_VEHICLES_BY_TOKEN?token=${URLEncoder.encode(activationToken, "UTF-8")}")
         val byTokenConn = byTokenUrl.openConnection() as HttpURLConnection
         byTokenConn.setRequestProperty("Authorization", "Bearer $token")
         byTokenConn.setRequestProperty("User-Agent", USER_AGENT)
 
-        if (byTokenConn.responseCode != 200) return@withContext null
+        if (byTokenConn.responseCode != 200) {
+            val errorBody = try { byTokenConn.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
+            lastError = "vehicles/byToken returned ${byTokenConn.responseCode}: $errorBody"
+            return@withContext null
+        }
 
         // Now get the confirmation token
         val confirmUrl = URL("$BASE_URL$ENDPOINT_CONFIRMATION_TOKEN")
@@ -79,6 +89,8 @@ class EhgApi(private val brand: String) {
                 ?: json.optString("confirmation_token", null)
                 ?: json.optString("token", null)
         } else {
+            val errorBody = try { confirmConn.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
+            lastError = "confirmationToken returned ${confirmConn.responseCode}: $errorBody"
             null
         }
     }
