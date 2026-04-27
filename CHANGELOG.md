@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.0-alpha.1] - 2026-04-27
+
+### Added
+
+- **BLE dual-path pairing (experimental)** — Full BLE pairing pipeline: D-Bus JustWorks bonding via raw messages + introspection XML → TLS 1.1 handshake (AES128-SHA) → PairMobileRequest with paced GATT writes (10ms/chunk). PairMobileResponse pending vehicle test (ATT 0x0e buffer overflow fix deployed).
+- **Config flow Step 3 — BLE Pairing UI** — Progress spinner with 2-minute retry loop (12 attempts, 8s apart). User presses VERBINDUNG on SCU while spinner shows. On failure, creates entry in cloud-only mode.
+- **BLE enabled checkbox in Step 2** — Users can choose whether to use BLE for ongoing data or only for initial token pairing. Checkbox also visible in Options (Configure).
+- **Reconfigure triggers BLE pairing** — Empty submit re-triggers Step 3 pairing. No need to delete and re-add integration.
+- **SCU bonding state check** — Polls `fff40004` characteristic (challenge-response) to detect VERBINDUNG press. Only available after bonding.
+
+### Fixed
+
+- **D-Bus pairing agent** — `bleak.pair()` has no agent; `bluetoothctl` blocked in HAOS; `dbus-fast` ServiceInterface annotations fail. Solution: pure raw D-Bus messages with `add_message_handler()` + introspection XML.
+- **GATT write pacing** — 1253-byte PairMobileRequest (63 chunks at 20 bytes) overwhelmed SCU NUS RX buffer (ATT error 0x0e). Added 10ms inter-chunk delay for writes >10 chunks.
+- **Stale bond recovery** — `BleakClient.unpair()` doesn't clear BlueZ bonds. Now uses D-Bus `Adapter1.RemoveDevice()`. Detects corrupt bonds (bonded + disconnect) and clears automatically.
+- **Coordinator/config flow race condition** — `_ble_pairing_in_progress` flag prevents concurrent BLE attempts.
+- **Options flow BLE defaults** — Checkbox and address now fall back to `config_entry.data` when `options` is empty.
+- **BLE address preserved on bonding rejection** — Only cleared on connection-level failures, not bonding rejection.
+- **Bonding retry loop** — Config flow retries bonding 12 times over 2 minutes (was single attempt that failed in ~40ms).
+
+### Security
+
+- **Removed log files from repository** — Log files containing VIN, vehicle URN, and BLE MAC address removed. Added `logs/` to `.gitignore`.
+- **Anonymized SCU example** — README example output uses placeholder MAC and SCU ID.
+
 ## [2.37.0] - 2026-04-25
 
 ### Added
