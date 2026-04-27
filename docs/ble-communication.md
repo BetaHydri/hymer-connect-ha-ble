@@ -104,9 +104,21 @@ BleProtocol.request (field 1) {
 
 ## GATT Write Pacing
 
-Large payloads (>10 chunks at MTU=23, chunk_size=20) require 10ms inter-chunk
-delay to avoid overwhelming the SCU's NUS RX buffer. Without pacing, ATT error
-0x0e (Unlikely Error) occurs at ~600ms (63 chunks).
+Large payloads (>10 chunks at MTU=23, chunk_size=20) use **Write Without Response**
+with 5ms inter-chunk delay. This matches the EHG app's Nordic BLE library behavior
+(`.split()` method), which splits data across multiple Write Without Response packets.
+
+Small payloads (≤10 chunks, e.g. TLS handshake) use Write With Response for
+reliability.
+
+**Why Write Without Response for large payloads:**
+- Write With Response requires an ACK for every chunk → back-pressure
+- 63 sequential Write-With-Response at MTU=23 caused ATT error 0x0e
+- Write Without Response eliminates per-chunk ACK overhead
+- 5ms pacing prevents NUS RX buffer overflow
+
+**Reference:** [Nordic UART Service (NUS) docs](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html)
+— NUS RX (`6E400002`) supports both Write and Write Without Response.
 
 ## Bonding State Check (fff40004)
 
@@ -147,3 +159,5 @@ UnregisterAgent(agent_path)
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — PairMobileRequest/Response
   protobuf field layout, BLE pairing ceremony, `hymer_token_tool`
 - **HYMER helpcenter video** — CONNECTION button flow
+- **Nordic Semiconductor** — [NUS specification](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html),
+  [GATT Latency Client](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/latency_client.html)

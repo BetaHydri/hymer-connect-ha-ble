@@ -1049,22 +1049,36 @@ class ScuBleClient:
     async def _write_to_scu(self, data: bytes) -> None:
         """Write data to SCU via NUS RX characteristic in chunks.
 
-        For large payloads (> 10 chunks), add a small delay between
-        chunks to avoid overwhelming the SCU's NUS RX buffer. The SCU
-        needs time to process each chunk before the next arrives.
+        Uses Write Without Response for large payloads (matching the EHG app's
+        Nordic BLE library .split() behavior). Write Without Response avoids
+        per-chunk ACK overhead that can cause ATT errors on rapid multi-chunk
+        writes. Small payloads (≤10 chunks) use Write With Response for
+        reliability.
+
+        See: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html
+        NUS RX supports both Write and Write Without Response.
         """
         if not data or self._client is None:
             return
         total_chunks = (len(data) + self._write_chunk_size - 1) // self._write_chunk_size
-        use_pacing = total_chunks > 10  # Pace large writes
+        # Large payloads: use Write Without Response (like EHG app's .split())
+        # + pacing to avoid buffer overflow
+        use_write_without_response = total_chunks > 10
+        use_response = self._write_response if not use_write_without_response else False
+        write_mode = "WriteReq" if use_response else "WriteCmd(no-resp)"
+        _LOGGER.debug(
+            "BLE TX %d bytes → %d chunks, mode=%s, pace=%s",
+            len(data), total_chunks, write_mode,
+            "5ms" if use_write_without_response else "none",
+        )
         for i, offset in enumerate(range(0, len(data), self._write_chunk_size)):
             chunk = data[offset : offset + self._write_chunk_size]
             await self._client.write_gatt_char(
-                UART_RX_UUID, chunk, response=self._write_response
+                UART_RX_UUID, chunk, response=use_response
             )
             # Pace large writes to avoid ATT buffer overflow on SCU
-            if use_pacing and i < total_chunks - 1:
-                await asyncio.sleep(0.01)  # 10ms between chunks
+            if use_write_without_response and i < total_chunks - 1:
+                await asyncio.sleep(0.005)  # 5ms between chunks (faster without ACK overhead)
 
     async def _next_uart_data(self, deadline: float) -> bytes:
         """Wait for the next UART notification from SCU."""
