@@ -1,39 +1,54 @@
 package com.ehg.tokenextractor
 
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 /**
- * EHG Cloud API client — login and get confirmation token for BLE pairing.
+ * EHG Cloud API client — OAuth2 ROPC login and confirmation token for BLE pairing.
+ * Matches the HA integration's api.py exactly.
  */
 class EhgApi(private val brand: String) {
 
-    private val baseUrl = "https://$brand-app-api.2-2connect.2-2.cloud"
+    companion object {
+        private const val BASE_URL = "https://smartrv.erwinhymergroup.com"
+        private const val ENDPOINT_AUTH = "/api/v2/oauth/token"
+        private const val ENDPOINT_VEHICLES_BY_TOKEN = "/api/ehg/v1/vehicles/byToken"
+        private const val ENDPOINT_CONFIRMATION_TOKEN = "/api/ehg/v1/accounts/confirmationToken"
+        // OAuth2 Basic auth header (client_id:client_secret base64-encoded)
+        private const val OAUTH2_BASIC_AUTH = "Basic ZWhnLXByb2QtbW9iaWxlLWFwcC10ZWNobmljYWwtdXNlcjpaez96Ois3bVFhNXZAb2VlNV0lZEVeUSpxeDh9WXIoYWw1eFNUaC05LERdYm48OzhWbzh1PGclc8OcLShOMyV5"
+        private const val APP_VERSION = "2.10.14"
+        private const val USER_AGENT = "EHGConnect/2.10.14 (Android)"
+    }
+
     private var accessToken: String? = null
 
     suspend fun login(email: String, password: String): Boolean = withContext(Dispatchers.IO) {
-        val url = URL("$baseUrl/api/ehg/v1/auth/login")
+        val url = URL("$BASE_URL$ENDPOINT_AUTH")
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
-        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+        conn.setRequestProperty("Accept", "application/json, text/plain, */*")
+        conn.setRequestProperty("Authorization", OAUTH2_BASIC_AUTH)
+        conn.setRequestProperty("User-Agent", USER_AGENT)
+        conn.setRequestProperty("X-EHG-Brand", "${brand.replaceFirstChar { it.uppercase() }}/$APP_VERSION")
         conn.doOutput = true
 
-        val body = JSONObject().apply {
-            put("email", email)
-            put("password", password)
-        }
+        val body = "grant_type=password" +
+            "&username=${URLEncoder.encode(email, "UTF-8")}" +
+            "&password=${URLEncoder.encode(password, "UTF-8")}"
 
-        OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
+        OutputStreamWriter(conn.outputStream).use { it.write(body) }
 
         if (conn.responseCode == 200) {
             val response = conn.inputStream.bufferedReader().readText()
             val json = JSONObject(response)
-            accessToken = json.optString("accessToken", null)
-                ?: json.optString("access_token", null)
+            accessToken = json.optString("access_token", null)
             accessToken != null
         } else {
             false
@@ -42,15 +57,27 @@ class EhgApi(private val brand: String) {
 
     suspend fun getConfirmationToken(activationToken: String): String? = withContext(Dispatchers.IO) {
         val token = accessToken ?: return@withContext null
-        val url = URL("$baseUrl/api/ehg/v1/vehicles/byToken?token=$activationToken")
-        val conn = url.openConnection() as HttpURLConnection
-        conn.setRequestProperty("Authorization", "Bearer $token")
 
-        if (conn.responseCode == 200) {
-            val response = conn.inputStream.bufferedReader().readText()
+        // First get the vehicle URN from the activation token
+        val byTokenUrl = URL("$BASE_URL$ENDPOINT_VEHICLES_BY_TOKEN?token=${URLEncoder.encode(activationToken, "UTF-8")}")
+        val byTokenConn = byTokenUrl.openConnection() as HttpURLConnection
+        byTokenConn.setRequestProperty("Authorization", "Bearer $token")
+        byTokenConn.setRequestProperty("User-Agent", USER_AGENT)
+
+        if (byTokenConn.responseCode != 200) return@withContext null
+
+        // Now get the confirmation token
+        val confirmUrl = URL("$BASE_URL$ENDPOINT_CONFIRMATION_TOKEN")
+        val confirmConn = confirmUrl.openConnection() as HttpURLConnection
+        confirmConn.setRequestProperty("Authorization", "Bearer $token")
+        confirmConn.setRequestProperty("User-Agent", USER_AGENT)
+
+        if (confirmConn.responseCode == 200) {
+            val response = confirmConn.inputStream.bufferedReader().readText()
             val json = JSONObject(response)
             json.optString("confirmationToken", null)
                 ?: json.optString("confirmation_token", null)
+                ?: json.optString("token", null)
         } else {
             null
         }
