@@ -113,23 +113,48 @@ BleProtocol.request (field 1) {
 }
 `
 
-## GATT Write Pacing
+## MTU Negotiation
 
-Large payloads (>10 chunks at MTU=23, chunk_size=20) use **Write Without Response**
-with 5ms inter-chunk delay. This matches the EHG app's Nordic BLE library behavior
-(`.split()` method), which splits data across multiple Write Without Response packets.
+The EHG app requests **MTU 245** (`requestMtu(245)` in `SmartCaravanBleManager.java`),
+giving 242-byte chunks. This is critical for large payloads:
+
+| MTU | Chunk size | PairMobileRequest (1253 bytes) |
+|-----|-----------|-------------------------------|
+| 23 (default) | 20 bytes | 63 chunks — caused ATT error 0x0e |
+| 245 (EHG app) | 242 bytes | 6 chunks — works reliably |
+
+The integration now calls `_acquire_mtu()` on the bleak client to negotiate
+a higher MTU, matching the EHG app behavior.
+
+## GATT Write Mode
+
+Large payloads (>10 chunks) use **Write Without Response** with 5ms inter-chunk
+pacing. This matches the EHG app's Nordic BLE library behavior:
+- `setWriteType(2)` = Write Without Response
+- `.split()` = auto-chunk at negotiated MTU
 
 Small payloads (≤10 chunks, e.g. TLS handshake) use Write With Response for
 reliability.
 
-**Why Write Without Response for large payloads:**
-- Write With Response requires an ACK for every chunk → back-pressure
-- 63 sequential Write-With-Response at MTU=23 caused ATT error 0x0e
-- Write Without Response eliminates per-chunk ACK overhead
-- 5ms pacing prevents NUS RX buffer overflow
-
 **Reference:** [Nordic UART Service (NUS) docs](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html)
 — NUS RX (`6E400002`) supports both Write and Write Without Response.
+
+## EHG App Architecture (from decompilation)
+
+The EHG app's BLE stack has two layers:
+
+1. **Java native** (`SmartCaravanBleManager.java`) — pure transport:
+   - GATT connect, service discovery, MTU negotiation (245)
+   - NUS TX notifications → hex string → `LocalBroadcastManager` → JS
+   - NUS RX writes ← hex string ← `LocalBroadcastManager` ← JS
+   - Write Without Response + `.split()` for auto-chunking
+   - No TLS, no protobuf — just a byte pipe
+
+2. **Hermes JS bundle** (`index.android.bundle`, 13.4 MB) — protocol:
+   - TLS 1.0/1.1 handshake (AES128-SHA)
+   - PIA protobuf encoding/decoding
+   - PairMobileRequest/Response handling
+   - Token storage (`setRemoteRefreshToken`)
 
 ## Bonding State Check (fff40004)
 
