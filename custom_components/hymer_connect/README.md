@@ -452,6 +452,7 @@ If you have a different EHG vehicle and want to help expand compatibility:
        custom_components.hymer_connect.signalr_client: info
        custom_components.hymer_connect.pia_decoder: warning
        custom_components.hymer_connect.coordinator: info
+       custom_components.hymer_connect.ble_client: info
    ```
 
    | Logger | Level | What it shows |
@@ -461,6 +462,9 @@ If you have a different EHG vehicle and want to help expand compatibility:
    | `signalr_client` | `debug` | Every SignalR message (very verbose) |
    | `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose) |
    | `coordinator` | `info` | REST API polling, SignalR reconnect scheduling |
+   | `ble_client` | `info` | BLE connect/disconnect, bonding results, TLS status |
+   | `ble_client` | `debug` | GATT services, D-Bus agent, write mode/pacing, chunk details |
+   | `config_flow` | `warning` | BLE pairing attempt progress (🟢/🔴 status) |
 
 3. **Open a GitHub issue** with:
    - Your vehicle brand, model, and base vehicle (Sprinter/Ducato/Transit)

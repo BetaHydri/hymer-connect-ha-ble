@@ -17,16 +17,27 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
 
 ## BLE Services
 
+### Discovered Services (without bonding)
+
+5 GATT services visible immediately after connection (no CONNECTION button required):
+
 | Service | UUID | Purpose |
 |---------|------|---------|
-| Nordic UART (NUS) | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Data exchange (PIA protobuf over TLS) |
-| NUS RX | `6e400002` | Write: RPi → SCU |
-| NUS TX | `6e400003` | Notify: SCU → RPi |
 | Power Service | `fff40001-13c9-42f3-9d46-e1d1aa2a7232` | SCU power management |
-| Power State | `fff40002` | Read: SCU power state |
-| Power Control | `fff40003` | Write: wake-up command (0x0A) |
-| Bonding State | `fff40004` | Read/Write: challenge-response bonding check |
-| Bond Management | `0000181e` | BLE bonding management |
+| Generic Access | `00001800-0000-1000-8000-00805f9b34fb` | Standard BLE device info |
+| Bond Management | `0000181e-0000-1000-8000-00805f9b34fb` | BLE bonding management |
+| Generic Attribute | `00001801-0000-1000-8000-00805f9b34fb` | Standard GATT service |
+| Nordic UART (NUS) | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Data exchange (PIA protobuf over TLS) |
+
+### Key Characteristics
+
+| Characteristic | UUID | Properties | Notes |
+|----------------|------|------------|-------|
+| NUS RX | `6e400002` | Write, Write Without Response | RPi → SCU data |
+| NUS TX | `6e400003` | Notify | SCU → RPi data |
+| Power State | `fff40002` | Read | SCU power state |
+| Power Control | `fff40003` | Write | Wake-up command (0x0A) |
+| Bonding State | `fff40004` | Read/Write | Challenge-response bonding check. **Only visible after OS-level bonding** (not found without CONNECTION pressed) |
 
 ## Connection Sequence
 
@@ -128,7 +139,13 @@ Challenge-response protocol used by the EHG app:
 3. First 4 bytes of response = echo of challenge
 4. 5th byte = bonding state (0 = not in pairing mode, non-zero = CONNECTION pressed)
 
-Only available after OS-level bonding is established.
+**Important:** This characteristic is only visible after OS-level bonding is
+established. Without bonding (CONNECTION not pressed), GATT service discovery
+returns `fff40001` but does NOT expose `fff40004` — attempting to access it
+throws `Characteristic fff40004-13c9-42f3-9d46-e1d1aa2a7232 was not found!`.
+
+Verified via live testing (2026-04-27): GATT connects fine, 5 services visible,
+but `fff40004` is absent until bonding succeeds.
 
 ## Token Delivery (confirmed via Hermes analysis)
 
