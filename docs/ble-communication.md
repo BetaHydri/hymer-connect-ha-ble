@@ -33,7 +33,7 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
 ### 1. BLE Bonding (JustWorks)
 - Register D-Bus pairing agent (raw messages + introspection XML)
 - Call `Device1.Pair()` via D-Bus → JustWorks bonding
-- SCU must be in pairing mode (VERBINDUNG pressed on touch panel)
+- SCU must be in pairing mode (CONNECTION pressed on touch panel)
 - Without bonding, SCU ignores TLS ClientHello
 
 ### 2. TLS Handshake
@@ -114,7 +114,7 @@ Challenge-response protocol used by the EHG app:
 1. Write 4 random bytes to `fff40004`
 2. Read back from `fff40004`
 3. First 4 bytes of response = echo of challenge
-4. 5th byte = bonding state (0 = not in pairing mode, non-zero = VERBINDUNG pressed)
+4. 5th byte = bonding state (0 = not in pairing mode, non-zero = CONNECTION pressed)
 
 Only available after OS-level bonding is established.
 
@@ -146,4 +146,4 @@ UnregisterAgent(agent_path)
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — PairMobileRequest/Response
   protobuf field layout, BLE pairing ceremony, `hymer_token_tool`
-- **HYMER helpcenter video** — VERBINDUNG button flow
+- **HYMER helpcenter video** — CONNECTION button flow

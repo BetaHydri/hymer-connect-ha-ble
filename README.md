@@ -227,16 +227,16 @@ Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the 
    - Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
    - **Enable BLE direct path** checkbox (default: checked) — controls whether the integration uses BLE for ongoing sensor data after pairing. Uncheck if you only want BLE for the initial token capture but prefer cloud/SignalR for daily use. You can change this later in **Configure** (Options)
 5. Submit Step 2. **Step 3 — BLE Pairing** appears with a progress spinner
-6. **Now press the VERBINDUNG (connection) button** on the SCU touch panel in the vehicle. You have **up to 2 minutes** — the integration retries bonding every 8 seconds (12 attempts) while the spinner is showing
-7. Once VERBINDUNG is pressed and the SCU accepts the bond, the integration automatically:
+6. **Now press the CONNECTION (CONNECTION) button** on the SCU touch panel in the vehicle. You have **up to 2 minutes** — the integration retries bonding every 8 seconds (12 attempts) while the spinner is showing
+7. Once CONNECTION is pressed and the SCU accepts the bond, the integration automatically:
    - Completes BLE bonding (JustWorks via D-Bus agent)
    - Establishes a TLS 1.0/1.1 encrypted session over Bluetooth
    - Sends the PairMobileRequest with your QR activation token
    - Receives and stores the EHG refresh token from the SCU
 8. On success, the integration starts receiving real-time sensor data — done!
-9. On failure (VERBINDUNG not pressed within 2 minutes), the entry is created in **cloud-only mode**. You can retry anytime via **Reconfigure** (see below)
+9. On failure (CONNECTION not pressed within 2 minutes), the entry is created in **cloud-only mode**. You can retry anytime via **Reconfigure** (see below)
 
-> **You don't need to press VERBINDUNG before submitting.** The integration retries bonding for 2 minutes after you submit Step 2, so you have plenty of time to walk to the vehicle and press the button while the spinner is showing. Each retry attempt is logged: `BLE pairing attempt 1/12 — press VERBINDUNG on SCU now`.
+> **You don't need to press CONNECTION before submitting.** The integration retries bonding for 2 minutes after you submit Step 2, so you have plenty of time to walk to the vehicle and press the button while the spinner is showing. Each retry attempt is logged: `BLE pairing attempt 1/12 — press CONNECTION on SCU now`.
 
 > **What if bonding fails?** The integration creates the config entry in cloud-only mode and falls back to SignalR. All entities are created normally — you just won't have real-time sensor data until the EHG refresh token is obtained. Use **Reconfigure** to retry BLE pairing anytime.
 
@@ -267,13 +267,13 @@ Already set up cloud-only and want to add BLE? Or pairing failed and you want to
 2. If the QR token is already stored from a previous setup, you can **leave all fields empty** and just submit — the integration will re-trigger BLE pairing automatically
 3. If you need to add a QR token for the first time, enter it now. You can also update the SCU Bluetooth address or paste an EHG refresh token obtained via mitmproxy
 4. Submit — the **Step 3 BLE pairing spinner** appears, retrying bonding for up to 2 minutes
-5. **Press VERBINDUNG** on the SCU touch panel while the spinner is showing
+5. **Press CONNECTION** on the SCU touch panel while the spinner is showing
 6. Once bonding succeeds, the integration completes TLS + PairMobileRequest and stores the EHG token
 7. The integration reloads with the updated settings
 
-> **Reconfigure is the recommended way to retry BLE pairing.** You don't need to delete and re-add the integration. All entities, history, and dashboard configurations are preserved. Just Reconfigure → Submit → press VERBINDUNG.
+> **Reconfigure is the recommended way to retry BLE pairing.** You don't need to delete and re-add the integration. All entities, history, and dashboard configurations are preserved. Just Reconfigure → Submit → press CONNECTION.
 
-> **Remote retry (not at the vehicle):** If you submit Reconfigure remotely, the bonding will fail after 2 minutes (VERBINDUNG not pressed). The integration continues in cloud-only mode — no harm done. Retry when you're next at the vehicle.
+> **Remote retry (not at the vehicle):** If you submit Reconfigure remotely, the bonding will fail after 2 minutes (CONNECTION not pressed). The integration continues in cloud-only mode — no harm done. Retry when you're next at the vehicle.
 
 ### BLE Direct Path — Prerequisites
 

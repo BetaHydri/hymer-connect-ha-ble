@@ -18,19 +18,19 @@ Architecture:
 The BLE path is ~50ms latency vs ~500ms-2s for the cloud path.
 
 Pairing (one-time at vehicle):
-  The SCU requires pressing the VERBINDUNG (connection) button on the vehicle's
+  The SCU requires pressing the CONNECTION button on the vehicle's
   control panel display to allow a new BLE client to pair. This is the same
   button used when pairing a new smartphone with the EHG app. After the button
   press, the SCU enters pairing mode and accepts the PairMobileRequest. The SCU
   returns a new remoteAccessToken bound to the device's BLE address. The SCU
   supports multiple paired clients simultaneously (phone + Pi).
 
-  Flow: User presses Verbindung button on SCU → Pi connects via BLE/TLS →
+  Flow: User presses CONNECTION button on SCU → Pi connects via BLE/TLS →
         sends PairMobileRequest → SCU returns remoteAccessToken → stored locally
 
 Credits:
   The PairMobileRequest/Response protobuf field layout and the full BLE pairing
-  ceremony (activation token + confirmation token + SCU Verbindung button +
+  ceremony (activation token + confirmation token + SCU CONNECTION button +
   remote-access refresh token minting) were reverse-engineered by Dan Simms
   (dan-simms1/hymer-connect-ha) in the standalone hymer_token_tool. The protobuf
   field numbers, nesting structure, and frame encoding in this module are derived
@@ -86,7 +86,7 @@ APP_TLS_MAX_VERSION = ssl.TLSVersion.TLSv1_1
 DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_TLS_TIMEOUT = 20.0
 DEFAULT_SCAN_TIMEOUT = 8.0
-DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press Verbindung button on SCU
+DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press CONNECTION button on SCU
 WAKE_UP_COMMAND = bytes((0x0A,))
 DEFAULT_GATT_MTU = 23
 
@@ -739,7 +739,7 @@ class ScuBleClient:
             self._write_chunk_size = max(20, min(242, mtu - 3))
 
             # Check SCU bonding state before attempting pair.
-            # The fff40004 characteristic tells us if VERBINDUNG was pressed.
+            # The fff40004 characteristic tells us if CONNECTION was pressed.
             try:
                 challenge = bytes(random.getrandbits(8) for _ in range(4))
                 await client.write_gatt_char(BONDING_STATE_UUID, challenge)
@@ -756,7 +756,7 @@ class ScuBleClient:
             except Exception as bs_err:
                 _LOGGER.debug("SCU bonding state check failed: %s", bs_err)
 
-            # Try OS-level bonding if VERBINDUNG was pressed on the SCU.
+            # Try OS-level bonding if CONNECTION was pressed on the SCU.
             # The SCU requires bonding before it will respond to TLS.
             #
             # bleak's client.pair() calls Device1.Pair() on D-Bus but does NOT
@@ -783,7 +783,7 @@ class ScuBleClient:
                 if not bonded:
                     raise BleTransportError(
                         f"SCU disconnected after bonding failure — "
-                        f"press VERBINDUNG on the SCU control panel first"
+                        f"press CONNECTION on the SCU control panel first"
                     )
                 # Bonded but disconnected — reconnect with the new bond
                 _LOGGER.debug("Reconnecting after successful bonding")
@@ -896,7 +896,7 @@ class ScuBleClient:
         """Perform the SCU mobile-device pairing ceremony over BLE/TLS.
 
         This mirrors the EHG app's pairing flow:
-          1. User presses VERBINDUNG (connection) button on SCU control panel
+          1. User presses CONNECTION button on SCU control panel
           2. Send PairMobileRequest (activation token + confirmation token)
           3. SCU processes the request and returns tokens
           4. Send PairMobileConfirmation(success=true)
@@ -914,7 +914,7 @@ class ScuBleClient:
             raise BleTransportError("TLS not established — call connect() and establish_tls() first")
 
         _LOGGER.info(
-            "Starting BLE pairing with SCU %s \u2014 press VERBINDUNG button on SCU, waiting up to %ds",
+            "Starting BLE pairing with SCU %s \u2014 press CONNECTION button on SCU, waiting up to %ds",
             self._scu_address, int(timeout),
         )
 
@@ -929,7 +929,7 @@ class ScuBleClient:
         _LOGGER.debug("Sending encrypted PairMobileRequest: %d bytes", len(encrypted))
         await self._write_to_scu(encrypted)
 
-        # Wait for PairMobileResponse (user must press Verbindung button on SCU)
+        # Wait for PairMobileResponse (user must press CONNECTION button on SCU)
         response_frame = await self._receive_next_frame(timeout)
         pair_response = decode_pair_mobile_response(response_frame)
 
@@ -960,7 +960,7 @@ class ScuBleClient:
             if remaining <= 0:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press the VERBINDUNG (connection) button "
+                    "did you press the CONNECTION button "
                     "on the SCU control panel?"
                 )
             try:
@@ -970,7 +970,7 @@ class ScuBleClient:
             except asyncio.TimeoutError as err:
                 raise BleTransportError(
                     "Timed out waiting for SCU response — "
-                    "did you press the VERBINDUNG (connection) button "
+                    "did you press the CONNECTION button "
                     "on the SCU control panel?"
                 ) from err
 

@@ -129,7 +129,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         First 5 failures: no extra backoff (normal 60s poll interval suffices).
         This keeps the retry cadence fast enough to catch the SCU pairing window
-        (~60-120s after pressing VERBINDUNG).
+        (~60-120s after pressing CONNECTION).
         After 5: escalate to 5min, 10min, max 15min.
         """
         n = self._ble_consecutive_failures
@@ -372,7 +372,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._ble_pairing_in_progress = True  # prevent concurrent BLE attempts
                     _LOGGER.warning(
                         "No EHG refresh token — attempting BLE pairing with SCU %s. "
-                        "IMPORTANT: Press the VERBINDUNG (connection) button on the SCU "
+                        "IMPORTANT: Press the CONNECTION button on the SCU "
                         "control panel in the vehicle now. "
                         "Waiting up to 60 seconds...",
                         ble_address,
@@ -430,13 +430,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._connection_mode = "cloud"
             # Only clear the stored BLE address on connection-level failures
             # (timeout, device not found). Don't clear on bonding rejection —
-            # the SCU address is still valid, bonding just needs VERBINDUNG.
+            # the SCU address is still valid, bonding just needs CONNECTION.
             err_str = str(err)
             is_bonding_rejection = (
                 "AuthenticationFailed" in err_str
                 or "AuthenticationCanceled" in err_str
                 or "AuthenticationRejected" in err_str
-                or "VERBINDUNG" in err_str
+                or "CONNECTION" in err_str
                 or "0x0e" in err_str
             )
             if ble_address and self.config_entry.data.get(CONF_BLE_ADDRESS) and not is_bonding_rejection:
@@ -623,9 +623,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Attempt BLE direct path if enabled and not already connected.
         # After consecutive TLS failures (SCU ignores ClientHello without
-        # bonding/VERBINDUNG), back off to avoid wasting ~20s per poll.
+        # bonding/CONNECTION), back off to avoid wasting ~20s per poll.
         # Keep first 5 attempts at normal poll interval (60s) so we don't
-        # miss the SCU pairing window (~60-120s after pressing VERBINDUNG).
+        # miss the SCU pairing window (~60-120s after pressing CONNECTION).
         # After 5 failures, escalate: 5min, 10min, max 15min.
         #
         # Skip BLE if the config flow pairing task is actively running —

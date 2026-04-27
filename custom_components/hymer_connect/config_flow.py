@@ -137,7 +137,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
         For BLE pairing, both the QR activation token and the SCU BLE
         address are needed:
-          1. User presses VERBINDUNG (connection) button on SCU control panel
+          1. User presses CONNECTION button on SCU control panel
           2. User provides the SCU Bluetooth MAC address (or leaves empty to auto-scan)
           3. At runtime, BLE pairing happens: Pi connects via BLE/TLS,
              sends PairMobileRequest, SCU returns remoteAccessToken
@@ -236,7 +236,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.info("BLE scan found SCU: %s", ble_address)
 
             # Retry bonding up to 12 times over ~120 seconds.
-            # The user needs time to press VERBINDUNG on the SCU after
+            # The user needs time to press CONNECTION on the SCU after
             # submitting the config flow. Each attempt takes ~3-5 seconds
             # (connect + bond attempt + disconnect + sleep).
             max_bond_attempts = 12
@@ -246,7 +246,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             for attempt in range(1, max_bond_attempts + 1):
                 remaining_time = (max_bond_attempts - attempt + 1) * bond_retry_delay
                 _LOGGER.warning(
-                    "🔵 BLE pairing attempt %d/%d — waiting for VERBINDUNG button press "
+                    "🔵 BLE pairing attempt %d/%d — waiting for CONNECTION button press "
                     "(%ds remaining). SCU bonding state: checking...",
                     attempt, max_bond_attempts, remaining_time,
                 )
@@ -257,17 +257,17 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         tls_timeout=30.0,
                     )
                     await client.connect()
-                    # If connect() succeeded, bonding worked → VERBINDUNG was pressed!
+                    # If connect() succeeded, bonding worked → CONNECTION was pressed!
                     _LOGGER.warning(
                         "🟢 BLE bonding SUCCESSFUL on attempt %d/%d — "
-                        "VERBINDUNG was pressed! Proceeding to TLS + pairing...",
+                        "CONNECTION was pressed! Proceeding to TLS + pairing...",
                         attempt, max_bond_attempts,
                     )
                     break
                 except BleTransportError as bond_err:
-                    if "VERBINDUNG" in str(bond_err) or "Authentication" in str(bond_err):
+                    if "CONNECTION" in str(bond_err) or "Authentication" in str(bond_err):
                         _LOGGER.warning(
-                            "🔴 BLE bonding attempt %d/%d — VERBINDUNG NOT pressed yet "
+                            "🔴 BLE bonding attempt %d/%d — CONNECTION NOT pressed yet "
                             "(SCU rejected bonding). Retrying in %ds... (%ds remaining)",
                             attempt, max_bond_attempts, bond_retry_delay, remaining_time,
                         )

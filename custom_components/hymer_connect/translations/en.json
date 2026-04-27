@@ -16,7 +16,7 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection \u2014 no mitmproxy needed.\n\n\u26a0\ufe0f When the integration connects for the first time, press the VERBINDUNG (connection) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection \u2014 no mitmproxy needed.\n\n\u26a0\ufe0f When the integration connects for the first time, press the CONNECTION (CONNECTION) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -52,7 +52,7 @@
       },
       "ble_pairing": {
         "title": "BLE Pairing with SCU",
-        "description": "Press the **VERBINDUNG** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. This can take up to 2 minutes.\n\nDo NOT close this dialog."
+        "description": "Press the **CONNECTION** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. This can take up to 2 minutes.\n\nDo NOT close this dialog."
       },
       "ble_result": {
         "title": "BLE Pairing Complete",
@@ -60,7 +60,7 @@
       }
     },
     "progress": {
-      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press VERBINDUNG on the vehicle control panel. Retrying for up to 2 minutes."
+      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press CONNECTION on the vehicle control panel. Retrying for up to 2 minutes."
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
@@ -71,7 +71,7 @@
       "ble_no_scu_found": "No SCU found via Bluetooth scan \u2014 make sure you are near the vehicle",
       "ble_no_confirmation_token": "Could not obtain confirmation token from cloud API",
       "ble_no_refresh_token": "BLE pairing completed but SCU did not return a refresh token",
-      "ble_pairing_failed": "BLE pairing failed \u2014 make sure you pressed VERBINDUNG on the SCU and are near the vehicle",
+      "ble_pairing_failed": "BLE pairing failed \u2014 make sure you pressed CONNECTION on the SCU and are near the vehicle",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
