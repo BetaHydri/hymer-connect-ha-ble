@@ -578,10 +578,12 @@ class HymerConnectOptionsFlow(OptionsFlow):
             CONF_TANK_CAPACITY, DEFAULT_TANK_CAPACITY_LITERS
         )
         current_ble_enabled = self._config_entry.options.get(
-            CONF_BLE_ENABLED, False
+            CONF_BLE_ENABLED,
+            self._config_entry.data.get(CONF_BLE_ENABLED, False),
         )
         current_ble_address = self._config_entry.options.get(
-            CONF_BLE_ADDRESS, ""
+            CONF_BLE_ADDRESS,
+            self._config_entry.data.get(CONF_BLE_ADDRESS, ""),
         )
 
         return self.async_show_form(
