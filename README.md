@@ -30,13 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (70+ entities: GPS, battery, doors, heater, fridge, etc.) requires an **EHG Remote Access Refresh Token**. This token must be captured **once** from your phone using mitmproxy during the initial setup. Without it, only basic vehicle metadata (model, VIN, year) is available. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for the step-by-step guide.
 
-> **v2.33.0** — **SCU Restart button + fridge door fix!** New `button.hymer_restart_scu` with confirmation prompt. Fridge door binary sensor (`binary_sensor.hymer_fridge_door`). Case-insensitive string matching for all binary sensors. Shutdown-safe SignalR (no more `Session is closed` log noise). See [CHANGELOG](CHANGELOG.md) for full history.
-
-> **v2.36.6** — **Fridge door + window contact now update in real time!** Fixed depth-filter bug in PIA protobuf decoder that silently dropped real-time SCU push updates. `binary_sensor.hymer_fridge_door` and `binary_sensor.hymer_heater_window_contact` now track open/close events live.
-
-> **v2.37.0** — **BLE pairing + QR code config flow!** The config flow now mirrors the EHG app: login → enter QR code activation token → provide SCU Bluetooth address. The integration can now perform the full SCU pairing ceremony over BLE/TLS (activation token + confirmation token → user presses ALLOW on SCU touchscreen → receives remote-access refresh token). No more mitmproxy needed when your HA instance has BLE hardware. Credits to Dan Simms (`dan-simms1/hymer-connect-ha`) for reverse-engineering the pairing protocol.
-
-> **v2.40.0-alpha.1** — **BLE dual-path alpha!** Full BLE pairing pipeline: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest with paced GATT writes. Config flow Step 3 with 2-minute bonding retry. BLE enabled checkbox in Step 2. Reconfigure retries pairing. PairMobileResponse pending vehicle test. See [BLE Communication Protocol](docs/ble-communication.md) for technical details.
+> **v2.40.0-alpha.1** — **BLE dual-path alpha!** Full BLE pairing pipeline: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest with Write Without Response (matching EHG app). Config flow Step 3 with 2-minute bonding retry. BLE enabled checkbox. Reconfigure retries pairing. Press CONNECTION on SCU touch panel to enable bonding. PairMobileResponse pending vehicle test. See [BLE Communication Protocol](docs/ble-communication.md) for technical details and [CHANGELOG](CHANGELOG.md) for full history.
 
 ### Energy Dashboard
 
