@@ -232,14 +232,63 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_BLE_ADDRESS] = ble_address
                 _LOGGER.info("BLE scan found SCU: %s", ble_address)
 
-            client = ScuBleClient(
-                scu_address=ble_address,
-                connect_timeout=15.0,
-                tls_timeout=30.0,
-            )
+            # Retry bonding up to 12 times over ~120 seconds.
+            # The user needs time to press VERBINDUNG on the SCU after
+            # submitting the config flow. Each attempt takes ~3-5 seconds
+            # (connect + bond attempt + disconnect + sleep).
+            max_bond_attempts = 12
+            bond_retry_delay = 8  # seconds between attempts
+            client = None
 
-            # Step 1: GATT connect + notifications
-            await client.connect()
+            for attempt in range(1, max_bond_attempts + 1):
+                _LOGGER.info(
+                    "BLE pairing attempt %d/%d — press VERBINDUNG on SCU now",
+                    attempt, max_bond_attempts,
+                )
+                try:
+                    client = ScuBleClient(
+                        scu_address=ble_address,
+                        connect_timeout=15.0,
+                        tls_timeout=30.0,
+                    )
+                    await client.connect()
+                    # If connect() succeeded, bonding worked → proceed to TLS
+                    break
+                except BleTransportError as bond_err:
+                    if "VERBINDUNG" in str(bond_err) or "Authentication" in str(bond_err):
+                        _LOGGER.info(
+                            "BLE bonding attempt %d/%d failed (VERBINDUNG not pressed yet): %s",
+                            attempt, max_bond_attempts, bond_err,
+                        )
+                        if client:
+                            try:
+                                await client.disconnect()
+                            except Exception:
+                                pass
+                            client = None
+                        if attempt < max_bond_attempts:
+                            await asyncio.sleep(bond_retry_delay)
+                            continue
+                        self._ble_pairing_error = "ble_pairing_failed"
+                        return
+                    raise  # Non-bonding error → don't retry
+                except Exception as err:
+                    _LOGGER.warning("BLE connect attempt %d failed: %s", attempt, err)
+                    if client:
+                        try:
+                            await client.disconnect()
+                        except Exception:
+                            pass
+                        client = None
+                    if attempt < max_bond_attempts:
+                        await asyncio.sleep(bond_retry_delay)
+                        continue
+                    self._ble_pairing_error = "ble_pairing_failed"
+                    return
+
+            if not client or not client.connected:
+                self._ble_pairing_error = "ble_pairing_failed"
+                return
 
             try:
                 # Step 2: TLS handshake

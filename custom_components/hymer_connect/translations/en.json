@@ -58,7 +58,7 @@
       }
     },
     "progress": {
-      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press VERBINDUNG on the vehicle control panel."
+      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press VERBINDUNG on the vehicle control panel. Retrying for up to 2 minutes."
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
