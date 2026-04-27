@@ -65,12 +65,14 @@ class EhgApi(private val brand: String) {
         }
 
         // First validate the activation token against the vehicle
-        val byTokenUrl = URL("$BASE_URL$ENDPOINT_VEHICLES_BY_TOKEN?token=${URLEncoder.encode(activationToken, "UTF-8")}")
+        // The activation token goes in the EHG-TOKEN header, not as query param
+        val byTokenUrl = URL("$BASE_URL$ENDPOINT_VEHICLES_BY_TOKEN")
         val byTokenConn = byTokenUrl.openConnection() as HttpURLConnection
         byTokenConn.setRequestProperty("Authorization", "Bearer $token")
         byTokenConn.setRequestProperty("User-Agent", USER_AGENT)
         byTokenConn.setRequestProperty("X-EHG-Brand", "${brand.replaceFirstChar { it.uppercase() }}/$APP_VERSION")
         byTokenConn.setRequestProperty("Accept", "application/json, text/plain, */*")
+        byTokenConn.setRequestProperty("EHG-TOKEN", activationToken)
 
         if (byTokenConn.responseCode != 200) {
             val errorBody = try { byTokenConn.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
