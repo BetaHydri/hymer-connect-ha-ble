@@ -244,9 +244,11 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             client = None
 
             for attempt in range(1, max_bond_attempts + 1):
-                _LOGGER.info(
-                    "BLE pairing attempt %d/%d — press VERBINDUNG on SCU now",
-                    attempt, max_bond_attempts,
+                remaining_time = (max_bond_attempts - attempt + 1) * bond_retry_delay
+                _LOGGER.warning(
+                    "🔵 BLE pairing attempt %d/%d — waiting for VERBINDUNG button press "
+                    "(%ds remaining). SCU bonding state: checking...",
+                    attempt, max_bond_attempts, remaining_time,
                 )
                 try:
                     client = ScuBleClient(
@@ -255,13 +257,19 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         tls_timeout=30.0,
                     )
                     await client.connect()
-                    # If connect() succeeded, bonding worked → proceed to TLS
+                    # If connect() succeeded, bonding worked → VERBINDUNG was pressed!
+                    _LOGGER.warning(
+                        "🟢 BLE bonding SUCCESSFUL on attempt %d/%d — "
+                        "VERBINDUNG was pressed! Proceeding to TLS + pairing...",
+                        attempt, max_bond_attempts,
+                    )
                     break
                 except BleTransportError as bond_err:
                     if "VERBINDUNG" in str(bond_err) or "Authentication" in str(bond_err):
-                        _LOGGER.info(
-                            "BLE bonding attempt %d/%d failed (VERBINDUNG not pressed yet): %s",
-                            attempt, max_bond_attempts, bond_err,
+                        _LOGGER.warning(
+                            "🔴 BLE bonding attempt %d/%d — VERBINDUNG NOT pressed yet "
+                            "(SCU rejected bonding). Retrying in %ds... (%ds remaining)",
+                            attempt, max_bond_attempts, bond_retry_delay, remaining_time,
                         )
                         if client:
                             try:
