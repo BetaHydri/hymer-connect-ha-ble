@@ -740,6 +740,17 @@ class ScuBleClient:
             # Determine write mode (write-with-response preferred)
             props = {p.lower() for p in rx_char.properties}
             self._write_response = "write" in props
+
+            # Request MTU 245 to match EHG app (requestMtu(245)).
+            # Default MTU=23 gives 20-byte chunks = 63 chunks for PairMobileRequest.
+            # MTU=245 gives 242-byte chunks = only 6 chunks — eliminates ATT 0x0e.
+            try:
+                if hasattr(client, "_acquire_mtu"):
+                    await client._acquire_mtu()
+                    _LOGGER.debug("BLE MTU acquired via _acquire_mtu()")
+            except Exception as mtu_err:
+                _LOGGER.debug("BLE MTU acquisition failed (non-critical): %s", mtu_err)
+
             mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
             self._write_chunk_size = max(20, min(242, mtu - 3))
 
