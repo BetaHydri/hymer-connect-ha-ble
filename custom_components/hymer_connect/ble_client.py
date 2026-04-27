@@ -716,10 +716,15 @@ class ScuBleClient:
                 raise BleTransportError(
                     f"SCU {self._scu_address}: could not discover GATT services"
                 )
-            _LOGGER.debug("BLE GATT services discovered: %d services", len(list(services)))
+            svc_list = list(services)
+            _LOGGER.debug(
+                "BLE GATT services discovered: %d services — %s",
+                len(svc_list),
+                ", ".join(str(s.uuid) for s in svc_list),
+            )
             rx_char = None
             tx_char = None
-            for service in services:
+            for service in svc_list:
                 for char in service.characteristics:
                     uuid = str(char.uuid).lower()
                     if uuid == UART_RX_UUID:
@@ -777,15 +782,20 @@ class ScuBleClient:
             except Exception as bond_err:
                 _LOGGER.warning("BLE bonding failed: %s", bond_err)
 
+            # Bonding is required before TLS/notify will work.
+            # If bonding failed, don't attempt start_notify (it will fail
+            # with ATT 0x0e because the failed Pair() corrupts the GATT
+            # session). Raise immediately with a clear message.
+            if not bonded:
+                raise BleTransportError(
+                    "BLE bonding rejected by SCU — "
+                    "press CONNECTION (Verbindung) on the SCU touch panel, "
+                    "then retry within 2 minutes"
+                )
+
             # bluetoothctl pairing may have disrupted the GATT connection.
-            # Check if we need to reconnect before proceeding to notify/TLS.
+            # Reconnect to get a fresh GATT session with the new bond.
             if not client.is_connected:
-                if not bonded:
-                    raise BleTransportError(
-                        f"SCU disconnected after bonding failure — "
-                        f"press CONNECTION on the SCU control panel first"
-                    )
-                # Bonded but disconnected — reconnect with the new bond
                 _LOGGER.debug("Reconnecting after successful bonding")
                 client = BleakClient(self._scu_address, timeout=self._connect_timeout)
                 await client.connect()
