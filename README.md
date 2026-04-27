@@ -36,6 +36,8 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **v2.37.0** — **BLE pairing + QR code config flow!** The config flow now mirrors the EHG app: login → enter QR code activation token → provide SCU Bluetooth address. The integration can now perform the full SCU pairing ceremony over BLE/TLS (activation token + confirmation token → user presses ALLOW on SCU touchscreen → receives remote-access refresh token). No more mitmproxy needed when your HA instance has BLE hardware. Credits to Dan Simms (`dan-simms1/hymer-connect-ha`) for reverse-engineering the pairing protocol.
 
+> **v2.40.0-alpha.1** — **BLE dual-path alpha!** Full BLE pairing pipeline: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest with paced GATT writes. Config flow Step 3 with 2-minute bonding retry. BLE enabled checkbox in Step 2. Reconfigure retries pairing. PairMobileResponse pending vehicle test. See [BLE Communication Protocol](docs/ble-communication.md) for technical details.
+
 ### Energy Dashboard
 
 Monitor your motorhome's complete power flow at a glance — solar production, lithium battery state (SOC, SoH, voltage, temperature), habitation load draw, and charging status. All data comes directly from the vehicle's SCU via SignalR, updated every 60 seconds.
