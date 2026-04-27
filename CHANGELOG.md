@@ -9,16 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BLE dual-path pairing (experimental)** — Full BLE pairing pipeline: D-Bus JustWorks bonding via raw messages + introspection XML → TLS 1.1 handshake (AES128-SHA) → PairMobileRequest with paced GATT writes (10ms/chunk). PairMobileResponse pending vehicle test (ATT 0x0e buffer overflow fix deployed).
-- **Config flow Step 3 — BLE Pairing UI** — Progress spinner with 2-minute retry loop (12 attempts, 8s apart). User presses VERBINDUNG on SCU while spinner shows. On failure, creates entry in cloud-only mode.
+- **BLE dual-path pairing (experimental)** — Full BLE pairing pipeline: D-Bus JustWorks bonding via raw messages + introspection XML → TLS 1.1 handshake (AES128-SHA) → PairMobileRequest with Write Without Response + 5ms pacing (matching EHG app's Nordic BLE `.split()` behavior). PairMobileResponse pending vehicle test (ATT 0x0e fix: switched from Write With Response to Write Without Response).
+- **Config flow Step 3 — BLE Pairing UI** — Progress spinner with 2-minute retry loop (12 attempts, 8s apart). User presses CONNECTION (Verbindung) on SCU while spinner shows. On failure, creates entry in cloud-only mode.
 - **BLE enabled checkbox in Step 2** — Users can choose whether to use BLE for ongoing data or only for initial token pairing. Checkbox also visible in Options (Configure).
 - **Reconfigure triggers BLE pairing** — Empty submit re-triggers Step 3 pairing. No need to delete and re-add integration.
-- **SCU bonding state check** — Polls `fff40004` characteristic (challenge-response) to detect VERBINDUNG press. Only available after bonding.
+- **SCU bonding state check** — Polls `fff40004` characteristic (challenge-response) to detect CONNECTION press. Only available after bonding.
 
 ### Fixed
 
 - **D-Bus pairing agent** — `bleak.pair()` has no agent; `bluetoothctl` blocked in HAOS; `dbus-fast` ServiceInterface annotations fail. Solution: pure raw D-Bus messages with `add_message_handler()` + introspection XML.
-- **GATT write pacing** — 1253-byte PairMobileRequest (63 chunks at 20 bytes) overwhelmed SCU NUS RX buffer (ATT error 0x0e). Added 10ms inter-chunk delay for writes >10 chunks.
+- **GATT write pacing** — 1253-byte PairMobileRequest (63 chunks at 20 bytes) overwhelmed SCU NUS RX buffer (ATT error 0x0e). Switched to Write Without Response with 5ms pacing for large payloads (>10 chunks), matching EHG app's Nordic BLE `.split()` behavior. Small payloads use Write With Response.
 - **Stale bond recovery** — `BleakClient.unpair()` doesn't clear BlueZ bonds. Now uses D-Bus `Adapter1.RemoveDevice()`. Detects corrupt bonds (bonded + disconnect) and clears automatically.
 - **Coordinator/config flow race condition** — `_ble_pairing_in_progress` flag prevents concurrent BLE attempts.
 - **Options flow BLE defaults** — Checkbox and address now fall back to `config_entry.data` when `options` is empty.
@@ -70,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **HA BleakClient wrapper compatibility** — Home Assistant wraps `bleak.BleakClient` with `HaBleakClientWrapper`, which does not expose the `get_services()` method. Fixed to use the `.services` property with fallback.
 
-- **BLE bonding before TLS** — The SCU requires OS-level BLE bonding (`client.pair()`) before it will respond to TLS handshakes. Without bonding, the TLS ClientHello is sent but the SCU never replies (20-second timeout). Bonding requires the user to press the VERBINDUNG button on the SCU control panel first.
+- **BLE bonding before TLS** — The SCU requires OS-level BLE bonding (`client.pair()`) before it will respond to TLS handshakes. Without bonding, the TLS ClientHello is sent but the SCU never replies (20-second timeout). Bonding requires the user to press the CONNECTION button on the SCU control panel first.
 
 - **BLE disconnect on failure** — Previously failed BLE attempts left the GATT connection open, causing `Notify acquired` and `already connected` errors on retry. Now properly calls `disconnect()` before clearing the client reference.
 
@@ -78,13 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BlueZ stale notify acquisition leak** — When `start_notify()` failed (e.g. `[org.bluez.Error.NotPermitted] Notify acquired`), `self._client` was never assigned because it was set *after* `start_notify()`. The coordinator's `disconnect()` found `None` and skipped cleanup, leaking the raw `BleakClient`. BlueZ retained the stale D-Bus notify acquisition, causing every subsequent BLE connect attempt to fail identically — a permanent poison loop. Fixed by wrapping all post-GATT-connect setup in `try/except` that guarantees `client.disconnect()` on any failure. On `Notify acquired`: fully disconnect, wait 1s for BlueZ to settle, then reconnect with a fresh GATT session (one retry, no infinite recursion).
 
-- **BLE bonding requires D-Bus pairing agent** — `bleak.pair()` calls `Device1.Pair()` on D-Bus but does NOT register a pairing agent. BlueZ waits ~8s for an agent response that never comes, then cancels with `AuthenticationCanceled` — even when VERBINDUNG is pressed on the SCU. Tried `bluetoothctl` subprocess but HAOS already has HA's agent registered (`Failed to register agent object`). Fixed by using `dbus-fast` (shipped with HA Core) to register a temporary `NoInputNoOutput` agent directly on D-Bus, call `Device1.Pair()`, auto-confirm JustWorks requests, then unregister.
+- **BLE bonding requires D-Bus pairing agent** — `bleak.pair()` calls `Device1.Pair()` on D-Bus but does NOT register a pairing agent. BlueZ waits ~8s for an agent response that never comes, then cancels with `AuthenticationCanceled` — even when CONNECTION is pressed on the SCU. Tried `bluetoothctl` subprocess but HAOS already has HA's agent registered (`Failed to register agent object`). Fixed by using `dbus-fast` (shipped with HA Core) to register a temporary `NoInputNoOutput` agent directly on D-Bus, call `Device1.Pair()`, auto-confirm JustWorks requests, then unregister.
 
 - **BLE `unpair()` on connected client kills GATT** — `BleakClient.unpair()` removes the device from BlueZ entirely (`RemoveDevice`), terminating the active GATT session. Then `pair()` fails instantly because there's no connection. Fixed by calling `unpair()` via a temporary `BleakClient` *before* the main `connect()`.
 
 - **Coordinator/config flow BLE race condition** — The coordinator's 60s poll was starting a concurrent BLE `connect()`/`pair()` while the config flow's Step 3 pairing task was mid-bonding. The concurrent `unpair()` killed the active bonding negotiation, causing `InProgress` → `AuthenticationCanceled`. Fixed by adding `_ble_pairing_in_progress` flag — coordinator skips BLE while config flow pairing is active.
 
-- **BLE address cleared on bonding rejection** — The stored BLE address was cleared on every failure, forcing a re-scan even when the address was valid (bonding just needed VERBINDUNG). Now only clears the address on connection-level failures (timeout, device not found), not on bonding rejection.
+- **BLE address cleared on bonding rejection** — The stored BLE address was cleared on every failure, forcing a re-scan even when the address was valid (bonding just needed CONNECTION). Now only clears the address on connection-level failures (timeout, device not found), not on bonding rejection.
 
 ### Added
 
