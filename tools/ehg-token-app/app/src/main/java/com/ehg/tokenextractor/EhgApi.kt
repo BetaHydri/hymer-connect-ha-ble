@@ -69,6 +69,8 @@ class EhgApi(private val brand: String) {
         val byTokenConn = byTokenUrl.openConnection() as HttpURLConnection
         byTokenConn.setRequestProperty("Authorization", "Bearer $token")
         byTokenConn.setRequestProperty("User-Agent", USER_AGENT)
+        byTokenConn.setRequestProperty("X-EHG-Brand", "${brand.replaceFirstChar { it.uppercase() }}/$APP_VERSION")
+        byTokenConn.setRequestProperty("Accept", "application/json, text/plain, */*")
 
         if (byTokenConn.responseCode != 200) {
             val errorBody = try { byTokenConn.errorStream?.bufferedReader()?.readText()?.take(200) } catch (_: Exception) { null }
@@ -76,11 +78,15 @@ class EhgApi(private val brand: String) {
             return@withContext null
         }
 
-        // Now get the confirmation token
+        // Now get the confirmation token (POST, not GET — matches HA integration)
         val confirmUrl = URL("$BASE_URL$ENDPOINT_CONFIRMATION_TOKEN")
         val confirmConn = confirmUrl.openConnection() as HttpURLConnection
+        confirmConn.requestMethod = "POST"
         confirmConn.setRequestProperty("Authorization", "Bearer $token")
         confirmConn.setRequestProperty("User-Agent", USER_AGENT)
+        confirmConn.setRequestProperty("X-EHG-Brand", "${brand.replaceFirstChar { it.uppercase() }}/$APP_VERSION")
+        confirmConn.setRequestProperty("Accept", "application/json, text/plain, */*")
+        confirmConn.doOutput = false  // POST with empty body
 
         if (confirmConn.responseCode == 200) {
             val response = confirmConn.inputStream.bufferedReader().readText()
