@@ -220,7 +220,10 @@ Use this when your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the 
 1. **Enable the Bluetooth integration** in HA first (see [BLE Prerequisites](#ble-direct-path--prerequisites))
 2. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
 3. **Step 1 — Login:** Select your brand, enter email and password. Leave the EHG refresh token field empty — BLE pairing will obtain it automatically
-4. **Step 2 — Vehicle Activation:** Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text). Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
+4. **Step 2 — Vehicle Activation:**
+   - Enter the **QR code activation token** (scan the QR sticker on your vehicle with any phone QR reader and paste the text)
+   - Optionally enter the **SCU Bluetooth address** — see below for how to find it, or leave it empty to auto-scan
+   - **Enable BLE direct path** checkbox (default: checked) — controls whether the integration uses BLE for ongoing sensor data after pairing. Uncheck if you only want BLE for the initial token capture but prefer cloud/SignalR for daily use. You can change this later in **Configure** (Options)
 5. Submit Step 2. **Step 3 — BLE Pairing** appears with a progress spinner
 6. **Now press the VERBINDUNG (connection) button** on the SCU touch panel in the vehicle. You have **up to 2 minutes** — the integration retries bonding every 8 seconds (12 attempts) while the spinner is showing
 7. Once VERBINDUNG is pressed and the SCU accepts the bond, the integration automatically:
