@@ -321,12 +321,12 @@ info <MAC_ADDRESS>
 exit
 ```
 
-The SCU identifies itself as **`HYMER <SCU_ID_SUFFIX>`** — for example `HYMER 00013970` for SCU ID `S481.01.00.013.970`. Example output:
+The SCU identifies itself as **`HYMER <SCU_ID_SUFFIX>`** — for example `HYMER 00012345` for SCU ID `S481.01.00.012.345`. Example output:
 
 ```
-Device C5:D9:A0:14:C5:37 (random)
-        Name: HYMER 00013970
-        Alias: HYMER 00013970
+Device AA:BB:CC:DD:EE:FF (random)
+        Name: HYMER 00012345
+        Alias: HYMER 00012345
         Paired: no
         Bonded: no
         UUID: Bond Management        (0000181e-0000-1000-8000-00805f9b34fb)

@@ -37,3 +37,6 @@ secrets/
 private_*
 captured_ehg_token.txt
 test_signalr.py
+
+# Log files (contain VIN, BLE MAC, vehicle URN, sensor data)
+logs/
