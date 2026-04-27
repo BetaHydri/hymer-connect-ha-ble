@@ -147,6 +147,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
             ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
+            ble_enabled = user_input.get(CONF_BLE_ENABLED, False)
 
             if qr_token:
                 # QR token provided — resolve vehicle via API
@@ -162,7 +163,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         self._data[CONF_VEHICLE_URN] = vehicle_urn
                         self._data[CONF_SCU_URN] = scu_urn
                         self._data[CONF_BLE_ADDRESS] = ble_address
-                        self._data[CONF_BLE_ENABLED] = True
+                        self._data[CONF_BLE_ENABLED] = ble_enabled
                         self._data[CONF_QR_TOKEN] = qr_token
                 except HymerConnectApiError:
                     errors["base"] = "invalid_qr_token"
@@ -177,8 +178,9 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_BLE_ENABLED] = False
 
             if not errors:
-                # If BLE is enabled with QR token, offer the pairing step
-                if self._data.get(CONF_BLE_ENABLED) and self._data.get(CONF_QR_TOKEN):
+                # If QR token provided, always attempt BLE pairing to get EHG token
+                # (even if ble_enabled is False — user may want token-only, not BLE data path)
+                if self._data.get(CONF_QR_TOKEN):
                     return await self.async_step_ble_pairing()
                 brand_name = BRANDS.get(
                     self._data[CONF_BRAND], self._data[CONF_BRAND]
@@ -194,6 +196,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Optional(CONF_QR_TOKEN, default=""): str,
                     vol.Optional(CONF_BLE_ADDRESS, default=""): str,
+                    vol.Optional(CONF_BLE_ENABLED, default=True): bool,
                 }
             ),
             errors=errors,
