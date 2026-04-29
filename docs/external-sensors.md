@@ -24,11 +24,25 @@ Evidence from the app code:
 
 ## Pairing Mechanism
 
-1. **QR Code Scan** — Each sensor package includes a QR code scanned by the app
-2. **Whitelist Check** — `"Sensor is not whitelisted"` / `passesWhitelistCache` — the sensor identity is validated against a whitelist (likely server-side or SCU firmware)
-3. **SCU Firmware Check** — `"De softwareversie van je voertuig is niet geschikt om een sensor toe te voegen"` (Your vehicle's software version is not suitable to add a sensor)
-4. **BLE Connection** — `"BLE-verbinding is vereist"` (BLE connection is required)
+Every vehicle section in the EHG app (Wasser, Licht, Energie, Klima, Komponenten) has an
+**"Sensor hinzufügen" (Add sensor)** button at the bottom. Tapping it triggers the same
+pairing flow regardless of section:
+
+1. **BLE Connection** — The app requires an active BLE connection to the SCU/SIU first. A dialog `"Bluetooth-Verbindung erforderlich"` is shown if not connected. Sensor pairing is **not** possible via cloud/SignalR alone.
+2. **QR Code Scan** — Each sensor package includes a QR code scanned by the app
+3. **Whitelist Check** — `"Sensor is not whitelisted"` / `passesWhitelistCache` — the sensor identity is validated against a whitelist (likely server-side or SCU firmware)
+4. **SCU Firmware Check** — `"De softwareversie van je voertuig is niet geschikt om een sensor toe te voegen"` (Your vehicle's software version is not suitable to add a sensor)
 5. **Sensor Type Validation** — `"Mauvais type de capteur!"` (Wrong sensor type!) — the sensor type is checked during pairing
+
+### App sections and their sensor types
+
+| App Section | German Label | SIU Sensor Types |
+|---|---|---|
+| Wasser | Wasser | SIU.WATER, SIU.WWL (wired water level) |
+| Licht | Licht | SIU.SWITCH (smart switches, Hegotec/Pegotec/Toptron modules) |
+| Energie | Energie | SIU.BOS_BATTERY, SIU.LOAD (E-Load weight sensor) |
+| Klima | Klima | SIU.TEMPERATURE (temperature/humidity sensors) |
+| Komponenten | Komponenten | SIU.PRESSURE (TPMS), SIU.GAS, SIU.LEVELING, Contact sensors |
 
 ### Pairing Flow Strings
 
