@@ -219,6 +219,137 @@ Since the SIU sensor ecosystem is closed, the best approach for monitoring addit
 - **Use the existing SCU cloud/BLE integration** for built-in vehicle sensors
 - **Do not attempt to pair generic BLE sensors** to the SIU — they will be rejected by the whitelist
 
+## Whitelist & UUID Analysis — Can Sensors Be Spoofed?
+
+### Identification System
+
+The EHG sensor ecosystem uses a **URN-based identification system**, not raw BLE UUIDs:
+
+| URN Pattern | Purpose | Example |
+|---|---|---|
+| `urn:ehg:scu:` | SCU identifier | SCU serial/model |
+| `urn:ehg:sensor:` | Sensor identifier | Sensor serial from QR code |
+| `urn:ehg:vehicle:` | Vehicle identifier | `urn:ehg:vehicle:hymer-b2-new-lp35` |
+
+The QR code on each sensor package encodes a `urn:ehg:sensor:...` string containing the
+sensor's serial number and type. The app parses this URN and forwards it to the SCU for
+validation.
+
+### QR Code Validation
+
+| String | Meaning |
+|--------|---------|
+| `"came from qr-code is invalid"` | QR code content failed validation |
+| `"De QR-code is ongeldig"` | Invalid QR code (Dutch) |
+| `"Scan de QR-code op uw sensorpakket"` | Scan the QR on your sensor package |
+| `"QR code gescand"` | QR code scanned successfully |
+
+### BLE UUIDs Found in App Bundle
+
+Only 4 UUIDs were found in the Hermes JS bundle:
+
+| UUID | Purpose |
+|---|---|
+| `00000000-0000-0000-0000-000000000000` | Null UUID |
+| `6a4c637e-cd09-4fe7-b5d7-3b7326990e5f` | App-internal identifier |
+| `6ba7b810-9dad-11d1-80b4-00c04fd430c8` | RFC 4122 UUID namespace (DNS) |
+| `6ba7b811-9dad-11d1-80b4-00c04fd430c8` | RFC 4122 UUID namespace (URL) |
+
+**No sensor-specific BLE GATT service or characteristic UUIDs are present in the JS
+bundle.** The actual GATT UUIDs for SIU sensors are implemented in the **native Android/iOS
+layer** (Java/Kotlin/Swift), which is compiled to machine code and not accessible via
+string extraction from the Hermes bundle.
+
+### Whitelist Mechanism
+
+| Code Reference | Function |
+|---|---|
+| `passesWhitelistCache` | Cached whitelist check — data originates from server or SCU firmware |
+| `_blacklistConfig` | Blacklist configuration (likely for rejected sensor types) |
+| `getScuAdvertisementNameByBrand` | SCU uses brand-specific BLE advertisement names |
+| `isSiuStrategy` | Dynamic BLE strategy selection |
+| `setBluetoothDeviceStrategy` | Device strategy is set per sensor type |
+| `SensorPairingType` | Enum for sensor pairing type classification |
+| `minimumSensorsSupportingScuBleVersion` | SCU BLE firmware version check for sensor support |
+
+### Multi-Layer Validation
+
+The sensor pairing pipeline has **5 independent validation layers**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Layer 1: QR Code Parse                              │
+│ App parses urn:ehg:sensor:... from QR code.         │
+│ Invalid format → "QR-code is ongeldig"              │
+├─────────────────────────────────────────────────────┤
+│ Layer 2: Whitelist Check (Server/Cache)             │
+│ Sensor URN checked against passesWhitelistCache.    │
+│ Unknown URN → "Sensor ist nicht auf der Whitelist"  │
+├─────────────────────────────────────────────────────┤
+│ Layer 3: SCU Firmware Version Check                 │
+│ minimumSensorsSupportingScuBleVersion compared.     │
+│ Old firmware → "Softwareversie niet geschikt"       │
+├─────────────────────────────────────────────────────┤
+│ Layer 4: BLE GATT Service Validation (Native/SIU)   │
+│ SIU firmware checks GATT service UUIDs.             │
+│ Wrong GATT → "This GATT service doesn't support"   │
+├─────────────────────────────────────────────────────┤
+│ Layer 5: Sensor Type Matching                       │
+│ Sensor type from URN must match expected category.  │
+│ Mismatch → "Mauvais type de capteur!"               │
+└─────────────────────────────────────────────────────┘
+```
+
+### Can Third-Party Sensors Be Flashed to Spoof EHG Sensors?
+
+**Not practical.** To successfully pair a third-party BLE sensor, you would need to
+bypass all 5 validation layers simultaneously:
+
+1. **Forge a valid QR code** — Must contain a valid `urn:ehg:sensor:` URN with an accepted
+   serial number format. The exact format is not documented publicly.
+
+2. **Pass the whitelist** — The URN must be recognized by `passesWhitelistCache`. Since
+   this appears to be server-cached, the serial number likely needs to exist in the EHG
+   backend database. You cannot simply invent a serial number.
+
+3. **Match SCU firmware expectations** — The SCU firmware version must support the sensor
+   type. This is a firmware-level check that cannot be bypassed from the app.
+
+4. **Implement correct GATT services** — The SIU firmware validates the BLE GATT service
+   and characteristic UUIDs. These UUIDs are **not in the JS bundle** — they are compiled
+   into the native SIU firmware. You would need to reverse-engineer the SIU firmware or
+   sniff the BLE traffic from an actual EHG sensor to discover the expected GATT profile.
+
+5. **Match sensor type** — The sensor behavior must match the expected type (e.g., a
+   pressure sensor must advertise pressure/temperature characteristics, not generic data).
+
+### Theoretical Attack Vectors (For Research Only)
+
+Even if attempted, the following challenges remain:
+
+- **No public GATT UUIDs** — The sensor GATT profiles are proprietary to EHG/SIU and not
+  found in the app's JS layer. BLE sniffing of an actual EHG sensor during pairing would
+  be required.
+- **Server-side validation** — `passesWhitelistCache` suggests the whitelist is fetched
+  from the EHG cloud API, not stored locally. A forged serial number would fail server
+  validation.
+- **SIU firmware lock** — The SIU itself performs GATT validation at the firmware level.
+  Even if the app accepted the sensor, the SIU firmware would reject it.
+- **TLS-encrypted PIA protocol** — All SCU↔App communication uses TLS-encrypted PIA
+  protobuf, making MITM manipulation of the pairing flow non-trivial.
+
+### Verdict
+
+The EHG SIU sensor ecosystem is a **closed, multi-layered authenticated system**. There is
+no realistic path to pairing arbitrary third-party BLE sensors without access to:
+- The EHG sensor URN database (or valid physical sensor QR codes)
+- The SIU firmware's GATT service UUID expectations
+- A way to bypass server-side whitelist validation
+
+For Home Assistant users, the recommended approach remains using **independent BLE sensor
+integrations** (Mopeka, Ruuvi, Xiaomi, ESPHome) directly in HA, bypassing the SCU/SIU
+entirely.
+
 ## FOTA (Firmware Over The Air)
 
 The SIU supports firmware updates via BLE:
