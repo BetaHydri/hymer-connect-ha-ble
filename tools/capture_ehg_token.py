@@ -1,8 +1,10 @@
 """Capture the EHG Remote Access Refresh Token from the Hymer Connect app.
 
-This is a simplified, single-purpose mitmproxy addon that watches for exactly
-ONE API call — POST /remoteAccessToken — and extracts the refresh token from
-the request body.  It prints the token prominently and saves it to a file.
+Intercepts HTTP/HTTPS traffic via mitmproxy and scans for JWTs with
+ett=access-refresh in request bodies, response bodies, HTTP headers, and
+WebSocket messages.  A fast-path checks the known /remoteAccessToken
+endpoint first; a generic JWT regex scanner catches tokens that appear
+in unexpected locations.
 
 Usage:
     1. Install mitmproxy:  pip install mitmproxy
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import sys
 import os
 from datetime import datetime, timezone
@@ -33,6 +36,9 @@ from mitmproxy import ctx, http
 TARGET_PATH = "/remoteAccessToken"
 # Alternative: look for the token in WebSocket UpdateTokens messages
 SIGNALR_HOSTS = {"ehg-prod-signalr.service.signalr.net"}
+
+# Generic JWT pattern: header.payload.signature (each part is base64url)
+JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 
 OUTPUT_DIR = Path(__file__).parent
 TOKEN_FILE = OUTPUT_DIR / "captured_ehg_token.txt"
@@ -78,6 +84,17 @@ def _is_refresh_token(token: str) -> bool:
     return payload.get("ett") == "access-refresh"
 
 
+def _find_refresh_token(text: str | None) -> str | None:
+    """Scan text for any JWT whose payload has ett=access-refresh."""
+    if not text:
+        return None
+    for match in JWT_RE.finditer(text):
+        candidate = match.group(0)
+        if _is_refresh_token(candidate):
+            return candidate
+    return None
+
+
 def _save_token(token: str) -> None:
     """Save the captured token and print success banner."""
     TOKEN_FILE.write_text(token, encoding="utf-8")
@@ -104,12 +121,34 @@ class EhgTokenCapture:
     def __init__(self):
         self._found = False
 
+    def _try_save(self, token: str, source: str) -> bool:
+        """Validate and save a candidate token. Returns True if saved."""
+        if token and _is_refresh_token(token):
+            ctx.log.info(f"🎯 Found refresh token via {source}")
+            _save_token(token)
+            self._found = True
+            return True
+        return False
+
+    def _scan_headers(self, flow: http.HTTPFlow) -> bool:
+        """Scan request and response headers for JWTs."""
+        for name, value in flow.request.headers.items(multi=True):
+            token = _find_refresh_token(value)
+            if token and self._try_save(token, f"request header '{name}'"):
+                return True
+        if flow.response:
+            for name, value in flow.response.headers.items(multi=True):
+                token = _find_refresh_token(value)
+                if token and self._try_save(token, f"response header '{name}'"):
+                    return True
+        return False
+
     def request(self, flow: http.HTTPFlow) -> None:
-        """Intercept HTTP requests to find the remoteAccessToken call."""
+        """Intercept HTTP requests to find the refresh token."""
         if self._found:
             return
 
-        # Method 1: POST /remoteAccessToken — request body contains the token
+        # Fast path: POST /remoteAccessToken — request body contains the token
         if (
             flow.request.method == "POST"
             and TARGET_PATH in flow.request.pretty_url
@@ -119,39 +158,43 @@ class EhgTokenCapture:
                 if body:
                     data = json.loads(body)
                     token = data.get("token", "")
-                    if token and _is_refresh_token(token):
-                        ctx.log.info(
-                            f"🎯 Found refresh token in POST {flow.request.pretty_url}"
-                        )
-                        _save_token(token)
-                        self._found = True
+                    if self._try_save(token, f"POST {flow.request.pretty_url} body['token']"):
                         return
             except (json.JSONDecodeError, UnicodeDecodeError):
                 pass
 
+        # Generic: scan entire request body for JWTs
+        try:
+            body = flow.request.get_text()
+            token = _find_refresh_token(body)
+            if token and self._try_save(token, f"request body JWT scan ({flow.request.pretty_url})"):
+                return
+        except (UnicodeDecodeError, ValueError):
+            pass
+
+        # Scan request headers
+        self._scan_headers(flow)
+
     def response(self, flow: http.HTTPFlow) -> None:
-        """Also check responses for tokens (e.g., during initial BLE pairing)."""
+        """Scan response bodies and headers for the refresh token."""
         if self._found:
             return
 
-        # Check any response that might contain a refresh token
         if flow.response and flow.response.content:
+            # Generic: scan entire response body for JWTs
             try:
                 text = flow.response.get_text()
-                if text and "access-refresh" in text:
-                    data = json.loads(text)
-                    token = data.get("token", "")
-                    if token and _is_refresh_token(token):
-                        ctx.log.info(
-                            f"🎯 Found refresh token in response from {flow.request.pretty_url}"
-                        )
-                        _save_token(token)
-                        self._found = True
-            except (json.JSONDecodeError, UnicodeDecodeError):
+                token = _find_refresh_token(text)
+                if token and self._try_save(token, f"response body JWT scan ({flow.request.pretty_url})"):
+                    return
+            except (UnicodeDecodeError, ValueError):
                 pass
 
+        # Scan response headers (Authorization, Set-Cookie, custom headers)
+        self._scan_headers(flow)
+
     def websocket_message(self, flow: http.HTTPFlow) -> None:
-        """Check WebSocket messages for UpdateTokens containing the token."""
+        """Check WebSocket messages for the refresh token."""
         if self._found:
             return
 
@@ -170,17 +213,24 @@ class EhgTokenCapture:
             try:
                 parsed = json.loads(part)
             except json.JSONDecodeError:
+                # Not valid JSON — still scan raw text for JWTs
+                token = _find_refresh_token(part)
+                if token and self._try_save(token, "WebSocket raw text JWT scan"):
+                    return
                 continue
 
-            # Look for UpdateTokens invocation
+            # Fast path: UpdateTokens invocation
             if parsed.get("target") == "UpdateTokens":
                 args = parsed.get("arguments", [])
                 if args and isinstance(args[0], dict):
                     ehg_token = args[0].get("ehgAccessToken", "")
-                    if ehg_token and _is_refresh_token(ehg_token):
-                        ctx.log.info("🎯 Found refresh token in UpdateTokens WebSocket message")
-                        _save_token(ehg_token)
-                        self._found = True
+                    if self._try_save(ehg_token, "UpdateTokens['ehgAccessToken']"):
+                        return
+
+            # Generic: scan entire SignalR message for JWTs
+            token = _find_refresh_token(part)
+            if token and self._try_save(token, "WebSocket message JWT scan"):
+                return
 
 
 addons = [EhgTokenCapture()]

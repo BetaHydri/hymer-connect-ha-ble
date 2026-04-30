@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BLE enabled checkbox in Step 2** — Users can choose whether to use BLE for ongoing data or only for initial token pairing. Checkbox also visible in Options (Configure).
 - **Reconfigure triggers BLE pairing** — Empty submit re-triggers Step 3 pairing. No need to delete and re-add integration.
 - **SCU bonding state check** — Polls `fff40004` characteristic (challenge-response) to detect CONNECTION press. Only available after bonding.
+- **Sensor Discovery Tool: multi-brand support & JSON export** — The standalone `tools/discover_sensors.py` now accepts a `--brand` parameter (supports `hymer`, `eriba`, `buerstner`, `dethleffs`, `lmc`, `niesmann-bischoff`, `sunlight`, `carado`, `laika`) so non-HYMER vehicle owners can run sensor discovery against their SCU. Results are auto-exported as a JSON file (`sensor_discovery_<brand>.json`) for easy sharing on GitHub issues. Use `--output <path>` to customize the export path. This is a standalone tool only — no changes to the HA integration code.
+- **Robust JWT scanning in token extractor** — `tools/capture_ehg_token.py` now uses generic JWT regex scanning (`eyJ...` pattern) across all request/response bodies, HTTP headers, and WebSocket messages instead of relying on specific JSON keys. Fixes token detection for vehicles where the token is not located under the expected `data.token` key or `ehgAccessToken` WebSocket field. Synced from [hymer-connect-ha#53](https://github.com/BetaHydri/hymer-connect-ha/issues/53).
 
 ### Fixed
 
