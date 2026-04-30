@@ -5,14 +5,14 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
 ## Architecture Overview
 
 `
-┌─────────────┐     BLE GATT (NUS)      ┌─────────────┐
-│  RPi4 / HA  │◄─────────────────────────►│     SCU     │
+┌─────────────┐     BLE GATT (NUS)       ┌─────────────┐
+│  RPi4 / HA  │◄────────────────────────►│     SCU     │
 │  (bleak)    │   TLS 1.1 over NUS       │ (firmware   │
 │             │   PIA Protobuf           │  1.12.0.0)  │
 └─────────────┘                          └─────────────┘
       │                                        │
-      │  Cloud (SignalR/HTTPS)                │  LTE
-      └───────────►Azure◄─────────────────────┘
+      │  Cloud (SignalR/HTTPS)                 │  LTE
+      └───────────►Azure◄──────────────────────┘
 `
 
 ## BLE Services
