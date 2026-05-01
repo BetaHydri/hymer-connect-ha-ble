@@ -1167,6 +1167,9 @@ class ScuBleClient:
             if fn in skip:
                 _LOGGER.info("BLE field scan: skipping known field %d", fn)
                 continue
+            # Pace probes to avoid ATT 0x0e (GATT write buffer overflow).
+            # The SCU's NUS RX buffer needs time to process each request.
+            await asyncio.sleep(1.0)
             result = await self.scan_user_field(fn, timeout=timeout_per_field)
             if result is not None:
                 results[fn] = result
