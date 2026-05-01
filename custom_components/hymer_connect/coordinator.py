@@ -386,7 +386,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             pair_result = await self._ble_client.pair_mobile(
                                 activation_token=qr_token,
                                 confirmation_token=confirmation_token,
-                                mobile_device_name="homeassistant",
+                                mobile_device_name=f"ha-{int(time.time()) % 100000}",
                             )
                             if pair_result.remote_access_refresh_token:
                                 self._ehg_refresh_token = pair_result.remote_access_refresh_token

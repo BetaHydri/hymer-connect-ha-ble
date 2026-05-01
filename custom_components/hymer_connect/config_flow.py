@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 import voluptuous as vol
@@ -316,7 +317,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 pair_result = await client.pair_mobile(
                     activation_token=qr_token,
                     confirmation_token=confirmation_token,
-                    mobile_device_name="homeassistant",
+                    mobile_device_name=f"ha-{int(time.time()) % 100000}",
                     timeout=120.0,
                 )
 
