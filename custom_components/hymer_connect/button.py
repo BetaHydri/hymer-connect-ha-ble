@@ -22,6 +22,7 @@ async def async_setup_entry(
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
         HymerRestartButton(coordinator, entry),
+        HymerBleFieldScanButton(coordinator, entry),
     ])
 
 
@@ -64,3 +65,47 @@ class HymerRestartButton(
     async def async_press(self) -> None:
         """Send SCU restart command."""
         await self.coordinator.async_send_restart_system_command()
+
+
+class HymerBleFieldScanButton(
+    CoordinatorEntity[HymerConnectCoordinator], ButtonEntity
+):
+    """BLE field number scanner — brute-forces unknown PIA protobuf field numbers.
+
+    Connects via BLE/TLS to the SCU and sends UserRequestTopic messages with
+    field numbers 1-15, logging which ones get a response. Results appear in
+    the HA log (debug level for custom_components.hymer_connect).
+
+    Use this to discover the field numbers for getPairedMobileDevices and
+    deleteMobileDevices, which are needed to manage the SCU's paired BLE device
+    list.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:bluetooth-settings"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the BLE field scan button."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_ble_field_scan"
+        self._attr_name = "BLE Field Scan"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def available(self) -> bool:
+        """Available when BLE address is configured."""
+        return bool(self.coordinator.config_entry.data.get("ble_address"))
+
+    async def async_press(self) -> None:
+        """Run BLE field number brute-force scan."""
+        await self.coordinator.async_ble_field_scan()

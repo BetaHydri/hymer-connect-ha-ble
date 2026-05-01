@@ -319,6 +319,93 @@ def build_pair_mobile_confirmation_frame(success: bool = True) -> bytes:
     return encode_ble_pia_frame(ble_protocol)
 
 
+def build_user_request_frame(user_field_number: int, payload: bytes = b"") -> bytes:
+    """Build a BLE PIA frame with an arbitrary UserRequestTopic field number.
+
+    Used for brute-forcing unknown field numbers (deleteMobileDevices,
+    getPairedMobileDevices, etc.) by sending requests with different field
+    numbers and observing SCU responses.
+    """
+    request_id = math.ceil(random.random() * 1_000_000) + 1
+    timestamp = round(time.time())
+
+    user_topic = _encode_bytes_field(user_field_number, payload) if payload else b""
+    if not payload:
+        # Empty message for fields like getPairedMobileDevices (no args)
+        user_topic = _encode_bytes_field(user_field_number, b"")
+    request_msg = b"".join((
+        _encode_varint_field(_REQUEST_ID_FIELD, request_id),
+        _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
+        _encode_varint_field(_REQUEST_TIMESTAMP_FIELD, timestamp),
+        _encode_bytes_field(_REQUEST_USER_FIELD, user_topic),
+    ))
+    ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+    return encode_ble_pia_frame(ble_protocol)
+
+
+def build_delete_mobile_device_frame(
+    user_field_number: int, mac_address: str
+) -> bytes:
+    """Build a BLE PIA frame for deleteMobileDevices with a MAC address.
+
+    The deleteMobileDevices sub-message has a single field 'mobileDeviceMac'
+    (string). We assume mobileDeviceMac is field 1 inside the sub-message.
+    """
+    # Inner payload: mobileDeviceMac = field 1, string
+    inner = _encode_string_field(1, mac_address)
+    return build_user_request_frame(user_field_number, inner)
+
+
+def decode_generic_response(frame: bytes) -> dict:
+    """Decode a BLE PIA frame as a generic Response, returning all fields.
+
+    Returns dict with keys: request_id, status, timestamp, and any
+    LEN-delimited fields as {field_number: raw_bytes}.
+    """
+    payload = decode_ble_pia_frame(frame)
+
+    # Unwrap BleProtocol → Response
+    response_payload: bytes | None = None
+    offset = 0
+    while offset < len(payload):
+        key, offset = _decode_varint(payload, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _BLE_PROTOCOL_RESPONSE_FIELD and wt == _WIRE_LEN:
+            response_payload, offset = _decode_len_delimited(payload, offset)
+        else:
+            offset = _skip_field(payload, offset, wt)
+    if response_payload is None:
+        return {"error": "no Response in BleProtocol", "raw": payload.hex()}
+
+    result: dict = {"fields": {}}
+    offset = 0
+    while offset < len(response_payload):
+        key, offset = _decode_varint(response_payload, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_VARINT:
+            val, offset = _decode_varint(response_payload, offset)
+            if fn == _RESPONSE_ID_FIELD:
+                result["request_id"] = val
+            elif fn == _RESPONSE_STATUS_FIELD:
+                result["status"] = val
+            elif fn == _RESPONSE_TIMESTAMP_FIELD:
+                result["timestamp"] = val
+            else:
+                result["fields"][f"varint_{fn}"] = val
+        elif wt == _WIRE_LEN:
+            val, offset = _decode_len_delimited(response_payload, offset)
+            result["fields"][f"len_{fn}"] = val.hex()
+            # Try to decode as UTF-8 for readability
+            try:
+                result["fields"][f"str_{fn}"] = val.decode("utf-8")
+            except (UnicodeDecodeError, ValueError):
+                pass
+        else:
+            offset = _skip_field(response_payload, offset, wt)
+
+    return result
+
+
 def decode_pair_mobile_response(frame: bytes) -> PairMobileResponse:
     """Decode a BLE PIA frame containing the SCU's PairMobileResponse.
 
@@ -1028,6 +1115,103 @@ class ScuBleClient:
             _LOGGER.warning("BLE pairing response did not contain a refresh token")
 
         return pair_response
+
+    async def scan_user_field(
+        self,
+        field_number: int,
+        payload: bytes = b"",
+        timeout: float = 10.0,
+    ) -> dict | None:
+        """Send a UserRequestTopic with the given field number and wait for response.
+
+        Used to brute-force unknown protobuf field numbers. Returns the decoded
+        generic response dict, or None on timeout (no response = invalid field).
+        """
+        if not self._tls_established:
+            raise BleTransportError("TLS not established")
+
+        frame = build_user_request_frame(field_number, payload)
+        encrypted = self._tls.encrypt(frame)
+        _LOGGER.info("BLE field scan: sending UserRequestTopic field=%d (%d bytes)", field_number, len(encrypted))
+        await self._write_to_scu(encrypted)
+
+        try:
+            response_frame = await self._receive_next_frame(timeout)
+            result = decode_generic_response(response_frame)
+            _LOGGER.info(
+                "BLE field scan: field=%d got response — status=%s, fields=%s",
+                field_number, result.get("status"), list(result.get("fields", {}).keys()),
+            )
+            return result
+        except BleTransportError:
+            _LOGGER.info("BLE field scan: field=%d — no response (timeout)", field_number)
+            return None
+
+    async def brute_force_user_fields(
+        self,
+        field_range: range | None = None,
+        timeout_per_field: float = 8.0,
+    ) -> dict[int, dict]:
+        """Try all UserRequestTopic field numbers and log responses.
+
+        Skips known fields (4=pairMobileDevice, 6=pairMobileDeviceConfirmation).
+        Returns {field_number: response_dict} for fields that got a response.
+        """
+        if field_range is None:
+            field_range = range(1, 16)
+
+        skip = {4, 6}  # Known fields — don't probe
+        results = {}
+
+        for fn in field_range:
+            if fn in skip:
+                _LOGGER.info("BLE field scan: skipping known field %d", fn)
+                continue
+            result = await self.scan_user_field(fn, timeout=timeout_per_field)
+            if result is not None:
+                results[fn] = result
+
+        _LOGGER.info(
+            "BLE field scan complete: %d/%d fields responded — %s",
+            len(results), len(field_range) - len(skip), list(results.keys()),
+        )
+        return results
+
+    async def try_delete_mobile_device(
+        self,
+        mac_address: str,
+        field_number: int,
+        timeout: float = 10.0,
+    ) -> dict | None:
+        """Try to delete a mobile device from the SCU's paired list.
+
+        Args:
+            mac_address: BLE MAC of the device to remove (e.g. "DC:A6:32:7B:F1:88").
+            field_number: The UserRequestTopic field number for deleteMobileDevices.
+            timeout: Seconds to wait for response.
+        """
+        if not self._tls_established:
+            raise BleTransportError("TLS not established")
+
+        frame = build_delete_mobile_device_frame(field_number, mac_address)
+        encrypted = self._tls.encrypt(frame)
+        _LOGGER.info(
+            "BLE delete device: sending deleteMobileDevices(field=%d, mac=%s) — %d bytes",
+            field_number, mac_address, len(encrypted),
+        )
+        await self._write_to_scu(encrypted)
+
+        try:
+            response_frame = await self._receive_next_frame(timeout)
+            result = decode_generic_response(response_frame)
+            _LOGGER.info(
+                "BLE delete device: response — status=%s, fields=%s",
+                result.get("status"), list(result.get("fields", {}).keys()),
+            )
+            return result
+        except BleTransportError:
+            _LOGGER.info("BLE delete device: no response (timeout)")
+            return None
 
     async def _receive_next_frame(self, timeout: float) -> bytes:
         """Wait for the next complete BLE PIA frame from the SCU."""

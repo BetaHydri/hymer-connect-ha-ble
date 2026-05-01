@@ -563,6 +563,56 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_send_pia_request(payload)
         _LOGGER.warning("SCU restart command sent — the SCU will reboot")
 
+    async def async_ble_field_scan(self) -> None:
+        """Connect via BLE/TLS and brute-force UserRequestTopic field numbers 1-15.
+
+        Results are logged at INFO level. This discovers the field numbers
+        for getPairedMobileDevices, deleteMobileDevices, etc.
+        """
+        from .ble_client import ScuBleClient, BleTransportError
+
+        ble_address = self.config_entry.data.get("ble_address", "")
+        if not ble_address:
+            _LOGGER.warning("BLE field scan: no BLE address configured")
+            return
+
+        _LOGGER.warning("BLE field scan: starting — connecting to %s", ble_address)
+        self._ble_pairing_in_progress = True
+        try:
+            client = ScuBleClient(
+                scu_address=ble_address,
+                connect_timeout=15.0,
+                tls_timeout=30.0,
+            )
+            await client.connect()
+            _LOGGER.info("BLE field scan: connected, establishing TLS")
+            await client.establish_tls()
+            _LOGGER.info("BLE field scan: TLS established, scanning fields 1-15")
+
+            results = await client.brute_force_user_fields(
+                field_range=range(1, 16),
+                timeout_per_field=8.0,
+            )
+
+            _LOGGER.warning(
+                "BLE field scan COMPLETE — %d fields responded: %s",
+                len(results),
+                {fn: r.get("status") for fn, r in results.items()},
+            )
+            for fn, r in sorted(results.items()):
+                _LOGGER.warning(
+                    "BLE field scan result: field=%d status=%s fields=%s",
+                    fn, r.get("status"), r.get("fields"),
+                )
+
+            await client.disconnect()
+        except BleTransportError as err:
+            _LOGGER.warning("BLE field scan failed: %s", err)
+        except Exception as err:
+            _LOGGER.warning("BLE field scan unexpected error: %s", err)
+        finally:
+            self._ble_pairing_in_progress = False
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the REST API and merge with SignalR data."""
         now = time.monotonic()
