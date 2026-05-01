@@ -1,8 +1,17 @@
 # Reverse engineering artifacts
 source/
-tools/
 analyze_*.js
 *.docx
+
+# Tools — credentials and scan results (tools/*.py and tools/*.ps1 are tracked via git add -f)
+tools/scan_pia.ps1
+tools/pia_field_scan_results.json
+tools/captured_ehg_token.txt
+tools/sensor_discovery_*.json
+tools/__pycache__/
+tools/ehg-token-app/.gradle/
+tools/ehg-token-app/bin/
+tools/ehg-token-app/build/
 
 # Duplicate root-level component files (canonical copies live in custom_components/)
 /__init__.py
