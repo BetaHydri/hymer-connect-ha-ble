@@ -220,11 +220,21 @@
       "water_pump": { "name": "Water pump" },
       "fridge_door": { "name": "Fridge door" },
       "victron_inverter_on": { "name": "Victron inverter" },
-      "victron_charger_on": { "name": "Victron charger" }
+      "victron_charger_on": { "name": "Victron charger" },
+      "wiping_water_empty": { "name": "Washer fluid low" },
+      "motor_oil_warning": { "name": "Motor oil warning" },
+      "parking_brake": { "name": "Parking brake" },
+      "standheizung_available": { "name": "Auxiliary heater available" },
+      "standheizung_state": { "name": "Auxiliary heater" },
+      "cruise_control_can": { "name": "Cruise control (CAN)" },
+      "downhill_assist": { "name": "Downhill assist" },
+      "coolant_warning": { "name": "Coolant warning" },
+      "shoreline_connected": { "name": "Shore power" }
     },
     "switch": {
       "main_switch_ctrl": { "name": "12V Main switch" },
-      "water_pump_ctrl": { "name": "Water pump" }
+      "water_pump_ctrl": { "name": "Water pump" },
+      "fridge_eco_ctrl": { "name": "Fridge ECO (quiet)" }
     },
     "climate": {
       "truma_heater": { "name": "Truma heater" }

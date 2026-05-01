@@ -1,5 +1,5 @@
 # HYMER Connect Dashboard for Home Assistant
-# Updated for v2.9.8 — Clear visual hierarchy on mobile
+# Updated for v2.40.0-alpha.2 — Entity IDs aligned with BLE repo
 #
 # Design:
 #   - Section headers  = markdown banners (── TITLE ──) — clearly labels
@@ -168,15 +168,12 @@ views:
           # ── Row 2: History Charts ──
           - type: horizontal-stack
             cards:
-              - type: statistics-graph
-                title: "☀️ Solar Energy (kWh/day)"
+              - type: history-graph
+                title: "☀️ Solar Power (24h)"
+                hours_to_show: 24
                 entities:
-                  - entity: sensor.hymer_solar_energy
-                    name: Solar Energy
-                stat_types:
-                  - change
-                period: day
-                days_to_show: 30
+                  - entity: sensor.hymer_solar_power
+                    name: Solar Power (W)
               - type: history-graph
                 title: "🔋 Battery Voltages (24h)"
                 hours_to_show: 24
@@ -236,7 +233,7 @@ views:
                   - entity: sensor.hymer_charge_phase
                     name: Charge Phase
                     icon: mdi:ev-station
-                  - entity: binary_sensor.hymer_stecker
+                  - entity: binary_sensor.hymer_shore_power
                     name: Shore Power
                     icon: mdi:power-plug
                   - entity: sensor.hymer_heater_electric_power
@@ -317,7 +314,7 @@ views:
           - entity: sensor.hymer_power_source
             name: Power Source
             icon: mdi:power-plug
-          - entity: binary_sensor.hymer_stecker
+          - entity: binary_sensor.hymer_shore_power
             name: Shore Power
             icon: mdi:power-plug
 
@@ -387,7 +384,7 @@ views:
         square: false
         cards:
           - type: tile
-            entity: select.hymer
+            entity: select.hymer_heater_energy_source
             name: Energy Source
             icon: mdi:gas-station
             color: orange
@@ -415,9 +412,9 @@ views:
             icon: mdi:fridge
             color: light-blue
           - type: tile
-            entity: switch.hymer_fridge_eco_leise
-            name: Fridge Quiet
-            icon: mdi:volume-off
+            entity: switch.hymer_fridge_eco_quiet
+            name: Fridge ECO
+            icon: mdi:leaf
             color: teal
 
       # ── Fridge Status ──
@@ -557,7 +554,7 @@ views:
           - entity: sensor.hymer_outside_temperature
             name: Outside Temp
             icon: mdi:thermometer
-          - entity: sensor.hymer_distance_to_next_service
+          - entity: sensor.hymer_distance_to_service
             name: Next Service
             icon: mdi:wrench-clock
           - entity: sensor.hymer_fuel_level
@@ -615,7 +612,7 @@ views:
           - entity: sensor.hymer_ignition
             name: Ignition
             icon: mdi:key
-          - entity: binary_sensor.hymer_engine_running_corrected
+          - entity: binary_sensor.hymer_engine
             name: Engine Running
             icon: mdi:engine
 
@@ -773,7 +770,7 @@ views:
         square: false
         cards:
           - type: tile
-            entity: light.hymer
+            entity: light.hymer_led_bar
             name: LED Bar
             icon: mdi:led-strip-variant
             color: amber
@@ -831,9 +828,9 @@ views:
           - entity: sensor.hymer_truma_firmware
             name: Truma Firmware
             icon: mdi:chip
-          - entity: update.hymer_connect_update
-            name: Integration Update
-            icon: mdi:update
+          - entity: sensor.hymer_paired_bt_devices
+            name: Paired BT Devices
+            icon: mdi:bluetooth-connect
 
       # ── SCU Restart (with confirmation dialog) ──
       - type: tile
