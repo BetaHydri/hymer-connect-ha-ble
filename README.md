@@ -968,6 +968,64 @@ graph TB
 
 > **Full slot-by-slot reference:** See [`docs/sensor-map.md`](docs/sensor-map.md) for every known sensor mapping with units, transforms, and model-specific differences.
 
+## Troubleshooting
+
+### BLE Pairing — "Response does not contain mobilePair field"
+
+The SCU rejected the `PairMobileRequest` because "homeassistant" is already in the SCU's internal paired devices list. The SCU only issues a new EHG refresh token for **new** pairings — re-pairing an existing device name returns an empty response.
+
+**Fix:**
+
+1. **Clear the SCU's paired device for "homeassistant":**
+   - Open the **EHG app** on your phone → vehicle settings → Bluetooth/Connected Devices → delete "homeassistant"
+   - If the app doesn't show paired devices, **restart the SCU** (12V off → wait 30s → 12V on) to reset its PIA session state
+2. **Clear the BlueZ bond on the RPi:**
+   - Use the "Clear BLE bond" checkbox in HA: Settings → Integrations → HYMER Connect → Configure → check "Clear BLE bond" → Save
+   - Or via SSH: `bluetoothctl remove C5:D9:A0:14:C5:37`
+3. **Delete and re-add the integration** (the new code auto-clears the BlueZ bond on removal)
+4. Press **CONNECTION** on the SCU **before** submitting the config flow
+5. The SCU should accept the fresh `PairMobileRequest` and issue a new EHG token
+
+### BLE Pairing — "Timed out waiting for SCU response"
+
+The SCU received the `PairMobileRequest` but didn't respond within 60 seconds. This usually means:
+
+- **CONNECTION was not pressed** — the SCU requires the CONNECTION button to be pressed within ~2 minutes before accepting a pairing request
+- **The SCU's pairing window expired** — press CONNECTION again and retry immediately
+- **The device is already paired** — see "Response does not contain mobilePair field" above
+
+**Tip:** Press CONNECTION on the SCU **first**, then immediately trigger the config flow or Reconfigure in HA. The SCU's pairing window is ~2 minutes.
+
+### BLE Pairing — "Authentication Failed" on every attempt
+
+The SCU is rejecting the BLE bonding (OS-level pairing). This means CONNECTION was not pressed on the SCU touch panel. The integration retries up to 12 times over 2 minutes — press CONNECTION at any point during this window.
+
+### SignalR — "No EHG refresh token configured"
+
+The integration has no EHG refresh token stored. Without it, SignalR connects but cannot authenticate (`UpdateTokens` is skipped), so all sensor data returns empty (`0 fields updated`).
+
+**Fix:** Trigger BLE pairing via Reconfigure (⋮ → Reconfigure) to obtain the token automatically, or manually provide the token captured via mitmproxy.
+
+### Integration removal — stale BlueZ bonds
+
+When removing the integration, the code automatically clears the BlueZ bond via D-Bus `RemoveDevice`. If you deleted the integration using an older version (before v2.40.0-alpha.2), clear the bond manually:
+
+```bash
+bluetoothctl remove <SCU_MAC_ADDRESS>
+```
+
+### Re-pairing after deleting and re-adding the integration
+
+The recommended sequence for a clean re-pair:
+
+1. In HA: Settings → Integrations → HYMER Connect → Configure → check **"Clear BLE bond"** → Save
+2. In HA: Delete the integration
+3. In the EHG app: remove "homeassistant" from paired devices (if visible)
+4. Optionally: restart the SCU (12V toggle or via SCU touch panel)
+5. Press **CONNECTION** on the SCU touch panel
+6. In HA: Add the integration fresh with QR token + BLE address + BLE enabled
+7. The config flow Step 3 spinner will pair automatically
+
 ## Reverse Engineering
 
 This integration was reverse-engineered from the **HYMER Connect** Android app v2.10.14 using:
