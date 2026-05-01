@@ -28,9 +28,9 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 | **~100 entities** (vs ~20 in the EHG app) | ❌ | ✅ |
 | **SCU restart** (reboot the control unit remotely) | ✅ | ✅ |
 
-> **⚠️ Important:** Real-time sensor data (70+ entities: GPS, battery, doors, heater, fridge, etc.) requires an **EHG Remote Access Refresh Token**. This token must be captured **once** from your phone using mitmproxy during the initial setup. Without it, only basic vehicle metadata (model, VIN, year) is available. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for the step-by-step guide.
+> **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.40.0-alpha.2** — **BLE direct path verified on real hardware!** Successfully tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. Full BLE pairing completes: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest → EHG refresh token obtained. 28 sensors streaming live via BLE (~50ms latency vs ~500ms-2s cloud). Lights controllable over BLE. Automatic BLE/cloud failover. See [BLE Communication Protocol](docs/ble-communication.md) for technical details and [CHANGELOG](CHANGELOG.md) for full history.
+> **v2.40.0-alpha.2** — **🎉 MAJOR BREAKTHROUGH: Fully automated EHG token via BLE!** Successfully tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. Full BLE pairing completes automatically: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest → EHG refresh token obtained → SignalR authenticated → **130 sensors + light control**. No mitmproxy needed. No phone interception. Just press CONNECTION on the SCU and Home Assistant does the rest. See [CHANGELOG](CHANGELOG.md) for full details.
 
 ### Energy Dashboard
 

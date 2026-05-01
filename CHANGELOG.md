@@ -13,9 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Verified (hardware testing 2026-05-01)
 
+> **MAJOR BREAKTHROUGH** — The BLE pairing path is now fully operational end-to-end. For the first time, the EHG remote-access refresh token can be obtained **automatically** via BLE — no mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU, and Home Assistant does the rest.
+
 - **BLE pairing fully operational** — Tested on a **HYMER Grand Canyon S 600 CrossOver** (2025) with Home Assistant running on a **Raspberry Pi 4** (built-in Bluetooth 5.0). Full BLE ceremony completes successfully: D-Bus JustWorks bonding → TLS 1.1 (AES128-SHA) → PairMobileRequest (1201 bytes, 63 chunks) → PairMobileResponse (status=1) → PairMobileConfirmation → **EHG remote-access refresh token obtained**.
-- **Real-time sensor data via BLE** — 28 sensors streaming live from the SCU at ~1-2 second intervals over the BLE direct path (~50ms latency). Verified sensors: `bms_current` (bus 99), `solar_voltage` (bus 8), `gps_utc_time` (bus 30), `battery_current` (bus 3).
-- **Light control via BLE** — Lights can be toggled on/off through the BLE direct path. Commands are sent over the TLS-encrypted NUS channel and executed by the SCU immediately.
+- **EHG token enables full SignalR authentication** — The BLE-obtained refresh token is used to mint a fresh EHG access token (`UpdateTokens SUCCESS`), unlocking the authenticated SignalR datahub. This is the same token that previously required mitmproxy capture from a phone.
+- **130 sensors via authenticated SignalR** — With the EHG token, the SignalR subscription returns the full vehicle state: 130 sensors across all buses (Mercedes CAN bus 1, CBE EBL bus 3, Voltronic MPPT bus 8, lights bus 11–27, GPS bus 30, Thetford fridge bus 34/37, Truma Combi D6E bus 58, BOS LUX BMS bus 99). Without the token, only empty PIA responses (`0 fields updated`) were returned.
+- **Real-time sensor data via BLE direct path** — 28 sensors streaming live from the SCU at ~1–2 second intervals over the BLE direct path (~50ms latency). Verified sensors: `bms_current` (bus 99), `solar_voltage` (bus 8), `gps_utc_time` (bus 30), `battery_current` (bus 3).
+- **Light control verified** — All vehicle lights toggled successfully via SignalR commands authenticated with the BLE-obtained token:
+  - Living ceiling light (bus 11): `light_living_ceiling` + `light_wohnen_group` — battery_current jumped from -1.33A to -1.73A on activation
+  - LED bar (bus 25): `light_led_bar` + `light_led_bar_2` — battery_current increased to -1.85A, bms_current dropped to 0.64A (solar compensation visible)
+  - Nightlight (bus 16): `light_nightlight` + `light_privat_group`
+  - All lights confirmed off with state changes and current draw recovery
 - **Automatic BLE/cloud failover** — Coordinator establishes BLE direct path on startup, falls back to SignalR cloud when BLE is unavailable, and recovers BLE when back in range.
 
 ## [2.40.0-alpha.1] - 2026-04-27
