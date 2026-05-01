@@ -674,29 +674,30 @@ class ScuBleClient:
             from dbus_fast.aio import MessageBus
             from dbus_fast import BusType, Message, MessageType
             tmp_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
             try:
-                introspection = await tmp_bus.introspect("org.bluez", dev_path)
-                dev_obj = tmp_bus.get_proxy_object("org.bluez", dev_path, introspection)
-                props_iface = dev_obj.get_interface("org.freedesktop.DBus.Properties")
-                paired = await props_iface.call_get("org.bluez.Device1", "Paired")
-                is_already_bonded = bool(paired.value) if paired else False
-            except Exception:
-                pass  # Device not known to BlueZ — that's fine
-            tmp_bus.disconnect()
+                dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                try:
+                    introspection = await tmp_bus.introspect("org.bluez", dev_path)
+                    dev_obj = tmp_bus.get_proxy_object("org.bluez", dev_path, introspection)
+                    props_iface = dev_obj.get_interface("org.freedesktop.DBus.Properties")
+                    paired = await props_iface.call_get("org.bluez.Device1", "Paired")
+                    is_already_bonded = bool(paired.value) if paired else False
+                except Exception:
+                    pass  # Device not known to BlueZ — that's fine
+            finally:
+                tmp_bus.disconnect()
         except Exception:
             pass
 
         if is_already_bonded:
             _LOGGER.debug("Device %s is already bonded — skipping unpair", self._scu_address)
         else:
-            _LOGGER.debug("Clearing stale BlueZ bonding records for %s", self._scu_address)
-            try:
-                tmp_client = BleakClient(self._scu_address)
-                await tmp_client.unpair()
-            except Exception:
-                pass
-            await asyncio.sleep(0.3)
+            # Device is not bonded — nothing to clear. Do NOT call
+            # BleakClient.unpair() here: it invokes Adapter1.RemoveDevice()
+            # which removes the device from BlueZ's object tree entirely,
+            # making it unfindable for subsequent connection attempts until
+            # a full BLE re-scan rediscovers it.
+            _LOGGER.debug("Device %s is not bonded — no stale records to clear", self._scu_address)
 
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
@@ -716,24 +717,42 @@ class ScuBleClient:
                     from dbus_fast.aio import MessageBus
                     from dbus_fast import BusType, Message, MessageType
                     rm_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-                    dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
-                    rm_msg = Message(
-                        destination="org.bluez",
-                        path="/org/bluez/hci0",
-                        interface="org.bluez.Adapter1",
-                        member="RemoveDevice",
-                        signature="o",
-                        body=[dev_path],
-                    )
-                    reply = await rm_bus.call(rm_msg)
-                    if reply.message_type == MessageType.ERROR:
-                        _LOGGER.debug("RemoveDevice failed: %s", reply.body)
-                    else:
-                        _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
-                    rm_bus.disconnect()
+                    try:
+                        dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                        rm_msg = Message(
+                            destination="org.bluez",
+                            path="/org/bluez/hci0",
+                            interface="org.bluez.Adapter1",
+                            member="RemoveDevice",
+                            signature="o",
+                            body=[dev_path],
+                        )
+                        reply = await rm_bus.call(rm_msg)
+                        if reply.message_type == MessageType.ERROR:
+                            _LOGGER.debug("RemoveDevice failed: %s", reply.body)
+                        else:
+                            _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
+                    finally:
+                        rm_bus.disconnect()
                 except Exception as rm_err:
                     _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
+                # RemoveDevice removes the device from BlueZ's object tree.
+                # Re-scan to re-discover it before retrying the connection.
                 await asyncio.sleep(0.5)
+                try:
+                    _LOGGER.debug("Re-scanning for %s after stale bond removal", self._scu_address)
+                    found = await BleakScanner.find_device_by_address(
+                        self._scu_address, timeout=5.0
+                    )
+                    if found:
+                        _LOGGER.debug("Re-discovered %s after stale bond removal", self._scu_address)
+                    else:
+                        _LOGGER.warning(
+                            "Could not re-discover %s after stale bond removal",
+                            self._scu_address,
+                        )
+                except Exception as scan_err:
+                    _LOGGER.debug("Re-scan after stale bond removal failed: %s", scan_err)
                 await self._connect_inner(retry=False)
                 return
             raise
