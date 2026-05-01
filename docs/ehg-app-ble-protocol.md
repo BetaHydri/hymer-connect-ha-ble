@@ -177,6 +177,31 @@ message PairMobileResponse {
 - SCU has limited pairing slots (likely 4–5 devices)
 - Fix: use unique device name per attempt (`ha-{timestamp}`)
 
+## EHG App UI — Vehicle Management
+
+### "Mein Fahrzeug" Menu
+
+| Menu Item | Purpose |
+|-----------|----------|
+| Gastzugänge | **User account invitations** (family members). NOT BLE device management. Max 2 devices per person. |
+| Service Termine | Service appointments |
+| Meine Ausstattung | Vehicle equipment/options |
+| Benachrichtigungen | Push notification settings |
+| Systemaktivierung und Neustart | SCU restart / activation |
+| Connect Smart Unit | BLE pairing entry point |
+| Verbindung trennen | **Nuclear option** — disconnects ENTIRE vehicle from account (all users, all devices) |
+| Sensor hinzufügen | Add external BLE sensors |
+
+### Important: No BLE Device Management UI
+
+The SCU's internal paired BLE device list (e.g. "homeassistant", "ha-xxxxx") is
+**not visible anywhere** in the EHG app. There is no UI to selectively delete
+individual paired BLE devices. The only way to access it is via the PIA protobuf
+`getPairedMobileDevices` / `deleteMobileDevices` commands (field numbers unknown).
+
+"Verbindung trennen" removes the **entire vehicle** from the user's account —
+it does NOT selectively remove a single paired BLE device.
+
 ## Extracting Unknown Field Numbers
 
 The protobuf field numbers for `deleteMobileDevices`, `getPairedMobileDevices`, etc.
