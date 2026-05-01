@@ -360,19 +360,21 @@ The SCU supports **multiple paired clients simultaneously** (e.g. phone + RPi). 
 | HA integration reconfigured (Reconfigure) | ❌ No | — |
 | Phone re-paired with EHG app | ❌ No | ❌ RPi token stays valid |
 | **Delete integration from HA** | ✅ Yes (config entry + token deleted) | ❌ Phone still works |
-| **Remove device in EHG app** | ✅ Yes (cloud revokes that device's token) | ❌ Other devices unaffected |
+| **"Verbindung trennen" in EHG app** | ✅ Yes (entire vehicle disconnected from account) | ✅ All devices must re-pair |
 | **SCU factory reset** | ✅ Yes (all paired devices wiped) | ✅ All devices must re-pair |
 
 **What happens when a token is revoked?**
 
-If someone removes the HA device via the EHG app's paired device management:
+If the vehicle is disconnected from your account ("Verbindung trennen" in EHG app), or a SCU factory reset is performed:
 
-1. The cloud marks the RPi's refresh token as revoked
+1. The cloud marks all refresh tokens for that vehicle as revoked
 2. The integration's next `POST /remoteAccessToken` call returns **401 Forbidden**
 3. The coordinator catches this and triggers HA's **reauth flow**
-4. You must re-pair: enter the QR code again (via Reconfigure or re-add the integration) and press ALLOW on the SCU touchscreen
+4. You must re-pair: enter the QR code again (via Reconfigure or re-add the integration) and press **CONNECTION** on the SCU touchscreen
 
-> **Tip:** The `mobile_device_name` sent during pairing defaults to `"homeassistant"`. This is the name that appears in the EHG app's paired devices list, making it easy to identify which device is the RPi vs. your phone.
+> **Important: The EHG app has no UI to manage individual paired BLE devices.** The "Gastzugänge" (Guest Access) section manages user account invitations (max 2 devices per person), not BLE device pairings. The SCU's internal paired device list is not visible anywhere in the app. To remove a stale HA pairing from the SCU, either use "Verbindung trennen" (nuclear — removes all devices) or restart the SCU and re-pair with a fresh device name.
+
+> **Tip:** Since v2.40.0-alpha.2, the integration uses a unique `mobile_device_name` (`ha-{timestamp}`) for each pairing attempt. This avoids collisions with stale entries in the SCU's internal paired device list.
 
 > **⏳ Sensors show "unknown" until the vehicle connects.** The SCU (Smart Interface Unit) in your vehicle must establish a SignalR WebSocket connection to the cloud before sensor data flows. This happens automatically when:
 > - The vehicle's 12V main switch is ON, and
@@ -394,7 +396,7 @@ If your HA instance has BLE hardware (e.g. Raspberry Pi 4 inside the vehicle), t
 2. Add the **HYMER Connect** integration
 3. In **Step 2 — Vehicle Activation**, enter the QR code text and the SCU BLE address
 4. The integration connects to the SCU via BLE, establishes a TLS session, and sends a pairing request
-5. **Press ALLOW** on the vehicle's SCU touchscreen when prompted
+5. **Press CONNECTION** (Verbindung) on the vehicle's SCU touch panel when prompted
 6. The SCU returns the remote-access refresh token, which is stored automatically
 
 > **You must be physically at the vehicle** for BLE pairing. The RPi/HA host must be within BLE range (~10m) of the SCU.
@@ -972,19 +974,21 @@ graph TB
 
 ### BLE Pairing — "Response does not contain mobilePair field"
 
-The SCU rejected the `PairMobileRequest` because "homeassistant" is already in the SCU's internal paired devices list. The SCU only issues a new EHG refresh token for **new** pairings — re-pairing an existing device name returns an empty response.
+The SCU rejected the `PairMobileRequest` because an existing device name is already in the SCU's internal paired devices list. The SCU only issues a new EHG refresh token for **new** pairings — re-pairing an existing device name returns an empty response.
+
+> **Note:** Since v2.40.0-alpha.2, the integration uses a unique device name (`ha-{timestamp}`) for each pairing attempt, which largely eliminates this problem. If you still see this error, the SCU's pairing slots may be full.
 
 **Fix:**
 
-1. **Clear the SCU's paired device for "homeassistant":**
-   - Open the **EHG app** on your phone → vehicle settings → Bluetooth/Connected Devices → delete "homeassistant"
-   - If the app doesn't show paired devices, **restart the SCU** (12V off → wait 30s → 12V on) to reset its PIA session state
+1. **Restart the SCU** (12V off → wait 30s → 12V on) to reset its PIA session state
 2. **Clear the BlueZ bond on the RPi:**
    - Use the "Clear BLE bond" checkbox in HA: Settings → Integrations → HYMER Connect → Configure → check "Clear BLE bond" → Save
-   - Or via SSH: `bluetoothctl remove C5:D9:A0:14:C5:37`
+   - Or via SSH: `bluetoothctl remove <SCU_MAC_ADDRESS>`
 3. **Delete and re-add the integration** (the new code auto-clears the BlueZ bond on removal)
-4. Press **CONNECTION** on the SCU **before** submitting the config flow
-5. The SCU should accept the fresh `PairMobileRequest` and issue a new EHG token
+4. Press **CONNECTION** on the SCU touch panel, then submit the config flow
+5. The SCU should accept the fresh `PairMobileRequest` with its unique device name and issue a new EHG token
+
+> **Important:** The EHG app has **no UI** to manage individual paired BLE devices. The SCU's internal paired device list is not visible in the app. "Verbindung trennen" (Mein Fahrzeug menu) disconnects the **entire vehicle** from your account — only use this as a last resort.
 
 ### BLE Pairing — "Timed out waiting for SCU response"
 
@@ -1020,11 +1024,12 @@ The recommended sequence for a clean re-pair:
 
 1. In HA: Settings → Integrations → HYMER Connect → Configure → check **"Clear BLE bond"** → Save
 2. In HA: Delete the integration
-3. In the EHG app: remove "homeassistant" from paired devices (if visible)
-4. Optionally: restart the SCU (12V toggle or via SCU touch panel)
-5. Press **CONNECTION** on the SCU touch panel
-6. In HA: Add the integration fresh with QR token + BLE address + BLE enabled
-7. The config flow Step 3 spinner will pair automatically
+3. Optionally: restart the SCU (12V off → wait 30s → 12V on) to clear stale pairing state
+4. Press **CONNECTION** on the SCU touch panel
+5. In HA: Add the integration fresh with QR token + BLE address + BLE enabled
+6. The config flow Step 3 spinner will pair automatically with a unique device name
+
+> **Note:** You do NOT need to remove anything in the EHG app. The app has no paired BLE device management. The integration now uses unique device names (`ha-{timestamp}`) to avoid collisions with stale entries.
 
 ## Reverse Engineering
 
