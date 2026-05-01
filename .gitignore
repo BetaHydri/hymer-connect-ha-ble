@@ -40,3 +40,5 @@ test_signalr.py
 
 # Log files (contain VIN, BLE MAC, vehicle URN, sensor data)
 logs/
+
+.fake
