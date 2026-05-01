@@ -591,6 +591,11 @@ class ScuBleClient:
         return self._connected and self._tls_established
 
     @property
+    def ble_connected(self) -> bool:
+        """True when BLE GATT is connected (before TLS handshake)."""
+        return self._connected
+
+    @property
     def scu_address(self) -> str:
         return self._scu_address
 

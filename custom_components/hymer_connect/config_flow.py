@@ -297,7 +297,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._ble_pairing_error = "ble_pairing_failed"
                     return
 
-            if not client or not client.connected:
+            if not client or not client.ble_connected:
                 self._ble_pairing_error = "ble_pairing_failed"
                 return
 
