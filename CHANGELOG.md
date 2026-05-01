@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.40.0-alpha.2] - 2026-05-01
+
+### Fixed
+
+- **BLE pairing failed before TLS handshake** — The `client.connected` property requires both BLE GATT connection **and** TLS to be established. The config flow checked `client.connected` before calling `establish_tls()`, so it always returned `False` after successful bonding — causing `ble_pairing_failed` before ever reaching TLS or the pairing ceremony. Added `ble_connected` property that checks only the BLE GATT state, and updated the config flow to use it.
+
+### Verified (hardware testing 2026-05-01)
+
+- **BLE pairing fully operational** — Tested on a **HYMER Grand Canyon S 600 CrossOver** (2025) with Home Assistant running on a **Raspberry Pi 4** (built-in Bluetooth 5.0). Full BLE ceremony completes successfully: D-Bus JustWorks bonding → TLS 1.1 (AES128-SHA) → PairMobileRequest (1201 bytes, 63 chunks) → PairMobileResponse (status=1) → PairMobileConfirmation → **EHG remote-access refresh token obtained**.
+- **Real-time sensor data via BLE** — 28 sensors streaming live from the SCU at ~1-2 second intervals over the BLE direct path (~50ms latency). Verified sensors: `bms_current` (bus 99), `solar_voltage` (bus 8), `gps_utc_time` (bus 30), `battery_current` (bus 3).
+- **Light control via BLE** — Lights can be toggled on/off through the BLE direct path. Commands are sent over the TLS-encrypted NUS channel and executed by the SCU immediately.
+- **Automatic BLE/cloud failover** — Coordinator establishes BLE direct path on startup, falls back to SignalR cloud when BLE is unavailable, and recovers BLE when back in range.
+
 ## [2.40.0-alpha.1] - 2026-04-27
 
 ### Added

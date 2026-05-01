@@ -30,7 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (70+ entities: GPS, battery, doors, heater, fridge, etc.) requires an **EHG Remote Access Refresh Token**. This token must be captured **once** from your phone using mitmproxy during the initial setup. Without it, only basic vehicle metadata (model, VIN, year) is available. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for the step-by-step guide.
 
-> **v2.40.0-alpha.1** — **BLE dual-path alpha!** Full BLE pairing pipeline: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest with Write Without Response (matching EHG app). Config flow Step 3 with 2-minute bonding retry. BLE enabled checkbox. Reconfigure retries pairing. Press CONNECTION on SCU touch panel to enable bonding. PairMobileResponse pending vehicle test. See [BLE Communication Protocol](docs/ble-communication.md) for technical details and [CHANGELOG](CHANGELOG.md) for full history.
+> **v2.40.0-alpha.2** — **BLE direct path verified on real hardware!** Successfully tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. Full BLE pairing completes: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest → EHG refresh token obtained. 28 sensors streaming live via BLE (~50ms latency vs ~500ms-2s cloud). Lights controllable over BLE. Automatic BLE/cloud failover. See [BLE Communication Protocol](docs/ble-communication.md) for technical details and [CHANGELOG](CHANGELOG.md) for full history.
 
 ### Energy Dashboard
 
