@@ -104,7 +104,7 @@ class HymerBleFieldScanButton(
     @property
     def available(self) -> bool:
         """Available when BLE address is configured."""
-        return bool(self.coordinator.config_entry.data.get("ble_address"))
+        return bool(self.coordinator.ble_address)
 
     async def async_press(self) -> None:
         """Run BLE field number brute-force scan."""

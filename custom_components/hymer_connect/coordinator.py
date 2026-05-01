@@ -571,7 +571,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         from .ble_client import ScuBleClient, BleTransportError
 
-        ble_address = self.config_entry.data.get("ble_address", "")
+        ble_address = self.ble_address
         if not ble_address:
             _LOGGER.warning("BLE field scan: no BLE address configured")
             return
