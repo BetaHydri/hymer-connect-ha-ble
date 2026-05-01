@@ -566,8 +566,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_ble_field_scan(self) -> None:
         """Connect via BLE/TLS and brute-force UserRequestTopic field numbers 1-15.
 
-        Results are logged at INFO level. This discovers the field numbers
-        for getPairedMobileDevices, deleteMobileDevices, etc.
+        Retries bonding up to 8 times (~64s) waiting for CONNECTION button press.
+        Results are logged at WARNING level.
         """
         from .ble_client import ScuBleClient, BleTransportError
 
@@ -576,15 +576,73 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("BLE field scan: no BLE address configured")
             return
 
-        _LOGGER.warning("BLE field scan: starting — connecting to %s", ble_address)
+        _LOGGER.warning(
+            "BLE field scan: starting — press CONNECTION on the SCU touch panel! "
+            "Connecting to %s (will retry bonding for ~64s)",
+            ble_address,
+        )
         self._ble_pairing_in_progress = True
         try:
-            client = ScuBleClient(
-                scu_address=ble_address,
-                connect_timeout=15.0,
-                tls_timeout=30.0,
-            )
-            await client.connect()
+            client = None
+            max_attempts = 8
+            retry_delay = 8
+
+            for attempt in range(1, max_attempts + 1):
+                remaining = (max_attempts - attempt + 1) * retry_delay
+                _LOGGER.warning(
+                    "BLE field scan: bonding attempt %d/%d (%ds remaining) — "
+                    "press CONNECTION if not already pressed",
+                    attempt, max_attempts, remaining,
+                )
+                try:
+                    client = ScuBleClient(
+                        scu_address=ble_address,
+                        connect_timeout=15.0,
+                        tls_timeout=30.0,
+                    )
+                    await client.connect()
+                    _LOGGER.warning(
+                        "BLE field scan: bonding SUCCESSFUL on attempt %d/%d",
+                        attempt, max_attempts,
+                    )
+                    break
+                except BleTransportError as bond_err:
+                    if "CONNECTION" in str(bond_err) or "Authentication" in str(bond_err):
+                        _LOGGER.warning(
+                            "BLE field scan: bonding attempt %d/%d failed — "
+                            "CONNECTION not pressed yet. Retrying in %ds...",
+                            attempt, max_attempts, retry_delay,
+                        )
+                        if client:
+                            try:
+                                await client.disconnect()
+                            except Exception:
+                                pass
+                            client = None
+                        if attempt < max_attempts:
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        _LOGGER.warning("BLE field scan: bonding failed after %d attempts", max_attempts)
+                        return
+                    raise
+                except Exception as err:
+                    _LOGGER.warning("BLE field scan: connect attempt %d failed: %s", attempt, err)
+                    if client:
+                        try:
+                            await client.disconnect()
+                        except Exception:
+                            pass
+                        client = None
+                    if attempt < max_attempts:
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    _LOGGER.warning("BLE field scan: connect failed after %d attempts", max_attempts)
+                    return
+
+            if not client or not client.ble_connected:
+                _LOGGER.warning("BLE field scan: could not connect")
+                return
+
             _LOGGER.info("BLE field scan: connected, establishing TLS")
             await client.establish_tls()
             _LOGGER.info("BLE field scan: TLS established, scanning fields 1-15")
