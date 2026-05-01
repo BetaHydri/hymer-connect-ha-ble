@@ -104,3 +104,29 @@ async def async_unload_entry(
     ):
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: HymerConnectConfigEntry
+) -> None:
+    """Clean up when integration is removed — clear BlueZ bond.
+
+    The SCU BLE bond must be removed from BlueZ so that re-adding the
+    integration triggers a fresh pairing and the SCU issues a new
+    EHG refresh token. Without this, the stale bond causes
+    'Response does not contain mobilePair field' on re-pairing.
+    """
+    from .ble_client import async_clear_bluez_bond
+    from .const import CONF_BLE_ADDRESS
+
+    ble_address = entry.data.get(CONF_BLE_ADDRESS, "")
+    if ble_address:
+        removed = await async_clear_bluez_bond(ble_address)
+        if removed:
+            _LOGGER.info(
+                "Cleared BlueZ bond for %s on integration removal", ble_address
+            )
+        else:
+            _LOGGER.debug(
+                "No BlueZ bond to clear for %s", ble_address
+            )

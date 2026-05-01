@@ -93,6 +93,39 @@ DEFAULT_GATT_MTU = 23
 # PIA protocol version (matches EHG app 2.10.14)
 APP_PIA_VERSION = "v0.32.0"
 
+
+async def async_clear_bluez_bond(address: str) -> bool:
+    """Remove a BlueZ bonding record for the given BLE address.
+
+    Uses D-Bus Adapter1.RemoveDevice() to fully clear the bond.
+    Returns True if the bond was removed, False if not found or failed.
+    """
+    if not address:
+        return False
+    try:
+        from dbus_fast.aio import MessageBus
+        from dbus_fast import BusType, Message, MessageType
+        bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+        dev_path = f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+        msg = Message(
+            destination="org.bluez",
+            path="/org/bluez/hci0",
+            interface="org.bluez.Adapter1",
+            member="RemoveDevice",
+            signature="o",
+            body=[dev_path],
+        )
+        reply = await bus.call(msg)
+        bus.disconnect()
+        if reply.message_type == MessageType.ERROR:
+            _LOGGER.debug("RemoveDevice %s: %s", address, reply.body)
+            return False
+        _LOGGER.info("Cleared BlueZ bond for %s", address)
+        return True
+    except Exception as err:
+        _LOGGER.debug("Failed to clear BlueZ bond for %s: %s", address, err)
+        return False
+
 # ---------------------------------------------------------------------------
 # Protobuf wire format helpers (minimal, no external dependency)
 # ---------------------------------------------------------------------------
