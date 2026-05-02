@@ -180,7 +180,9 @@ SENSOR_MAP: dict[tuple[int, int], tuple[str, str | None, str | None]] = {
     (27, 3): ("light_privat_group_color_temp", None, None),
     # Fridge (37)
     (37, 1): ("fridge_mode", None, None),
-    (37, 2): ("fridge_status", None, None),  # Fridge door state (0=Open, 1=Closed). Real-time push updates arrive at depth 4.
+    (37, 2): ("fridge_status", None, None),  # Fridge door state (0=Open, 1=Closed). SCU never pushes changes via SignalR — BLE-only for real-time updates.
+    # Dometic compressor fridge (bus 60) — moved to sensor_maps/eriba.json (v2.42.0)
+    # S600/S700 with Thetford on bus 34/37 never see bus 60 data.
     # Light: Sitzgruppe Dachschrank / Seating area overhead (bus 43)
     (43, 1): ("light_seating_overhead", None, None),
     (43, 2): ("light_seating_overhead_brightness", "%", None),
