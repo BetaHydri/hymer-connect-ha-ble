@@ -1,15 +1,124 @@
-# PIA Sensor Bus Map — Grand Canyon S 600 CrossOver
+# PIA Sensor Bus Map
 
-> **Vehicle:** HYMER Grand Canyon S 600 CrossOver (2025)
-> **Base:** Mercedes Sprinter 419 CDI
+> **Primary vehicle:** HYMER Grand Canyon S 600 CrossOver (2025), Mercedes Sprinter 419 CDI
 > **SCU Firmware:** 1.12.0.0
 > **Validated:** April 2026 via mitmproxy captures + live HA correlation
 > **Discovery scan:** 2026-04-23 — 129 sensors, 129 mapped, 0 unmapped. Vehicle-verified at Unterföhring.
+> **JSON architecture:** v2.44.0+ — all sensor mappings, entity definitions, lights, and switches loaded from `base.json` + `{brand}.json`.
 
 This document maps every known `(bus_id, sensor_id)` slot to its sensor name,
-unit, and value transform as observed on the S600. Other models (e.g. the S700)
-may have different slot assignments on buses 1, 3, 8, 30, and 99 — see the
-[Compatibility section](../README.md#compatibility-with-other-vehicles) in the README.
+unit, and value transform. The base map was built on the S600 but includes
+additive mappings from other EHG vehicles:
+
+- **Bus 60** (Dometic compressor fridge) — contributed by @mvondemhagen on Eriba Car 602 (#54)
+
+Slot assignments are identical on S600 and S700 Grand Canyon models — both use
+the same SCU component types and bus IDs (confirmed by @dan-simms1 in [#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)).
+Other EHG brands may differ — see the [Multi-Brand Notes](../README.md#-multi-brand-notes-eriba-bürstner-dethleffs-etc) in the README.
+
+### Dynamic JSON overlays (v2.41.0+, fully JSON-driven since v2.43.0)
+
+Starting with v2.43.0, **all** sensor mappings and entity definitions are loaded
+from JSON files in `custom_components/hymer_connect/sensor_maps/`.  The hardcoded
+Python `SENSOR_MAP` dict is empty — everything comes from JSON.
+
+At startup the integration loads `base.json` (universal buses shared by all EHG
+brands) + `{brand}.json` (brand-specific overlays, e.g. `hymer.json` for S600/S700).
+
+#### JSON file format (v2.43.0+ object format)
+
+Each sensor entry is a JSON object with **decode fields** (how the raw protobuf
+value is processed) and optional **entity fields** (how the HA entity is configured):
+
+```json
+{
+  "_comment": "Description (ignored by loader)",
+  "sensors": {
+    "1,1": {
+      "name": "odometer",
+      "unit": "km",
+      "transform": "div1000",
+      "platform": "sensor",
+      "device_class": "distance",
+      "state_class": "total_increasing",
+      "icon": "mdi:counter"
+    },
+    "1,10": {
+      "name": "engine_running",
+      "platform": "binary_sensor",
+      "device_class": "running",
+      "icon": "mdi:engine"
+    },
+    "1,8": {
+      "name": "vin_text"
+    }
+  }
+}
+```
+
+**Decode fields** (how the raw value is processed):
+
+| Field | Required | Description | Examples |
+|-------|----------|-------------|----------|
+| `name` | **Yes** | Sensor name — becomes the HA entity key and translation key | `"odometer"`, `"bms_voltage"` |
+| `unit` | No | HA unit string | `"V"`, `"A"`, `"°C"`, `"%"`, `"W"`, `"km"`, `"bar"`, `"m"`, `"min"`, `"Ah"`, `"h"` |
+| `transform` | No | Value transform | `"div10"`, `"div100"`, `"div1000"`, `"div3600"` (seconds → hours) |
+
+**Entity fields** (how the HA entity is configured — all optional):
+
+| Field | Description | Examples |
+|-------|-------------|----------|
+| `platform` | `"sensor"` or `"binary_sensor"`. If omitted, the entry is decode-only (value stored in coordinator data but no HA entity created). | `"sensor"`, `"binary_sensor"` |
+| `device_class` | HA device class string | `"temperature"`, `"voltage"`, `"current"`, `"door"`, `"running"`, `"power"`, `"lock"` |
+| `state_class` | HA state class | `"measurement"`, `"total_increasing"` |
+| `icon` | MDI icon | `"mdi:thermometer"`, `"mdi:battery"` |
+| `on_value` | Binary sensor only — the raw value that means "on" | `"Open"`, `"On"`, `1`, `true` (default: `true`) |
+| `enabled` | Set to `false` to disable the entity by default (user can enable in entity registry) | `false` |
+
+Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by the loader.
+
+> **Backward compat:** The old v2.41/v2.42 array format `["name", "unit", "transform"]` is still accepted for decode-only entries but does not support entity metadata.
+
+#### Available overlay files
+
+| File | Entries | Buses | Loaded when | Purpose |
+|------|---------|-------|-------------|---------|
+| `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
+| `hymer.json` | 88 | 8, 11–27, 34, 37, 43–44, 49, 58, 99, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron |
+| `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
+| `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
+| `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
+| `lmc.json` | — | — | Brand = LMC | Community-contributed (empty) |
+| `niesmann-bischoff.json` | — | — | Brand = Niesmann+Bischoff | Community-contributed (empty) |
+| `sunlight.json` | — | — | Brand = Sunlight | Community-contributed (empty) |
+| `carado.json` | — | — | Brand = Carado | Community-contributed (empty) |
+| `laika.json` | — | — | Brand = Laika | Community-contributed (empty) |
+| `freeontour.json` | — | — | Brand = FreeOnTour | Community-contributed (empty) |
+
+#### Loading order and precedence
+
+```
+1. base.json (universal sensors)         ← 63 entries (buses 1, 3, 30, 45)
+2. + {brand}.json (brand-specific)       ← overrides base entries for same (bus, slot)
+```
+
+Later entries win — a brand file can override anything in base.
+
+#### How entity creation works (v2.43.0+)
+
+```
+JSON "sensors" entry with "platform" field
+    ↓
+pia_decoder.load_sensor_map() stores in SENSOR_MAP (decode) + ENTITY_DEFS (entity metadata)
+    ↓
+sensor.py / binary_sensor.py call _build_dynamic_sensors() / _build_dynamic_binary_sensors()
+    ↓
+HA entity descriptions created from ENTITY_DEFS at setup time
+    ↓
+Entities appear in HA with correct device_class, icon, state_class, etc.
+```
+
+Entries **without** a `platform` field are decode-only — they appear in `coordinator.data["signalr_sensors"]` but don't create an HA entity. This is useful for raw slots that are consumed by computed sensors (e.g. `lithium_soc` is decode-only, consumed by the static `battery_soc` entity which reads from it).
 
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
@@ -52,7 +161,7 @@ may have different slot assignments on buses 1, 3, 8, 30, and 99 — see the
 | (3, 7) | `chassis_battery_voltage` | V | — | Starter battery voltage |
 | (3, 8) | `fresh_water_level_ebl` | % | — | **Fresh water level** from EBL402 tank input (per S700 PR #44). Discovery: `0` with empty tank. |
 | (3, 9) | `grey_water_level_ebl` | % | — | **Grey water level** from EBL402 tank input (per S700 PR #44). Discovery: `0` with empty tank. |
-| (3, 10) | `battery_soc` | % | — | Battery state of charge. Discovery: 95%. (⚠️ S700: Ah capacity, not %) |
+| (3, 10) | `battery_soc` | % | — | Battery state of charge. Discovery: 95% |
 | (3, 11) | `battery_type` | — | — | "AGM/Lithium" |
 | (3, 12–18) | `switch_12v_1..7` | — | — | 12V switch channels |
 | (3, 19) | `solar_voltage_sentinel` | V | — | Always 3276.8 (sentinel). Real solar on bus 8 |
@@ -62,11 +171,11 @@ may have different slot assignments on buses 1, 3, 8, 30, and 99 — see the
 
 ## Bus 8 — Voltronic MPP260CI (MPPT solar charger)
 
-All 7 slots are solar charger data. Some code labels in `pia_decoder.py` still
-carry legacy names from an earlier S700-based sensor map where bus 8 was the
-grey water / ventilation bus. The actual sensor values are from the Voltronic
-MPPT charger. Solar power is computed as `voltage × current` instead of reading
-the raw slot (8, 7) directly.
+All 7 slots are solar charger data — same layout on both S600 (MPP260CI) and
+S700 (MPP250Duo). Some code labels in `pia_decoder.py` still carry legacy names
+from an earlier incorrect sensor map where bus 8 was wrongly labeled as grey
+water / ventilation. Solar power is computed as `voltage × current` instead of
+reading the raw slot (8, 7) directly.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
@@ -163,18 +272,20 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 
 ## Bus 30 — ScuSignals (GPS + SCU telemetry)
 
-Slots 1-2 are shared across S600/S700. Slots 3-7 carry GPS data on the S600
-(confirmed via live traces 2026-04-19) but LTE/BT telemetry on the S700.
+Slots 1-2 carry GPS coordinates and time. Slots 3-7 carry GPS data on the S600
+(confirmed via live traces 2026-04-19). Whether the S700 reports the same slot
+assignment for slots 3-7 is unconfirmed — Dan's APK metadata shows both GPS
+and LTE/BT labels for this bus. Slots 8-14 are SCU telemetry flags.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (30, 1) | `gps_coordinates` | — | Lat,Lng string (shared S600/S700) |
-| (30, 2) | `gps_utc_time` | — | SCU internal time (shared S600/S700) |
-| (30, 3) | `gps_signal_quality` | — | Confirmed "excellent" on S600. S700: `lte_connection_quality` |
-| (30, 4) | `gps_fix` | — | Confirmed `true` on S600. S700: `lte_connection_state` |
-| (30, 5) | `gps_altitude` | m | Confirmed 13.1m on S600. S700: `scu_voltage` (V) |
-| (30, 6) | `gps_satellites` | — | Confirmed 3 on S600. S700: `paired_bt_devices` |
-| (30, 7) | `gps_heading` | ° | Confirmed 0° on S600. S700: `connected_bt_devices` |
+| (30, 1) | `gps_coordinates` | — | Lat,Lng string |
+| (30, 2) | `gps_utc_time` | — | SCU internal time |
+| (30, 3) | `gps_signal_quality` | — | Confirmed "excellent" on S600 |
+| (30, 4) | `gps_fix` | — | Confirmed `true` on S600 |
+| (30, 5) | `gps_altitude` | m | Confirmed 13.1m on S600 |
+| (30, 6) | `gps_satellites` | — | Confirmed 3 on S600 |
+| (30, 7) | `gps_heading` | ° | Confirmed 0° on S600 |
 | (30, 8) | `scu_flag_1` | — | `False` — unknown flag |
 | (30, 9) | `lte_connected` | — | `True` — LTE connection state |
 | (30, 10) | `scu_flag_2` | — | `False` — unknown flag |
@@ -252,19 +363,40 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 | (58, 13) | `heater_shoreline_connected` (EHG: `shoreline_connected`) | — | Shoreline connected flag (bool). `r` |
 | (58, 14) | `heater_window_switch_closed` (EHG: `window_switch_closed`) | — | Window contact closed (diesel safety interlock, bool). `r` |
 
+## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
+
+> **Vehicles:** Eriba Car 602 (2025, VW Crafter). Not present on S600/S700 (which use Thetford on buses 34/37).
+> **Contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54))
+
+| Slot | Sensor Name | Unit | Transform | Notes |
+|------|------------|------|-----------|-------|
+| (60, 1) | `dometic_fridge_mode` | — | — | User mode: "Silent Mode" / "Performance Cooling" / "Turbo Mode" (rw) |
+| (60, 2) | `dometic_fridge_level` | — | — | Cooling level 1–5 (rw) |
+| (60, 8) | `dometic_fridge_power` | — | — | Power on/off (rw, bool) |
+| (60, 9) | `dometic_fridge_power_source` | — | — | Power source: "DC12V power" (r) |
+| (60, 10) | `dometic_cibus_on` | — | — | CiBus communication active (r, bool) |
+| (60, 11) | `dometic_compressor_on` | — | — | Compressor running (r, bool) |
+| (60, 12) | `dometic_condenser_fan` | — | — | Condenser fan running (r, bool) |
+| (60, 13) | `dometic_fridge_type` | — | — | Compressor type: "Compressor" (r) |
+| (60, 16) | `dometic_fridge_warning` | — | — | Warning/error code 0–127 (r) |
+| (60, 17) | `dometic_fridge_ai_type` | — | — | AI type: "Refrigeration" (r) |
+
+> **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
+
 ## Bus 99 — BOS LUX LiFePO4 BMS (4×80Ah)
 
-On the S600, bus 99 carries extended CAN data (AdBlue, ambient temp, fuel range,
-gear). On the S700, the same bus carries LiFePO4 BMS data. The sensor names
-below reflect the S700 BMS layout. Legacy S600 code labels are noted where
-they differ.
+Bus 99 is the BOS LUX LiFePO4 BMS on **both** S600 and S700 — same slot layout.
+The old labels (AdBlue, engine torque, fuel range, gear) were incorrect; they
+were remnants of an earlier wrong sensor map. Corrected by @dan-simms1 in
+[#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37). Legacy code
+labels are noted below for historical reference only.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
 | (99, 1) | `bms_voltage` | V | BMS pack voltage. Legacy code label: `adblue_temp` |
 | (99, 2) | `bms_current` | A | BMS current, negative = discharging. Legacy code label: `engine_torque` |
 | (99, 3) | `bms_temperature` | °C | Pack cell temperature. Legacy code label: `ambient_temp` |
-| (99, 4) | `lithium_soc` | % | Battery SOC (shared S600/S700) |
+| (99, 4) | `lithium_soc` | % | Battery SOC |
 | (99, 5) | `bms_time_remaining` | min | Estimated runtime. Legacy code label: `fuel_range` |
 | (99, 6) | `bms_state_of_health` | % | Battery SoH. Legacy code label: `current_gear` |
 | (99, 7) | `bms_capacity_remaining` | Ah | Remaining capacity. Legacy code label: `total_fuel_used` |
@@ -345,13 +477,6 @@ diesel tank capacity (default: 93 L for Sprinter 419/519 CDI).
 **Tank capacity configuration:**
 Settings → Integrations → HYMER Connect → Configure → "Diesel tank capacity"
 Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI standard).
-
-## S700 Conflicts Legend
-
-Slots marked with ⚠️ have **different meanings on the Grand Canyon S700**.
-See [PR #44](https://github.com/BetaHydri/hymer-connect-ha/pull/44) for the
-S700 observations. A model-aware sensor map is planned to support both models
-without conflicts.
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 
