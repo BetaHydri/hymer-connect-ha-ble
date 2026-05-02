@@ -16,7 +16,7 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection \u2014 no mitmproxy needed.\n\n\u26a0\ufe0f When the integration connects for the first time, press the CONNECTION (CONNECTION) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ When the integration connects for the first time, press the CONNECTION (CONNECTION) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -65,13 +65,13 @@
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",
       "invalid_auth": "Invalid email or password",
-      "invalid_qr_token": "Invalid QR activation token \u2014 could not resolve vehicle",
+      "invalid_qr_token": "Invalid QR activation token — could not resolve vehicle",
       "qr_token_required": "QR activation token is required",
-      "no_changes": "No changes provided \u2014 enter at least one field",
-      "ble_no_scu_found": "No SCU found via Bluetooth scan \u2014 make sure you are near the vehicle",
+      "no_changes": "No changes provided — enter at least one field",
+      "ble_no_scu_found": "No SCU found via Bluetooth scan — make sure you are near the vehicle",
       "ble_no_confirmation_token": "Could not obtain confirmation token from cloud API",
       "ble_no_refresh_token": "BLE pairing completed but SCU did not return a refresh token",
-      "ble_pairing_failed": "BLE pairing failed \u2014 make sure you pressed CONNECTION on the SCU and are near the vehicle",
+      "ble_pairing_failed": "BLE pairing failed — make sure you pressed CONNECTION on the SCU and are near the vehicle",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
@@ -81,173 +81,510 @@
   },
   "entity": {
     "sensor": {
-      "vehicle_model": { "name": "Model" },
-      "vehicle_model_year": { "name": "Model year" },
-      "vehicle_vin": { "name": "VIN" },
-      "odometer": { "name": "Odometer" },
-      "speed": { "name": "Speed" },
-      "adblue_level": { "name": "AdBlue level" },
-      "coolant_temp": { "name": "Coolant temperature" },
-      "lock_status": { "name": "Lock status" },
-      "ignition_state": { "name": "Ignition" },
-      "door_driver": { "name": "Driver door" },
-      "door_passenger": { "name": "Passenger door" },
-      "door_sliding": { "name": "Sliding door" },
-      "battery_voltage": { "name": "Battery voltage" },
-      "battery_current": { "name": "Battery current" },
-      "chassis_battery_voltage": { "name": "Chassis battery voltage" },
-      "battery_soc": { "name": "Battery level" },
-      "battery_type": { "name": "Battery type" },
-      "charge_phase": { "name": "Charge phase" },
-      "power_source": { "name": "Power source" },
-      "main_switch": { "name": "Main switch" },
-      "solar_voltage": { "name": "Solar voltage" },
-      "solar_power": { "name": "Solar power" },
-      "gray_water_level": { "name": "Grey water level" },
-      "gps_coordinates": { "name": "GPS coordinates" },
-      "gps_signal_quality": { "name": "GPS signal" },
-      "gps_altitude": { "name": "Altitude" },
-      "heater_fan_speed": { "name": "Heater fan speed" },
-      "heater_setpoint": { "name": "Heater setpoint" },
-      "heater_fuel_type": { "name": "Heater fuel type" },
-      "ambient_temp": { "name": "Ambient temperature" },
-      "current_gear": { "name": "Current gear" },
-      "rpm": { "name": "Engine RPM" },
-      "engine_hours": { "name": "Engine hours" },
-      "fuel_range": { "name": "Fuel range" },
-      "total_fuel_used": { "name": "Total fuel used" },
-      "engine_torque": { "name": "Engine torque" },
-      "adblue_temp": { "name": "AdBlue temperature" },
-      "dpf_status": { "name": "DPF status" },
-      "solar_charger_status": { "name": "Solar charger status" },
-      "solar_current": { "name": "Solar current" },
-      "light_1_level": { "name": "Light group 1" },
-      "light_2_level": { "name": "Light group 2" },
-      "light_living_ceiling_brightness": { "name": "Living ceiling brightness" },
-      "light_living_ambient_brightness": { "name": "Living ambient brightness" },
-      "light_kitchen_brightness": { "name": "Kitchen brightness" },
-      "light_seating_overhead_brightness": { "name": "Seating overhead brightness" },
-      "light_bathroom_ceiling_brightness": { "name": "Bathroom ceiling brightness" },
-      "light_bedroom_overhead_brightness": { "name": "Bedroom overhead brightness" },
-      "light_led_bar_brightness": { "name": "Privat group brightness" },
-      "light_led_bar_color_temp": { "name": "Privat group color temp" },
-      "light_nightlight_brightness": { "name": "Night light brightness" },
-      "light_bedroom_ambient_brightness": { "name": "Bedroom ambient brightness" },
-      "light_bedroom_ambient_color_temp": { "name": "Bedroom ambient color temp" },
-      "tire_pressure": { "name": "Tyre pressure" },
-      "alarm_battery": { "name": "Alarm battery" },
-      "scu_firmware": { "name": "SCU firmware" },
-      "truma_firmware": { "name": "Truma firmware" },
-      "truma_status": { "name": "Truma status" },
-      "gps_satellites": { "name": "GPS satellites" },
-      "gps_heading": { "name": "GPS heading" },
-      "heater_state": { "name": "Heater state" },
-      "heater_electric_power": { "name": "Heater electric power" },
-      "heater_operating_mode": { "name": "Heater operating mode" },
-      "fridge_mode": { "name": "Fridge mode" },
-      "fridge_status": { "name": "Fridge status" },
-      "fresh_water_level": { "name": "Fresh water level" },
-      "light_led_bar_2_brightness": { "name": "LED bar 2 brightness" },
-      "fresh_water_level_ebl": { "name": "Fresh water (EBL)" },
-      "grey_water_level_ebl": { "name": "Grey water (EBL)" },
-      "fuel_level_liters": { "name": "Fuel level (liters)" },
-      "fuel_consumption": { "name": "Fuel consumption" },
-      "fuel_range_estimated": { "name": "Estimated range" },
-      "victron_inverter_state": { "name": "Victron inverter state" },
-      "victron_inverter_l1_voltage": { "name": "Victron inverter L1 voltage" },
-      "victron_inverter_l1_current": { "name": "Victron inverter L1 current" },
-      "victron_inverter_l1_frequency": { "name": "Victron inverter L1 frequency" },
-      "victron_charger_state": { "name": "Victron charger state" },
-      "victron_charge_voltage": { "name": "Victron charge voltage" },
-      "victron_charge_current": { "name": "Victron charge current" },
-      "victron_input_voltage": { "name": "Victron input voltage" },
-      "victron_input_current": { "name": "Victron input current" },
-      "victron_input_frequency": { "name": "Victron input frequency" },
-      "victron_device_failure": { "name": "Victron device failure" },
-      "victron_firmware": { "name": "Victron firmware" }
+      "vehicle_model": {
+        "name": "Model"
+      },
+      "vehicle_model_year": {
+        "name": "Model year"
+      },
+      "vehicle_vin": {
+        "name": "VIN"
+      },
+      "odometer": {
+        "name": "Odometer"
+      },
+      "speed": {
+        "name": "Speed"
+      },
+      "adblue_level": {
+        "name": "AdBlue level"
+      },
+      "coolant_temp": {
+        "name": "Coolant temperature"
+      },
+      "lock_status": {
+        "name": "Lock status"
+      },
+      "ignition_state": {
+        "name": "Ignition"
+      },
+      "door_driver": {
+        "name": "Driver door"
+      },
+      "door_passenger": {
+        "name": "Passenger door"
+      },
+      "door_sliding": {
+        "name": "Sliding door"
+      },
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "battery_current": {
+        "name": "Battery current"
+      },
+      "chassis_battery_voltage": {
+        "name": "Chassis battery voltage"
+      },
+      "battery_soc": {
+        "name": "Battery level"
+      },
+      "battery_type": {
+        "name": "Battery type"
+      },
+      "charge_phase": {
+        "name": "Charge phase"
+      },
+      "power_source": {
+        "name": "Power source"
+      },
+      "main_switch": {
+        "name": "Main switch"
+      },
+      "solar_voltage": {
+        "name": "Solar voltage"
+      },
+      "solar_power": {
+        "name": "Solar power"
+      },
+      "gray_water_level": {
+        "name": "Grey water level"
+      },
+      "gps_coordinates": {
+        "name": "GPS coordinates"
+      },
+      "gps_signal_quality": {
+        "name": "GPS signal"
+      },
+      "gps_altitude": {
+        "name": "Altitude"
+      },
+      "heater_fan_speed": {
+        "name": "Heater fan speed"
+      },
+      "heater_setpoint": {
+        "name": "Heater setpoint"
+      },
+      "heater_fuel_type": {
+        "name": "Heater fuel type"
+      },
+      "ambient_temp": {
+        "name": "Ambient temperature"
+      },
+      "current_gear": {
+        "name": "Current gear"
+      },
+      "rpm": {
+        "name": "Engine RPM"
+      },
+      "engine_hours": {
+        "name": "Engine hours"
+      },
+      "fuel_range": {
+        "name": "Fuel range"
+      },
+      "total_fuel_used": {
+        "name": "Total fuel used"
+      },
+      "engine_torque": {
+        "name": "Engine torque"
+      },
+      "adblue_temp": {
+        "name": "AdBlue temperature"
+      },
+      "dpf_status": {
+        "name": "DPF status"
+      },
+      "solar_charger_status": {
+        "name": "Solar charger status"
+      },
+      "solar_current": {
+        "name": "Solar current"
+      },
+      "light_1_level": {
+        "name": "Light group 1"
+      },
+      "light_2_level": {
+        "name": "Light group 2"
+      },
+      "light_living_ceiling_brightness": {
+        "name": "Living ceiling brightness"
+      },
+      "light_living_ambient_brightness": {
+        "name": "Living ambient brightness"
+      },
+      "light_kitchen_brightness": {
+        "name": "Kitchen brightness"
+      },
+      "light_seating_overhead_brightness": {
+        "name": "Seating overhead brightness"
+      },
+      "light_bathroom_ceiling_brightness": {
+        "name": "Bathroom ceiling brightness"
+      },
+      "light_bedroom_overhead_brightness": {
+        "name": "Bedroom overhead brightness"
+      },
+      "light_led_bar_brightness": {
+        "name": "Privat group brightness"
+      },
+      "light_led_bar_color_temp": {
+        "name": "Privat group color temp"
+      },
+      "light_nightlight_brightness": {
+        "name": "Night light brightness"
+      },
+      "light_bedroom_ambient_brightness": {
+        "name": "Bedroom ambient brightness"
+      },
+      "light_bedroom_ambient_color_temp": {
+        "name": "Bedroom ambient color temp"
+      },
+      "tire_pressure": {
+        "name": "Tyre pressure"
+      },
+      "alarm_battery": {
+        "name": "Alarm battery"
+      },
+      "scu_firmware": {
+        "name": "SCU firmware"
+      },
+      "truma_firmware": {
+        "name": "Truma firmware"
+      },
+      "truma_status": {
+        "name": "Truma status"
+      },
+      "gps_satellites": {
+        "name": "GPS satellites"
+      },
+      "gps_heading": {
+        "name": "GPS heading"
+      },
+      "heater_state": {
+        "name": "Heater state"
+      },
+      "heater_electric_power": {
+        "name": "Heater electric power"
+      },
+      "heater_operating_mode": {
+        "name": "Heater operating mode"
+      },
+      "fridge_mode": {
+        "name": "Fridge mode"
+      },
+      "fridge_status": {
+        "name": "Fridge status"
+      },
+      "fresh_water_level": {
+        "name": "Fresh water level"
+      },
+      "light_led_bar_2_brightness": {
+        "name": "LED bar 2 brightness"
+      },
+      "fresh_water_level_ebl": {
+        "name": "Fresh water (EBL)"
+      },
+      "grey_water_level_ebl": {
+        "name": "Grey water (EBL)"
+      },
+      "fuel_level_liters": {
+        "name": "Fuel level (liters)"
+      },
+      "fuel_consumption": {
+        "name": "Fuel consumption"
+      },
+      "fuel_range_estimated": {
+        "name": "Estimated range"
+      },
+      "victron_inverter_state": {
+        "name": "Victron inverter state"
+      },
+      "victron_inverter_l1_voltage": {
+        "name": "Victron inverter L1 voltage"
+      },
+      "victron_inverter_l1_current": {
+        "name": "Victron inverter L1 current"
+      },
+      "victron_inverter_l1_frequency": {
+        "name": "Victron inverter L1 frequency"
+      },
+      "victron_charger_state": {
+        "name": "Victron charger state"
+      },
+      "victron_charge_voltage": {
+        "name": "Victron charge voltage"
+      },
+      "victron_charge_current": {
+        "name": "Victron charge current"
+      },
+      "victron_input_voltage": {
+        "name": "Victron input voltage"
+      },
+      "victron_input_current": {
+        "name": "Victron input current"
+      },
+      "victron_input_frequency": {
+        "name": "Victron input frequency"
+      },
+      "victron_device_failure": {
+        "name": "Victron device failure"
+      },
+      "victron_firmware": {
+        "name": "Victron firmware"
+      },
+      "dometic_fridge_mode": {
+        "name": "Dometic fridge mode"
+      },
+      "dometic_fridge_level": {
+        "name": "Dometic fridge level"
+      },
+      "dometic_fridge_power_source": {
+        "name": "Dometic fridge power source"
+      },
+      "dometic_fridge_type": {
+        "name": "Dometic fridge type"
+      },
+      "dometic_fridge_ai_type": {
+        "name": "Dometic fridge AI type"
+      },
+      "dometic_fridge_warning": {
+        "name": "Dometic fridge warning"
+      }
     },
     "light": {
-      "light_living_ceiling": { "name": "Living ceiling" },
-      "light_living_ambient": { "name": "Living ambient" },
-      "light_kitchen": { "name": "Kitchen" },
-      "light_seating_overhead": { "name": "Seating overhead" },
-      "light_bedroom_ambient": { "name": "Bedroom ambient" },
-      "light_nightlight": { "name": "Night light" },
-      "light_bathroom_ceiling": { "name": "Bathroom ceiling" },
-      "light_bedroom_overhead": { "name": "Bedroom overhead" },
-      "light_led_bar": { "name": "LED bar" },
-      "light_wohnen_group": { "name": "Wohnen all lights" },
-      "light_privat_group": { "name": "Privat all lights" },
-      "light_bus22_unknown": { "name": "Bus 22 (unknown)" },
-      "light_shower_ambient": { "name": "Shower ambient" },
-      "light_bedroom_furniture": { "name": "Bedroom furniture" }
+      "light_living_ceiling": {
+        "name": "Living ceiling"
+      },
+      "light_living_ambient": {
+        "name": "Living ambient"
+      },
+      "light_kitchen": {
+        "name": "Kitchen"
+      },
+      "light_seating_overhead": {
+        "name": "Seating overhead"
+      },
+      "light_bedroom_ambient": {
+        "name": "Bedroom ambient"
+      },
+      "light_nightlight": {
+        "name": "Night light"
+      },
+      "light_bathroom_ceiling": {
+        "name": "Bathroom ceiling"
+      },
+      "light_bedroom_overhead": {
+        "name": "Bedroom overhead"
+      },
+      "light_led_bar": {
+        "name": "LED bar"
+      },
+      "light_wohnen_group": {
+        "name": "Wohnen all lights"
+      },
+      "light_privat_group": {
+        "name": "Privat all lights"
+      },
+      "light_bus22_unknown": {
+        "name": "Bus 22 (unknown)"
+      },
+      "light_shower_ambient": {
+        "name": "Shower ambient"
+      },
+      "light_bedroom_furniture": {
+        "name": "Bedroom furniture"
+      }
     },
     "binary_sensor": {
-      "engine_running": { "name": "Engine" },
-      "handbrake": { "name": "Handbrake" },
-      "charger_active": { "name": "Charger" },
-      "solar_connected": { "name": "Solar panel" },
-      "solar_active": { "name": "Solar active" },
-      "gps_fix": { "name": "GPS fix" },
-      "scu_connected": { "name": "SCU connected" },
-      "cruise_control": { "name": "Cruise control" },
-      "alarm_armed": { "name": "Alarm" },
-      "light_living_ceiling": { "name": "Living ceiling light" },
-      "light_living_ambient": { "name": "Living ambient light" },
-      "light_kitchen": { "name": "Kitchen light" },
-      "light_seating_overhead": { "name": "Seating overhead light" },
-      "light_bedroom_ambient": { "name": "Bedroom ambient light" },
-      "light_nightlight": { "name": "Night light" },
-      "light_bathroom_ceiling": { "name": "Bathroom ceiling light" },
-      "light_bedroom_overhead": { "name": "Bedroom overhead light" },
-      "light_led_bar": { "name": "LED bar" },
-      "door_driver": { "name": "Driver door" },
-      "door_passenger": { "name": "Passenger door" },
-      "door_sliding": { "name": "Sliding door" },
-      "lock_status": { "name": "Lock" },
-      "main_switch": { "name": "Main switch" },
-      "door_rear": { "name": "Rear door" },
-      "headlamp": { "name": "Headlamp" },
-      "high_beam": { "name": "High beam" },
-      "parking_light": { "name": "Parking light" },
-      "fog_front": { "name": "Front fog light" },
-      "fog_rear": { "name": "Rear fog light" },
-      "turn_signal": { "name": "Turn signal" },
-      "truma_connected": { "name": "Truma connected" },
-      "heater_window_switch_closed": { "name": "Heater window contact" },
-      "heater_combi_error": { "name": "Heater combi error" },
-      "heater_response_error": { "name": "Heater response error" },
-      "heater_shoreline_connected": { "name": "Heater shoreline connected" },
-      "step_retracted": { "name": "Entry step" },
-      "water_pump": { "name": "Water pump" },
-      "fridge_door": { "name": "Fridge door" },
-      "victron_inverter_on": { "name": "Victron inverter" },
-      "victron_charger_on": { "name": "Victron charger" },
-      "wiping_water_empty": { "name": "Washer fluid low" },
-      "motor_oil_warning": { "name": "Motor oil warning" },
-      "parking_brake": { "name": "Parking brake" },
-      "standheizung_available": { "name": "Auxiliary heater available" },
-      "standheizung_state": { "name": "Auxiliary heater" },
-      "cruise_control_can": { "name": "Cruise control (CAN)" },
-      "downhill_assist": { "name": "Downhill assist" },
-      "coolant_warning": { "name": "Coolant warning" },
-      "shoreline_connected": { "name": "Shore power" }
+      "engine_running": {
+        "name": "Engine"
+      },
+      "handbrake": {
+        "name": "Handbrake"
+      },
+      "charger_active": {
+        "name": "Charger"
+      },
+      "solar_connected": {
+        "name": "Solar panel"
+      },
+      "solar_active": {
+        "name": "Solar active"
+      },
+      "gps_fix": {
+        "name": "GPS fix"
+      },
+      "scu_connected": {
+        "name": "SCU connected"
+      },
+      "cruise_control": {
+        "name": "Cruise control"
+      },
+      "alarm_armed": {
+        "name": "Alarm"
+      },
+      "light_living_ceiling": {
+        "name": "Living ceiling light"
+      },
+      "light_living_ambient": {
+        "name": "Living ambient light"
+      },
+      "light_kitchen": {
+        "name": "Kitchen light"
+      },
+      "light_seating_overhead": {
+        "name": "Seating overhead light"
+      },
+      "light_bedroom_ambient": {
+        "name": "Bedroom ambient light"
+      },
+      "light_nightlight": {
+        "name": "Night light"
+      },
+      "light_bathroom_ceiling": {
+        "name": "Bathroom ceiling light"
+      },
+      "light_bedroom_overhead": {
+        "name": "Bedroom overhead light"
+      },
+      "light_led_bar": {
+        "name": "LED bar"
+      },
+      "door_driver": {
+        "name": "Driver door"
+      },
+      "door_passenger": {
+        "name": "Passenger door"
+      },
+      "door_sliding": {
+        "name": "Sliding door"
+      },
+      "lock_status": {
+        "name": "Lock"
+      },
+      "main_switch": {
+        "name": "Main switch"
+      },
+      "door_rear": {
+        "name": "Rear door"
+      },
+      "headlamp": {
+        "name": "Headlamp"
+      },
+      "high_beam": {
+        "name": "High beam"
+      },
+      "parking_light": {
+        "name": "Parking light"
+      },
+      "fog_front": {
+        "name": "Front fog light"
+      },
+      "fog_rear": {
+        "name": "Rear fog light"
+      },
+      "turn_signal": {
+        "name": "Turn signal"
+      },
+      "truma_connected": {
+        "name": "Truma connected"
+      },
+      "heater_window_switch_closed": {
+        "name": "Heater window contact"
+      },
+      "heater_combi_error": {
+        "name": "Heater combi error"
+      },
+      "heater_response_error": {
+        "name": "Heater response error"
+      },
+      "heater_shoreline_connected": {
+        "name": "Heater shoreline connected"
+      },
+      "step_retracted": {
+        "name": "Entry step"
+      },
+      "water_pump": {
+        "name": "Water pump"
+      },
+      "fridge_door": {
+        "name": "Fridge door"
+      },
+      "victron_inverter_on": {
+        "name": "Victron inverter"
+      },
+      "victron_charger_on": {
+        "name": "Victron charger"
+      },
+      "wiping_water_empty": {
+        "name": "Washer fluid low"
+      },
+      "motor_oil_warning": {
+        "name": "Motor oil warning"
+      },
+      "parking_brake": {
+        "name": "Parking brake"
+      },
+      "standheizung_available": {
+        "name": "Auxiliary heater available"
+      },
+      "standheizung_state": {
+        "name": "Auxiliary heater"
+      },
+      "cruise_control_can": {
+        "name": "Cruise control (CAN)"
+      },
+      "downhill_assist": {
+        "name": "Downhill assist"
+      },
+      "coolant_warning": {
+        "name": "Coolant warning"
+      },
+      "shoreline_connected": {
+        "name": "Shore power"
+      },
+      "dometic_fridge_power": {
+        "name": "Dometic fridge power"
+      },
+      "dometic_compressor_on": {
+        "name": "Dometic compressor"
+      },
+      "dometic_condenser_fan": {
+        "name": "Dometic condenser fan"
+      }
     },
     "switch": {
-      "main_switch_ctrl": { "name": "12V Main switch" },
-      "water_pump_ctrl": { "name": "Water pump" },
-      "fridge_eco_ctrl": { "name": "Fridge ECO (quiet)" }
+      "main_switch_ctrl": {
+        "name": "12V Main switch"
+      },
+      "water_pump_ctrl": {
+        "name": "Water pump"
+      },
+      "fridge_eco_ctrl": {
+        "name": "Fridge ECO (quiet)"
+      }
     },
     "climate": {
-      "truma_heater": { "name": "Truma heater" }
+      "truma_heater": {
+        "name": "Truma heater"
+      }
     },
     "select": {
-      "fridge_mode_ctrl": { "name": "Fridge mode" },
-      "boiler_mode_ctrl": { "name": "Boiler mode" },
-      "heater_energy_ctrl": { "name": "Heater energy source" }
+      "fridge_mode_ctrl": {
+        "name": "Fridge mode"
+      },
+      "boiler_mode_ctrl": {
+        "name": "Boiler mode"
+      },
+      "heater_energy_ctrl": {
+        "name": "Heater energy source"
+      }
     },
     "button": {
-      "restart_system": { "name": "Restart SCU" }
+      "restart_system": {
+        "name": "Restart SCU"
+      }
     }
   },
   "options": {
@@ -258,13 +595,15 @@
           "tank_capacity_liters": "Diesel tank capacity (liters)",
           "ble_enabled": "Enable BLE direct path (experimental)",
           "ble_scu_address": "SCU Bluetooth address (leave empty to auto-scan)",
-          "clear_ble_bond": "Clear BLE bond (unpair from SCU)"
+          "clear_ble_bond": "Clear BLE bond (unpair from SCU)",
+          "ehg_refresh_token": "EHG Remote Access Refresh Token"
         },
         "data_description": {
           "tank_capacity_liters": "Size of the diesel tank in liters. Common values: 71 L (Sprinter 314/316 CDI), 93 L (Sprinter 419/519 CDI standard). Used to compute fuel level in liters, consumption (L/100km), and estimated range.",
           "ble_enabled": "Connect directly to the SCU via Bluetooth Low Energy instead of the cloud. Requires BLE hardware (e.g. Raspberry Pi 4 built-in) and one-time physical pairing at the vehicle. Falls back to cloud if BLE is unavailable.",
           "ble_scu_address": "The Bluetooth MAC address of the SCU (e.g. XX:XX:XX:XX:XX:XX). Leave empty to auto-scan for nearby SCU devices on startup.",
-          "clear_ble_bond": "Remove the stored BLE bond and EHG refresh token. Use this after deleting the HA pairing from the EHG app's Bluetooth settings. After clearing, use Reconfigure to re-pair with the SCU."
+          "clear_ble_bond": "Remove the stored BLE bond and EHG refresh token. Use this after deleting the HA pairing from the EHG app's Bluetooth settings. After clearing, use Reconfigure to re-pair with the SCU.",
+          "ehg_refresh_token": "The long-lived token obtained during BLE pairing. Required for real-time sensor data via SignalR. Capture it via mitmproxy — see the README for instructions. Leave empty to disable SignalR."
         }
       }
     }
