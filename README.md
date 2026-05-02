@@ -30,7 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.40.0-alpha.2** — **🎉 MAJOR BREAKTHROUGH: Fully automated EHG token via BLE!** Successfully tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. Full BLE pairing completes automatically: D-Bus JustWorks bonding → TLS 1.1 → PairMobileRequest → EHG refresh token obtained → SignalR authenticated → **130 sensors + light control**. No mitmproxy needed. No phone interception. Just press CONNECTION on the SCU and Home Assistant does the rest. See [CHANGELOG](CHANGELOG.md) for full details.
+> **v2.60.0-alpha.1** — **BLE dual-path + JSON-driven sensor architecture!** All entity definitions now loaded from JSON overlays (`sensor_maps/`). BLE pairing fully operational — press CONNECTION on the SCU and Home Assistant obtains the EHG token automatically. Automatic BLE/cloud failover. Tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. See [How the Dual-Path Integration Works](#how-the-dual-path-integration-works) and [CHANGELOG](CHANGELOG.md) for full details.
 
 ### Energy Dashboard
 
@@ -204,6 +204,91 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 
 1. Copy the `hymer_connect` folder from this repo into your `custom_components/` directory
 2. Restart Home Assistant
+
+## How the Dual-Path Integration Works
+
+This is the **BLE dual-path edition** of the HYMER Connect integration. It combines **two independent data channels** to your vehicle's SCU (Smart Control Unit):
+
+```
+                  ┌─────────────────────────┐
+                  │   Home Assistant (RPi4)  │
+                  │                         │
+                  │  ┌───────┐  ┌────────┐  │
+                  │  │  BLE  │  │ Cloud  │  │
+                  │  │ Path  │  │ Path   │  │
+                  │  └───┬───┘  └───┬────┘  │
+                  └──────┼──────────┼───────┘
+                         │          │
+              Bluetooth  │          │  LTE/Internet
+              (~50ms)    │          │  (~500ms–2s)
+                         │          │
+                  ┌──────▼──────────▼───────┐
+                  │     SCU (in vehicle)     │
+                  └─────────────────────────┘
+```
+
+| | BLE Direct Path | Cloud/SignalR Path |
+|---|---|---|
+| **Latency** | ~50ms | ~500ms–2s |
+| **Range** | ~10m (inside vehicle) | Worldwide (LTE) |
+| **Requires** | BLE hardware (RPi4) + physical proximity | Internet connection |
+| **Sensor data** | ~28 sensors, 1–2s push intervals | ~130 sensors, event-driven push |
+| **Commands** | Not yet (read-only) | Full control (lights, heater, fridge, switches) |
+| **Works with 12V off** | Yes (SCU BLE stays active in standby) | Limited (commands work, passive sensors stop) |
+
+### What to expect during setup
+
+The setup is a **multi-step process** that happens once. After that, everything runs automatically:
+
+```
+Step 1: Login          →  EHG cloud credentials (email + password)
+Step 2: Vehicle        →  QR code token + optional BLE address
+Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
+         ↓
+   Token obtained      →  EHG refresh token stored permanently
+         ↓
+   Integration starts  →  BLE path + Cloud path both active
+```
+
+**After setup completes, the coordinator manages both paths automatically:**
+
+1. **On every 60-second poll**, the coordinator tries **BLE first**
+2. If BLE connects → SignalR cloud is stopped (avoids duplicate data)
+3. If BLE disconnects (vehicle driven away, out of range) → falls back to **SignalR cloud** immediately
+4. On next poll, BLE is retried → if the vehicle is back in range, BLE recovers and cloud stops again
+
+**You never need to intervene.** The failover is fully automatic and transparent to your dashboard and automations.
+
+### What the BLE path provides
+
+When you're at the vehicle (RPi in BLE range of the SCU):
+
+- **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
+- **Low-latency sensor streaming** — 28 sensors pushed at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Ideal for real-time monitoring of solar power, battery current, and GPS.
+- **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
+- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data locally.
+
+### What the Cloud path provides
+
+When you're away from the vehicle (RPi not in BLE range):
+
+- **Full sensor coverage** — ~130 sensors via authenticated SignalR WebSocket, including all buses (CAN, LIN, GPS, heater, fridge, BMS, lights).
+- **Full control** — All write commands (lights, switches, heater, fridge, boiler) go through the cloud path via PIA protobuf commands.
+- **Worldwide access** — Monitor and control your vehicle from anywhere with internet, as long as the SCU has cellular connectivity.
+- **Automatic reconnection** — Dead connection detection, exponential backoff, proactive token refresh, and SignalR recycling before Azure token expiry.
+
+### Setup requirements summary
+
+| What you need | For BLE path | For Cloud-only path |
+|---|---|---|
+| EHG account (email + password) | ✅ | ✅ |
+| QR code token (from vehicle sticker) | ✅ (for BLE pairing) | Optional |
+| EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ |
+| BLE hardware (RPi4 or similar) | ✅ | ❌ |
+| Physical access to vehicle during setup | ✅ (press CONNECTION) | ❌ |
+| Internet connection | ✅ (for cloud fallback) | ✅ |
+
+---
 
 ## Configuration
 
