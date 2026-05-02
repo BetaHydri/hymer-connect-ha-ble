@@ -331,7 +331,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 from .ble_client import ScuBleClient
                 scanner = ScuBleClient(scu_address="")
-                devices = await scanner.scan_for_scu(timeout=10.0)
+                devices = await scanner.scan_for_scu(timeout=10.0, hass=self.hass)
                 if devices:
                     ble_address = devices[0]["address"]
                     scu_name = devices[0].get("name", "")

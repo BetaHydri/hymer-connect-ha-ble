@@ -719,14 +719,56 @@ class ScuBleClient:
     def scu_address(self) -> str:
         return self._scu_address
 
-    async def scan_for_scu(self, timeout: float = DEFAULT_SCAN_TIMEOUT) -> list[dict]:
-        """Scan for nearby SCU devices advertising the NUS service."""
+    async def scan_for_scu(
+        self,
+        timeout: float = DEFAULT_SCAN_TIMEOUT,
+        hass: Any | None = None,
+    ) -> list[dict]:
+        """Scan for nearby SCU devices advertising the NUS service.
+
+        When *hass* is provided (running inside Home Assistant), uses HA's
+        managed Bluetooth scanner (habluetooth) which avoids conflicts with
+        the BlueZ adapter.  Falls back to a raw BleakScanner.discover() for
+        standalone / tool usage.
+        """
+        results: list[dict] = []
+
+        # ── HA-native path ──────────────────────────────────────────────
+        if hass is not None:
+            try:
+                from homeassistant.components.bluetooth import async_discovered_service_info
+
+                _LOGGER.debug("BLE scan via HA Bluetooth integration")
+                for info in async_discovered_service_info(hass):
+                    name = info.name or ""
+                    uuids = [str(u).lower() for u in (info.service_uuids or [])]
+                    if (
+                        UART_SERVICE_UUID.lower() in uuids
+                        or "hymer" in name.lower()
+                        or "scu" in name.lower()
+                    ):
+                        results.append({
+                            "address": info.address,
+                            "name": name,
+                            "rssi": info.rssi,
+                            "service_uuids": uuids,
+                        })
+                results.sort(key=lambda x: x.get("rssi") or -999, reverse=True)
+                _LOGGER.debug(
+                    "HA BLE scan matched %d SCU candidates: %s",
+                    len(results),
+                    [(r["address"], r["name"], r["rssi"]) for r in results],
+                )
+                return results
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("HA Bluetooth API unavailable, falling back to BleakScanner")
+
+        # ── Standalone fallback (tools / non-HA) ────────────────────────
         if not HAS_BLEAK:
             raise BleTransportError("bleak is not installed")
         _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
         discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
         _LOGGER.debug("BLE scan found %d total devices", len(discovered))
-        results = []
         for _, (device, adv) in discovered.items():
             name = device.name or adv.local_name or ""
             uuids = [str(u).lower() for u in (adv.service_uuids or [])]
@@ -824,24 +866,20 @@ class ScuBleClient:
                 except Exception as rm_err:
                     _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
                 # RemoveDevice removes the device from BlueZ's object tree.
-                # Re-scan to re-discover it before retrying the connection.
-                await asyncio.sleep(0.5)
-                try:
-                    _LOGGER.debug("Re-scanning for %s after stale bond removal", self._scu_address)
-                    found = await BleakScanner.find_device_by_address(
-                        self._scu_address, timeout=5.0
-                    )
-                    if found:
-                        _LOGGER.debug("Re-discovered %s after stale bond removal", self._scu_address)
-                    else:
-                        _LOGGER.warning(
-                            "Could not re-discover %s after stale bond removal",
-                            self._scu_address,
-                        )
-                except Exception as scan_err:
-                    _LOGGER.debug("Re-scan after stale bond removal failed: %s", scan_err)
-                await self._connect_inner(retry=False)
-                return
+                # In HA's managed BLE environment (habluetooth), a raw
+                # BleakScanner re-scan does NOT work — the adapter is
+                # controlled by habluetooth and won't start a new discovery.
+                # Instead, raise back to the caller's retry loop.  By the
+                # next attempt, habluetooth's passive scanner will have
+                # re-discovered the device advertisement.
+                _LOGGER.info(
+                    "Stale bond cleared for %s — raising to retry loop "
+                    "(habluetooth will re-discover the device)",
+                    self._scu_address,
+                )
+                raise BleTransportError(
+                    f"Stale bond cleared for {self._scu_address} — retry needed"
+                ) from connect_err
             raise
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
