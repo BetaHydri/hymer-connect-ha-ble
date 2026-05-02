@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.45.0-alpha.1] - 2026-05-02
+
+### Added
+
+- **JSON-driven sensor architecture** — All platform entity definitions (sensors, binary sensors, lights, switches, climate, select) are now configured via JSON overlay files in `sensor_maps/`. Cherry-picked from cloud-only repo [hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) v2.41.0–v2.45.0.
+- **Per-brand JSON sensor map overlays** — `sensor_maps/base.json` (shared across all EHG brands) + brand-specific overlays (e.g. `hymer.json`, `eriba.json`) loaded at startup via `load_sensor_map(brand)` in `pia_decoder.py`.
+- **JSON-driven lights and switches** — Light and switch entity definitions loaded from `"lights"` and `"switches"` sections in JSON overlays. No more hardcoded light/switch lists in Python.
+- **Climate/select bus IDs parameterized via JSON** — Heater, boiler, and fridge bus/slot IDs now parameterized per brand via `"climate"` section in JSON overlays, enabling multi-brand support for climate and select entities.
+- **Dometic compressor fridge support** — Bus 60 mapping for Eriba and other brands with Dometic fridge (via `eriba.json` overlay).
+- **Dynamic entity builders** — `sensor.py`, `binary_sensor.py`, `light.py`, `switch.py` now use dynamic builders that read from `ENTITY_DEFS`, `LIGHT_DEFS`, `SWITCH_DEFS`, `CLIMATE_DEFS` at entity setup time.
+
+### Changed
+
+- **Static `SENSOR_MAP` replaced by runtime JSON loading** — The hardcoded 200+ entry `SENSOR_MAP` dict in `pia_decoder.py` is now empty at import time and populated from `base.json` + brand overlay at startup. All sensor name→bus/slot mappings moved to JSON.
+- **Platform files significantly reduced** — `sensor.py` (884→392 lines), `binary_sensor.py` (360→182 lines) — hardcoded entity descriptions replaced by JSON-driven dynamic builders. Only computed sensors (solar power, fuel) and SCU restart button remain hardcoded.
+
+### Unchanged (BLE dual-path preserved)
+
+- `ble_client.py` — Full BLE pairing ceremony, TLS, D-Bus agent (1540 lines)
+- `config_flow.py` — 3-step flow: login → QR activation → BLE pairing
+- `coordinator.py` — Dual-path: BLE first → SignalR fallback → BLE recovery
+- `api.py` — `byToken`, `confirmationToken` API calls
+- `button.py` — SCU restart button
+- All tools (`tools/ehg-token-app/`, `capture_ehg_token.py`, etc.)
+- GitHub Actions workflows
+
 ## [2.40.0-alpha.2] - 2026-05-01
 
 ### Fixed
