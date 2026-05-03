@@ -42,6 +42,8 @@ Status: EXPERIMENTAL — not yet verified on real hardware.
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import logging
 import math
 import random
@@ -406,6 +408,56 @@ def decode_generic_response(frame: bytes) -> dict:
     return result
 
 
+def _decode_jwt_payload(token: str) -> dict:
+    """Decode the payload of a JWT without signature verification.
+
+    Returns the decoded payload dict, or empty dict on any error.
+    """
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return {}
+        payload_b64 = parts[1]
+        # Add padding for base64url
+        payload_b64 += "=" * (4 - len(payload_b64) % 4)
+        decoded = base64.urlsafe_b64decode(payload_b64)
+        return json.loads(decoded)
+    except Exception:
+        return {}
+
+
+def _validate_refresh_token(token: str) -> bool:
+    """Validate that a token looks like a valid EHG refresh JWT.
+
+    Checks:
+      1. Non-empty string
+      2. Starts with 'eyJ' (base64url-encoded JSON header)
+      3. Has 3 dot-separated parts (header.payload.signature)
+      4. Payload contains ett=access-refresh
+    """
+    if not token or len(token) < 50:
+        _LOGGER.warning("Token validation failed: too short (%d chars)", len(token) if token else 0)
+        return False
+    if not token.startswith("eyJ"):
+        _LOGGER.warning("Token validation failed: does not start with 'eyJ' (got '%s...')", token[:10])
+        return False
+    parts = token.split(".")
+    if len(parts) != 3:
+        _LOGGER.warning("Token validation failed: expected 3 JWT parts, got %d", len(parts))
+        return False
+    payload = _decode_jwt_payload(token)
+    ett = payload.get("ett", "")
+    if ett != "access-refresh":
+        _LOGGER.warning(
+            "Token validation warning: ett='%s' (expected 'access-refresh'). "
+            "Token may still work — storing it.",
+            ett,
+        )
+        # Don't reject — the token might still be valid with a different ett
+        # value in newer SCU firmware. Log the warning for diagnostics.
+    return True
+
+
 def decode_pair_mobile_response(frame: bytes) -> PairMobileResponse:
     """Decode a BLE PIA frame containing the SCU's PairMobileResponse.
 
@@ -470,6 +522,35 @@ def decode_pair_mobile_response(frame: bytes) -> PairMobileResponse:
                 confirmation_required = bool(val)
         else:
             offset = _skip_field(mobile_pair_payload, offset, wt)
+
+    # Validate the refresh token before returning
+    if refresh_token:
+        if _validate_refresh_token(refresh_token):
+            payload = _decode_jwt_payload(refresh_token)
+            _LOGGER.info(
+                "BLE pairing: refresh token validated — ett='%s', urn='%s', len=%d",
+                payload.get("ett", "?"),
+                payload.get("urn", "?"),
+                len(refresh_token),
+            )
+        else:
+            _LOGGER.warning(
+                "BLE pairing: refresh token failed validation (len=%d, starts='%s...'). "
+                "Storing anyway — downstream exchange will confirm if usable.",
+                len(refresh_token),
+                refresh_token[:20] if len(refresh_token) > 20 else refresh_token,
+            )
+    else:
+        _LOGGER.warning("BLE pairing: mobilePair response contained no refresh token")
+
+    if access_token:
+        if _validate_refresh_token(access_token):
+            payload = _decode_jwt_payload(access_token)
+            _LOGGER.debug(
+                "BLE pairing: access token — ett='%s', len=%d",
+                payload.get("ett", "?"),
+                len(access_token),
+            )
 
     return PairMobileResponse(
         remote_access_token=access_token,
