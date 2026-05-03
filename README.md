@@ -280,20 +280,40 @@ When you're away from the vehicle (RPi not in BLE range):
 
 ### Setup requirements summary
 
-| What you need | For BLE path | For Cloud-only path |
-|---|---|---|
-| EHG account (email + password) | ✅ (initial setup only) | ✅ |
-| QR code token (from vehicle sticker) | ✅ (for BLE pairing) | Optional |
-| EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ |
-| BLE hardware (RPi4 or similar) | ✅ | ❌ |
-| Physical access to vehicle during setup | ✅ (press CONNECTION) | ❌ |
-| Internet connection | ✅ (initial setup only — ongoing operation works offline) | ✅ (always required) |
+| What you need | Path A: BLE + Cloud | Path B: Cloud (mitmproxy) | Path C: Cloud (no token) |
+|---|---|---|---|
+| EHG account (email + password) | ✅ | ✅ | ✅ |
+| QR code token (JWT from dealer) | ✅ | ❌ | ❌ |
+| EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ | ❌ (add later) |
+| BLE hardware (RPi4 or similar) | ✅ | ❌ | ❌ |
+| Physical access to vehicle | ✅ (press CONNECTION) | ❌ | ❌ |
+| Internet connection | ✅ (initial only) | ✅ (always) | ✅ (always) |
+| Sensors working after setup? | ✅ | ✅ | ❌ (Reconfigure needed) |
 
 ---
 
 ## Configuration
 
-The integration supports two setup paths. Both require your HYMER Connect email and password.
+The integration supports three setup paths. All require your HYMER Connect email and password.
+
+### Setup Path Overview
+
+| | **Path A: BLE + Cloud (recommended)** | **Path B: Cloud-only (mitmproxy)** | **Path C: Cloud-only (no token)** |
+|---|---|---|---|
+| **Step 1 — Login** | Brand, email, password. Leave EHG token **empty** | Brand, email, password. Paste **EHG refresh token** | Brand, email, password. Leave EHG token **empty** |
+| **Step 2 — Vehicle** | QR activation token (JWT from dealer paper) + optional BLE MAC + enable BLE ✅ | Leave **all fields empty** → submit | Leave **all fields empty** → submit |
+| **Step 3 — BLE Pairing** | Progress spinner → press **CONNECTION** on SCU | *(skipped)* | *(skipped)* |
+| **What happens** | EHG refresh token extracted via BLE automatically. BLE + SignalR both active | SignalR active with provided token. Vehicle auto-discovered via cloud | Config entry created but **no EHG token** → sensors show "unknown" |
+| **QR code from dealer** | ✅ Required (JWT starting with `eyJ`) | ❌ Not needed | ❌ Not needed |
+| **mitmproxy / patched APK** | ❌ Not needed | ✅ Required (one-time token capture) | ❌ Not needed |
+| **BLE hardware (RPi4)** | ✅ Required | ❌ Not needed | ❌ Not needed |
+| **Physical access to vehicle** | ✅ Required (press CONNECTION) | ❌ Not needed | ❌ Not needed |
+| **Internet** | ✅ Initial setup only — BLE works offline after | ✅ Always required | ✅ Always required |
+| **Sensors working?** | ✅ ~130 entities | ✅ ~130 entities | ❌ No — add token later via **Reconfigure** |
+
+> **Path C is a bootstrap path** — it creates the integration entry so you can add the EHG refresh token later via **Reconfigure** (either by BLE pairing with a QR token, or by pasting a mitmproxy-captured token). Until a token is provided, sensor data will not flow.
+
+> **QR activation token format:** The QR code is on a **separate piece of paper from your dealer** (vehicle delivery documents) — not a sticker on the vehicle. When scanned, the text is a long JWT token (~200–600 characters) starting with `eyJ`. This is the same QR code the EHG app asks you to scan during "Fahrzeug verbinden" (Connect Vehicle). Stickers on the vehicle with formats like `E-Trailer;ehg-siu;...` are hardware identifiers and will **not** work.
 
 ### Path A: BLE Pairing (recommended — no mitmproxy needed)
 
