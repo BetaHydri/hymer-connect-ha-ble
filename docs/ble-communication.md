@@ -200,7 +200,22 @@ UnregisterAgent(agent_path)
 
 After TLS is established, the BLE path supports **full bidirectional PIA
 communication** — not just pairing and sensor streaming, but also write
-commands (lights, switches, heater, fridge, boiler, climate).
+commands (lights, switches, heater, fridge, boiler, climate) and PIA
+subscription requests.
+
+### BLE Subscriptions
+
+The coordinator sends the same 7 PIA subscription requests + refresh command
+over BLE that SignalR uses (`build_subscription_requests()` + `build_refresh_command()`).
+This should unlock all ~130 sensors via BLE — previously only ~28 were pushed
+autonomously by the SCU without explicit subscriptions.
+
+After the **initial setup** (OAuth2 login + EHG token exchange require internet),
+BLE can operate fully offline — sensor streaming and control commands work
+without any cloud connectivity.  A fresh installation always requires internet
+for the OAuth2 handshake and `confirmationToken` API call during BLE pairing.
+
+### Write Commands
 
 The coordinator's `_send_with_retry()` builds the PIA protobuf payload locally
 (same `build_light_command()` / `build_multi_sensor_command()` used for SignalR)

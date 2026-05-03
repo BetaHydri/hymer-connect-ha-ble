@@ -415,6 +415,29 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._connection_mode = "dual" if (self._signalr and self._signalr.connected) else "ble"
             _LOGGER.info("BLE direct path established to SCU %s (mode=%s)", ble_address, self._connection_mode)
 
+            # Send PIA subscription requests over BLE to unlock all sensor
+            # groups — same subscriptions SignalR sends.  Without these, the
+            # SCU only pushes ~28 sensors autonomously.  With subscriptions,
+            # all ~130 sensors should stream over BLE.
+            try:
+                from .pia_decoder import build_subscription_requests, build_refresh_command
+                requests = build_subscription_requests()
+                _LOGGER.info(
+                    "Sending %d PIA subscription requests over BLE", len(requests)
+                )
+                for payload in requests:
+                    await self._ble_client.send_pia_command(payload)
+                # Send refresh to force SCU to push current states
+                refresh = build_refresh_command()
+                await self._ble_client.send_pia_command(refresh)
+                _LOGGER.info("BLE PIA subscriptions + refresh sent")
+            except Exception:
+                _LOGGER.warning(
+                    "BLE PIA subscription failed — SCU will only push "
+                    "autonomous sensors (~28). SignalR provides full coverage.",
+                    exc_info=True,
+                )
+
             # Start BLE listen loop in background
             self.hass.async_create_task(self._ble_listen_loop())
             return True

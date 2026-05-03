@@ -232,7 +232,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
 | **Latency** | ~50ms | ~500ms–2s |
 | **Range** | ~10m (inside vehicle) | Worldwide (LTE) |
 | **Requires** | BLE hardware (RPi4) + physical proximity | Internet connection |
-| **Sensor data** | ~28 sensors, 1–2s push intervals | ~130 sensors, event-driven push |
+| **Sensor data** | ~130 sensors (with BLE subscriptions), 1–2s push intervals | ~130 sensors, event-driven push |
 | **Commands** | Full control (lights, heater, fridge, switches) — BLE preferred, cloud fallback | Full control (lights, heater, fridge, switches) |
 | **Works with 12V off** | Yes (SCU BLE stays active in standby) | Limited (commands work, passive sensors stop) |
 
@@ -264,10 +264,10 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
-- **Low-latency sensor streaming** — 28 sensors pushed at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Ideal for real-time monitoring of solar power, battery current, and GPS.
+- **Low-latency sensor streaming** — After BLE subscription requests are sent, the SCU pushes all ~130 sensors over BLE at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Without subscriptions, ~28 sensors are pushed autonomously.
 - **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 2s for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
 - **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
-- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally.
+- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally. After the **initial setup** (which requires internet for OAuth2 login and EHG token exchange), BLE can operate fully offline — sensor streaming and control commands work without any cloud connectivity.
 
 ### What the Cloud path provides
 
@@ -282,12 +282,12 @@ When you're away from the vehicle (RPi not in BLE range):
 
 | What you need | For BLE path | For Cloud-only path |
 |---|---|---|
-| EHG account (email + password) | ✅ | ✅ |
+| EHG account (email + password) | ✅ (initial setup only) | ✅ |
 | QR code token (from vehicle sticker) | ✅ (for BLE pairing) | Optional |
 | EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ |
 | BLE hardware (RPi4 or similar) | ✅ | ❌ |
 | Physical access to vehicle during setup | ✅ (press CONNECTION) | ❌ |
-| Internet connection | ✅ (for cloud fallback) | ✅ |
+| Internet connection | ✅ (initial setup only — ongoing operation works offline) | ✅ (always required) |
 
 ---
 
