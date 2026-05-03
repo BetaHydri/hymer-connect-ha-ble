@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.5] - 2026-05-03
+
+### Documentation
+
+- **Clarified QR activation token source** — README setup steps and config-flow field descriptions (`strings.json` / `translations/en.json`) now state explicitly that the QR code is on the **dealer-provided vehicle handover document**, not a sticker on the SCU or anywhere on the vehicle. Eliminates confusion for users searching the SCU for a non-existent sticker.
+- **Repo-relative asset links** — README image, GIF, MP4, and dashboard YAML links now point to the `hymer-connect-ha-ble` repo (previously pointed at the cloud-only `hymer-connect-ha` repo, breaking the dashboard demo GIF and screenshots when viewed from this repo or via HACS).
+
+### Migration Notes
+
+- **Non-breaking** — Documentation and UI strings only. No code, entity, or config changes. HACS update + restart picks up the new strings.
+
 ## [2.61.0-alpha.4] - 2026-05-03
 
 ### Fixed

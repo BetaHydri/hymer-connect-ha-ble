@@ -23,7 +23,7 @@
           "ble_enabled": "Enable BLE direct path"
         },
         "data_description": {
-          "qr_activation_token": "The text encoded in the QR code on your vehicle's sticker. Scan it with any QR reader app and paste the text here.",
+          "qr_activation_token": "The text encoded in the QR activation code provided by your dealer (on the vehicle handover papers, NOT a sticker on the vehicle/SCU). Scan it with any QR reader app and paste the text here.",
           "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF). Leave empty to auto-scan.",
           "ble_enabled": "Enable the BLE direct path for ongoing communication with the SCU (lower latency, works without cloud). Disable if you only want to use BLE for the initial token pairing but prefer cloud (SignalR) for daily use."
         }
@@ -45,7 +45,7 @@
           "ehg_refresh_token": "EHG Remote Access Refresh Token"
         },
         "data_description": {
-          "qr_activation_token": "Paste the text from the vehicle QR sticker to link the vehicle and enable BLE pairing.",
+          "qr_activation_token": "Paste the text from the dealer-provided QR activation code (on the vehicle handover document) to link the vehicle and enable BLE pairing.",
           "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF) to enable the BLE direct path.",
           "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here."
         }
