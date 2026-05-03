@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/logo@2x.png" alt="HYMER Connect BLE" width="200">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/logo@2x.png" alt="HYMER Connect BLE" width="200">
 </p>
 
 # HYMER Connect BLE for Home Assistant
@@ -37,7 +37,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 Monitor your motorhome's complete power flow at a glance — solar production, lithium battery state (SOC, SoH, voltage, temperature), habitation load draw, and charging status. All data comes directly from the vehicle's SCU via SignalR, updated every 60 seconds.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/solar-energy-view.png" alt="HYMER Connect — Energy Dashboard" width="90%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/solar-energy-view.png" alt="HYMER Connect — Energy Dashboard" width="90%">
 </p>
 
 > **Net Battery Flow vs Habitation Load:** The dashboard shows two current sensors that measure at different points in the electrical system. **Net Battery Flow** (`bms_current`, bus 99) is measured directly at the BOS LUX LiFePO4 cells — it shows the net result of all power sources minus all loads (positive = charging, negative = discharging). **Habitation Load** (`battery_current`, bus 3) is measured at the CBE EBL402 distribution board — it shows only what the habitation system consumes downstream.
@@ -47,10 +47,10 @@ Monitor your motorhome's complete power flow at a glance — solar production, l
 ### Dashboard Demo
 
 <p align="center">
-  <img src="images/dashboard-demo.gif" alt="HYMER Connect Dashboard Demo" width="640">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/dashboard-demo.gif" alt="HYMER Connect Dashboard Demo" width="640">
 </p>
 
-> 📺 [Watch the full video (MP4)](images/Hymer%20Connect%20Dashboard.mp4)
+> 📺 [Watch the full video (MP4)](https://github.com/BetaHydri/hymer-connect-ha-ble/raw/master/images/Hymer%20Connect%20Dashboard.mp4)
 
 ## Supported Brands
 
@@ -732,7 +732,7 @@ graph TD
 
 1. Go to **Settings > Dashboards > + Add Dashboard**
 2. Open the new dashboard > Edit > three dots > **Raw configuration editor**
-3. Paste the contents of [`dashboards/hymer_connect.yaml`](https://github.com/BetaHydri/hymer-connect-ha/blob/master/dashboards/hymer_connect.yaml)
+3. Paste the contents of [`dashboards/hymer_connect.yaml`](https://github.com/BetaHydri/hymer-connect-ha-ble/blob/master/dashboards/hymer_connect.yaml)
 4. Save
 
 <details>
@@ -740,23 +740,23 @@ graph TD
 
 | Overview | Power |
 |:---:|:---:|
-| ![Overview](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash1.png) | ![Power](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash2.png) |
+| ![Overview](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash1.png) | ![Power](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash2.png) |
 
 | Climate | Water |
 |:---:|:---:|
-| ![Climate](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash3.png) | ![Water](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash4.png) |
+| ![Climate](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash3.png) | ![Water](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash4.png) |
 
 | Vehicle | Doors & Lights |
 |:---:|:---:|
-| ![Vehicle](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash5.png) | ![Doors](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash6.png) |
+| ![Vehicle](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash5.png) | ![Doors](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash6.png) |
 
 | Interior Lights | GPS |
 |:---:|:---:|
-| ![Lights](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash7.png) | ![GPS](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash8.png) |
+| ![Lights](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash7.png) | ![GPS](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash8.png) |
 
 | System |
 |:---:|
-| ![System](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash9.png) |
+| ![System](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash9.png) |
 
 </details>
 

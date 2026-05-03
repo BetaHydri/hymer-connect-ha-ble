@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/logo@2x.png" alt="HYMER Connect" width="200">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/logo@2x.png" alt="HYMER Connect" width="200">
 </p>
 
 # HYMER Connect for Home Assistant
@@ -20,15 +20,15 @@ Custom integration to connect your HYMER / Erwin Hymer Group motorhome or carava
 <summary><strong>Integration Screenshots</strong> (click to expand)</summary>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/ha-screenshot_1.png" alt="HYMER Connect — Entities" width="45%">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/ha-screenshot_2.png" alt="HYMER Connect — Sensors" width="45%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/ha-screenshot_1.png" alt="HYMER Connect — Entities" width="45%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/ha-screenshot_2.png" alt="HYMER Connect — Sensors" width="45%">
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/ha-screenshot_3.png" alt="HYMER Connect — Controls" width="45%">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/ha-screenshot_4.png" alt="HYMER Connect — Climate" width="45%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/ha-screenshot_3.png" alt="HYMER Connect — Controls" width="45%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/ha-screenshot_4.png" alt="HYMER Connect — Climate" width="45%">
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/ha-screenshot_5.png" alt="HYMER Connect — Device" width="45%">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/ha-screenshot_5.png" alt="HYMER Connect — Device" width="45%">
 </p>
 
 </details>
@@ -375,7 +375,7 @@ graph TD
 
 1. Go to **Settings > Dashboards > + Add Dashboard**
 2. Open the new dashboard > Edit > three dots > **Raw configuration editor**
-3. Paste the contents of [`dashboards/hymer_connect.yaml`](https://github.com/BetaHydri/hymer-connect-ha/blob/master/dashboards/hymer_connect.yaml)
+3. Paste the contents of [`dashboards/hymer_connect.yaml`](https://github.com/BetaHydri/hymer-connect-ha-ble/blob/master/dashboards/hymer_connect.yaml)
 4. Save
 
 <details>
@@ -383,23 +383,23 @@ graph TD
 
 | Overview | Power |
 |:---:|:---:|
-| ![Overview](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash1.png) | ![Power](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash2.png) |
+| ![Overview](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash1.png) | ![Power](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash2.png) |
 
 | Climate | Water |
 |:---:|:---:|
-| ![Climate](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash3.png) | ![Water](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash4.png) |
+| ![Climate](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash3.png) | ![Water](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash4.png) |
 
 | Vehicle | Doors & Lights |
 |:---:|:---:|
-| ![Vehicle](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash5.png) | ![Doors](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash6.png) |
+| ![Vehicle](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash5.png) | ![Doors](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash6.png) |
 
 | Interior Lights | GPS |
 |:---:|:---:|
-| ![Lights](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash7.png) | ![GPS](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash8.png) |
+| ![Lights](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash7.png) | ![GPS](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash8.png) |
 
 | System |
 |:---:|
-| ![System](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/Dash9.png) |
+| ![System](https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/Dash9.png) |
 
 </details>
 
