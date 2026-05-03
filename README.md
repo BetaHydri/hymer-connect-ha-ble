@@ -25,7 +25,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 | **Combine with other HA devices** (home, weather, calendar) | ❌ | ✅ |
 | **Template sensors** (corrected engine status, computed solar power) | ❌ | ✅ |
 | **Always-on monitoring** (24/7, not just while app is open) | ❌ | ✅ |
-| **~100 entities** (vs ~20 in the EHG app) | ❌ | ✅ |
+| **~130 entities** (vs ~20 in the EHG app) | ❌ | ✅ |
 | **SCU restart** (reboot the control unit remotely) | ✅ | ✅ |
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
