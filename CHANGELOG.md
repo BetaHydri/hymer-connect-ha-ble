@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.4] - 2026-05-03
+
+### Fixed
+
+- **Commands silently dropped after long SCU standby + 12V wake (cloud path)** — Ported from the cloud repo (v2.48.0). After the SCU spent extended time in standby (12V OFF), waking it up via the dashboard 12V switch sometimes left commands sent over a healthy SignalR WebSocket that never reached the SCU. Reload was the only workaround. Two bugs fixed:
+  1. **Race in `_refresh_tokens_and_resubscribe`** — `UpdateTokens` was fire-and-forget and PIA subscriptions were sent before the SignalR backplane confirmed the new routing, so subscriptions / set_value commands were processed under stale standby routing. Fix: 3 s settle before `UpdateTokens`, then 750 ms wait for routing to propagate before subscribing.
+  2. **Optimistic `_sensor_data["main_switch"]` write in `switch.py`** — Poisoned `_verify_send` (always self-confirmed) and `is_standby` (bypassed 3-min stale-data reconnect). Fix: removed the cache write; `_optimistic_on` already drives the UI.
+
+  The BLE path is unaffected (it uses a separate transport and its own ACK), but the cloud fallback now self-heals correctly.
+
+### Migration Notes
+
+- **Non-breaking** — No entity or option changes. HACS update + restart.
+
 ## [2.61.0-alpha.3] - 2026-05-03
 
 ### Changed
