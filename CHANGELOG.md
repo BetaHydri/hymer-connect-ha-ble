@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.2] - 2026-05-03
+
+### Added
+
+- **JWT validation for BLE token extraction** — The BLE pairing flow now validates the EHG refresh token (`ett=access-refresh`) extracted from the SCU's PairMobileResponse protobuf. Checks JWT format (`eyJ` prefix, 3 dot-separated parts) and decodes the payload to log `ett`, `urn`, and token length. Validation is non-blocking — tokens are always stored, but invalid or unexpected formats produce clear warnings in the HA log for troubleshooting. Improves diagnostics when pairing with different EHG vehicle models (Eriba, Bürstner, etc.) that may have different token formats.
+
 ## [2.61.0-alpha.1] - 2026-05-03
 
 ### Added

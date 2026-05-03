@@ -30,7 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.61.0-alpha.1** — **BLE command routing!** All write commands (lights, switches, heater, fridge, boiler) now route through the BLE direct path when connected (~50ms latency), with automatic cloud fallback. Combined with JSON-driven sensor architecture and BLE pairing from v2.60.0. See [CHANGELOG](CHANGELOG.md) for full details.
+> **v2.61.0-alpha.2** — **BLE token validation!** The BLE pairing flow now validates the extracted EHG refresh token (JWT format, `ett=access-refresh`) with detailed logging for troubleshooting across different vehicle models. Plus BLE command routing from v2.61.0-alpha.1. See [CHANGELOG](CHANGELOG.md) for full details.
 
 ### Energy Dashboard
 
