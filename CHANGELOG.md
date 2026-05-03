@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BLE dual-path command routing** — Write commands (lights, switches, heater, fridge, boiler, climate) now route through the BLE direct path when connected (~50ms latency), with automatic fallback to cloud/SignalR if BLE send fails or is disconnected. Previously, all commands always went through the cloud path even when BLE was connected for sensor streaming.
 - **`_send_via_ble()`** — New coordinator method that sends base64-encoded PIA commands over the BLE TLS tunnel via `ble_client.send_pia_command()`.
+- **Concurrent BLE + SignalR sensor streaming** — BLE and SignalR now run simultaneously instead of mutually exclusive. BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors — both feed into the same data dict, giving full sensor coverage with BLE's low-latency updates for the sensors it covers. Commands still route BLE-first with cloud fallback (no duplicate commands).
 
 ### Changed
 
 - **`_send_with_retry()` now BLE-aware** — The coordinator's central command dispatcher tries BLE first (builds PIA payload locally, sends over BLE TLS), then falls back to SignalR cloud with reconnect + retry. All platform entities (lights, switches, climate, select, button) benefit automatically — no changes needed in platform files.
+- **Connection mode `"dual"`** — When both BLE and SignalR are active, `connection_mode` reports `"dual"` instead of `"ble"`. Falls back to `"cloud"` when BLE disconnects.
 - **README updated** — BLE path comparison table now shows full command support instead of "read-only".
 
 ## [2.60.0-alpha.1] - 2026-05-02

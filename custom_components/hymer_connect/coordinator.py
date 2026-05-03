@@ -411,8 +411,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._ble_pairing_in_progress = False
 
             self._ble_connected = True
-            self._connection_mode = "ble"
-            _LOGGER.info("BLE direct path established to SCU %s", ble_address)
+            self._connection_mode = "dual" if (self._signalr and self._signalr.connected) else "ble"
+            _LOGGER.info("BLE direct path established to SCU %s (mode=%s)", ble_address, self._connection_mode)
 
             # Start BLE listen loop in background
             self.hass.async_create_task(self._ble_listen_loop())
@@ -471,9 +471,12 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("BLE listen loop ended", exc_info=True)
             self._ble_connected = False
             self._connection_mode = "cloud"
-            # Fall back to cloud SignalR
-            _LOGGER.info("Falling back to cloud SignalR after BLE disconnect")
-            await self.start_signalr()
+            # SignalR is already running alongside — no fallback needed.
+            # Next poll will re-attempt BLE if enabled.
+            _LOGGER.info(
+                "BLE disconnected — SignalR continues providing sensor data. "
+                "BLE will be retried on next poll cycle."
+            )
 
     async def stop_ble(self) -> None:
         """Disconnect the BLE client."""
@@ -800,11 +803,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if ble_ok:
                         self._ble_consecutive_failures = 0
                         self._ble_next_attempt = 0.0
-                        _LOGGER.info("Using BLE direct path to SCU")
-                        # Stop SignalR if it was running as fallback
-                        if self._signalr and self._signalr.connected:
-                            _LOGGER.info("BLE recovered — stopping cloud SignalR fallback")
-                            await self.stop_signalr()
+                        _LOGGER.info(
+                            "BLE direct path active — running alongside SignalR "
+                            "(BLE: ~28 sensors at ~50ms, SignalR: ~130 sensors)"
+                        )
                     else:
                         self._ble_consecutive_failures += 1
                         backoff = self._ble_backoff_seconds()
@@ -823,12 +825,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         exc_info=True,
                     )
 
-        # If BLE is active, skip SignalR — data comes via BLE listen loop
-        if self._ble_connected:
-            rest_data["signalr_sensors"] = self._signalr_data
-            return rest_data
-
-        # --- SignalR connection management (cloud fallback) ---
+        # --- SignalR connection management (always active) ---
+        # SignalR runs alongside BLE — BLE provides ~28 sensors at ~50ms,
+        # SignalR provides the full ~130 sensors. Both feed into the same
+        # _signalr_data dict. Commands route BLE-first (no duplicates).
         signalr_connected = (
             self._signalr is not None and self._signalr.connected
         )
