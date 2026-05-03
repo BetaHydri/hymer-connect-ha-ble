@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/logo@2x.png" alt="HYMER Connect" width="200">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha/master/images/logo@2x.png" alt="HYMER Connect BLE" width="200">
 </p>
 
-# HYMER Connect for Home Assistant
+# HYMER Connect BLE for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
@@ -12,7 +12,7 @@ Custom integration to connect your HYMER / Erwin Hymer Group motorhome or carava
 
 Unlike the official EHG app, this integration gives you **full Home Assistant power** over your vehicle:
 
-| | EHG App | HYMER Connect for HA |
+| | EHG App | HYMER Connect BLE for HA |
 |---|:---:|:---:|
 | View sensor data (battery, GPS, temps, water) | ✅ | ✅ |
 | Control lights, heater, fridge, boiler | ✅ | ✅ |

@@ -1,6 +1,6 @@
 {
   "domain": "hymer_connect",
-  "name": "HYMER Connect",
+  "name": "HYMER Connect BLE",
   "codeowners": ["@BetaHydri"],
   "config_flow": true,
   "dependencies": ["bluetooth"],
