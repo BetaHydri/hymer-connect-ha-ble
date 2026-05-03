@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.3] - 2026-05-03
+
+### Changed
+
+- **HACS release packaging** — GitHub Releases now published as regular releases (not pre-release) so HACS discovers them without requiring beta opt-in. The repo itself is the alpha/BLE branch.
+
 ## [2.61.0-alpha.2] - 2026-05-03
 
 ### Added
