@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.1] - 2026-05-03
+
+### Added
+
+- **BLE dual-path command routing** — Write commands (lights, switches, heater, fridge, boiler, climate) now route through the BLE direct path when connected (~50ms latency), with automatic fallback to cloud/SignalR if BLE send fails or is disconnected. Previously, all commands always went through the cloud path even when BLE was connected for sensor streaming.
+- **`_send_via_ble()`** — New coordinator method that sends base64-encoded PIA commands over the BLE TLS tunnel via `ble_client.send_pia_command()`.
+
+### Changed
+
+- **`_send_with_retry()` now BLE-aware** — The coordinator's central command dispatcher tries BLE first (builds PIA payload locally, sends over BLE TLS), then falls back to SignalR cloud with reconnect + retry. All platform entities (lights, switches, climate, select, button) benefit automatically — no changes needed in platform files.
+- **README updated** — BLE path comparison table now shows full command support instead of "read-only".
+
 ## [2.60.0-alpha.1] - 2026-05-02
 
 ### Added

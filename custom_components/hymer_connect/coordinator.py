@@ -503,23 +503,69 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "Try reloading the integration."
             )
 
+    async def _send_via_ble(self, b64_payload: str) -> bool:
+        """Send a base64-encoded PIA command over the BLE direct path.
+
+        Returns True if sent successfully, False on failure.
+        """
+        if not self._ble_client or not self._ble_connected:
+            return False
+        try:
+            await self._ble_client.send_pia_command(b64_payload)
+            _LOGGER.debug("BLE command sent (%d chars)", len(b64_payload))
+            return True
+        except Exception:
+            _LOGGER.warning("BLE command send failed", exc_info=True)
+            return False
+
     async def _send_with_retry(
         self, method_name: str, *args: Any, **kwargs: Any
     ) -> None:
-        """Send a command with automatic reconnect + single retry.
+        """Send a command with BLE-first routing and cloud fallback.
+
+        When BLE is connected, builds the PIA payload and sends it over
+        the BLE direct path (~50ms latency). If BLE send fails or is not
+        connected, falls back to SignalR cloud path with reconnect + retry.
 
         Args:
             method_name: Name of the method on HymerSignalRClient
                          (e.g. 'send_light_command').
             *args, **kwargs: Forwarded to the client method.
 
-        Raises HomeAssistantError if both attempts fail.
+        Raises HomeAssistantError if all attempts fail.
         """
+        # --- BLE path: try first when connected ---
+        if self._ble_connected and self._ble_client:
+            from .pia_decoder import build_light_command, build_multi_sensor_command
+            b64_payload: str | None = None
+            if method_name == "send_light_command":
+                b64_payload = build_light_command(*args, **kwargs)
+            elif method_name == "send_multi_sensor_command":
+                b64_payload = build_multi_sensor_command(*args)
+            elif method_name == "send_pia_request":
+                b64_payload = args[0] if args else None
+
+            if b64_payload:
+                ok = await self._send_via_ble(b64_payload)
+                if ok:
+                    _LOGGER.info(
+                        "Command sent via BLE direct path (%s)", method_name
+                    )
+                    return
+                _LOGGER.warning(
+                    "%s failed via BLE — falling back to cloud", method_name
+                )
+
+        # --- Cloud/SignalR path: fallback with reconnect + retry ---
         for attempt in range(2):
             await self.async_ensure_signalr_healthy()
             method = getattr(self._signalr, method_name)
             ok = await method(*args, **kwargs)
             if ok:
+                if self._ble_connected:
+                    _LOGGER.info(
+                        "Command sent via cloud fallback (%s)", method_name
+                    )
                 return
             if attempt == 0:
                 _LOGGER.warning(
@@ -539,7 +585,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         sensor_id: int,
         **kwargs: Any,
     ) -> None:
-        """Send a light/switch command with reconnect + retry."""
+        """Send a light/switch command via BLE (preferred) or cloud."""
         await self._send_with_retry(
             "send_light_command", bus_id, sensor_id, **kwargs
         )
@@ -547,13 +593,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_send_multi_sensor_command(
         self, sensors: list[dict]
     ) -> None:
-        """Send a multi-sensor command with reconnect + retry."""
+        """Send a multi-sensor command via BLE (preferred) or cloud."""
         await self._send_with_retry("send_multi_sensor_command", sensors)
 
     async def async_send_pia_request(
         self, payload: str
     ) -> None:
-        """Send a raw PIA request with reconnect + retry."""
+        """Send a raw PIA request via BLE (preferred) or cloud."""
         await self._send_with_retry("send_pia_request", payload)
 
     async def async_send_restart_system_command(self) -> None:

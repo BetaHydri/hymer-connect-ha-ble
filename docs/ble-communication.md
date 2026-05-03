@@ -196,6 +196,28 @@ Device1.Pair()
 UnregisterAgent(agent_path)
 `
 
+## Runtime PIA Commands over BLE (v2.61.0+)
+
+After TLS is established, the BLE path supports **full bidirectional PIA
+communication** — not just pairing and sensor streaming, but also write
+commands (lights, switches, heater, fridge, boiler, climate).
+
+The coordinator's `_send_with_retry()` builds the PIA protobuf payload locally
+(same `build_light_command()` / `build_multi_sensor_command()` used for SignalR)
+and sends it via `ble_client.send_pia_command(b64_payload)`, which:
+
+1. Base64-decodes the payload
+2. Wraps it in a BLE PIA frame (magic `0xA0CB` + length + CRC32)
+3. Encrypts via TLS
+4. Writes to NUS RX (`6e400002`) using chunked GATT writes
+
+The SCU processes the command identically to a cloud-received PIA command and
+responds via NUS TX notifications. The response is decoded by the BLE listen
+loop and updates sensor state immediately.
+
+If the BLE send fails, the coordinator falls back to SignalR cloud
+automatically.
+
 ## Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — PairMobileRequest/Response

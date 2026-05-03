@@ -30,7 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.60.0-alpha.1** — **BLE dual-path + JSON-driven sensor architecture!** All entity definitions now loaded from JSON overlays (`sensor_maps/`). BLE pairing fully operational — press CONNECTION on the SCU and Home Assistant obtains the EHG token automatically. Automatic BLE/cloud failover. Tested on a **HYMER Grand Canyon S 600 CrossOver** with HA on a **Raspberry Pi 4**. See [How the Dual-Path Integration Works](#how-the-dual-path-integration-works) and [CHANGELOG](CHANGELOG.md) for full details.
+> **v2.61.0-alpha.1** — **BLE command routing!** All write commands (lights, switches, heater, fridge, boiler) now route through the BLE direct path when connected (~50ms latency), with automatic cloud fallback. Combined with JSON-driven sensor architecture and BLE pairing from v2.60.0. See [CHANGELOG](CHANGELOG.md) for full details.
 
 ### Energy Dashboard
 
@@ -233,7 +233,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
 | **Range** | ~10m (inside vehicle) | Worldwide (LTE) |
 | **Requires** | BLE hardware (RPi4) + physical proximity | Internet connection |
 | **Sensor data** | ~28 sensors, 1–2s push intervals | ~130 sensors, event-driven push |
-| **Commands** | Not yet (read-only) | Full control (lights, heater, fridge, switches) |
+| **Commands** | Full control (lights, heater, fridge, switches) — BLE preferred, cloud fallback | Full control (lights, heater, fridge, switches) |
 | **Works with 12V off** | Yes (SCU BLE stays active in standby) | Limited (commands work, passive sensors stop) |
 
 ### What to expect during setup
@@ -265,15 +265,16 @@ When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
 - **Low-latency sensor streaming** — 28 sensors pushed at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Ideal for real-time monitoring of solar power, battery current, and GPS.
+- **Low-latency control** — All write commands (lights, switches, heater, fridge, boiler) are sent via the BLE direct path when connected (~50ms), with automatic cloud fallback if BLE send fails.
 - **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
-- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data locally.
+- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally.
 
 ### What the Cloud path provides
 
 When you're away from the vehicle (RPi not in BLE range):
 
 - **Full sensor coverage** — ~130 sensors via authenticated SignalR WebSocket, including all buses (CAN, LIN, GPS, heater, fridge, BMS, lights).
-- **Full control** — All write commands (lights, switches, heater, fridge, boiler) go through the cloud path via PIA protobuf commands.
+- **Full control** — All write commands (lights, switches, heater, fridge, boiler) work via the cloud path. When BLE is also connected, the coordinator prefers BLE for lower latency but falls back to cloud automatically.
 - **Worldwide access** — Monitor and control your vehicle from anywhere with internet, as long as the SCU has cellular connectivity.
 - **Automatic reconnection** — Dead connection detection, exponential backoff, proactive token refresh, and SignalR recycling before Azure token expiry.
 
@@ -963,7 +964,7 @@ The EHG app automatically selects the control path based on proximity — it sho
 
 > **Evidence from logcat capture (2026-04-19):** When sitting in the vehicle, the app uses the Nordic UART Service (NUS) over BLE GATT to communicate directly with the SCU. PIA commands are written to characteristic `6e400002-b5a3-f393-e0a9-e50e24dcca9e` (NUS RX), and the SCU responds with TLS-encrypted PIA data as notifications on `6e400003-b5a3-f393-e0a9-e50e24dcca9e` (NUS TX). The data prefix `0x17-03-02` confirms TLS 1.1 Application Data records — the same PIA protobuf payload is encrypted over TLS even on the local BLE link.
 
-> **Home Assistant always uses the LTE cloud path** via SignalR. The BLE direct path is only available to the EHG smartphone app when physically near the vehicle.
+> **Home Assistant uses both paths** — When BLE hardware is available and the RPi is within range, the integration prefers the BLE direct path for both sensor data and control commands (~50ms latency). When BLE is unavailable, it falls back to the LTE cloud path via SignalR automatically.
 
 ```mermaid
 graph TB
@@ -976,7 +977,7 @@ graph TB
     end
 
     subgraph "Home Assistant"
-        HA["HYMER Connect Integration<br/>(SignalR WebSocket client)"]
+        HA["HYMER Connect Integration<br/>(BLE preferred · SignalR fallback)"]
     end
 
     subgraph "SCU — Smart Control Unit"
@@ -1006,7 +1007,8 @@ graph TB
     APP -.->|"① BLE direct (near vehicle)<br/>NUS GATT · TLS-encrypted PIA"| SCU
     APP -->|"② LTE cloud (away)"| CLOUD
     CLOUD <-->|"cellular (LTE)"| SCU
-    HA -->|"③ SignalR WebSocket<br/>(always cloud path)"| CLOUD
+    HA -.->|"③ BLE direct (preferred)<br/>NUS GATT · TLS-encrypted PIA"| SCU
+    HA -->|"④ SignalR WebSocket<br/>(cloud fallback)"| CLOUD
     SCU <--> CAN0
     SCU <--> CAN2
     SCU <--> LIN1
