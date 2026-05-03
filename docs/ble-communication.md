@@ -215,8 +215,19 @@ The SCU processes the command identically to a cloud-received PIA command and
 responds via NUS TX notifications. The response is decoded by the BLE listen
 loop and updates sensor state immediately.
 
-If the BLE send fails, the coordinator falls back to SignalR cloud
-automatically.
+### ACK-based Cloud Safety Net
+
+After sending a command via BLE, the coordinator waits up to **2 seconds** for
+the SCU to echo back a PIA response (confirming it processed the command).
+If no response arrives within the timeout, the same command is automatically
+re-sent via the cloud/SignalR path as a safety net.  Commands are idempotent
+(set-value, not toggle), so a duplicate is harmless.
+
+```
+BLE send → wait 2s for PIA response
+    ├─ Response received  → ✅ confirmed, done
+    └─ Timeout (no ACK)   → ⚠️ re-send via cloud
+```
 
 ## Credits
 

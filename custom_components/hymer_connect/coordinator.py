@@ -84,6 +84,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_consecutive_failures = 0  # TLS timeout counter for backoff
         self._ble_next_attempt: float = 0.0  # monotonic time of next BLE attempt
         self._ble_pairing_in_progress = False  # set by config_flow during Step 3 BLE pairing
+        self._ble_command_ack = asyncio.Event()  # set when BLE PIA response arrives after a command
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -460,6 +461,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         sensor_data = decode_pia_payload(b64_payload)
         if sensor_data:
             self._on_signalr_update(sensor_data)
+            # Signal that a BLE response arrived (for command ACK tracking)
+            if not self._ble_command_ack.is_set():
+                _LOGGER.debug(
+                    "BLE ACK received (%d fields: %s)",
+                    len(sensor_data), list(sensor_data.keys())[:5],
+                )
+            self._ble_command_ack.set()
 
     async def _ble_listen_loop(self) -> None:
         """Background loop receiving PIA data from SCU via BLE."""
@@ -515,10 +523,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return False
         try:
             await self._ble_client.send_pia_command(b64_payload)
-            _LOGGER.debug("BLE command sent (%d chars)", len(b64_payload))
+            _LOGGER.info("BLE command sent (%d chars payload)", len(b64_payload))
             return True
         except Exception:
-            _LOGGER.warning("BLE command send failed", exc_info=True)
+            _LOGGER.warning("BLE command GATT write failed", exc_info=True)
             return False
 
     async def _send_with_retry(
@@ -527,8 +535,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Send a command with BLE-first routing and cloud fallback.
 
         When BLE is connected, builds the PIA payload and sends it over
-        the BLE direct path (~50ms latency). If BLE send fails or is not
-        connected, falls back to SignalR cloud path with reconnect + retry.
+        the BLE direct path (~50ms latency).  Then waits up to 2 seconds
+        for the SCU to echo back a PIA response (ACK).  If no response
+        arrives within the timeout, re-sends the same command via the
+        cloud/SignalR path as a safety net.  Commands are idempotent
+        (set-value, not toggle), so a duplicate is harmless.
+
+        If BLE is not connected, sends directly via cloud.
 
         Args:
             method_name: Name of the method on HymerSignalRClient
@@ -541,23 +554,55 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._ble_connected and self._ble_client:
             from .pia_decoder import build_light_command, build_multi_sensor_command
             b64_payload: str | None = None
+            cmd_detail = method_name  # human-readable command description
             if method_name == "send_light_command":
                 b64_payload = build_light_command(*args, **kwargs)
+                bus_id, sensor_id = args[0], args[1]
+                cmd_detail = f"set_value bus={bus_id} sid={sensor_id} {kwargs}"
             elif method_name == "send_multi_sensor_command":
                 b64_payload = build_multi_sensor_command(*args)
+                slots = [(s.get('bus_id'), s.get('sensor_id')) for s in args[0]]
+                cmd_detail = f"multi_sensor {slots}"
             elif method_name == "send_pia_request":
                 b64_payload = args[0] if args else None
+                cmd_detail = f"pia_request ({len(b64_payload) if b64_payload else 0} chars)"
 
             if b64_payload:
+                _LOGGER.info("BLE command routing: %s", cmd_detail)
+                # Clear the ACK event before sending so we only detect
+                # responses that arrive AFTER our command.
+                self._ble_command_ack.clear()
                 ok = await self._send_via_ble(b64_payload)
                 if ok:
-                    _LOGGER.info(
-                        "Command sent via BLE direct path (%s)", method_name
+                    # Wait up to 2s for the SCU to echo back a PIA response
+                    try:
+                        await asyncio.wait_for(
+                            self._ble_command_ack.wait(), timeout=2.0
+                        )
+                        _LOGGER.info(
+                            "BLE ACK confirmed: %s", cmd_detail
+                        )
+                        return
+                    except asyncio.TimeoutError:
+                        _LOGGER.warning(
+                            "BLE ACK timeout (2s): %s "
+                            "— re-sending via cloud as safety net",
+                            cmd_detail,
+                        )
+                else:
+                    _LOGGER.warning(
+                        "BLE send failed: %s — falling back to cloud",
+                        cmd_detail,
                     )
-                    return
-                _LOGGER.warning(
-                    "%s failed via BLE — falling back to cloud", method_name
-                )
+        elif self._ble_connected:
+            _LOGGER.debug(
+                "BLE connected but no client — routing %s via cloud",
+                method_name,
+            )
+        else:
+            _LOGGER.debug(
+                "BLE not connected — routing %s via cloud", method_name
+            )
 
         # --- Cloud/SignalR path: fallback with reconnect + retry ---
         for attempt in range(2):
@@ -565,14 +610,15 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             method = getattr(self._signalr, method_name)
             ok = await method(*args, **kwargs)
             if ok:
-                if self._ble_connected:
-                    _LOGGER.info(
-                        "Command sent via cloud fallback (%s)", method_name
-                    )
+                _LOGGER.info(
+                    "Cloud command sent (attempt %d/2, %s, ble_connected=%s)",
+                    attempt + 1, method_name, self._ble_connected,
+                )
                 return
             if attempt == 0:
                 _LOGGER.warning(
-                    "%s send failed — reconnecting for retry", method_name
+                    "Cloud send failed (attempt 1/2): %s — reconnecting for retry",
+                    method_name,
                 )
                 # Force disconnected state so ensure_healthy reconnects
                 if self._signalr:

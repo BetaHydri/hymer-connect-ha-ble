@@ -20,18 +20,19 @@ learned from production issues.
 ```
 Home Assistant
     └── coordinator.py (DataUpdateCoordinator, polls every 60s)
-            ├── ble_client.py (BLE direct path — preferred when connected)
+            ├── ble_client.py (BLE direct path — preferred for commands)
             │       └── SCU in vehicle (via BLE GATT / TLS / PIA)
-            └── signalr_client.py (cloud fallback)
+            └── signalr_client.py (always active — full sensor coverage)
                     └── Azure SignalR Service (ehg-prod-signalr.service.signalr.net)
                             └── SCU in vehicle (via LTE)
 ```
 
-When BLE is connected, both sensor data and control commands route through the
-BLE direct path (~50ms latency). When BLE is unavailable, everything falls back
-to SignalR cloud (~500ms–2s). The coordinator handles path selection and
-failover automatically. There is no REST API for real-time data — the SCC REST
-API only provides static metadata (VIN, model, URNs).
+Both paths run concurrently. BLE provides ~28 sensors at ~50ms latency;
+SignalR provides ~130 sensors. Both merge into the same data store.
+Commands route BLE-first with a 2-second ACK wait — if the SCU does not
+confirm via BLE, the command is re-sent via SignalR as a safety net.
+There is no REST API for real-time data — the SCC REST API only provides
+static metadata (VIN, model, URNs).
 
 ## Connection Establishment
 

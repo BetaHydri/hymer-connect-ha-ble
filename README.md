@@ -252,10 +252,10 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 
 **After setup completes, the coordinator manages both paths automatically:**
 
-1. **On every 60-second poll**, the coordinator tries **BLE first**
-2. If BLE connects → SignalR cloud is stopped (avoids duplicate data)
-3. If BLE disconnects (vehicle driven away, out of range) → falls back to **SignalR cloud** immediately
-4. On next poll, BLE is retried → if the vehicle is back in range, BLE recovers and cloud stops again
+1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers.
+2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 2 seconds for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
+3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted** (it was never stopped). Commands fall back to cloud-only.
+4. On next poll, BLE is retried — if the vehicle is back in range, BLE recovers and dual-path resumes.
 
 **You never need to intervene.** The failover is fully automatic and transparent to your dashboard and automations.
 
@@ -265,7 +265,7 @@ When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
 - **Low-latency sensor streaming** — 28 sensors pushed at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Ideal for real-time monitoring of solar power, battery current, and GPS.
-- **Low-latency control** — All write commands (lights, switches, heater, fridge, boiler) are sent via the BLE direct path when connected (~50ms), with automatic cloud fallback if BLE send fails.
+- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 2s for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
 - **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
 - **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally.
 
