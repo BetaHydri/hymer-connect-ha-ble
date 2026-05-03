@@ -29,7 +29,7 @@ Home Assistant
 
 Both paths run concurrently. With BLE subscriptions, both paths can provide
 all ~130 sensors — BLE at ~50ms latency, SignalR at ~500ms–2s. Both merge
-into the same data store. Commands route BLE-first with a 2-second ACK
+into the same data store. Commands route BLE-first with a 500ms ACK
 wait — if the SCU does not confirm via BLE, the command is re-sent via
 SignalR as a safety net.
 

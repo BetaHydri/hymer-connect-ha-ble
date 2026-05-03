@@ -253,7 +253,7 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 **After setup completes, the coordinator manages both paths automatically:**
 
 1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers.
-2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 2 seconds for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
+2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 500ms for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
 3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted** (it was never stopped). Commands fall back to cloud-only.
 4. On next poll, BLE is retried — if the vehicle is back in range, BLE recovers and dual-path resumes.
 
@@ -265,7 +265,7 @@ When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
 - **Low-latency sensor streaming** — After BLE subscription requests are sent, the SCU pushes all ~130 sensors over BLE at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Without subscriptions, ~28 sensors are pushed autonomously.
-- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 2s for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
+- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 500ms for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
 - **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
 - **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally. After the **initial setup** (which requires internet for OAuth2 login and EHG token exchange), BLE can operate fully offline — sensor streaming and control commands work without any cloud connectivity.
 
@@ -868,8 +868,8 @@ logger:
 |-------------|---------|
 | `BLE command routing: set_value bus=11 sid=1 ...` | Command entering BLE path |
 | `BLE command sent (84 chars payload)` | GATT write succeeded |
-| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 2s — command worked |
-| `BLE ACK timeout (2s): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
+| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 500ms — command worked |
+| `BLE ACK timeout (500ms): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
 | `BLE command GATT write failed` | BLE transport error — immediate cloud fallback |
 | `BLE not connected — routing ... via cloud` | BLE unavailable — cloud-only mode |
 | `Cloud command sent (attempt 1/2, ..., ble_connected=True)` | Cloud fallback after BLE failure |

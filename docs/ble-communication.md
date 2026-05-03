@@ -232,14 +232,15 @@ loop and updates sensor state immediately.
 
 ### ACK-based Cloud Safety Net
 
-After sending a command via BLE, the coordinator waits up to **2 seconds** for
+After sending a command via BLE, the coordinator waits up to **500ms** for
 the SCU to echo back a PIA response (confirming it processed the command).
+BLE round-trip is ~50–200ms, so 500ms provides 2.5–10x margin for jitter.
 If no response arrives within the timeout, the same command is automatically
 re-sent via the cloud/SignalR path as a safety net.  Commands are idempotent
 (set-value, not toggle), so a duplicate is harmless.
 
 ```
-BLE send → wait 2s for PIA response
+BLE send → wait 500ms for PIA response
     ├─ Response received  → ✅ confirmed, done
     └─ Timeout (no ACK)   → ⚠️ re-send via cloud
 ```

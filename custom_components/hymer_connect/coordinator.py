@@ -597,10 +597,11 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._ble_command_ack.clear()
                 ok = await self._send_via_ble(b64_payload)
                 if ok:
-                    # Wait up to 2s for the SCU to echo back a PIA response
+                    # Wait up to 500ms for the SCU to echo back a PIA response.
+                    # BLE round-trip is ~50-200ms, so 500ms is 2.5-10x margin.
                     try:
                         await asyncio.wait_for(
-                            self._ble_command_ack.wait(), timeout=2.0
+                            self._ble_command_ack.wait(), timeout=0.5
                         )
                         _LOGGER.info(
                             "BLE ACK confirmed: %s", cmd_detail
@@ -608,7 +609,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         return
                     except asyncio.TimeoutError:
                         _LOGGER.warning(
-                            "BLE ACK timeout (2s): %s "
+                            "BLE ACK timeout (500ms): %s "
                             "— re-sending via cloud as safety net",
                             cmd_detail,
                         )
