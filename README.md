@@ -211,7 +211,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
 
 ```
                   ┌─────────────────────────┐
-                  │   Home Assistant (RPi4)  │
+                  │   Home Assistant (RPi4) │
                   │                         │
                   │  ┌───────┐  ┌────────┐  │
                   │  │  BLE  │  │ Cloud  │  │
@@ -223,7 +223,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
               (~50ms)    │          │  (~500ms–2s)
                          │          │
                   ┌──────▼──────────▼───────┐
-                  │     SCU (in vehicle)     │
+                  │     SCU (in vehicle)    │
                   └─────────────────────────┘
 ```
 
