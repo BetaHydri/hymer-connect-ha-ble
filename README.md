@@ -838,16 +838,42 @@ logger:
     custom_components.hymer_connect.ble_client: info
 ```
 
+For **troubleshooting BLE command routing** (dual-path, ACK, cloud fallback):
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.hymer_connect: warning
+    custom_components.hymer_connect.coordinator: debug
+    custom_components.hymer_connect.ble_client: debug
+    custom_components.hymer_connect.signalr_client: info
+    custom_components.hymer_connect.pia_decoder: warning
+```
+
 | Logger | Level | What it shows |
 |--------|-------|---------------|
 | `hymer_connect` | `warning` | General integration warnings and errors |
+| `coordinator` | `info` | Command routing decisions (BLE/cloud), ACK confirmed/timeout, cloud fallback with attempt counter, REST polling, SignalR reconnect scheduling |
+| `coordinator` | `debug` | BLE ACK event details (decoded field names), path skip reasons (BLE not connected), connection mode changes |
 | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
 | `signalr_client` | `debug` | Every SignalR message (very verbose) |
-| `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose) |
-| `coordinator` | `info` | REST API polling, SignalR reconnect scheduling |
-| `ble_client` | `info` | BLE connect/disconnect, bonding results, TLS status |
-| `ble_client` | `debug` | GATT services, D-Bus agent, write mode/pacing, chunk details |
+| `ble_client` | `info` | BLE connect/disconnect, bonding results, TLS status, GATT write success |
+| `ble_client` | `debug` | GATT services, D-Bus agent, write mode/pacing, chunk details, TLS handshake |
+| `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose — use sparingly) |
 | `config_flow` | `warning` | BLE pairing attempt progress (🟢/🔴 status) |
+
+**What to look for when troubleshooting commands:**
+
+| Log message | Meaning |
+|-------------|---------|
+| `BLE command routing: set_value bus=11 sid=1 ...` | Command entering BLE path |
+| `BLE command sent (84 chars payload)` | GATT write succeeded |
+| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 2s — command worked |
+| `BLE ACK timeout (2s): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
+| `BLE command GATT write failed` | BLE transport error — immediate cloud fallback |
+| `BLE not connected — routing ... via cloud` | BLE unavailable — cloud-only mode |
+| `Cloud command sent (attempt 1/2, ..., ble_connected=True)` | Cloud fallback after BLE failure |
+| `Cloud command sent (attempt 1/2, ..., ble_connected=False)` | Normal cloud-only command |
 
 #### Open a GitHub issue
 
