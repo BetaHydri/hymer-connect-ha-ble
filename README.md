@@ -30,7 +30,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.61.0-alpha.3** — **BLE token validation!** The BLE pairing flow now validates the extracted EHG refresh token (JWT format, `ett=access-refresh`) with detailed logging for troubleshooting across different vehicle models. Plus BLE command routing from v2.61.0-alpha.1. See [CHANGELOG](CHANGELOG.md) for full details.
+> **v2.61.0-alpha.6** — **Per-entry OAuth client header!** A new optional *OAuth client header* field is now available in the **initial config flow**, **Reconfigure**, and **Options** dialogs. Paste the `Authorization: Basic <base64>` header captured from your own EHG mobile-app traffic to replace the bundled (deprecated) default. Non-breaking upgrade — see [OAuth Client Header](#oauth-client-header-v2610-alpha6) below. Builds on **v2.61.0-alpha.3** BLE token validation and **v2.61.0-alpha.4** cloud-path command-drop fixes — see [CHANGELOG](CHANGELOG.md) for full history.
 
 ### Energy Dashboard
 
@@ -300,7 +300,7 @@ The integration supports three setup paths. All require your HYMER Connect email
 
 | | **Path A: BLE + Cloud (recommended)** | **Path B: Cloud-only (mitmproxy)** | **Path C: Cloud-only (no token)** |
 |---|---|---|---|
-| **Step 1 — Login** | Brand, email, password. Leave EHG token **empty** | Brand, email, password. Paste **EHG refresh token** | Brand, email, password. Leave EHG token **empty** |
+| **Step 1 — Login** | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* | Brand, email, password. Paste **EHG refresh token**. *(Optional: paste OAuth client header)* | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* |
 | **Step 2 — Vehicle** | QR activation token (JWT from dealer paper) + optional BLE MAC + enable BLE ✅ | Leave **all fields empty** → submit | Leave **all fields empty** → submit |
 | **Step 3 — BLE Pairing** | Progress spinner → press **CONNECTION** on SCU | *(skipped)* | *(skipped)* |
 | **What happens** | EHG refresh token extracted via BLE automatically. BLE + SignalR both active | SignalR active with provided token. Vehicle auto-discovered via cloud | Config entry created but **no EHG token** → sensors show "unknown" |
@@ -314,6 +314,8 @@ The integration supports three setup paths. All require your HYMER Connect email
 > **Path C is a bootstrap path** — it creates the integration entry so you can add the EHG refresh token later via **Reconfigure** (either by BLE pairing with a QR token, or by pasting a mitmproxy-captured token). Until a token is provided, sensor data will not flow.
 
 > **QR activation token format:** The QR code is on a **separate piece of paper from your dealer** (vehicle delivery documents) — not a sticker on the vehicle. When scanned, the text is a long JWT token (~200–600 characters) starting with `eyJ`. This is the same QR code the EHG app asks you to scan during "Fahrzeug verbinden" (Connect Vehicle). Stickers on the vehicle with formats like `E-Trailer;ehg-siu;...` are hardware identifiers and will **not** work.
+
+> **OAuth client header (v2.61.0-alpha.6+):** All three setup paths now show an optional *OAuth client header* field at Step 1 (Login). Leave it empty during initial setup if you're in a hurry — the integration will fall back to the bundled (deprecated) default and log a one-time warning per startup. You can paste your own value any time later via **Reconfigure** or **Options** to silence the warning and future-proof your install. See [OAuth Client Header](#oauth-client-header-v2610-alpha6) for the rationale and capture instructions.
 
 ### Path A: BLE Pairing (recommended — no mitmproxy needed)
 
@@ -632,13 +634,68 @@ The token is also saved to `tools/captured_ehg_token.txt`.
 1. Go to **Settings → Devices & Services**
 2. Find **HYMER Connect** and click **Configure** (or re-add the integration)
 3. Paste the token into the **EHG Remote Access Refresh Token** field
-4. Save — real-time sensor data will start flowing within seconds
+4. *(Optional, recommended for v2.61.0-alpha.6+)* While you're here, paste the captured **OAuth client header** into the *OAuth client header* field too — the same mitmproxy session also writes `tools/captured_oauth_basic_auth.txt` (in the cloud-repo capture tool). See [OAuth Client Header](#oauth-client-header-v2610-alpha6) for why.
+5. Save — real-time sensor data will start flowing within seconds.
 
 #### 9. Clean up your phone
 
 1. Remove the WiFi proxy settings (set Proxy back to **None**)
 2. *(Optional)* Uninstall the patched APK and reinstall from the Play Store
 3. *(Optional)* Remove the mitmproxy CA certificate
+
+---
+
+## OAuth Client Header (v2.61.0-alpha.6+)
+
+Starting with **v2.61.0-alpha.6**, the integration supports a per-entry **OAuth client header** so the EHG mobile-app's `Basic` credentials no longer have to be redistributed in this repository. The bundled fallback still ships for backward compatibility but is **deprecated** and will be removed in a future release.
+
+### Why this exists
+
+The `POST /oauth/token` calls the integration makes carry an `Authorization: Basic <base64>` header that identifies the EHG **mobile app** (not your account). The same value is embedded in every install of the EHG app worldwide. Hard-coding it in this public repo redistributes the app's shared secret, which security scanners (GitGuardian) flag and EHG could plausibly object to. Moving it to a per-install local value cleans up the provenance posture without affecting your account, your refresh token, or the BLE path.
+
+### Does this matter for the BLE path?
+
+**No.** The OAuth header only matters for the cloud `/oauth/token` calls used to obtain access tokens for the SignalR fallback and the REST APIs that resolve vehicle metadata. Pure BLE operation does not use it. Even so, a fully cloud-less install is rare — most setups use BLE *and* the SignalR cloud path — so configuring the header is recommended for everyone.
+
+### What you need to do
+
+**Existing users (upgrading from ≤ v2.61.0-alpha.5):** *Nothing immediately.* The integration keeps working with the bundled fallback. You will see one warning per startup in the log:
+
+> `OAuth client header not configured for this entry; falling back to bundled legacy default…`
+
+To silence the warning and prepare for the future removal of the fallback, paste your own header into the new field at your convenience.
+
+**New users:** The field is shown in the initial config flow as an optional value. Capture it once (see below) or leave it empty to use the deprecated bundled fallback.
+
+### How to capture the header
+
+The capture tool lives in the **cloud repo** (it shares the mitmproxy plumbing). Use [`tools/Start-EhgTokenCapture.ps1` from `BetaHydri/hymer-connect-ha`](https://github.com/BetaHydri/hymer-connect-ha/blob/master/tools/Start-EhgTokenCapture.ps1) — it captures the EHG refresh token *and* the OAuth Basic header in the **same mitmproxy session**, no extra steps. After running the capture you will see two success banners; the second one is:
+
+```text
+╔════════════════════════════════════════════════════════════════╗
+║   ✅  OAUTH BASIC-AUTH HEADER CAPTURED SUCCESSFULLY!             ║
+║   Saved to: tools/captured_oauth_basic_auth.txt                 ║
+╚════════════════════════════════════════════════════════════════╝
+
+   HEADER:
+   Basic ZWhnLXByb2QtbW9iaWxlLWFwcC10ZWNobmljYWwtdXNlcjpa…
+```
+
+### Where to paste it
+
+The field is accepted at **three places**:
+
+1. **Initial config flow** — *Step 1 (Login)*, alongside brand / email / password / EHG refresh token. Optional during the deprecation window.
+2. **Reconfigure** — *Settings → Devices & Services → HYMER Connect → ⋮ → Reconfigure*, alongside QR activation token / SCU Bluetooth address / EHG refresh token. Use this to add the header to an existing install.
+3. **Options** — *Settings → Devices & Services → HYMER Connect → Configure*, alongside tank capacity / BLE settings.
+
+The value is validated client-side: a paste mistake (wrong scheme, non-base64, missing `:` separator) surfaces as `invalid_basic_auth`.
+
+The **reauth dialog does not ask for it** — it reuses the entry's stored value, so a routine reauth doesn't need a re-paste.
+
+### Removal timeline
+
+The bundled fallback (`OAUTH2_BASIC_AUTH_LEGACY_DEFAULT` in `const.py`) will be removed in a future release. After that, installs without a per-entry value will fail to authenticate against the cloud. The deprecation warning gives you advance notice; configuring the field once future-proofs your install.
 
 ---
 
