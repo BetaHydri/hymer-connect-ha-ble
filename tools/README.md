@@ -1,7 +1,25 @@
 # Tools
 
-Most files under `tools/` are local reverse-engineering scratchpads and are
-gitignored. Only the items below are shipped with the repository.
+Most files under `tools/` are local reverse-engineering scratchpads (mitmproxy
+output, logcat dumps, dex extracts, APK inspection scripts, captured packets,
+…) and are gitignored. Local trace artifacts produced by the scripts below
+live under [`tools/traces/`](traces/) which is also gitignored. Only the items
+listed in the table are shipped with the repository.
+
+## Shipped scripts at a glance
+
+| Script | Purpose | Run as |
+| --- | --- | --- |
+| [`ehg-token-app/`](ehg-token-app/) | Standalone Android app (Kotlin, single-activity) that performs the **full BLE token-extraction flow on the phone itself**: login → confirmation token → BLE scan → SCU bond → TLS-over-NUS handshake → PairMobileRequest → receive refresh token → display for copy/paste. **Use this when your HA host has no BLE hardware** (and Path A's in-integration BLE pairing is not an option). | Open in Android Studio, build, install on a phone in the vehicle, run once. |
+| [`Start-EhgTokenCapture.ps1`](Start-EhgTokenCapture.ps1) | One-click PowerShell wrapper around the mitmproxy capture: checks prerequisites (Python, mitmproxy, Node.js, apk-mitm), starts the proxy, prints connection instructions, and exits when the token is captured. **Use this on Windows for the cloud-only fallback path (Path B).** Path A (BLE pairing) extracts the token automatically inside the integration. | `pwsh tools\Start-EhgTokenCapture.ps1` |
+| [`capture_ehg_token.py`](capture_ehg_token.py) | mitmproxy addon that scans intercepted HTTP/WebSocket traffic for the EHG Remote Access Refresh Token (`ett=access-refresh`). Saves it to `traces/captured_ehg_token.txt` and auto-exits. **Use this directly on Linux/macOS for the cloud-only fallback path.** *Note: unlike the cloud-repo version, the BLE-repo addon does not yet also capture the OAuth `Authorization: Basic` client header — paste that one manually if needed.* | `mitmdump -s tools/capture_ehg_token.py --listen-port 8080` |
+| [`discover_sensors.py`](discover_sensors.py) | Connects to the EHG cloud via SignalR using your captured token, subscribes to all PIA sensor data for a configurable window (default 120 s), and prints a complete `(bus_id, sensor_id) → value` table cross-referenced with the known sensor map. **Use this to identify unmapped slots on a non-S600 vehicle** before opening a brand-overlay PR. | `python tools/discover_sensors.py --duration 120` |
+| [`scan_pia_fields.py`](scan_pia_fields.py) | Brute-force PIA protobuf field-number scanner. Sends trial requests with empty payloads across `UserRequestTopic` / `CommandRequestTopic` field numbers 1–15 to identify undocumented commands (`getPairedMobileDevices`, `deleteMobileDevices`, `deleteAllUsers`, `deleteUser`). **Reverse-engineering tool, not for daily use.** Logs all SCU responses for offline inspection. | `python tools/scan_pia_fields.py` |
+| [`convert_dan_metadata.py`](convert_dan_metadata.py) | Converts a *local* EHG runtime-metadata extraction directory (produced by [@dan-simms1's upstream extractor](https://github.com/dan-simms1/hymer-connect-ha)) into a starting `sensor_maps/<brand>.json` overlay. Detailed below. | `python tools/convert_dan_metadata.py self-test` |
+
+The two non-BLE capture scripts (`Start-EhgTokenCapture.ps1` + `capture_ehg_token.py`) are alternatives — use the PowerShell wrapper on Windows, or invoke the Python addon directly on Linux/macOS. Both write to `traces/captured_ehg_token.txt`.
+
+> **BLE-specific note:** The mitmproxy capture scripts are only needed for **Path B** (cloud-only setup with mitmproxy and a patched APK). For **Path A** (BLE + Cloud, *recommended*), the integration's built-in BLE pairing flow extracts the EHG refresh token automatically by talking to the SCU directly — no mitmproxy, no patched APK, no extra tools. The standalone `ehg-token-app/` is a third option for users without BLE hardware on the HA host but with a BLE-capable phone in the vehicle. The OAuth client header (v2.61.0-alpha.6+) is captured manually for now.
 
 ## `convert_dan_metadata.py` — Brand overlay generator
 
