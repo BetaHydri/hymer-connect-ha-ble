@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.6] - 2026-05-04
+
+### Added
+
+- **Per-entry OAuth client header (`oauth_basic_auth`)** — Ported from the cloud repo (v2.49.0). New optional field in the **initial config flow**, **Reconfigure** dialog, and **Options** screen titled *"OAuth client header"*. Paste the full `Authorization: Basic <base64>` header captured from your own EHG mobile-app traffic; the integration uses your value for OAuth `/token` requests instead of the bundled default. Field is validated client-side (must start with `Basic ` and decode to a non-empty `client_id:secret` pair); a paste mistake surfaces as `invalid_basic_auth`. The reauth dialog continues to use the entry's stored value (no re-paste needed during routine re-auth).
+
+### Changed
+
+- **OAuth Basic-auth handling** — The bundled `OAUTH2_BASIC_AUTH` constant has been renamed to `OAUTH2_BASIC_AUTH_LEGACY_DEFAULT` and is now a *fallback* used only when an entry has no per-entry `oauth_basic_auth` value. When the fallback is hit the integration logs a one-time deprecation warning per setup. The 4 internal `HymerConnectApi(...)` instantiations across `config_flow.py` (`_async_try_authenticate`, the QR-token re-auth, and the two BLE-pairing re-auths) now thread the per-entry header value through.
+- **Translations** (`en.json`) updated with labels and descriptions for the new field across user / reconfigure / options init steps and a new `invalid_basic_auth` error string.
+
+### Deprecated
+
+- **Bundled OAuth client header** — The hard-coded fallback used by installs without a configured per-entry value will be **removed** in a future release. Existing installs continue to work unchanged after upgrading; users should paste their own `Basic …` header into the **Reconfigure** or **Options** dialog at their convenience to silence the deprecation warning. The cloud-repo capture tool (`tools/Start-EhgTokenCapture.ps1` in `hymer-connect-ha`) harvests the header from your own EHG-app traffic in the same session that captures the EHG refresh token.
+
+### Migration Notes
+
+- **Non-breaking for existing users.** No entity changes, no forced re-auth. After upgrading you will see one warning per startup (`OAuth client header not configured for this entry; falling back to bundled legacy default…`). To silence it: open *Settings → Devices & Services → HYMER Connect → Configure*, paste your own header into the *OAuth client header* field, and save.
+- **For new installs**, the field is presented in the initial config flow (still optional during the deprecation window).
+- **BLE-only path is unaffected** by the OAuth header — it only matters for the cloud `/oauth/token` calls used to obtain access tokens for the SignalR fallback and the REST APIs that resolve vehicle metadata.
+
 ## [2.61.0-alpha.5] - 2026-05-03
 
 ### Documentation

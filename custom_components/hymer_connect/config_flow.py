@@ -26,6 +26,7 @@ from .const import (
     CONF_BLE_ENABLED,
     CONF_BRAND,
     CONF_EHG_REFRESH_TOKEN,
+    CONF_OAUTH_BASIC_AUTH,
     CONF_QR_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_SCU_URN,
@@ -43,6 +44,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
         vol.Optional(CONF_EHG_REFRESH_TOKEN, default=""): str,
+        vol.Optional(CONF_OAUTH_BASIC_AUTH, default=""): str,
     }
 )
 
@@ -67,11 +69,14 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         return HymerConnectOptionsFlow(config_entry)
 
     async def _async_try_authenticate(
-        self, brand: str, username: str, password: str
+        self, brand: str, username: str, password: str,
+        oauth_basic_auth: str | None = None,
     ) -> dict[str, str]:
         """Try to authenticate and return tokens."""
         session = async_create_clientsession(self.hass)
-        self._api = HymerConnectApi(session, brand=brand)
+        self._api = HymerConnectApi(
+            session, brand=brand, oauth_basic_auth=oauth_basic_auth,
+        )
         return await self._api.authenticate(username, password)
 
     async def async_step_user(
@@ -81,32 +86,40 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                tokens = await self._async_try_authenticate(
-                    user_input[CONF_BRAND],
-                    user_input[CONF_USERNAME],
-                    user_input[CONF_PASSWORD],
-                )
-            except HymerConnectAuthError:
-                errors["base"] = "invalid_auth"
-            except HymerConnectApiError:
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected error during authentication")
-                errors["base"] = "unknown"
-            else:
-                unique_id = user_input[CONF_USERNAME].lower()
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-                self._data = {
-                    CONF_BRAND: user_input[CONF_BRAND],
-                    CONF_USERNAME: user_input[CONF_USERNAME],
-                    CONF_PASSWORD: user_input[CONF_PASSWORD],
-                    CONF_ACCESS_TOKEN: tokens["access_token"],
-                    CONF_REFRESH_TOKEN: tokens["refresh_token"],
-                    CONF_EHG_REFRESH_TOKEN: user_input.get(CONF_EHG_REFRESH_TOKEN, ""),
-                }
-                return await self.async_step_vehicle()
+            oauth_basic_auth_in = user_input.get(CONF_OAUTH_BASIC_AUTH, "").strip()
+            if oauth_basic_auth_in and not HymerConnectApi.is_valid_basic_auth(
+                oauth_basic_auth_in
+            ):
+                errors[CONF_OAUTH_BASIC_AUTH] = "invalid_basic_auth"
+            if not errors:
+                try:
+                    tokens = await self._async_try_authenticate(
+                        user_input[CONF_BRAND],
+                        user_input[CONF_USERNAME],
+                        user_input[CONF_PASSWORD],
+                        oauth_basic_auth=oauth_basic_auth_in or None,
+                    )
+                except HymerConnectAuthError:
+                    errors["base"] = "invalid_auth"
+                except HymerConnectApiError:
+                    errors["base"] = "cannot_connect"
+                except Exception:
+                    _LOGGER.exception("Unexpected error during authentication")
+                    errors["base"] = "unknown"
+                else:
+                    unique_id = user_input[CONF_USERNAME].lower()
+                    await self.async_set_unique_id(unique_id)
+                    self._abort_if_unique_id_configured()
+                    self._data = {
+                        CONF_BRAND: user_input[CONF_BRAND],
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_ACCESS_TOKEN: tokens["access_token"],
+                        CONF_REFRESH_TOKEN: tokens["refresh_token"],
+                        CONF_EHG_REFRESH_TOKEN: user_input.get(CONF_EHG_REFRESH_TOKEN, ""),
+                        CONF_OAUTH_BASIC_AUTH: oauth_basic_auth_in,
+                    }
+                    return await self.async_step_vehicle()
 
         return self.async_show_form(
             step_id="user",
@@ -414,6 +427,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     reauth_entry.data[CONF_BRAND],
                     user_input[CONF_USERNAME],
                     user_input[CONF_PASSWORD],
+                    oauth_basic_auth=reauth_entry.data.get(CONF_OAUTH_BASIC_AUTH, "") or None,
                 )
             except HymerConnectAuthError:
                 errors["base"] = "invalid_auth"
@@ -466,14 +480,32 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
             ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
             ehg_refresh_token = user_input.get(CONF_EHG_REFRESH_TOKEN, "").strip()
+            oauth_basic_auth_in = user_input.get(CONF_OAUTH_BASIC_AUTH, "").strip()
+
+            if oauth_basic_auth_in and not HymerConnectApi.is_valid_basic_auth(
+                oauth_basic_auth_in
+            ):
+                errors[CONF_OAUTH_BASIC_AUTH] = "invalid_basic_auth"
 
             data_updates: dict[str, Any] = {}
 
-            if qr_token:
+            if not errors and oauth_basic_auth_in:
+                data_updates[CONF_OAUTH_BASIC_AUTH] = oauth_basic_auth_in
+
+            # Pre-resolve the value to use for any API calls below: prefer the
+            # newly-pasted one, otherwise the entry's stored value.
+            effective_basic_auth = (
+                oauth_basic_auth_in
+                or reconfigure_entry.data.get(CONF_OAUTH_BASIC_AUTH, "")
+            ) or None
+
+            if not errors and qr_token:
                 # Re-authenticate to get a fresh API client
                 session = async_create_clientsession(self.hass)
                 api = HymerConnectApi(
-                    session, brand=reconfigure_entry.data.get(CONF_BRAND, "hymer"),
+                    session,
+                    brand=reconfigure_entry.data.get(CONF_BRAND, "hymer"),
+                    oauth_basic_auth=effective_basic_auth,
                 )
                 try:
                     await api.authenticate(
@@ -518,7 +550,9 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     # Re-authenticate API for the pairing task
                     session = async_create_clientsession(self.hass)
                     self._api = HymerConnectApi(
-                        session, brand=self._data.get(CONF_BRAND, "hymer"),
+                        session,
+                        brand=self._data.get(CONF_BRAND, "hymer"),
+                        oauth_basic_auth=effective_basic_auth,
                     )
                     try:
                         await self._api.authenticate(
@@ -543,7 +577,9 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._data = {**reconfigure_entry.data}
                     session = async_create_clientsession(self.hass)
                     self._api = HymerConnectApi(
-                        session, brand=self._data.get(CONF_BRAND, "hymer"),
+                        session,
+                        brand=self._data.get(CONF_BRAND, "hymer"),
+                        oauth_basic_auth=self._data.get(CONF_OAUTH_BASIC_AUTH, "") or None,
                     )
                     try:
                         await self._api.authenticate(
@@ -558,6 +594,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         current_qr = ""
         current_ble = reconfigure_entry.data.get(CONF_BLE_ADDRESS, "")
         current_ehg = reconfigure_entry.data.get(CONF_EHG_REFRESH_TOKEN, "")
+        current_oauth_basic = reconfigure_entry.data.get(CONF_OAUTH_BASIC_AUTH, "")
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -566,6 +603,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_QR_TOKEN, default=current_qr): str,
                     vol.Optional(CONF_BLE_ADDRESS, default=current_ble): str,
                     vol.Optional(CONF_EHG_REFRESH_TOKEN, default=current_ehg): str,
+                    vol.Optional(CONF_OAUTH_BASIC_AUTH, default=current_oauth_basic): str,
                 }
             ),
             errors=errors,
@@ -583,32 +621,54 @@ class HymerConnectOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options — tank capacity + BLE settings."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            # Handle "Clear BLE Bond" checkbox
-            if user_input.pop("clear_ble_bond", False):
-                from .ble_client import async_clear_bluez_bond
-                ble_address = (
-                    self._config_entry.options.get(CONF_BLE_ADDRESS, "")
-                    or self._config_entry.data.get(CONF_BLE_ADDRESS, "")
-                )
-                if ble_address:
-                    removed = await async_clear_bluez_bond(ble_address)
-                    _LOGGER.info(
-                        "Clear BLE bond for %s: %s",
-                        ble_address,
-                        "success" if removed else "not found",
+            # Validate optional pasted OAuth Basic-auth header before saving.
+            oauth_basic_auth_in = (user_input.get(CONF_OAUTH_BASIC_AUTH, "") or "").strip()
+            if oauth_basic_auth_in and not HymerConnectApi.is_valid_basic_auth(
+                oauth_basic_auth_in
+            ):
+                errors[CONF_OAUTH_BASIC_AUTH] = "invalid_basic_auth"
+
+            if not errors:
+                # Persist the OAuth header to entry.data (auth-related), not
+                # entry.options. Mirrors the v2.49.0 cloud-repo precedent.
+                if oauth_basic_auth_in:
+                    self.hass.config_entries.async_update_entry(
+                        self._config_entry,
+                        data={
+                            **self._config_entry.data,
+                            CONF_OAUTH_BASIC_AUTH: oauth_basic_auth_in,
+                        },
                     )
-                # Also clear the stored EHG refresh token and BLE address
-                # so re-pairing is triggered on next reload
-                self.hass.config_entries.async_update_entry(
-                    self._config_entry,
-                    data={
-                        **self._config_entry.data,
-                        CONF_EHG_REFRESH_TOKEN: "",
-                        CONF_BLE_ADDRESS: "",
-                    },
-                )
-            return self.async_create_entry(title="", data=user_input)
+                # Strip from user_input so it does not pollute entry.options.
+                user_input.pop(CONF_OAUTH_BASIC_AUTH, None)
+
+                # Handle "Clear BLE Bond" checkbox
+                if user_input.pop("clear_ble_bond", False):
+                    from .ble_client import async_clear_bluez_bond
+                    ble_address = (
+                        self._config_entry.options.get(CONF_BLE_ADDRESS, "")
+                        or self._config_entry.data.get(CONF_BLE_ADDRESS, "")
+                    )
+                    if ble_address:
+                        removed = await async_clear_bluez_bond(ble_address)
+                        _LOGGER.info(
+                            "Clear BLE bond for %s: %s",
+                            ble_address,
+                            "success" if removed else "not found",
+                        )
+                    # Also clear the stored EHG refresh token and BLE address
+                    # so re-pairing is triggered on next reload
+                    self.hass.config_entries.async_update_entry(
+                        self._config_entry,
+                        data={
+                            **self._config_entry.data,
+                            CONF_EHG_REFRESH_TOKEN: "",
+                            CONF_BLE_ADDRESS: "",
+                        },
+                    )
+                return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(
             CONF_TANK_CAPACITY, DEFAULT_TANK_CAPACITY_LITERS
@@ -639,11 +699,16 @@ class HymerConnectOptionsFlow(OptionsFlow):
                         default=current_ble_address,
                     ): str,
                     vol.Optional(
+                        CONF_OAUTH_BASIC_AUTH,
+                        default=self._config_entry.data.get(CONF_OAUTH_BASIC_AUTH, ""),
+                    ): str,
+                    vol.Optional(
                         "clear_ble_bond",
                         default=False,
                     ): bool,
                 }
             ),
+            errors=errors,
             description_placeholders={
                 "ble_help": "Enable BLE direct path for local SCU control (experimental). "
                 "Requires BLE hardware and physical SCU pairing. "
