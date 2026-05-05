@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.8] - 2026-05-05
+
+### Fixed
+
+- **Translation error: UNCLOSED_TAG** — The OAuth client header description in `en.json` contained `<base64>` which HA’s translation parser treated as an unclosed HTML tag. Replaced with `…` ellipsis to avoid the parse error.
+
 ## [2.61.0-alpha.7] - 2026-05-05
 
 ### Fixed
