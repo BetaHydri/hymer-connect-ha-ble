@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.7] - 2026-05-05
+
+### Fixed
+
+- **Bus 30 sensor map corrected** — Slots 2–14 were incorrectly labelled as GPS data (altitude, satellites, heading, etc.). Verified against EHG app Hermes bundle (APK 2.10.14): they are actually SCU internal time, LTE quality/state, SCU voltage, paired/connected BT devices, battery cutoff switch, user active flag, D+ alternator signal, chassis wake-up, battery switch active, shore power (SCU), and vehicle movement. GPS position comes only from slot 1; GPS fix/altitude/satellites are REST API only, not PIA.
+- **Fridge door sensor** — Was incorrectly reading from bus 37 slot 2 (`fridge_status`/`VehicleBrand`). Now correctly mapped to bus 34 slot 5 (`DoorOpen`) via JSON. Removed the hardcoded static `fridge_door` entry from `binary_sensor.py`.
+- **Removed phantom `ambient_temp` sensor** — Static sensor description in `sensor.py` referenced a non-existent slot. The real temperature source is `outside_temperature` (bus 1, slot 9, Mercedes bumper sensor). Climate `temp_sensor` in `hymer.json` corrected accordingly.
+
+### Added
+
+- **Fridge extended sensors** — `fridge_freezer_level` (34,4), `fridge_warning` (34,6), `fridge_dc_voltage` (34,7) from EHG app metadata.
+- **Bus 30 SCU telemetry entities** — `scu_internal_time`, `lte_connection_quality`, `lte_connection_state`, `scu_voltage`, `paired_bt_devices`, `connected_bt_devices`, `battery_cutoff_switch`, `user_active`, `d_plus_signal`, `wake_up_chassis`, `battery_switch_active`, `shoreline_connected_scu`, `vehicle_movement` (most disabled by default).
+- **Climate logging** — `_LOGGER.info()` for HEAT on, OFF, and setpoint changes in `climate.py`.
+- **Dashboard** — Connectivity section (LTE signal, SCU time, SCU voltage), SCU Telemetry section (bus 30 flags), BMS time remaining gauge. Fixed entity IDs for shore power, heater energy source, fridge ECO, and distance to service.
+
+### Changed
+
+- **Translations** (`strings.json`, `en.json`) — Updated entity section to match corrected sensor names. Removed GPS-assumed entries, added LTE/SCU/fridge extended entries and bus 30 binary sensor names.
+- **`sensor-map.md`** — Synced with cloud repo (authoritative reference).
+
 ## [2.61.0-alpha.6] - 2026-05-04
 
 ### Added

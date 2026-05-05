@@ -270,48 +270,59 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 | (27, 2) | `light_privat_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
 | (27, 3) | `light_privat_group_color_temp` | — | Group color temperature context |
 
-## Bus 30 — ScuSignals (GPS + SCU telemetry)
+## Bus 30 — ScuSignals (SCU telemetry, LTE, BT, GPS)
 
-Slots 1-2 carry GPS coordinates and time. Slots 3-7 carry GPS data on the S600
-(confirmed via live traces 2026-04-19). Whether the S700 reports the same slot
-assignment for slots 3-7 is unconfirmed — Dan's APK metadata shows both GPS
-and LTE/BT labels for this bus. Slots 8-14 are SCU telemetry flags.
+Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
+2026-05-05). Previous mapping incorrectly labelled slots 3-7 as GPS data —
+they are actually LTE quality, SCU voltage, and Bluetooth device counts.
+GPS position comes only from slot 1; the actual GPS fix/altitude/satellites/
+heading are delivered via the REST API, not PIA.
 
-| Slot | Sensor Name | Unit | Notes |
-|------|------------|------|-------|
-| (30, 1) | `gps_coordinates` | — | Lat,Lng string |
-| (30, 2) | `gps_utc_time` | — | SCU internal time |
-| (30, 3) | `gps_signal_quality` | — | Confirmed "excellent" on S600 |
-| (30, 4) | `gps_fix` | — | Confirmed `true` on S600 |
-| (30, 5) | `gps_altitude` | m | Confirmed 13.1m on S600 |
-| (30, 6) | `gps_satellites` | — | Confirmed 3 on S600 |
-| (30, 7) | `gps_heading` | ° | Confirmed 0° on S600 |
-| (30, 8) | `scu_flag_1` | — | `False` — unknown flag |
-| (30, 9) | `lte_connected` | — | `True` — LTE connection state |
-| (30, 10) | `scu_flag_2` | — | `False` — unknown flag |
-| (30, 11) | `paired_bt_devices` | — | `3` — BT paired device count (confirmed) |
-| (30, 12) | `scu_flag_5` | — | `True` — unknown flag |
-| (30, 13) | `scu_flag_3` | — | `False` — unknown flag |
-| (30, 14) | `scu_flag_4` | — | `False` — unknown flag |
+| Slot | EHG Name | Sensor Name | Unit | Datatype | Mode | Notes |
+|------|----------|-------------|------|----------|------|-------|
+| (30, 1) | `GpsLocation` | `gps_coordinates` | — | string | r | Lat,Lng string |
+| (30, 2) | `ScuInternalTime` | `scu_internal_time` | — | string | r | SCU internal clock (YYYY-MM-DD hh:mm Z) |
+| (30, 3) | `LteConnectionQuality` | `lte_connection_quality` | — | string | r | LTE signal quality (e.g. "excellent"). Previously mislabelled as gps_signal_quality |
+| (30, 4) | `LteConnectionState` | `lte_connection_state` | — | bool | r | LTE modem connected. Previously mislabelled as gps_fix |
+| (30, 5) | `ScuVoltage` | `scu_voltage` | V | float | r | SCU supply voltage (e.g. 13.1V). Previously mislabelled as gps_altitude (13.1m) |
+| (30, 6) | `PairedBTDevices` | `paired_bt_devices` | — | int | r | Number of paired Bluetooth devices. Previously mislabelled as gps_satellites |
+| (30, 7) | `ConnectedBTDevices` | `connected_bt_devices` | — | int | r | Currently connected BT devices. Previously mislabelled as gps_heading |
+| (30, 8) | `BatteryCutoffSwitch` | `battery_cutoff_switch` | — | bool | r | Battery disconnect/cutoff switch state |
+| (30, 9) | `UserActive` | `user_active` | — | bool | rw | User activity flag. Previously mislabelled as lte_connected |
+| (30, 10) | `DPlus` | `d_plus_signal` | — | bool | r | D+ alternator charge signal from chassis |
+| (30, 11) | `WakeUpChassis` | `wake_up_chassis` | — | bool | w | Chassis wake-up trigger (write-only — may not produce readable data) |
+| (30, 12) | `BatterySwitchActive` | `battery_switch_active` | — | bool | r | 12V battery switch active. True = 12V ON |
+| (30, 13) | `ShoreLineConnected` | `shoreline_connected_scu` | — | bool | r | Shore power (deprecated in EHG app; primary source is bus 3 slot 22) |
+| (30, 14) | `VehicleMovement` | `vehicle_movement` | — | bool | r | Vehicle in motion detection |
 
 ## Bus 34 — Thetford N4112A fridge (shared S600/S700)
 
-| Slot | Sensor Name | Notes |
-|------|------------|-------|
-| (34, 1) | `fridge_power` | Power on/off (bool write). Discovery: `False` |
-| (34, 2) | `fridge_eco` | ECO/quiet mode (bool write). Discovery: `False` |
-| (34, 3) | `fridge_cooling_step` | Cooling step 1–5 (uint write). Discovery: `2` |
-| (34, 4) | `heat_ctrl_4` | Heater control value. Discovery: `0` (int) |
-| (34, 5) | `heat_ctrl_5` | Heater control flag. Discovery: `False` (bool) |
-| (34, 6) | `heat_ctrl_6` | Heater control value. Discovery: `0` (int) |
-| (34, 7) | `heat_setpoint_raw` | Fridge setpoint raw (div1000). Discovery: `13.0` |
+Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
+2026-05-05).
 
-## Bus 37 — Fridge status
+| Slot | EHG Name | Sensor Name | Notes |
+|------|----------|------------|-------|
+| (34, 1) | `FridgeOn` | `fridge_power` | Power on/off (bool write). Discovery: `False` |
+| (34, 2) | `NightMode` | `fridge_eco` | ECO/quiet mode (bool write). Discovery: `False` |
+| (34, 3) | `FridgeLevel` | `fridge_cooling_step` | Cooling step 1–5 (uint write). Discovery: `2` |
+| (34, 4) | `FreezerLevel` | `fridge_freezer_level` | Freezer level (deprecated in EHG app). Discovery: `0` (int) |
+| (34, 5) | **`DoorOpen`** | `fridge_door` | **Fridge door open/closed** (bool, read-only). Binary sensor. Previously unmapped — fridge_door entity was incorrectly reading from bus 37 slot 2 (VehicleBrand). Fixed in v2.53.0. |
+| (34, 6) | `WarningErrorInformation` | `fridge_warning` | Fridge warning/error code (int). Discovery: `0` |
+| (34, 7) | `DCVoltage` | `fridge_dc_voltage` | Fridge DC supply voltage (int, mV). Discovery: `13000` |
 
-| Slot | Sensor Name | Notes |
-|------|------------|-------|
-| (37, 1) | `fridge_mode` | Fridge operating mode. Discovery: `Off` (string) |
-| (37, 2) | `fridge_status` | Fridge door state. SCU reports int 0=Open, 1=Closed. Exposed as `binary_sensor.hymer_fridge_door` (v2.32.0). Real-time push updates arrive at protobuf depth 4 — fixed in v2.36.6. **Requires 12V ON** — the SCU does not push passive sensor changes in standby (the EHG app sees them via BLE, but HA only has the cloud/SignalR path). |
+## Bus 37 — VehicleInformation (EHG) / Fridge status readback (PIA)
+
+> **Note:** The EHG app metadata labels this bus as `VehicleInformation` with
+> slots `VehicleType` and `VehicleBrand`. However, on the S600, the PIA protobuf
+> data on bus 37 carries **fridge mode and status readback**, not vehicle
+> identification. The fridge select entity reads `fridge_mode` from here and it
+> works correctly. This discrepancy may be a SCU firmware routing difference vs
+> the EHG app's component registry.
+
+| Slot | EHG Name | Sensor Name | Notes |
+|------|----------|------------|-------|
+| (37, 1) | `VehicleType` | `fridge_mode` | Fridge operating mode on S600 PIA. Discovery: `Off` (string) |
+| (37, 2) | `VehicleBrand` | `fridge_status` | Fridge status on S600 PIA. **Not** the fridge door — door is on bus 34 slot 5. |
 
 ## Bus 43 — Seating overhead light
 

@@ -153,11 +153,11 @@
       "gps_coordinates": {
         "name": "GPS coordinates"
       },
-      "gps_signal_quality": {
-        "name": "GPS signal"
+      "lte_connection_quality": {
+        "name": "LTE signal quality"
       },
-      "gps_altitude": {
-        "name": "Altitude"
+      "scu_voltage": {
+        "name": "SCU voltage"
       },
       "heater_fan_speed": {
         "name": "Heater fan speed"
@@ -167,9 +167,6 @@
       },
       "heater_fuel_type": {
         "name": "Heater fuel type"
-      },
-      "ambient_temp": {
-        "name": "Ambient temperature"
       },
       "current_gear": {
         "name": "Current gear"
@@ -255,11 +252,11 @@
       "truma_status": {
         "name": "Truma status"
       },
-      "gps_satellites": {
-        "name": "GPS satellites"
+      "paired_bt_devices": {
+        "name": "Paired BT devices"
       },
-      "gps_heading": {
-        "name": "GPS heading"
+      "connected_bt_devices": {
+        "name": "Connected BT devices"
       },
       "heater_state": {
         "name": "Heater state"
@@ -275,6 +272,12 @@
       },
       "fridge_status": {
         "name": "Fridge status"
+      },
+      "fridge_warning": {
+        "name": "Fridge warning"
+      },
+      "fridge_dc_voltage": {
+        "name": "Fridge DC voltage"
       },
       "fresh_water_level": {
         "name": "Fresh water level"
@@ -350,6 +353,18 @@
       },
       "dometic_fridge_warning": {
         "name": "Dometic fridge warning"
+      },
+      "distance_to_service": {
+        "name": "Distance to service"
+      },
+      "fuel_level": {
+        "name": "Fuel level"
+      },
+      "outside_temperature": {
+        "name": "Outside temperature"
+      },
+      "scu_internal_time": {
+        "name": "SCU internal time"
       }
     },
     "light": {
@@ -536,7 +551,7 @@
         "name": "Coolant warning"
       },
       "shoreline_connected": {
-        "name": "Shore power"
+        "name": "Shore power connected"
       },
       "dometic_fridge_power": {
         "name": "Dometic fridge power"
@@ -546,6 +561,30 @@
       },
       "dometic_condenser_fan": {
         "name": "Dometic condenser fan"
+      },
+      "lte_connection_state": {
+        "name": "LTE connected"
+      },
+      "battery_cutoff_switch": {
+        "name": "Battery cutoff switch"
+      },
+      "user_active": {
+        "name": "User active"
+      },
+      "d_plus_signal": {
+        "name": "D+ alternator signal"
+      },
+      "wake_up_chassis": {
+        "name": "Chassis wake-up"
+      },
+      "battery_switch_active": {
+        "name": "Battery switch active"
+      },
+      "shoreline_connected_scu": {
+        "name": "Shore power (SCU)"
+      },
+      "vehicle_movement": {
+        "name": "Vehicle movement"
       }
     },
     "switch": {
@@ -556,7 +595,7 @@
         "name": "Water pump"
       },
       "fridge_eco_ctrl": {
-        "name": "Fridge ECO (quiet)"
+        "name": "Fridge ECO"
       }
     },
     "climate": {

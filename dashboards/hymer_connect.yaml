@@ -226,6 +226,9 @@ views:
                   - entity: sensor.hymer_bms_capacity_remaining
                     name: Remaining
                     icon: mdi:battery
+                  - entity: sensor.hymer_bms_time_remaining
+                    name: Time Remaining
+                    icon: mdi:timer-sand
               - type: entities
                 title: "🔌 Power Sources"
                 show_header_toggle: false
@@ -236,7 +239,7 @@ views:
                   - entity: sensor.hymer_charge_phase
                     name: Charge Phase
                     icon: mdi:ev-station
-                  - entity: binary_sensor.hymer_stecker
+                  - entity: binary_sensor.hymer_shore_power_connected
                     name: Shore Power
                     icon: mdi:power-plug
                   - entity: sensor.hymer_heater_electric_power
@@ -317,7 +320,7 @@ views:
           - entity: sensor.hymer_power_source
             name: Power Source
             icon: mdi:power-plug
-          - entity: binary_sensor.hymer_stecker
+          - entity: binary_sensor.hymer_shore_power_connected
             name: Shore Power
             icon: mdi:power-plug
 
@@ -387,7 +390,7 @@ views:
         square: false
         cards:
           - type: tile
-            entity: select.hymer
+            entity: select.hymer_heater_energy_source
             name: Energy Source
             icon: mdi:gas-station
             color: orange
@@ -415,7 +418,7 @@ views:
             icon: mdi:fridge
             color: light-blue
           - type: tile
-            entity: switch.hymer_fridge_eco_leise
+            entity: switch.hymer_fridge_eco
             name: Fridge Quiet
             icon: mdi:volume-off
             color: teal
@@ -557,7 +560,7 @@ views:
           - entity: sensor.hymer_outside_temperature
             name: Outside Temp
             icon: mdi:thermometer
-          - entity: sensor.hymer_distance_to_next_service
+          - entity: sensor.hymer_distance_to_service
             name: Next Service
             icon: mdi:wrench-clock
           - entity: sensor.hymer_fuel_level
@@ -804,12 +807,24 @@ views:
             icon: mdi:crosshairs-gps
 
       - type: entities
-        title: "📡 Signal"
+        title: "📡 Connectivity"
         show_header_toggle: false
         entities:
           - entity: binary_sensor.hymer_scu_connected
-            name: SCU Online
+            name: SCU Connected
             icon: mdi:access-point
+          - entity: sensor.hymer_lte_signal_quality
+            name: LTE Signal
+            icon: mdi:signal-4g
+          - entity: binary_sensor.hymer_lte_connected
+            name: LTE Connected
+            icon: mdi:signal-4g
+          - entity: sensor.hymer_scu_internal_time
+            name: SCU Time
+            icon: mdi:clock-outline
+          - entity: sensor.hymer_scu_voltage
+            name: SCU Voltage
+            icon: mdi:flash-triangle-outline
 
   # ══════════════════════════════════════════════════════════
   # System
@@ -831,9 +846,45 @@ views:
           - entity: sensor.hymer_truma_firmware
             name: Truma Firmware
             icon: mdi:chip
+          - entity: sensor.hymer_scu_voltage
+            name: SCU Voltage
+            icon: mdi:flash-triangle-outline
+          - entity: sensor.hymer_lte_signal_quality
+            name: LTE Signal
+            icon: mdi:signal-4g
+          - entity: sensor.hymer_paired_bt_devices
+            name: Paired BT Devices
+            icon: mdi:bluetooth-connect
+          - entity: sensor.hymer_connected_bt_devices
+            name: Connected BT Devices
+            icon: mdi:bluetooth-transfer
           - entity: update.hymer_connect_update
             name: Integration Update
             icon: mdi:update
+
+      # ── SCU Telemetry (bus 30 flags from EHG app decompilation) ──
+      - type: entities
+        title: "🛰 SCU Telemetry"
+        show_header_toggle: false
+        entities:
+          - entity: binary_sensor.hymer_battery_cutoff_switch
+            name: Battery Cutoff Switch
+            icon: mdi:battery-off-outline
+          - entity: binary_sensor.hymer_user_active
+            name: User Active
+            icon: mdi:account-check
+          - entity: binary_sensor.hymer_d_alternator_signal
+            name: D+ Alternator Signal
+            icon: mdi:car-battery
+          - entity: binary_sensor.hymer_battery_switch_active
+            name: Battery Switch Active
+            icon: mdi:battery-check
+          - entity: binary_sensor.hymer_shore_power_scu
+            name: Shore Power (SCU, deprecated)
+            icon: mdi:power-plug
+          - entity: binary_sensor.hymer_vehicle_movement
+            name: Vehicle Movement
+            icon: mdi:car-traction-control
 
       # ── SCU Restart (with confirmation dialog) ──
       - type: tile
