@@ -134,6 +134,7 @@ class HymerConnectSwitch(
         self._optimistic_on: bool | None = None
         self._optimistic_set_at: float = 0.0  # monotonic timestamp of last command
         self._verify_task: asyncio.Task | None = None
+        self._retry_task: asyncio.Task | None = None
 
     async def _verify_send(self, expected_on: bool) -> None:
         """Verify the SCU acknowledged the command after a delay.
@@ -171,6 +172,18 @@ class HymerConnectSwitch(
             if client:
                 scu_online = client._sensor_data.get("scu_connected") is True
             if not scu_online:
+                # Special case: main switch OFF + SCU offline = command worked.
+                # The SCU goes to standby immediately after processing the 12V
+                # OFF command, so it never gets a chance to echo the new state.
+                # The SCU being offline IS the confirmation.
+                if self.entity_description.is_main_switch and not expected_on:
+                    _LOGGER.info(
+                        "Switch %s: 12V OFF confirmed — SCU went to standby "
+                        "(scu_connected=false) as expected",
+                        self.entity_description.key,
+                    )
+                    # Keep optimistic OFF state — don't revert to stale "On"
+                    return
                 _LOGGER.warning(
                     "Switch %s: command (%s) not confirmed after %ds "
                     "— SCU is offline, command queued until SCU wakes up",
@@ -182,12 +195,62 @@ class HymerConnectSwitch(
             else:
                 _LOGGER.warning(
                     "Switch %s: SCU readback (%s) doesn't match commanded (%s) "
-                    "after %ds — SignalR send channel likely dead, forcing reconnect",
+                    "after %ds — SignalR send channel likely dead, forcing reconnect "
+                    "and retrying command",
                     self.entity_description.key, value, expected_on, delay,
                 )
                 if client:
                     client._connected = False
-                    _LOGGER.info("Marked SignalR as disconnected — will reconnect on next poll")
+                # Trigger immediate reconnect — reset backoff and schedule
+                # a coordinator refresh so _async_update_data runs within
+                # seconds instead of waiting for the next 60s poll.  This
+                # mirrors _on_signalr_connection_lost().  See issue #47.
+                coord = self.coordinator
+                coord._reconnect_backoff = 60  # _INITIAL_BACKOFF
+                coord._last_reconnect_attempt = 0.0
+                _LOGGER.info(
+                    "Marked SignalR as disconnected — triggering immediate reconnect"
+                )
+                self.hass.async_create_task(coord.async_request_refresh())
+                # Retry the command after reconnect settles
+                self._retry_task = asyncio.ensure_future(
+                    self._retry_after_reconnect(expected_on)
+                )
+
+    async def _retry_after_reconnect(self, expected_on: bool) -> None:
+        """Wait for SignalR to reconnect, then re-send the failed command.
+
+        After _verify_send detects a dead send channel and marks SignalR as
+        disconnected, the coordinator's next poll cycle will reconnect.  We
+        wait up to 90s for the connection to come back, then re-issue the
+        original command exactly once.  No further verification loop — if the
+        retry also fails, the user will see the mismatch in the UI.
+        """
+        # Wait for reconnect (coordinator polls every ~60s)
+        for _ in range(18):  # 18 × 5s = 90s
+            await asyncio.sleep(5)
+            client = self.coordinator.signalr_client
+            if client and client._connected:
+                break
+        else:
+            _LOGGER.warning(
+                "Switch %s: reconnect did not complete within 90s — "
+                "skipping command retry",
+                self.entity_description.key,
+            )
+            self._optimistic_on = None
+            self.async_write_ha_state()
+            return
+
+        _LOGGER.info(
+            "Switch %s: SignalR reconnected — retrying %s command",
+            self.entity_description.key,
+            "ON" if expected_on else "OFF",
+        )
+        if expected_on:
+            await self.async_turn_on()
+        else:
+            await self.async_turn_off()
 
     @property
     def available(self) -> bool:

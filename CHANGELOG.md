@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.10] - 2026-05-09
+
+### Fixed (ported from cloud repo v2.54.0–v2.55.2)
+
+- **Retry command after dead SignalR send channel** — When `_verify_send` detects SCU readback mismatch after holdoff, it now waits up to 90 s for SignalR reconnect and re-sends the failed command once. Previously the command was silently lost. (cloud v2.54.0)
+- **Refresh UpdateTokens on SCU standby transition (true→false)** — When the SCU enters standby, the Azure SignalR hub routing becomes stale for the send direction. Now both `false→true` (wake) and `true→false` (standby) transitions trigger an UpdateTokens refresh. On standby entry, resubscribe is skipped to avoid stale state echoes that would overwrite real values (e.g. main_switch "Off" reverting to "On"). (cloud v2.55.0 + v2.55.1)
+- **12V OFF confirmed by SCU going offline** — Main switch OFF + SCU offline is now treated as confirmed (the SCU going to standby IS the proof that 12V went off). No more UI revert to stale "On" state. (cloud v2.55.1)
+- **Immediate reconnect on dead send channel** — `_verify_send` now triggers `async_request_refresh()` instead of passively waiting for the next 60 s poll, cutting recovery from ~5 min to ~6 s. (cloud v2.55.2)
+- **Reset `_shutting_down` flag after successful reconnect** — `start_signalr()` now resets `_shutting_down` after successful reconnect so `_on_signalr_connection_lost` is not permanently suppressed after the first age-based reconnect cycle. (cloud v2.55.2)
+- **Rename `heater_window_switch_closed` → `heater_diesel_safety`** — Bus 58 sid 14 is the Truma Combi D6E diesel safety interlock flag, not a window contact. Removed misleading `device_class: window`, updated icon to `mdi:shield-check`. (cloud v2.55.0)
+
+### Changed
+
+- **Dashboard** — Added `secondary_info: last-changed` to Outside Temp entities (3 locations) so stale readings with ignition OFF are immediately visible. Updated diesel safety entity reference, renamed "SCU Connected" → "SCU Online", updated SCU Telemetry section icon. Dashboard README title updated to "S600 / S700".
+- **Documentation** — Added Bus 1 ignition dependency callout and stale CAN cache theory to `sensor-map.md`. Updated `signalr-connection.md` for diesel safety rename.
+
 ## [2.61.0-alpha.9] - 2026-05-09
 
 ### Fixed

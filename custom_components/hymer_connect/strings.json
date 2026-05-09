@@ -499,8 +499,8 @@
       "truma_connected": {
         "name": "Truma connected"
       },
-      "heater_window_switch_closed": {
-        "name": "Heater window contact"
+      "heater_diesel_safety": {
+        "name": "Heater diesel safety"
       },
       "heater_combi_error": {
         "name": "Heater combi error"

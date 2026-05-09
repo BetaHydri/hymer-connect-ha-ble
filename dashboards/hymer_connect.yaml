@@ -91,6 +91,7 @@ views:
           - entity: sensor.hymer_outside_temperature
             name: Outside Temp
             icon: mdi:thermometer
+            secondary_info: last-changed
 
       # ── Heater ──
       - type: thermostat
@@ -381,6 +382,7 @@ views:
           - entity: sensor.hymer_outside_temperature
             name: Outside Temp
             icon: mdi:thermometer
+            secondary_info: last-changed
 
       # ── Heater Control ──
       - type: markdown
@@ -461,9 +463,9 @@ views:
           - entity: binary_sensor.hymer_heater_shoreline_connected
             name: Shoreline (230 V)
             icon: mdi:power-plug
-          - entity: binary_sensor.hymer_heater_window_contact
-            name: Dinette Window (Diesel Safety)
-            icon: mdi:window-open-variant
+          - entity: binary_sensor.hymer_heater_diesel_safety
+            name: Heater Diesel Safety
+            icon: mdi:shield-check
             secondary_info: last-changed
           - entity: binary_sensor.hymer_truma_connected
             name: Truma Connected
@@ -560,6 +562,7 @@ views:
           - entity: sensor.hymer_outside_temperature
             name: Outside Temp
             icon: mdi:thermometer
+            secondary_info: last-changed
           - entity: sensor.hymer_distance_to_service
             name: Next Service
             icon: mdi:wrench-clock
@@ -811,7 +814,7 @@ views:
         show_header_toggle: false
         entities:
           - entity: binary_sensor.hymer_scu_connected
-            name: SCU Connected
+            name: SCU Online
             icon: mdi:access-point
           - entity: sensor.hymer_lte_signal_quality
             name: LTE Signal
@@ -864,7 +867,7 @@ views:
 
       # ── SCU Telemetry (bus 30 flags from EHG app decompilation) ──
       - type: entities
-        title: "🛰 SCU Telemetry"
+        title: "🔍 SCU Telemetry"
         show_header_toggle: false
         entities:
           - entity: binary_sensor.hymer_battery_cutoff_switch

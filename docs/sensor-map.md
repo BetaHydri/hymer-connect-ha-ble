@@ -122,6 +122,20 @@ Entries **without** a `platform` field are decode-only — they appear in `coord
 
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
+> **⚠️ Ignition dependency:** Bus 1 data comes from the Mercedes chassis CAN, which is
+> only active when the ignition is in ACC or ON position. With ignition OFF, the SCU
+> has no new CAN frames to relay — sensors on this bus (outside temp, fuel, odometer,
+> doors, etc.) will show stale/cached values even if the 12V habitation main is on.
+>
+> **Theory (2026-05-07, unverified):** The SCU appears to cache the last-known CAN
+> values and re-sends them on SignalR reconnect / subscription refresh. HA records
+> this as a state change (`last-changed` updates), but the value itself may be days
+> old. Example: `outside_temperature` showed 25.5 °C with `last-changed` = 15 h ago,
+> but actual weather in Munich at that time was far below 25 °C. The 25.5 °C
+> was likely cached from a warm afternoon days earlier.
+> **Planned verification:** Weekend camping trip — drive with ignition on,
+> confirm live temperature, fuel consumption, and estimated range updates.
+
 | Slot | Sensor Name | Unit | Transform | Notes |
 |------|------------|------|-----------|-------|
 | (1, 1) | `odometer` | km | div1000 | Lifetime odometer |
@@ -372,7 +386,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 | (58, 11) | `heater_operating_mode` (EHG: `heater_air_mode`) | — | Heater air mode string (`OFF` / `Normal` / `Automatic`). Read-only in practice — SCU silently rolls back writes. `rw` per metadata |
 | (58, 12) | `heater_response_error` (EHG: `response_error`) | — | Response error flag (bool). `r` |
 | (58, 13) | `heater_shoreline_connected` (EHG: `shoreline_connected`) | — | Shoreline connected flag (bool). `r` |
-| (58, 14) | `heater_window_switch_closed` (EHG: `window_switch_closed`) | — | Window contact closed (diesel safety interlock, bool). `r` |
+| (58, 14) | `heater_diesel_safety` (EHG: `window_switch_closed`) | — | Diesel safety interlock flag (bool). `True` = safety OK / heater can run, `False` = interlock inactive. Not a physical window contact. `r` |
 
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
