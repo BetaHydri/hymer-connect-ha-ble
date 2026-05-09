@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.9] - 2026-05-09
+
+### Fixed
+
+- **BLE pairing timeout at MTU=23** — The PairMobileRequest (1253 bytes encrypted) was sent as 63 fire-and-forget chunks (WriteCmd, no ACK) at the default MTU of 23. The SCU's NUS RX buffer overflows at that volume, silently dropping chunks and corrupting the protobuf frame. The SCU then ignores it, causing a 120s timeout. Fix: `pair_mobile()` now uses `force_response=True` which forces Write With Response (ACK per chunk), guaranteeing every chunk arrives even at MTU=23.
+- **MTU negotiation fallback** — HA's habluetooth-wrapped BleakClient doesn't expose `_acquire_mtu()`. Added a D-Bus fallback that reads the negotiated ATT MTU from BlueZ's `org.bluez.Device1.MTU` property. Logs a warning when MTU stays at 23 so the root cause is visible in diagnostics.
+
 ## [2.61.0-alpha.8] - 2026-05-05
 
 ### Fixed

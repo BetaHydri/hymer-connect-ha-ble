@@ -1007,15 +1007,28 @@ class ScuBleClient:
             # Request MTU 245 to match EHG app (requestMtu(245)).
             # Default MTU=23 gives 20-byte chunks = 63 chunks for PairMobileRequest.
             # MTU=245 gives 242-byte chunks = only 6 chunks — eliminates ATT 0x0e.
+            mtu = DEFAULT_GATT_MTU
             try:
                 if hasattr(client, "_acquire_mtu"):
                     await client._acquire_mtu()
                     _LOGGER.debug("BLE MTU acquired via _acquire_mtu()")
+                else:
+                    _LOGGER.debug(
+                        "BLE client has no _acquire_mtu() — "
+                        "trying D-Bus MTU negotiation"
+                    )
+                    mtu = await self._negotiate_mtu_dbus() or DEFAULT_GATT_MTU
             except Exception as mtu_err:
                 _LOGGER.debug("BLE MTU acquisition failed (non-critical): %s", mtu_err)
 
-            mtu = getattr(client, "mtu_size", DEFAULT_GATT_MTU)
+            mtu = max(mtu, getattr(client, "mtu_size", DEFAULT_GATT_MTU))
             self._write_chunk_size = max(20, min(242, mtu - 3))
+            if mtu <= DEFAULT_GATT_MTU:
+                _LOGGER.warning(
+                    "BLE MTU negotiation did not increase MTU (still %d). "
+                    "Pairing writes will use Write-With-Response for reliability.",
+                    mtu,
+                )
 
             # Check SCU bonding state before attempting pair.
             # The fff40004 characteristic tells us if CONNECTION was pressed.
@@ -1211,7 +1224,11 @@ class ScuBleClient:
         _LOGGER.debug("PairMobileRequest frame: %d bytes", len(pair_frame))
         encrypted = self._tls.encrypt(pair_frame)
         _LOGGER.debug("Sending encrypted PairMobileRequest: %d bytes", len(encrypted))
-        await self._write_to_scu(encrypted)
+        # Force Write With Response for PairMobileRequest to guarantee data
+        # integrity. At MTU=23 (chunk=20) this is 63 chunks — without ACKs
+        # the SCU's NUS RX buffer overflows and silently drops data, causing
+        # a 120s timeout with no response.
+        await self._write_to_scu(encrypted, force_response=True)
 
         # Wait for PairMobileResponse (user must press CONNECTION button on SCU)
         response_frame = await self._receive_next_frame(timeout)
@@ -1430,7 +1447,7 @@ class ScuBleClient:
                 pass
         _LOGGER.info("BLE disconnected from SCU %s", self._scu_address)
 
-    async def _write_to_scu(self, data: bytes) -> None:
+    async def _write_to_scu(self, data: bytes, *, force_response: bool = False) -> None:
         """Write data to SCU via NUS RX characteristic in chunks.
 
         Uses Write Without Response for large payloads (matching the EHG app's
@@ -1439,6 +1456,12 @@ class ScuBleClient:
         writes. Small payloads (≤10 chunks) use Write With Response for
         reliability.
 
+        When force_response=True, always uses Write With Response regardless
+        of payload size. Use this for critical one-shot messages like
+        PairMobileRequest where data integrity is more important than speed.
+        At MTU=23 (chunk=20), large payloads need many chunks — without ACKs,
+        the SCU's NUS RX buffer can overflow and silently drop data.
+
         See: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html
         NUS RX supports both Write and Write Without Response.
         """
@@ -1446,14 +1469,19 @@ class ScuBleClient:
             return
         total_chunks = (len(data) + self._write_chunk_size - 1) // self._write_chunk_size
         # Large payloads: use Write Without Response (like EHG app's .split())
-        # + pacing to avoid buffer overflow
-        use_write_without_response = total_chunks > 10
-        use_response = self._write_response if not use_write_without_response else False
+        # + pacing to avoid buffer overflow.
+        # Exception: force_response=True overrides this for critical messages.
+        if force_response:
+            use_response = True
+        else:
+            use_write_without_response = total_chunks > 10
+            use_response = self._write_response if not use_write_without_response else False
         write_mode = "WriteReq" if use_response else "WriteCmd(no-resp)"
+        pace = not use_response and total_chunks > 10
         _LOGGER.debug(
             "BLE TX %d bytes → %d chunks, mode=%s, pace=%s",
             len(data), total_chunks, write_mode,
-            "5ms" if use_write_without_response else "none",
+            "5ms" if pace else "none",
         )
         for i, offset in enumerate(range(0, len(data), self._write_chunk_size)):
             chunk = data[offset : offset + self._write_chunk_size]
@@ -1461,7 +1489,7 @@ class ScuBleClient:
                 UART_RX_UUID, chunk, response=use_response
             )
             # Pace large writes to avoid ATT buffer overflow on SCU
-            if use_write_without_response and i < total_chunks - 1:
+            if pace and i < total_chunks - 1:
                 await asyncio.sleep(0.005)  # 5ms between chunks (faster without ACK overhead)
 
     async def _next_uart_data(self, deadline: float) -> bytes:
@@ -1483,6 +1511,40 @@ class ScuBleClient:
         self._loop.call_soon_threadsafe(
             self._uart_queue.put_nowait, payload
         )
+
+    async def _negotiate_mtu_dbus(self) -> int | None:
+        """Try to read the negotiated ATT MTU from BlueZ via D-Bus.
+
+        BlueZ negotiates MTU automatically during the ATT connection. We can
+        read the result from the org.bluez.Device1.MTU property on D-Bus.
+        Returns the MTU value, or None if unavailable.
+        """
+        try:
+            from dbus_fast.aio import MessageBus
+            from dbus_fast import BusType, Message, MessageType, Variant
+            bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+            msg = Message(
+                destination="org.bluez",
+                path=dev_path,
+                interface="org.freedesktop.DBus.Properties",
+                member="Get",
+                signature="ss",
+                body=["org.bluez.Device1", "MTU"],
+            )
+            reply = await bus.call(msg)
+            bus.disconnect()
+            if reply.message_type == MessageType.ERROR:
+                _LOGGER.debug("D-Bus MTU read failed: %s", reply.body)
+                return None
+            if reply.body and isinstance(reply.body[0], Variant):
+                mtu_val = reply.body[0].value
+                _LOGGER.info("BLE MTU from D-Bus: %d", mtu_val)
+                return int(mtu_val)
+            return None
+        except Exception as err:
+            _LOGGER.debug("D-Bus MTU negotiation failed: %s", err)
+            return None
 
     async def _pair_via_bluetoothctl(self) -> bool:
         """Pair with the SCU using a D-Bus pairing agent (raw messages only).
