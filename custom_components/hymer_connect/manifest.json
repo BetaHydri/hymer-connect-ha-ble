@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/BetaHydri/hymer-connect-ha-ble/issues",
   "loggers": ["hymer_connect"],
   "requirements": ["bleak>=0.21.0"],
-  "version": "2.61.0-alpha.10"
+  "version": "2.61.0-alpha.11"
 }
