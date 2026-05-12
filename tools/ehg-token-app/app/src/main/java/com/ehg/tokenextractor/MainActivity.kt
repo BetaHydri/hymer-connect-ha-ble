@@ -305,26 +305,35 @@ class MainActivity : AppCompatActivity() {
 
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                val name = result.device.name ?: ""
-                if (name.contains("SCU", ignoreCase = true) ||
-                    name.contains("SIU", ignoreCase = true) ||
-                    name.contains("Smart", ignoreCase = true)) {
+                val name = result.device.name ?: result.scanRecord?.deviceName ?: ""
+                // SCU advertises as "HYMER XXXXX" (e.g. "HYMER 00013970")
+                // Also check for other EHG brand prefixes
+                if (name.startsWith("HYMER", ignoreCase = true) ||
+                    name.startsWith("Buerstner", ignoreCase = true) ||
+                    name.startsWith("Dethleffs", ignoreCase = true) ||
+                    name.startsWith("Eriba", ignoreCase = true) ||
+                    name.startsWith("Carado", ignoreCase = true) ||
+                    name.startsWith("Laika", ignoreCase = true) ||
+                    name.startsWith("LMC", ignoreCase = true) ||
+                    name.startsWith("Sunlight", ignoreCase = true) ||
+                    name.startsWith("Niesmann", ignoreCase = true) ||
+                    name.contains("SCU", ignoreCase = true) ||
+                    name.contains("SIU", ignoreCase = true)) {
+                    log("  Found: $name (${result.device.address}, RSSI=${result.rssi})")
                     found = result.device
                     scanner.stopScan(this)
                 }
             }
         }
 
-        val filters = listOf(
-            ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid(NUS_SERVICE_UUID))
-                .build()
-        )
+        // Don't filter by service UUID — many phones don't include UUIDs in
+        // scan results until after GATT connection. The SCU advertises its
+        // brand name (e.g. "HYMER 00013970"), so we match by name prefix.
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
-        scanner.startScan(filters, settings, callback)
+        scanner.startScan(null, settings, callback)
         delay(10000) // 10s scan
         try { scanner.stopScan(callback) } catch (_: Exception) {}
 
@@ -345,7 +354,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-            log("  MTU changed to $mtu")
+            negotiatedMtu = mtu
+            log("  MTU changed to $mtu (chunk size: ${maxOf(20, mtu - 3)})")
         }
 
         override fun onCharacteristicChanged(
@@ -390,16 +400,29 @@ class MainActivity : AppCompatActivity() {
         gatt.writeDescriptor(cccd)
     }
 
+    private var negotiatedMtu: Int = 23  // Updated by onMtuChanged callback
+
     private suspend fun writeToScu(data: ByteArray) = withContext(Dispatchers.IO) {
         val gatt = bluetoothGatt ?: return@withContext
         val char = rxCharacteristic ?: return@withContext
-        val mtu = 242 // Use negotiated MTU
-        val chunks = data.toList().chunked(mtu)
-        for (chunk in chunks) {
+        val chunkSize = maxOf(20, negotiatedMtu - 3)  // ATT overhead = 3 bytes
+        val chunks = data.toList().chunked(chunkSize)
+        // Use Write-With-Response for reliability at any MTU.
+        // Write-Without-Response causes ATT 0x0e on the SCU's NUS RX buffer
+        // when >10 chunks are sent rapidly (observed on RPi4 at MTU=23).
+        val writeType = if (chunks.size > 10)
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT  // Write-With-Response
+        else
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        log("  TX ${data.size} bytes -> ${chunks.size} chunks (chunkSize=$chunkSize, MTU=$negotiatedMtu)")
+        for ((i, chunk) in chunks.withIndex()) {
             char.value = chunk.toByteArray()
-            char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            char.writeType = writeType
             gatt.writeCharacteristic(char)
-            if (chunks.size > 1) delay(5)
+            // Pace large writes to avoid SCU NUS RX buffer overflow
+            if (chunks.size > 10 && i < chunks.size - 1) {
+                delay(10)  // 10ms between chunks
+            }
         }
     }
 
