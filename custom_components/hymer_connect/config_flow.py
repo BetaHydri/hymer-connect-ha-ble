@@ -591,8 +591,11 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_ble_pairing()
                 errors["base"] = "no_changes"
 
-        current_qr = ""
-        current_ble = reconfigure_entry.data.get(CONF_BLE_ADDRESS, "")
+        current_qr = reconfigure_entry.data.get(CONF_QR_TOKEN, "")
+        current_ble = (
+            reconfigure_entry.options.get(CONF_BLE_ADDRESS)
+            or reconfigure_entry.data.get(CONF_BLE_ADDRESS, "")
+        )
         current_ehg = reconfigure_entry.data.get(CONF_EHG_REFRESH_TOKEN, "")
         current_oauth_basic = reconfigure_entry.data.get(CONF_OAUTH_BASIC_AUTH, "")
 

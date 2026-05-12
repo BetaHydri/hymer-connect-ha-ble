@@ -1134,14 +1134,20 @@ class ScuBleClient:
 
         # Send ClientHello
         outbound = self._tls.begin_handshake()
-        await self._write_to_scu(outbound)
+        # Force Write-With-Response for ALL TLS handshake writes.
+        # At MTU=23 (chunk=20), the KeyExchange is ~340 bytes = 18 chunks.
+        # Write-Without-Response at this rate overflows the SCU's NUS RX
+        # buffer — chunks are silently dropped, the TLS record is corrupted,
+        # and the SCU never responds (30s timeout). Write-With-Response adds
+        # ~30ms per chunk but guarantees delivery.
+        await self._write_to_scu(outbound, force_response=True)
 
         # Complete handshake
         deadline = self._loop.time() + self._tls_timeout
         while not self._tls.handshake_done:
             incoming = await self._next_uart_data(deadline)
             outbound, _plaintext = self._tls.feed_encrypted(incoming)
-            await self._write_to_scu(outbound)
+            await self._write_to_scu(outbound, force_response=True)
 
         self._tls_established = True
         _LOGGER.info("BLE TLS session established with SCU %s", self._scu_address)
