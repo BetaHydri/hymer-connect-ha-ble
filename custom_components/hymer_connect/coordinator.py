@@ -494,7 +494,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # not awaited during bootstrap/shutdown, not tied to config entry.
             self.hass.async_create_background_task(
                 self._ble_listen_loop(),
-                name=f"hymer_connect_ble_listen_{self._scu_address or 'scu'}",
+                name=f"hymer_connect_ble_listen_{self.ble_address or 'scu'}",
             )
             return True
         except Exception as err:

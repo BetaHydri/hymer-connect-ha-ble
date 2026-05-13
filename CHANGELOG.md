@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.8] - 2026-05-13
+
+### Fixed
+
+- **Fix `_scu_address` AttributeError preventing BLE listen loop from starting** — the background task name referenced `self._scu_address` which does not exist on the coordinator; corrected to `self.ble_address`. This was the actual root cause of both the `coroutine _ble_listen_loop was never awaited` RuntimeWarning and the cloud fallback.
+
 ## [2.62.7] - 2026-05-13
 
 ### Fixed
