@@ -655,11 +655,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._ble_command_ack.clear()
                 ok = await self._send_via_ble(b64_payload)
                 if ok:
-                    # Wait up to 500ms for the SCU to echo back a PIA response.
-                    # BLE round-trip is ~50-200ms, so 500ms is 2.5-10x margin.
+                    # Wait up to 1.5s for the SCU to echo back a PIA response.
+                    # Vehicle testing shows SCU responds in 600-1100ms depending
+                    # on the target bus.  500ms was too tight, causing unnecessary
+                    # cloud double-sends that produce dashboard toggle flicker.
                     try:
                         await asyncio.wait_for(
-                            self._ble_command_ack.wait(), timeout=0.5
+                            self._ble_command_ack.wait(), timeout=1.5
                         )
                         _LOGGER.info(
                             "BLE ACK confirmed: %s", cmd_detail
@@ -667,7 +669,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         return
                     except asyncio.TimeoutError:
                         _LOGGER.warning(
-                            "BLE ACK timeout (500ms): %s "
+                            "BLE ACK timeout (1500ms): %s "
                             "— re-sending via cloud as safety net",
                             cmd_detail,
                         )

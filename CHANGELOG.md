@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.4] - 2026-05-13
+
+### Fixed
+
+- **BLE ACK timeout increased from 500ms to 1500ms** — Vehicle testing showed the SCU responds to BLE commands in 600-1100ms depending on the target bus. The 500ms timeout was too tight, causing unnecessary cloud double-sends that produced dashboard toggle flicker (light appearing to switch twice). With 1500ms, the BLE ACK is captured for all observed response times while the cloud safety net still catches genuine BLE failures.
+
 ## [2.62.3] - 2026-05-13
 
 ### Fixed
