@@ -865,15 +865,22 @@ class ScuBleClient:
                       [(r["address"], r["name"], r["rssi"]) for r in results])
         return results
 
-    async def connect(self) -> None:
-        """Connect to the SCU via BLE and set up NUS notifications."""
+    async def connect(self, skip_bonding: bool = False) -> None:
+        """Connect to the SCU via BLE and set up NUS notifications.
+
+        Args:
+            skip_bonding: If True, skip the OS-level Pair() call even if the
+                device is not bonded.  Set this when an EHG refresh token
+                already exists — a failed Pair() corrupts the GATT session,
+                but the SCU may accept notify+TLS without bonding.
+        """
         if self._client is not None:
             return
 
         self._loop = asyncio.get_running_loop()
-        await self._connect_inner()
+        await self._connect_inner(skip_bonding=skip_bonding)
 
-    async def _connect_inner(self, retry: bool = True) -> None:
+    async def _connect_inner(self, retry: bool = True, skip_bonding: bool = False) -> None:
         """Inner connect logic, handles stale BlueZ notify recovery."""
         # Clear stale BlueZ bonding records BEFORE connecting — but only
         # if the device is NOT already successfully bonded. Calling unpair()
@@ -916,51 +923,62 @@ class ScuBleClient:
         except Exception as connect_err:
             # If bonded but connection fails with "device disconnected", the
             # bond keys are stale/corrupt. Clear them and retry once.
-            if is_already_bonded and retry and "disconnect" in str(connect_err).lower():
-                _LOGGER.warning(
-                    "Bonded device rejected connection — clearing stale bond via D-Bus RemoveDevice: %s",
-                    connect_err,
-                )
-                # BleakClient.unpair() doesn't reliably clear bonds.
-                # Use D-Bus Adapter1.RemoveDevice() directly.
-                try:
-                    from dbus_fast.aio import MessageBus
-                    from dbus_fast import BusType, Message, MessageType
-                    rm_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+            if is_already_bonded and "disconnect" in str(connect_err).lower():
+                if retry:
+                    # First failure — retry with delay. The SCU may need
+                    # time to recover its BLE stack after a prior ATT error.
+                    # Don't destroy the bond yet — it may still be valid.
+                    _LOGGER.warning(
+                        "Bonded device rejected GATT connect — "
+                        "retrying in 2s (SCU may need recovery time): %s",
+                        connect_err,
+                    )
                     try:
-                        dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
-                        rm_msg = Message(
-                            destination="org.bluez",
-                            path="/org/bluez/hci0",
-                            interface="org.bluez.Adapter1",
-                            member="RemoveDevice",
-                            signature="o",
-                            body=[dev_path],
-                        )
-                        reply = await rm_bus.call(rm_msg)
-                        if reply.message_type == MessageType.ERROR:
-                            _LOGGER.debug("RemoveDevice failed: %s", reply.body)
-                        else:
-                            _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
-                    finally:
-                        rm_bus.disconnect()
-                except Exception as rm_err:
-                    _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
-                # RemoveDevice removes the device from BlueZ's object tree.
-                # In HA's managed BLE environment (habluetooth), a raw
-                # BleakScanner re-scan does NOT work — the adapter is
-                # controlled by habluetooth and won't start a new discovery.
-                # Instead, raise back to the caller's retry loop.  By the
-                # next attempt, habluetooth's passive scanner will have
-                # re-discovered the device advertisement.
-                _LOGGER.info(
-                    "Stale bond cleared for %s — raising to retry loop "
-                    "(habluetooth will re-discover the device)",
-                    self._scu_address,
-                )
-                raise BleTransportError(
-                    f"Stale bond cleared for {self._scu_address} — retry needed"
-                ) from connect_err
+                        await client.disconnect()
+                    except Exception:
+                        pass
+                    await asyncio.sleep(2.0)
+                    await self._connect_inner(retry=False, skip_bonding=skip_bonding)
+                    return
+                else:
+                    # Second failure — bond is likely genuinely stale.
+                    # Clear it via D-Bus RemoveDevice.
+                    _LOGGER.warning(
+                        "Bonded device rejected connection twice — "
+                        "clearing stale bond via D-Bus RemoveDevice: %s",
+                        connect_err,
+                    )
+                    try:
+                        from dbus_fast.aio import MessageBus
+                        from dbus_fast import BusType, Message, MessageType
+                        rm_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+                        try:
+                            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                            rm_msg = Message(
+                                destination="org.bluez",
+                                path="/org/bluez/hci0",
+                                interface="org.bluez.Adapter1",
+                                member="RemoveDevice",
+                                signature="o",
+                                body=[dev_path],
+                            )
+                            reply = await rm_bus.call(rm_msg)
+                            if reply.message_type == MessageType.ERROR:
+                                _LOGGER.debug("RemoveDevice failed: %s", reply.body)
+                            else:
+                                _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
+                        finally:
+                            rm_bus.disconnect()
+                    except Exception as rm_err:
+                        _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
+                    _LOGGER.info(
+                        "Stale bond cleared for %s — raising to retry loop "
+                        "(habluetooth will re-discover the device)",
+                        self._scu_address,
+                    )
+                    raise BleTransportError(
+                        f"Stale bond cleared for {self._scu_address} — retry needed"
+                    ) from connect_err
             raise
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
 
@@ -1048,37 +1066,52 @@ class ScuBleClient:
             except Exception as bs_err:
                 _LOGGER.debug("SCU bonding state check failed: %s", bs_err)
 
-            # Try OS-level bonding if CONNECTION was pressed on the SCU.
-            # The SCU requires bonding before it will respond to TLS.
-            #
-            # bleak's client.pair() calls Device1.Pair() on D-Bus but does NOT
-            # register a pairing agent. BlueZ waits ~8s for an agent response
-            # that never comes → AuthenticationCanceled. We use bluetoothctl
-            # instead, which has a built-in NoInputNoOutput agent for JustWorks
-            # pairing (same as the Android "Koppeln?" dialog).
-            #
-            # Stale bonding records were already cleared before connect().
-            bonded = False
-            try:
-                _LOGGER.debug("Attempting BLE bonding via bluetoothctl agent")
-                bonded = await self._pair_via_bluetoothctl()
-                if bonded:
-                    _LOGGER.info("BLE bonding successful with SCU %s", self._scu_address)
-                else:
-                    _LOGGER.info("BLE bonding via bluetoothctl did not succeed")
-            except Exception as bond_err:
-                _LOGGER.warning("BLE bonding failed: %s", bond_err)
-
-            # Bonding is required before TLS/notify will work.
-            # If bonding failed, don't attempt start_notify (it will fail
-            # with ATT 0x0e because the failed Pair() corrupts the GATT
-            # session). Raise immediately with a clear message.
-            if not bonded:
-                raise BleTransportError(
-                    "BLE bonding rejected by SCU — "
-                    "press CONNECTION (Verbindung) on the SCU touch panel, "
-                    "then retry within 2 minutes"
+            # OS-level bonding (Pair()) is needed for the SCU to accept
+            # TLS/notify.  But a FAILED Pair() corrupts the GATT session,
+            # so we only attempt it when strictly necessary:
+            #  - Already bonded at BlueZ level → skip (keys are valid)
+            #  - skip_bonding=True (EHG token exists) → skip (avoid
+            #    corrupting the session; TLS may work without bonding)
+            #  - Not bonded and no token → attempt bonding (requires
+            #    CONNECTION button on SCU touch panel)
+            if is_already_bonded:
+                _LOGGER.debug(
+                    "Device %s is already bonded at BlueZ level — "
+                    "skipping Pair()",
+                    self._scu_address,
                 )
+                bonded = True
+            elif skip_bonding:
+                _LOGGER.info(
+                    "Skipping BLE bonding (EHG token already available) — "
+                    "proceeding directly to notify + TLS"
+                )
+                bonded = True
+            else:
+                # bleak's client.pair() calls Device1.Pair() on D-Bus but
+                # does NOT register a pairing agent. BlueZ waits ~8s for an
+                # agent response that never comes → AuthenticationCanceled.
+                # We use bluetoothctl instead, which has a built-in
+                # NoInputNoOutput agent for JustWorks pairing.
+                bonded = False
+                try:
+                    _LOGGER.debug("Attempting BLE bonding via bluetoothctl agent")
+                    bonded = await self._pair_via_bluetoothctl()
+                    if bonded:
+                        _LOGGER.info("BLE bonding successful with SCU %s", self._scu_address)
+                    else:
+                        _LOGGER.info("BLE bonding via bluetoothctl did not succeed")
+                except Exception as bond_err:
+                    _LOGGER.warning("BLE bonding failed: %s", bond_err)
+
+                # A failed Pair() corrupts the GATT session — start_notify
+                # will fail with ATT 0x0e.  Raise immediately.
+                if not bonded:
+                    raise BleTransportError(
+                        "BLE bonding rejected by SCU — "
+                        "press CONNECTION (Verbindung) on the SCU touch panel, "
+                        "then retry within 2 minutes"
+                    )
 
             # bluetoothctl pairing may have disrupted the GATT connection.
             # Reconnect to get a fresh GATT session with the new bond.
@@ -1114,7 +1147,7 @@ class ScuBleClient:
                     "reconnecting with fresh GATT session: %s", err,
                 )
                 await asyncio.sleep(1.0)  # let BlueZ settle
-                await self._connect_inner(retry=False)
+                await self._connect_inner(retry=False, skip_bonding=skip_bonding)
                 return
 
             raise

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.1] - 2026-05-13
+
+### Fixed
+
+- **Skip BLE bonding when EHG token already exists** — After a successful pairing ceremony, subsequent restarts no longer attempt `Device1.Pair()`. A failed `Pair()` call corrupts the GATT session, making TLS impossible. Now, when an EHG refresh token is already stored, `connect(skip_bonding=True)` proceeds directly to notify + TLS without touching the bonding layer.
+- **Retry before clearing BLE bond** — When a bonded device rejected a GATT connection (e.g. SCU still recovering from a prior ATT error), the code immediately destroyed the bond via `RemoveDevice`, requiring the user to physically press CONNECTION again. Now it retries once after a 2s delay before clearing the bond. Only clears on the second consecutive failure.
+- **Skip redundant Pair() for already-bonded devices** — When BlueZ already has valid bonding keys, the bonding step is now skipped entirely instead of calling `Pair()` again (which could trigger unnecessary `AuthenticationFailed` errors).
+- **Preserve BLE address on stale bond errors** — The coordinator no longer clears the stored SCU BLE address when a stale bond is cleared. The address is still valid; only the bond keys were stale.
+
 ## [2.61.0] - 2026-05-13
 
 ### Added

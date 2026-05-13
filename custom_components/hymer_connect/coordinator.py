@@ -405,7 +405,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 scu_address=ble_address,
                 on_pia_response=self._on_ble_pia_response,
             )
-            await self._ble_client.connect()
+            await self._ble_client.connect(
+                skip_bonding=bool(self._ehg_refresh_token),
+            )
             await self._ble_client.establish_tls()
 
             # If no EHG refresh token yet, attempt BLE pairing to obtain one
@@ -503,6 +505,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 or "AuthenticationCanceled" in err_str
                 or "AuthenticationRejected" in err_str
                 or "CONNECTION" in err_str
+                or "Stale bond" in err_str
                 or "0x0e" in err_str
             )
             if ble_address and self.config_entry.data.get(CONF_BLE_ADDRESS) and not is_bonding_rejection:
