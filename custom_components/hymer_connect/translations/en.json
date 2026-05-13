@@ -341,6 +341,24 @@
       "victron_firmware": {
         "name": "Victron firmware"
       },
+      "bms_voltage": {
+        "name": "BMS voltage"
+      },
+      "bms_current": {
+        "name": "BMS current"
+      },
+      "bms_temperature": {
+        "name": "BMS temperature"
+      },
+      "bms_capacity_remaining": {
+        "name": "BMS capacity remaining"
+      },
+      "bms_state_of_health": {
+        "name": "BMS state of health"
+      },
+      "bms_time_remaining": {
+        "name": "BMS time remaining"
+      },
       "dometic_fridge_mode": {
         "name": "Dometic fridge mode"
       },

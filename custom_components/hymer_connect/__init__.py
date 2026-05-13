@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
@@ -89,6 +90,14 @@ async def async_setup_entry(
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORM_LIST)
+
+    # Auto-enable entities that were disabled during integration upgrades.
+    # HA core may disable new entities added after initial setup.  All entities
+    # should be enabled except Victron (bus 121) which has "enabled": false
+    # in hymer.json.  Only re-enables entities disabled by the integration,
+    # not ones the user deliberately disabled.
+    _async_enable_new_entities(hass, entry)
+
     return True
 
 
@@ -97,6 +106,65 @@ async def _async_options_updated(
 ) -> None:
     """Handle options update — reload integration to apply new settings."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _async_enable_new_entities(
+    hass: HomeAssistant, entry: HymerConnectConfigEntry
+) -> None:
+    """Re-enable entities that were disabled during integration upgrades.
+
+    HA core disables new entities that appear after the initial platform
+    setup (e.g. when new sensors are added in a version update).  This
+    migration re-enables them so the user doesn't have to hunt for
+    disabled entities after every upgrade.
+
+    Skips entities whose sensor-map definition has ``"enabled": false``
+    (Victron bus 121).  Only touches entities disabled by the integration
+    (``disabled_by == RegistryEntryDisabler.INTEGRATION``), leaving
+    user-disabled entities untouched.
+    """
+    from .pia_decoder import ENTITY_DEFS
+
+    # Build set of entity keys that should stay disabled
+    keep_disabled: set[str] = {
+        name for name, meta in ENTITY_DEFS.items()
+        if meta.get("enabled") is False
+    }
+
+    registry = er.async_get(hass)
+    entries = er.async_entries_for_config_entry(registry, entry.entry_id)
+    re_enabled = 0
+
+    for entity_entry in entries:
+        if entity_entry.disabled_by != er.RegistryEntryDisabler.INTEGRATION:
+            continue
+
+        # Extract the sensor key from the unique_id: "{entry_id}_{key}"
+        unique_id = entity_entry.unique_id or ""
+        prefix = f"{entry.entry_id}_"
+        if unique_id.startswith(prefix):
+            key = unique_id[len(prefix):]
+        else:
+            key = unique_id
+
+        # Skip entities that should remain disabled (Victron)
+        if key in keep_disabled:
+            continue
+
+        # Also skip discovered diagnostic entities (bus*_s*)
+        if key.startswith("discovered_"):
+            continue
+
+        registry.async_update_entity(
+            entity_entry.entity_id, disabled_by=None
+        )
+        re_enabled += 1
+
+    if re_enabled:
+        _LOGGER.info(
+            "Auto-enabled %d entities that were disabled after upgrade",
+            re_enabled,
+        )
 
 
 async def async_unload_entry(
