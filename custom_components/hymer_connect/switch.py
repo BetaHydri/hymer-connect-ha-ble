@@ -135,6 +135,8 @@ class HymerConnectSwitch(
         self._optimistic_set_at: float = 0.0  # monotonic timestamp of last command
         self._verify_task: asyncio.Task | None = None
         self._retry_task: asyncio.Task | None = None
+        self._retry_count: int = 0  # cap reconnect+retry loops
+        self._is_retry: bool = False  # True when called from _retry_after_reconnect
 
     async def _verify_send(self, expected_on: bool) -> None:
         """Verify the SCU acknowledged the command after a delay.
@@ -193,25 +195,41 @@ class HymerConnectSwitch(
                 self._optimistic_on = None
                 self.async_write_ha_state()
             else:
+                self._retry_count += 1
+                if self._retry_count > 1:
+                    _LOGGER.warning(
+                        "Switch %s: readback still mismatched after %d "
+                        "reconnect+retry attempts — giving up (reload "
+                        "integration to recover)",
+                        self.entity_description.key,
+                        self._retry_count,
+                    )
+                    self._optimistic_on = None
+                    self._retry_count = 0
+                    self.async_write_ha_state()
+                    return
                 _LOGGER.warning(
                     "Switch %s: SCU readback (%s) doesn't match commanded (%s) "
-                    "after %ds — SignalR send channel likely dead, forcing reconnect "
-                    "and retrying command",
+                    "after %ds — command channel dead, forcing full re-auth + "
+                    "reconnect (attempt %d)",
                     self.entity_description.key, value, expected_on, delay,
+                    self._retry_count,
                 )
-                if client:
-                    client._connected = False
-                # Trigger immediate reconnect — reset backoff and schedule
-                # a coordinator refresh so _async_update_data runs within
-                # seconds instead of waiting for the next 60s poll.  This
-                # mirrors _on_signalr_connection_lost().  See issue #47.
+                # Force full OAuth2 re-authentication + SignalR reconnect.
+                # A simple SignalR reconnect (negotiate only) reuses the
+                # stale OAuth2 session and creates a connection that looks
+                # healthy but can't deliver commands.  Full re-auth creates
+                # a new server-side session with clean hub→SCU routing —
+                # matching what integration reload does.
                 coord = self.coordinator
                 coord._reconnect_backoff = 60  # _INITIAL_BACKOFF
                 coord._last_reconnect_attempt = 0.0
                 _LOGGER.info(
-                    "Marked SignalR as disconnected — triggering immediate reconnect"
+                    "Triggering full re-auth + reconnect for clean command channel"
                 )
-                self.hass.async_create_task(coord.async_request_refresh())
+                self.hass.async_create_task(
+                    coord.force_reauth_and_reconnect()
+                )
                 # Retry the command after reconnect settles
                 self._retry_task = asyncio.ensure_future(
                     self._retry_after_reconnect(expected_on)
@@ -247,10 +265,14 @@ class HymerConnectSwitch(
             self.entity_description.key,
             "ON" if expected_on else "OFF",
         )
-        if expected_on:
-            await self.async_turn_on()
-        else:
-            await self.async_turn_off()
+        self._is_retry = True
+        try:
+            if expected_on:
+                await self.async_turn_on()
+            else:
+                await self.async_turn_off()
+        finally:
+            self._is_retry = False
 
     @property
     def available(self) -> bool:
@@ -280,6 +302,10 @@ class HymerConnectSwitch(
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         desc = self.entity_description
+        _LOGGER.info(
+            "Switch %s → ON (bus=%d, sid=%d, type=%s)",
+            desc.key, desc.bus_id, desc.sensor_id, desc.write_type,
+        )
         if desc.write_type == "str":
             on_str = desc.write_on if desc.write_on else str(desc.on_value)
             await self.coordinator.async_send_light_command(
@@ -295,6 +321,8 @@ class HymerConnectSwitch(
             )
         self._optimistic_on = True
         self._optimistic_set_at = time.monotonic()
+        if not self._is_retry:
+            self._retry_count = 0  # reset on new explicit command only
         # NOTE: Do NOT write back into client._sensor_data here.  Doing so
         # poisons _verify_send (which reads the same path back) and the
         # is_standby check in needs_reconnect (main_switch=='Off' bypasses
@@ -308,6 +336,10 @@ class HymerConnectSwitch(
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         desc = self.entity_description
+        _LOGGER.info(
+            "Switch %s → OFF (bus=%d, sid=%d, type=%s)",
+            desc.key, desc.bus_id, desc.sensor_id, desc.write_type,
+        )
         if desc.write_type == "str":
             off_str = desc.write_off if desc.write_off else "Off"
             await self.coordinator.async_send_light_command(
