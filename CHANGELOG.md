@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.2] - 2026-05-13
+
+### Fixed
+
+- **Revert skip-bonding — SCU requires BLE bonding for TLS** — Vehicle testing confirmed the SCU silently ignores TLS data on an unbonded GATT link (20s timeout, no ServerHello). The `skip_bonding` parameter introduced in v2.61.1 is removed. Bonding decision is now based solely on BlueZ bond state: if bonded → skip `Pair()`, if not bonded → attempt `Pair()` (requires CONNECTION button). The retry-before-clearing logic from v2.61.1 is preserved to protect valid bonds from transient failures.
+
 ## [2.61.1] - 2026-05-13
 
 ### Fixed

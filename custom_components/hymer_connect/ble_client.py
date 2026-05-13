@@ -865,22 +865,15 @@ class ScuBleClient:
                       [(r["address"], r["name"], r["rssi"]) for r in results])
         return results
 
-    async def connect(self, skip_bonding: bool = False) -> None:
-        """Connect to the SCU via BLE and set up NUS notifications.
-
-        Args:
-            skip_bonding: If True, skip the OS-level Pair() call even if the
-                device is not bonded.  Set this when an EHG refresh token
-                already exists — a failed Pair() corrupts the GATT session,
-                but the SCU may accept notify+TLS without bonding.
-        """
+    async def connect(self) -> None:
+        """Connect to the SCU via BLE and set up NUS notifications."""
         if self._client is not None:
             return
 
         self._loop = asyncio.get_running_loop()
-        await self._connect_inner(skip_bonding=skip_bonding)
+        await self._connect_inner()
 
-    async def _connect_inner(self, retry: bool = True, skip_bonding: bool = False) -> None:
+    async def _connect_inner(self, retry: bool = True) -> None:
         """Inner connect logic, handles stale BlueZ notify recovery."""
         # Clear stale BlueZ bonding records BEFORE connecting — but only
         # if the device is NOT already successfully bonded. Calling unpair()
@@ -938,7 +931,7 @@ class ScuBleClient:
                     except Exception:
                         pass
                     await asyncio.sleep(2.0)
-                    await self._connect_inner(retry=False, skip_bonding=skip_bonding)
+                    await self._connect_inner(retry=False)
                     return
                 else:
                     # Second failure — bond is likely genuinely stale.
@@ -1068,23 +1061,14 @@ class ScuBleClient:
 
             # OS-level bonding (Pair()) is needed for the SCU to accept
             # TLS/notify.  But a FAILED Pair() corrupts the GATT session,
-            # so we only attempt it when strictly necessary:
-            #  - Already bonded at BlueZ level → skip (keys are valid)
-            #  - skip_bonding=True (EHG token exists) → skip (avoid
-            #    corrupting the session; TLS may work without bonding)
-            #  - Not bonded and no token → attempt bonding (requires
-            #    CONNECTION button on SCU touch panel)
+            # so we only attempt it when the device is NOT already bonded.
+            # If already bonded at BlueZ level, the keys are valid and
+            # we can proceed directly to notify + TLS.
             if is_already_bonded:
                 _LOGGER.debug(
                     "Device %s is already bonded at BlueZ level — "
                     "skipping Pair()",
                     self._scu_address,
-                )
-                bonded = True
-            elif skip_bonding:
-                _LOGGER.info(
-                    "Skipping BLE bonding (EHG token already available) — "
-                    "proceeding directly to notify + TLS"
                 )
                 bonded = True
             else:
@@ -1147,7 +1131,7 @@ class ScuBleClient:
                     "reconnecting with fresh GATT session: %s", err,
                 )
                 await asyncio.sleep(1.0)  # let BlueZ settle
-                await self._connect_inner(retry=False, skip_bonding=skip_bonding)
+                await self._connect_inner(retry=False)
                 return
 
             raise

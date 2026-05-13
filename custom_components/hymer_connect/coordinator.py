@@ -405,9 +405,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 scu_address=ble_address,
                 on_pia_response=self._on_ble_pia_response,
             )
-            await self._ble_client.connect(
-                skip_bonding=bool(self._ehg_refresh_token),
-            )
+            await self._ble_client.connect()
             await self._ble_client.establish_tls()
 
             # If no EHG refresh token yet, attempt BLE pairing to obtain one
