@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.7] - 2026-05-13
+
+### Fixed
+
+- **Fix `coroutine _ble_listen_loop was never awaited` warning** — v2.62.6 used `config_entry.async_create_background_task()` which failed silently (likely `self.config_entry` not yet set on the coordinator at that point), causing the coroutine to be garbage-collected without scheduling. Now uses `hass.async_create_background_task()` directly, which is always available. The BLE listen loop is still fire-and-forget (not blocking bootstrap/shutdown); it just isn't tied to config entry lifecycle cancellation (the loop has its own `finally` cleanup).
+
 ## [2.62.6] - 2026-05-13
 
 ### Fixed

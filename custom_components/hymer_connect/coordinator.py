@@ -490,9 +490,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # async_create_task() tasks are awaited during HA bootstrap/shutdown,
             # which causes "Setup timed out" if the BLE connection dies (e.g.
             # 12V off) and the listen loop's 30s uart_queue.get() keeps cycling.
-            # async_create_background_task() is truly fire-and-forget.
-            self.config_entry.async_create_background_task(
-                self.hass,
+            # hass.async_create_background_task() is truly fire-and-forget:
+            # not awaited during bootstrap/shutdown, not tied to config entry.
+            self.hass.async_create_background_task(
                 self._ble_listen_loop(),
                 name=f"hymer_connect_ble_listen_{self._scu_address or 'scu'}",
             )
