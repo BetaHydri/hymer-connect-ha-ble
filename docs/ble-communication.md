@@ -123,7 +123,7 @@ giving 242-byte chunks. This is critical for large payloads:
 
 | MTU | Chunk size | PairMobileRequest (1253 bytes) |
 |-----|-----------|-------------------------------|
-| 23 (default) | 20 bytes | 63 chunks — works with 50ms pacing (v2.61.0+) |
+| 23 (default) | 20 bytes | 63 chunks — works with 100ms WriteReq / 20ms WriteCmd pacing |
 | 245 (EHG app) | 242 bytes | 6 chunks — works reliably |
 
 The integration calls `_acquire_mtu()` on the bleak client to negotiate
@@ -138,17 +138,19 @@ causing `ATT error: 0x0e (Unlikely Error)` and an immediate BLE disconnect.
 
 | Write mode | Pacing | Used for |
 |------------|--------|----------|
-| Write With Response (WriteReq) | **50ms** per chunk | PairMobileRequest (63 chunks) |
+| Write With Response (WriteReq) | **100ms** per chunk | TLS handshake, PairMobileRequest (63 chunks) |
 | Write Without Response (WriteCmd) | **20ms** per chunk | PIA subscriptions (70 chunks) |
-| Any mode, ≤10 chunks | No pacing | TLS handshake, small PIA commands |
+| Any mode, ≤10 chunks | No pacing | Small PIA commands |
 
 Pacing is only applied for writes with >10 chunks. The EHG app avoids this
 problem by negotiating MTU=245 (6 chunks for PairMobileRequest), but the
 integration works reliably at MTU=23 with the above pacing values.
 
 **History:** WriteReq pacing was initially 10ms (ATT 0x0e after ~10 chunks),
-increased to 50ms in v2.61.0. WriteCmd pacing was initially 5ms (ATT 0x0e
-after ~15 chunks), increased to 20ms in v2.61.0.
+increased to 50ms in v2.61.0, then to 100ms after vehicle testing showed
+ATT 0x0e at chunk 16/18 of the 342-byte TLS CertificateVerify message
+(2026-05-13). WriteCmd pacing was initially 5ms (ATT 0x0e after ~15 chunks),
+increased to 20ms in v2.61.0.
 
 **Reference:** [Nordic UART Service (NUS) docs](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html)
 — NUS RX (`6E400002`) supports both Write and Write Without Response.

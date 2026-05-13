@@ -1493,6 +1493,12 @@ class ScuBleClient:
         service time to drain its RX buffer and reassemble the PIA frame.
         Total time for 63 chunks at 50ms = ~3.2s (acceptable for pairing).
 
+        Vehicle test 2026-05-13: 50ms WriteReq pacing fails at chunk 16/18
+        of the 342-byte TLS CertificateVerify message (ATT 0x0e). The
+        Write-With-Response ACK adds ~30ms, so effective interval was ~80ms.
+        Increased WriteReq pacing to 100ms (effective ~130ms) which gives
+        the SCU NUS RX enough drain time for large TLS handshake payloads.
+
         See: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html
         NUS RX supports both Write and Write Without Response.
         """
@@ -1511,9 +1517,10 @@ class ScuBleClient:
         # Pace ALL large writes (>10 chunks), regardless of write mode.
         # Write-With-Response adds ATT-level ACK but the SCU's NUS RX
         # processing still overflows at ~10-15 rapid chunks (ATT 0x0e).
-        # 50ms delay per chunk at MTU=23 = ~3.2s for 63 chunks.
+        # 100ms delay per chunk at MTU=23 = ~6.3s for 63 chunks (WriteReq).
+        # 20ms for WriteCmd (no ACK overhead).
         pace = total_chunks > 10
-        pace_ms = 50 if use_response else 20  # Both modes need pacing at MTU=23
+        pace_ms = 100 if use_response else 20  # WriteReq needs more time (ACK + drain)
         _LOGGER.debug(
             "BLE TX %d bytes → %d chunks, mode=%s, pace=%s",
             len(data), total_chunks, write_mode,
