@@ -263,7 +263,14 @@ class HymerConnectApi:
                     self._refresh_token = result.get(
                         "refresh_token", self._refresh_token
                     )
+                    _LOGGER.debug("OAuth2 token refresh successful")
                     return
+                _LOGGER.warning(
+                    "OAuth2 token refresh: 200 OK but no 'access_token' in response. "
+                    "Keys=%s, body_preview=%s",
+                    list(result.keys()) if isinstance(result, dict) else "N/A",
+                    str(result)[:200],
+                )
         except aiohttp.ClientError as err:
             raise HymerConnectApiError(f"Connection error: {err}") from err
         raise HymerConnectAuthError("Token refresh failed")
@@ -290,13 +297,30 @@ class HymerConnectApi:
         Returns the new access token (ett=access) string.
         """
         url = f"{API_BASE_URL}/api/ehg/v1/vehicles/{vehicle_urn}/remoteAccessToken"
+        _LOGGER.debug(
+            "Exchanging EHG refresh token for access token "
+            "(vehicle=%s, refresh_token_len=%d, refresh_token_prefix=%s...)",
+            vehicle_urn, len(refresh_token), refresh_token[:20],
+        )
         headers = self._main_api_headers()
         headers["Content-Type"] = "application/json"
         result = await self._request(
             "POST", url, json_data={"token": refresh_token}, headers=headers
         )
         if isinstance(result, dict) and "token" in result:
-            return result["token"]
+            token = result["token"]
+            _LOGGER.debug(
+                "EHG access token obtained (len=%d, prefix=%s...)",
+                len(token), token[:20],
+            )
+            return token
+        _LOGGER.warning(
+            "remoteAccessToken response did not contain 'token' key. "
+            "Response type=%s, keys=%s, body_preview=%s",
+            type(result).__name__,
+            list(result.keys()) if isinstance(result, dict) else "N/A",
+            str(result)[:200],
+        )
         raise HymerConnectApiError(
             "remoteAccessToken response did not contain a token"
         )

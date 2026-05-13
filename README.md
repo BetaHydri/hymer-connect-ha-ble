@@ -936,9 +936,22 @@ logger:
     custom_components.hymer_connect.pia_decoder: warning
 ```
 
+For **troubleshooting EHG token exchange and authentication** (BLE pairing → token → SignalR auth):
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.hymer_connect: warning
+    custom_components.hymer_connect.api: debug
+    custom_components.hymer_connect.ble_client: debug
+    custom_components.hymer_connect.signalr_client: info
+    custom_components.hymer_connect.config_flow: debug
+```
+
 | Logger | Level | What it shows |
 |--------|-------|---------------|
 | `hymer_connect` | `warning` | General integration warnings and errors |
+| `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
 | `coordinator` | `info` | Command routing decisions (BLE/cloud), ACK confirmed/timeout, cloud fallback with attempt counter, REST polling, SignalR reconnect scheduling |
 | `coordinator` | `debug` | BLE ACK event details (decoded field names), path skip reasons (BLE not connected), connection mode changes |
 | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
@@ -960,6 +973,26 @@ logger:
 | `BLE not connected — routing ... via cloud` | BLE unavailable — cloud-only mode |
 | `Cloud command sent (attempt 1/2, ..., ble_connected=True)` | Cloud fallback after BLE failure |
 | `Cloud command sent (attempt 1/2, ..., ble_connected=False)` | Normal cloud-only command |
+
+**What to look for when troubleshooting token exchange / authentication:**
+
+| Log message | Meaning |
+|-------------|---------|
+| `🟢 BLE bonding SUCCESSFUL on attempt N` | CONNECTION was pressed, JustWorks bonding worked |
+| `TLS handshake complete` | TLS 1.1 session established over BLE NUS |
+| `Sending encrypted PairMobileRequest: N bytes` | Pairing request sent to SCU |
+| `BLE pairing response received from SCU` | SCU answered the pairing request |
+| `refresh token validated — ett='access-refresh'` | Token obtained and validated |
+| `BLE pairing: mobilePair response contained no refresh token` | SCU responded but didn't include a token (pairing slot full or rejected) |
+| `Exchanging EHG refresh token for access token` | `api.py` starting the refresh→access exchange |
+| `EHG access token obtained (len=N)` | Exchange succeeded |
+| `remoteAccessToken response did not contain 'token' key` | Server returned unexpected JSON — check `body_preview` in the log |
+| `OAuth2 token refresh: 200 OK but no 'access_token'` | OAuth server returned 200 but unexpected body — check `Keys=` and `body_preview` |
+| `Token refresh failed 4xx: ...` | OAuth2 refresh rejected by server (credentials changed?) |
+| `Obtained fresh EHG access token` | `signalr_client` got a usable token for UpdateTokens |
+| `Failed to get remote access token: ...` | EHG exchange failed — check preceding `api` logs |
+| `UpdateTokens SUCCESS` | SignalR authenticated — sensors should flow |
+| `UpdateTokens failed: status=...` | SignalR rejected the tokens — check token validity |
 
 #### Open a GitHub issue
 

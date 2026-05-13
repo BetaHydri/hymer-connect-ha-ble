@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.15] - 2026-05-13
+
+### Added
+
+- **Token exchange diagnostic logging** — Added debug/warning logging to the two previously silent token exchange methods in `api.py`:
+  - `get_remote_access_token()` — Logs vehicle URN, refresh token length/prefix before the exchange, and access token length/prefix on success. On unexpected responses (missing `token` key), logs response type, keys, and a body preview.
+  - `_refresh_access_token()` — Logs success confirmation at debug level. When the server returns 200 OK but the JSON body lacks `access_token`, logs the response keys and body preview for diagnosis.
+  - These fill the last gap in the token lifecycle logging chain: BLE pairing (`ble_client`) → EHG token exchange (`api`) → SignalR authentication (`signalr_client`) now all produce log lines at every step.
+- **README: token exchange troubleshooting profile** — Added a dedicated `logger` configuration block for troubleshooting EHG token exchange and authentication issues, plus an `api` row in the logger reference table documenting the new log output.
+
 ## [2.61.0-alpha.10] - 2026-05-09
 
 ### Fixed (ported from cloud repo v2.54.0–v2.55.2)

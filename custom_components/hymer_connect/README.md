@@ -484,6 +484,7 @@ If you have a different EHG vehicle and want to help expand compatibility:
    | Logger | Level | What it shows |
    |--------|-------|---------------|
    | `hymer_connect` | `warning` | General integration warnings and errors |
+   | `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
    | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
    | `signalr_client` | `debug` | Every SignalR message (very verbose) |
    | `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose) |
