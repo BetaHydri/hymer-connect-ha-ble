@@ -45,7 +45,10 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
 - Register D-Bus pairing agent (raw messages + introspection XML)
 - Call `Device1.Pair()` via D-Bus → JustWorks bonding
 - SCU must be in pairing mode (CONNECTION pressed on touch panel)
-- Without bonding, SCU ignores TLS ClientHello
+- Without bonding, SCU ignores TLS ClientHello (20s timeout, no ServerHello)
+- If already bonded at BlueZ level, `Pair()` is skipped entirely (v2.61.2+)
+- Transient GATT failures on a bonded device retry once (2s delay) before
+  clearing the bond (v2.61.1+) — prevents unnecessary bond destruction
 
 ### 2. TLS Handshake
 - TLS 1.0/1.1 over `ssl.MemoryBIO` (no real socket)
@@ -120,21 +123,32 @@ giving 242-byte chunks. This is critical for large payloads:
 
 | MTU | Chunk size | PairMobileRequest (1253 bytes) |
 |-----|-----------|-------------------------------|
-| 23 (default) | 20 bytes | 63 chunks — caused ATT error 0x0e |
+| 23 (default) | 20 bytes | 63 chunks — works with 50ms pacing (v2.61.0+) |
 | 245 (EHG app) | 242 bytes | 6 chunks — works reliably |
 
-The integration now calls `_acquire_mtu()` on the bleak client to negotiate
-a higher MTU, matching the EHG app behavior.
+The integration calls `_acquire_mtu()` on the bleak client to negotiate
+a higher MTU, matching the EHG app behavior. However, on HA's RPi4 with
+BlueZ D-Bus, the `MTU` property is often unavailable, leaving MTU at 23.
 
-## GATT Write Mode
+## GATT Write Pacing (v2.61.0+)
 
-Large payloads (>10 chunks) use **Write Without Response** with 5ms inter-chunk
-pacing. This matches the EHG app's Nordic BLE library behavior:
-- `setWriteType(2)` = Write Without Response
-- `.split()` = auto-chunk at negotiated MTU
+At MTU=23, large payloads require many 20-byte chunks. Without inter-chunk
+pacing, the SCU's NUS RX buffer overflows after ~10-15 rapid chunks,
+causing `ATT error: 0x0e (Unlikely Error)` and an immediate BLE disconnect.
 
-Small payloads (≤10 chunks, e.g. TLS handshake) use Write With Response for
-reliability.
+| Write mode | Pacing | Used for |
+|------------|--------|----------|
+| Write With Response (WriteReq) | **50ms** per chunk | PairMobileRequest (63 chunks) |
+| Write Without Response (WriteCmd) | **20ms** per chunk | PIA subscriptions (70 chunks) |
+| Any mode, ≤10 chunks | No pacing | TLS handshake, small PIA commands |
+
+Pacing is only applied for writes with >10 chunks. The EHG app avoids this
+problem by negotiating MTU=245 (6 chunks for PairMobileRequest), but the
+integration works reliably at MTU=23 with the above pacing values.
+
+**History:** WriteReq pacing was initially 10ms (ATT 0x0e after ~10 chunks),
+increased to 50ms in v2.61.0. WriteCmd pacing was initially 5ms (ATT 0x0e
+after ~15 chunks), increased to 20ms in v2.61.0.
 
 **Reference:** [Nordic UART Service (NUS) docs](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html)
 — NUS RX (`6E400002`) supports both Write and Write Without Response.
@@ -171,6 +185,10 @@ throws `Characteristic fff40004-13c9-42f3-9d46-e1d1aa2a7232 was not found!`.
 
 Verified via live testing (2026-04-27): GATT connects fine, 5 services visible,
 but `fff40004` is absent until bonding succeeds.
+
+Verified via live testing (2026-05-13): Without bonding, GATT connects, 5 services
+discovered, `start_notify` on NUS TX succeeds, but TLS ClientHello is silently
+ignored by the SCU (20s timeout). Bonding is mandatory for TLS.
 
 ## Token Delivery (confirmed via Hermes analysis)
 
