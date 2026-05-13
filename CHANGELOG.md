@@ -5,12 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.62.0] - 2026-05-13
+## [2.62.1] - 2026-05-13
 
 ### Fixed
 
-- **Missing translations for 6 BMS entities** — `bms_voltage`, `bms_current`, `bms_temperature`, `bms_capacity_remaining`, `bms_state_of_health`, and `bms_time_remaining` had no matching `translation_key` entry in `strings.json` / `translations/en.json`. With `_attr_has_entity_name = True`, HA cannot create entities whose `translation_key` has no match — the BMS entities were silently never created. Synced from cloud repo v2.51.0.
-- **Auto-enable entities disabled after upgrade** — New entities added in version updates were disabled by HA core (default behaviour for entities appearing after initial setup). Added a migration that re-enables all entities except Victron (bus 121, `"enabled": false` in JSON) and discovered diagnostic slots. Only touches entities disabled by the integration, not user-disabled ones.
+- **Force GATT reconnect after fresh bonding** — After a successful `Device1.Pair()`, the pre-bonding BleakClient still reports `is_connected=True` but its GATT service handle table is invalidated by the encryption layer change. The TLS ClientKeyExchange write (342 bytes → 18 chunks) failed at chunk 6 with `Service Discovery has not been performed yet`. Now the code always disconnects and reconnects with a fresh BleakClient after a new bonding, regardless of `is_connected` state. Already-bonded devices (where `Pair()` was skipped) are unaffected.
 
 ## [2.61.3] - 2026-05-13
 

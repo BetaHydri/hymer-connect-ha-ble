@@ -1097,10 +1097,17 @@ class ScuBleClient:
                         "then retry within 2 minutes"
                     )
 
-            # bluetoothctl pairing may have disrupted the GATT connection.
-            # Reconnect to get a fresh GATT session with the new bond.
-            if not client.is_connected:
-                _LOGGER.debug("Reconnecting after successful bonding")
+            # bluetoothctl pairing changes the encryption layer.
+            # The pre-bonding GATT session's service handles are invalidated
+            # even if the BleakClient still reports is_connected=True.
+            # Always reconnect to get a fresh GATT session with valid services.
+            if bonded and not is_already_bonded:
+                _LOGGER.debug("Reconnecting after fresh bonding to refresh GATT services")
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+                await asyncio.sleep(0.5)  # let BlueZ settle
                 client = BleakClient(self._scu_address, timeout=self._connect_timeout)
                 await client.connect()
                 _LOGGER.debug("BLE GATT reconnected after bonding")
