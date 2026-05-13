@@ -58,9 +58,13 @@ class HymerRestartButton(
 
     @property
     def available(self) -> bool:
-        """Only available when SignalR is connected."""
-        client = self.coordinator.signalr_client
-        return client is not None and client.connected
+        """Available when BLE or SignalR is connected."""
+        coord = self.coordinator
+        ble_ok = coord._ble_connected and coord._ble_client is not None
+        cloud_ok = (
+            coord.signalr_client is not None and coord.signalr_client.connected
+        )
+        return ble_ok or cloud_ok
 
     async def async_press(self) -> None:
         """Send SCU restart command."""

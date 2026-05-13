@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.3] - 2026-05-13
+
+### Fixed
+
+- **SCU Restart button availability** — The Restart SCU button was only available when SignalR (cloud) was connected, ignoring BLE connectivity. On the Vehicle HA instance, if SignalR was disconnected but BLE was active, the button was greyed out and unusable. Now the button is available when **either** BLE or SignalR is connected, matching the dual-path command routing in `_send_with_retry()`.
+
 ## [2.62.2] - 2026-05-13
 
 ### Fixed
