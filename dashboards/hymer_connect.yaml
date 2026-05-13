@@ -861,7 +861,7 @@ views:
           - entity: sensor.hymer_connected_bt_devices
             name: Connected BT Devices
             icon: mdi:bluetooth-transfer
-          - entity: update.hymer_connect_update
+          - entity: update.hymer_connect_ble_update
             name: Integration Update
             icon: mdi:update
 
