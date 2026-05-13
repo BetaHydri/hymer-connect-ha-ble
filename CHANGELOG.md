@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.3] - 2026-05-13
+
+### Fixed
+
+- **Increase WriteReq pacing from 50ms to 100ms for TLS handshake** — Vehicle testing showed ATT error 0x0e at chunk 16/18 of the 342-byte TLS CertificateVerify message with 50ms pacing at MTU=23. Write-With-Response adds ~30ms ACK overhead (effective ~80ms), which wasn't enough for the SCU's NUS RX buffer to drain. Increased to 100ms (effective ~130ms per chunk, ~2.3s total for 18 chunks).
+- **Dashboard entity reference** — Fixed `update.hymer_connect_update` → `update.hymer_connect_ble_update` in shipped dashboard YAML.
+
 ## [2.61.2] - 2026-05-13
 
 ### Fixed
