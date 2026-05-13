@@ -1496,7 +1496,7 @@ class ScuBleClient:
         # processing still overflows at ~10-15 rapid chunks (ATT 0x0e).
         # 50ms delay per chunk at MTU=23 = ~3.2s for 63 chunks.
         pace = total_chunks > 10
-        pace_ms = 50 if use_response else 5  # WriteReq needs significant settling time at MTU=23
+        pace_ms = 50 if use_response else 20  # Both modes need pacing at MTU=23
         _LOGGER.debug(
             "BLE TX %d bytes → %d chunks, mode=%s, pace=%s",
             len(data), total_chunks, write_mode,

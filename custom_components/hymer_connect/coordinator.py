@@ -542,10 +542,19 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._ble_client.listen()
         except Exception:
             _LOGGER.warning("BLE listen loop ended", exc_info=True)
+        finally:
+            # Always clean up BLE client state so the next poll cycle
+            # creates a fresh BleakClient with valid GATT services.
+            # Without this, the stale client's empty services table
+            # causes "Service Discovery has not been performed yet".
+            if self._ble_client:
+                try:
+                    await self._ble_client.disconnect()
+                except Exception:
+                    pass
+                self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
-            # SignalR is already running alongside — no fallback needed.
-            # Next poll will re-attempt BLE if enabled.
             _LOGGER.info(
                 "BLE disconnected — SignalR continues providing sensor data. "
                 "BLE will be retried on next poll cycle."

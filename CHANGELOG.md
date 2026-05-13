@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.17] - 2026-05-13
+
+### Fixed
+
+- **BLE PIA subscription also hits ATT 0x0e at MTU=23** — The 70-chunk PIA subscription (1397 bytes) used `WriteCmd(no-resp)` at 5ms pacing, which also overflows the SCU's NUS RX buffer at MTU=23. Increased WriteCmd pacing from 5ms to 20ms for large writes. Total subscription write time is now ~1.4s (vs ~350ms before). WriteReq pacing (50ms for PairMobileRequest) is unchanged.
+- **Stale BleakClient after BLE listen loop crash** — When the BLE TLS session died (e.g. `SSLV3_ALERT_BAD_RECORD_MAC` after a corrupted write), the coordinator set `_ble_connected=False` but left the dead `BleakClient` instance in place. On the next poll cycle, command routing found the non-null client and tried to write through it, hitting `Service Discovery has not been performed yet` because the dead client's GATT service table was empty. Now the listen loop `finally` block disconnects and nullifies the BLE client, so the next poll creates a completely fresh `BleakClient` with valid GATT services.
+
 ## [2.61.0-alpha.16] - 2026-05-13
 
 ### Fixed
