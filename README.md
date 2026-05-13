@@ -492,6 +492,126 @@ If the vehicle is disconnected from your account ("Verbindung trennen" in EHG ap
 
 ---
 
+## BLE Pairing — How It Works at the Vehicle
+
+This section explains the practical BLE pairing process: what to do, what to expect, and what can go wrong. Read this before you go to the vehicle.
+
+### Overview
+
+The BLE pairing involves a **physical button press** on the SCU touch panel inside the vehicle. This is required **once** — after the initial bonding, the BLE connection reconnects automatically on every HA restart without any user interaction.
+
+```
+You press CONNECTION          HA integration                SCU
+on SCU touch panel            (RPi4 with BLE)               (in vehicle)
+       │                            │                          │
+       │                       1. GATT connect                 │
+       │                            ├─────────────────────────►│
+       │                       2. GATT connected               │
+       │                            │◄─────────────────────────┤
+       │                       3. Device1.Pair() ──────────────┤
+       │   ◄── SCU shows            │        AuthFailed ──────►│ (no button)
+       │       "Waiting for         │                          │
+       │        connection"         │                          │
+       ├──────────────────►    4. Device1.Pair() ──────────────┤
+       │  (press button)            │        JustWorks bond ──►│ (accepted!)
+       │                            │◄─────────────────────────┤
+       │                       5. GATT reconnect (fresh)       │
+       │                            ├─────────────────────────►│
+       │                       6. TLS 1.1 handshake            │
+       │                            ├──── ClientHello ────────►│
+       │                            │◄─── ServerHello ─────────┤
+       │                            ├──── KeyExchange ────────►│
+       │                            │◄─── Finished ───────────┤
+       │                       7. PairMobileRequest (QR token) │
+       │                            ├─────────────────────────►│
+       │                       8. PairMobileResponse (EHG JWT) │
+       │                            │◄─────────────────────────┤
+       │                       9. Token stored — done!         │
+```
+
+### Step-by-Step: At the Vehicle
+
+**Before you go to the vehicle:**
+- Ensure the HYMER Connect integration is installed via HACS
+- Have your **QR code activation token** ready (JWT from dealer documents, starts with `eyJ`)
+- Ensure the **Bluetooth** integration is enabled in HA
+
+**At the vehicle:**
+
+1. **Turn on the 12V main switch** — the SCU must be fully powered for BLE pairing
+2. On your phone/laptop, open Home Assistant
+3. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
+   - Or if already set up: **⋮ → Reconfigure**
+4. **Step 1 — Login:** Enter brand, email, password. Leave EHG token empty
+5. **Step 2 — Vehicle:** Paste the QR code token, optionally enter BLE address, check "Enable BLE"
+6. **Submit** — the pairing spinner appears. You now have **2 minutes**
+7. **Walk to the SCU touch panel** and press **CONNECTION** (Verbindung)
+   - The SCU shows a "Waiting for connection" screen
+   - The integration retries bonding every ~8 seconds
+8. **Wait ~10–20 seconds** — the integration bonds, establishes TLS, and exchanges the token
+9. **Done** — the integration starts receiving sensor data via BLE + SignalR
+
+> **Timing tip:** You can press CONNECTION **before** submitting Step 2. The SCU's pairing window stays open for ~2 minutes regardless. This gives you more time if the vehicle is far from your phone.
+
+### What to Look For in the Logs
+
+Enable debug logging to see exactly what's happening:
+
+```yaml
+# configuration.yaml
+logger:
+  logs:
+    custom_components.hymer_connect.ble_client: debug
+    custom_components.hymer_connect.coordinator: debug
+```
+
+**Successful pairing sequence:**
+
+| Log message | Meaning |
+|---|---|
+| `BLE scan matched 1 SCU candidates` | SCU found via Bluetooth |
+| `BLE GATT connected to C5:D9:...` | GATT link established |
+| `D-Bus agent: registered, calling Device1.Pair()` | Bonding attempt started |
+| `D-Bus agent: Pair failed: AuthenticationFailed` | Expected if CONNECTION not yet pressed — retries in ~60s |
+| `Reconnecting after fresh bonding to refresh GATT services` | **Bonding succeeded!** (v2.62.1+) |
+| `BLE GATT reconnected after bonding` | Fresh GATT session ready |
+| `TLS handshake: sending ClientHello` | TLS encryption starting |
+| `TLS handshake complete` | Encrypted tunnel established |
+| `PairMobileRequest sent` | Token exchange in progress |
+| `EHG refresh token obtained` | **Success — token stored permanently** |
+
+**Common failure messages:**
+
+| Log message | Cause | Fix |
+|---|---|---|
+| `AuthenticationFailed` | CONNECTION not pressed on SCU | Press CONNECTION, wait for retry |
+| `Service Discovery has not been performed yet` | Stale GATT session after bonding (fixed in v2.62.1) | Update to v2.62.1+ |
+| `Characteristic fff40004 was not found` | Normal — SCU bonding state char only available after bonding | No action needed |
+| `BLE MTU negotiation did not increase MTU (still 23)` | Normal on HA's BlueZ — MTU stays at default | No action needed, writes are paced automatically |
+
+### After Initial Pairing
+
+Once the initial BLE pairing succeeds:
+
+- **The BlueZ bond is stored persistently** on the RPi. On subsequent HA restarts, the integration detects the existing bond and skips `Pair()` — no need to press CONNECTION again
+- **The EHG refresh token is stored in the HA config entry** and never expires. It survives restarts, updates, and reboots
+- **BLE reconnects automatically** on every coordinator poll (~60s). If the vehicle is in range, BLE activates alongside SignalR. If out of range, SignalR continues alone
+- **If the bond is ever lost** (SCU factory reset, BlueZ data cleared, `bluetoothctl remove`), you'll need to press CONNECTION once more. The integration detects the missing bond and prompts accordingly
+
+### BLE Retry Behavior (v2.62.2+)
+
+When the integration cannot bond (CONNECTION not pressed), it backs off to avoid wasting BLE radio time:
+
+| Failure type | Retry schedule |
+|---|---|
+| **Bonding rejected** (AuthenticationFailed) | 2 min → 3 min → 4 min → 5 min max |
+| **Connection failed** (timeout, device not found) | 5 × 60s (fast), then 5 → 10 → 15 min |
+| **After pressing CONNECTION** | Immediate on next poll (~60s) |
+
+The backoff resets to zero on any successful BLE connection. SignalR (cloud path) is **always active** regardless of BLE state — you never lose sensor data while waiting for BLE to connect.
+
+---
+
 ## Obtaining the EHG Refresh Token
 
 The HYMER Connect cloud requires a special **EHG Remote Access Refresh Token** to stream real-time sensor data. This token is created during the initial Bluetooth (BLE) pairing between your phone and your vehicle's Smart Interface Unit (SIU). It is stored inside the Hymer Connect app and **never expires**.

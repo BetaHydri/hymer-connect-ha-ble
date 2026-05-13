@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.2] - 2026-05-13
+
+### Fixed
+
+- **Bonding-aware BLE backoff** — When the SCU rejects `Device1.Pair()` with `AuthenticationFailed` (CONNECTION not pressed), the integration now applies a 2→3→4→5 min escalating backoff instead of retrying every 60s. This cuts wasted GATT+Pair churn from 5 attempts to ~2 before backing off, while still catching the button press within a reasonable window. Non-bonding failures (timeout, device not found) keep the existing fast-retry-then-escalate behavior. Log messages now show `(bonding rejected)` suffix for clarity.
+
+### Added
+
+- **BLE pairing documentation** — New README section "BLE Pairing — How It Works at the Vehicle" with sequence diagram, step-by-step guide, log message reference table, post-pairing lifecycle, and retry behavior. Covers the full flow from pressing CONNECTION to token storage.
+
 ## [2.62.1] - 2026-05-13
 
 ### Fixed
