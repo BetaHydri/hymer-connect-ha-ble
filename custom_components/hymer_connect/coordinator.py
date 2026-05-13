@@ -127,15 +127,20 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             or self.config_entry.data.get(CONF_BLE_ADDRESS, "")
         )
 
-    def _ble_backoff_seconds(self) -> int:
+    def _ble_backoff_seconds(self, *, bonding_rejected: bool = False) -> int:
         """Return backoff delay in seconds based on consecutive BLE failures.
 
-        First 5 failures: no extra backoff (normal 60s poll interval suffices).
-        This keeps the retry cadence fast enough to catch the SCU pairing window
-        (~60-120s after pressing CONNECTION).
-        After 5: escalate to 5min, 10min, max 15min.
+        Bonding rejections (AuthenticationFailed) mean CONNECTION hasn't been
+        pressed — no point retrying every 60s.  Use 2-minute minimum, escalating
+        to 5 min max.  This cuts wasted GATT+Pair churn from 5 to ~2 attempts
+        while still catching the button press within a reasonable window.
+
+        Other failures: first 5 at normal poll interval (60s), then 5/10/15 min.
         """
         n = self._ble_consecutive_failures
+        if bonding_rejected:
+            # 2 min, 3 min, 5 min max
+            return min(5 * 60, 120 + 60 * min(n - 1, 3))
         if n <= 5:
             return 0  # rely on normal poll interval (60s)
         excess = n - 5
@@ -519,7 +524,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         CONF_BLE_ADDRESS: "",
                     },
                 )
-            return False
+            # Return sentinel so caller can apply bonding-specific backoff
+            return "bonding_rejected" if is_bonding_rejection else False
 
     def _on_ble_pia_response(self, b64_payload: str) -> None:
         """Handle PIA response received via BLE — same decoder as SignalR."""
@@ -921,8 +927,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             else:
                 try:
-                    ble_ok = await self.start_ble()
-                    if ble_ok:
+                    ble_result = await self.start_ble()
+                    if ble_result is True:
                         self._ble_consecutive_failures = 0
                         self._ble_next_attempt = 0.0
                         _LOGGER.info(
@@ -930,12 +936,16 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             "(BLE: ~28 sensors at ~50ms, SignalR: ~130 sensors)"
                         )
                     else:
+                        is_bonding = ble_result == "bonding_rejected"
                         self._ble_consecutive_failures += 1
-                        backoff = self._ble_backoff_seconds()
+                        backoff = self._ble_backoff_seconds(
+                            bonding_rejected=is_bonding
+                        )
                         self._ble_next_attempt = time.monotonic() + backoff
                         _LOGGER.info(
-                            "BLE failed %d times — next attempt in %ds",
+                            "BLE failed %d times — next attempt in %ds%s",
                             self._ble_consecutive_failures, backoff,
+                            " (bonding rejected)" if is_bonding else "",
                         )
                 except Exception:
                     self._ble_consecutive_failures += 1
