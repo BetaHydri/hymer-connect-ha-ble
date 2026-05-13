@@ -5,29 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.61.0-alpha.17] - 2026-05-13
-
-### Fixed
-
-- **BLE PIA subscription also hits ATT 0x0e at MTU=23** — The 70-chunk PIA subscription (1397 bytes) used `WriteCmd(no-resp)` at 5ms pacing, which also overflows the SCU's NUS RX buffer at MTU=23. Increased WriteCmd pacing from 5ms to 20ms for large writes. Total subscription write time is now ~1.4s (vs ~350ms before). WriteReq pacing (50ms for PairMobileRequest) is unchanged.
-- **Stale BleakClient after BLE listen loop crash** — When the BLE TLS session died (e.g. `SSLV3_ALERT_BAD_RECORD_MAC` after a corrupted write), the coordinator set `_ble_connected=False` but left the dead `BleakClient` instance in place. On the next poll cycle, command routing found the non-null client and tried to write through it, hitting `Service Discovery has not been performed yet` because the dead client's GATT service table was empty. Now the listen loop `finally` block disconnects and nullifies the BLE client, so the next poll creates a completely fresh `BleakClient` with valid GATT services.
-
-## [2.61.0-alpha.16] - 2026-05-13
-
-### Fixed
-
-- **BLE PairMobileRequest fails with ATT 0x0e after ~10 chunks at MTU=23** — The 10ms inter-chunk pacing for Write-With-Response was too fast for the SCU's NUS RX buffer. At MTU=23 the PairMobileRequest requires 63 sequential ACK'd writes; the SCU's Nordic UART Service could only drain ~10-15 chunks before overflowing, causing `ATT error: 0x0e (Unlikely Error)` and an immediate BLE disconnect ~200ms into the write. Increased pacing from 10ms to 50ms per chunk for WriteReq mode. Total write time for 63 chunks is now ~3.2s (vs ~630ms before), which is acceptable for the one-shot pairing ceremony. Write-Without-Response pacing (5ms, used for PIA subscriptions) is unchanged.
-- **Per-chunk error logging** — When a GATT write fails mid-stream, the log now shows exactly which chunk number failed (e.g. `BLE TX chunk 12/63 failed after 11 successful writes`) instead of a generic transport error. This pinpoints the SCU's buffer overflow threshold.
-
-## [2.61.0-alpha.15] - 2026-05-13
+## [2.61.0] - 2026-05-13
 
 ### Added
 
-- **Token exchange diagnostic logging** — Added debug/warning logging to the two previously silent token exchange methods in `api.py`:
-  - `get_remote_access_token()` — Logs vehicle URN, refresh token length/prefix before the exchange, and access token length/prefix on success. On unexpected responses (missing `token` key), logs response type, keys, and a body preview.
-  - `_refresh_access_token()` — Logs success confirmation at debug level. When the server returns 200 OK but the JSON body lacks `access_token`, logs the response keys and body preview for diagnosis.
-  - These fill the last gap in the token lifecycle logging chain: BLE pairing (`ble_client`) → EHG token exchange (`api`) → SignalR authentication (`signalr_client`) now all produce log lines at every step.
-- **README: token exchange troubleshooting profile** — Added a dedicated `logger` configuration block for troubleshooting EHG token exchange and authentication issues, plus an `api` row in the logger reference table documenting the new log output.
+- **BLE pairing and data path** — Full BLE communication with the SCU via Nordic UART Service (NUS) over TLS-encrypted PIA protobuf. Includes BLE device scanning, GATT bonding, TLS 1.1 handshake, PairMobileRequest ceremony, PIA subscription, and bidirectional command/sensor data.
+- **Token exchange diagnostic logging** — Debug/warning logging for `get_remote_access_token()` and `_refresh_access_token()` in `api.py`, completing the token lifecycle logging chain from BLE pairing through EHG exchange to SignalR authentication.
+- **README: token exchange troubleshooting profile** — Dedicated `logger` configuration block for troubleshooting EHG token exchange and authentication issues.
+
+### Fixed
+
+- **BLE write pacing for MTU=23** — Both WriteReq (PairMobileRequest, 63 chunks) and WriteCmd (PIA subscriptions, 70 chunks) overflowed the SCU's NUS RX buffer at fast pacing rates, causing `ATT error: 0x0e (Unlikely Error)` and immediate BLE disconnect. WriteReq pacing set to 50ms, WriteCmd pacing set to 20ms for large writes (>10 chunks).
+- **Stale BleakClient after BLE session death** — When the BLE TLS session died, the coordinator left the dead `BleakClient` in place, causing subsequent commands to fail with `Service Discovery has not been performed yet`. The listen loop now uses a `finally` block to disconnect and nullify the client, ensuring a fresh session on reconnect.
+- **Per-chunk error logging** — When a GATT write fails mid-stream, the log now shows exactly which chunk number failed (e.g. `BLE TX chunk 12/63 failed after 11 successful writes`).
 
 ## [2.61.0-alpha.10] - 2026-05-09
 
