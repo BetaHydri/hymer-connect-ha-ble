@@ -1,6 +1,6 @@
 # SignalR Connection Architecture
 
-> **Last updated:** 2026-04-25 (v2.36.6)
+> **Last updated:** 2026-05-13 (v2.62.8)
 
 This document explains how the HYMER Connect integration maintains its real-time
 connection to the vehicle SCU (Smart Connectivity Unit) through Azure SignalR Service.
@@ -29,7 +29,7 @@ Home Assistant
 
 Both paths run concurrently. With BLE subscriptions, both paths can provide
 all ~130 sensors — BLE at ~50ms latency, SignalR at ~500ms–2s. Both merge
-into the same data store. Commands route BLE-first with a 500ms ACK
+into the same data store. Commands route BLE-first with a 1500ms ACK
 wait — if the SCU does not confirm via BLE, the command is re-sent via
 SignalR as a safety net.
 

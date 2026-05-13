@@ -5,6 +5,9 @@
 # HYMER Connect BLE for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub release](https://img.shields.io/github/v/release/BetaHydri/hymer-connect-ha-ble?include_prereleases&label=version)](https://github.com/BetaHydri/hymer-connect-ha-ble/releases)
+[![HA minimum version](https://img.shields.io/badge/HA-%E2%89%A5%202022.11-blue)](https://www.home-assistant.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BetaHydri&repository=hymer-connect-ha-ble&category=integration)
 
@@ -30,7 +33,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.61.0-alpha.6** — **Per-entry OAuth client header!** A new optional *OAuth client header* field is now available in the **initial config flow**, **Reconfigure**, and **Options** dialogs. Paste the `Authorization: Basic <base64>` header captured from your own EHG mobile-app traffic to replace the bundled (deprecated) default. Non-breaking upgrade — see [OAuth Client Header](#oauth-client-header-v2610-alpha6) below. Builds on **v2.61.0-alpha.3** BLE token validation and **v2.61.0-alpha.4** cloud-path command-drop fixes — see [CHANGELOG](CHANGELOG.md) for full history.
+> **v2.62.8** — **BLE dual-path stable!** The BLE listen loop, bonding, TLS handshake, and dual-path command routing are all vehicle-tested and working. Key improvements since v2.61.x: `bleak-retry-connector` for robust BLE connections (v2.62.5), bonding-aware backoff (v2.62.2), 1500ms ACK timeout to prevent dashboard toggle flicker (v2.62.4), and background task fixes for reliable BLE listen loop startup (v2.62.7/v2.62.8). See [CHANGELOG](CHANGELOG.md) for full history.
 
 ### Energy Dashboard
 
@@ -253,7 +256,7 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 **After setup completes, the coordinator manages both paths automatically:**
 
 1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers.
-2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 500ms for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
+2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 1500ms for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
 3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted** (it was never stopped). Commands fall back to cloud-only.
 4. On next poll, BLE is retried — if the vehicle is back in range, BLE recovers and dual-path resumes.
 
@@ -265,7 +268,7 @@ When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
 - **Low-latency sensor streaming** — After BLE subscription requests are sent, the SCU pushes all ~130 sensors over BLE at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Without subscriptions, ~28 sensors are pushed autonomously.
-- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 500ms for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
+- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 1500ms for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
 - **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
 - **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally. After the **initial setup** (which requires internet for OAuth2 login and EHG token exchange), BLE can operate fully offline — sensor streaming and control commands work without any cloud connectivity.
 
@@ -695,7 +698,7 @@ You can obtain the APK from your own phone using `adb shell pm path com.ehg.hyme
 #### 4. Run the capture script
 
 ```powershell
-# Clone this repo (if not already)
+# Clone the cloud sister-repo (the capture script lives there, not in this BLE repo)
 git clone https://github.com/BetaHydri/hymer-connect-ha.git
 cd hymer-connect-ha
 
@@ -1091,8 +1094,8 @@ logger:
 |-------------|---------|
 | `BLE command routing: set_value bus=11 sid=1 ...` | Command entering BLE path |
 | `BLE command sent (84 chars payload)` | GATT write succeeded |
-| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 500ms — command worked |
-| `BLE ACK timeout (500ms): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
+| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 1500ms — command worked |
+| `BLE ACK timeout (1500ms): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
 | `BLE command GATT write failed` | BLE transport error — immediate cloud fallback |
 | `BLE not connected — routing ... via cloud` | BLE unavailable — cloud-only mode |
 | `Cloud command sent (attempt 1/2, ..., ble_connected=True)` | Cloud fallback after BLE failure |
@@ -1387,13 +1390,56 @@ The recommended sequence for a clean re-pair:
 
 > **Note:** You do NOT need to remove anything in the EHG app. The app has no paired BLE device management. The integration now uses unique device names (`ha-{timestamp}`) to avoid collisions with stale entries.
 
-## Reverse Engineering
+## Known Limitations
+
+| Limitation | Details | Workaround |
+|---|---|---|
+| **GPS requires satellite fix** | GPS slot (30,1) returns a status code (`2` = no fix) instead of coordinates when the SCU's GPS module has no sky visibility. Indoor parking, metal roofs, and engine-off standby often prevent a fix. | Drive to an open area or turn on the Mercedes ignition. GPS fix typically takes 30–60 seconds with clear sky. |
+| **SCU pairing slots are limited** | The SCU maintains an internal list of paired BLE devices (likely 4–5 slots). Each `ha-{timestamp}` pairing consumes a slot. Slots cannot be viewed or individually deleted via the EHG app. | If pairing fails with empty response, use "Verbindung trennen" in the EHG app to clear all slots (nuclear option — all devices must re-pair). |
+| **Victron MultiPlus (bus 121) non-functional** | The Victron MultiPlus 12/1600/70 communicates via VE.Bus (RS-485), which is electrically incompatible with the vehicle’s CAN bus. The SCU cannot bridge these protocols. Entities exist but always show unavailable. | Use a Victron Cerbo GX or VenusOS device to monitor the MultiPlus separately. |
+| **12V OFF → no passive sensor updates via cloud** | When 12V is off, the SCU enters standby and stops pushing passive sensor data (doors, temps, water). Commands still work. | Use BLE direct path (works in standby) or keep 12V on. |
+| **MTU stays at 23 on HAOS** | BlueZ on RPi4/HAOS doesn’t expose the D-Bus MTU property, so MTU negotiation fails silently. Writes are paced at 100ms/chunk to compensate. | No user action needed — pacing handles it automatically. Slightly slower TLS handshake (~2s vs ~0.5s at MTU 245). |
+| **TLS 1.0/1.1 only** | The SCU firmware (1.12.0.0) only supports legacy TLS with `AES128-SHA` / `AES256-SHA`. The integration lowers OpenSSL security level automatically. | No user action needed. This is an SCU firmware limitation. |
+| **No iOS mitmproxy support** | Token capture via mitmproxy requires Android (APK patching). iOS apps cannot be repackaged without jailbreak. | Use BLE pairing (Path A) instead — no mitmproxy needed. Or borrow an Android device for the one-time capture. |
+| **Brand sensor maps may be incomplete** | Sensor mappings are primarily based on the HYMER Grand Canyon S 600/S 700. Other brands/models may have sensors on unmapped bus/slot pairs. | Enable debug logging, use Dynamic Slot Discovery, and contribute findings via GitHub issues. |
 
 This integration was reverse-engineered from the **HYMER Connect** Android app v2.10.14 using:
 - mitmproxy for HTTP/WebSocket traffic analysis
 - apk-mitm for certificate pinning bypass
 - Custom protobuf decoder for PIA sensor data
 
+## Contributing
+
+Contributions are welcome! Here’s how you can help:
+
+### Report sensor mappings
+
+If you have a non-HYMER EHG vehicle, your sensor bus/slot layout may differ. Run the [Sensor Discovery Tool](#option-1-run-the-sensor-discovery-tool-recommended) or enable [Dynamic Slot Discovery](#-dynamic-slot-discovery-v2340) and share your findings in a GitHub issue.
+
+### Add a brand overlay
+
+1. Fork the repo
+2. Copy `sensor_maps/hymer.json` to `sensor_maps/<your-brand>.json`
+3. Adjust bus/slot mappings based on your vehicle’s sensor discovery
+4. Test locally by installing from your fork via HACS
+5. Open a PR with your overlay — include your vehicle model and base vehicle in the description
+
+### Fix bugs or add features
+
+1. Fork the repo and create a feature branch (`git checkout -b fix/my-fix`)
+2. Make your changes — keep commits atomic and descriptive
+3. Test on a real vehicle if possible, or describe what you tested
+4. Open a PR — reference any related GitHub issues
+
+### Guidelines
+
+- **Python style**: Follow the existing code conventions (no strict linter enforced, but keep it readable)
+- **Commit messages**: Use conventional format (`fix:`, `feat:`, `docs:`, `refactor:`)
+- **Breaking changes**: Discuss in an issue first before submitting a PR
+- **Sensor map PRs**: Strip `_generated_by` and `_source_vehicle_id` headers from converter output before committing
+
 ## License
+
+MIT License — see [LICENSE](LICENSE) for details.
 
 This project is not affiliated with or endorsed by Erwin Hymer Group. Use at your own risk.
