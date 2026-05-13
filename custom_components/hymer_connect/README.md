@@ -462,36 +462,48 @@ If your brand's JSON file **does not exist or is empty** (e.g. you select Carado
 If you have a different EHG vehicle and want to help expand compatibility:
 
 1. **Install the integration** and check which sensors show data vs. "Unavailable"
-2. **Enable debug logging** by adding this to your `configuration.yaml`:
-   ```yaml
-   logger:
-     logs:
-       custom_components.hymer_connect: debug
-   ```
+2. **Enable debug logging** — add one of these profiles to your `configuration.yaml`:
 
-   For production use, the recommended logger configuration is:
+   **Production** (recommended, keep permanently):
    ```yaml
    logger:
      default: warning
      logs:
        custom_components.hymer_connect: warning
        custom_components.hymer_connect.signalr_client: info
-       custom_components.hymer_connect.pia_decoder: warning
        custom_components.hymer_connect.coordinator: info
        custom_components.hymer_connect.ble_client: info
+       custom_components.hymer_connect.pia_decoder: warning
+       bleak: warning
+   ```
+
+   **Full troubleshooting** (use temporarily for issue diagnosis):
+   ```yaml
+   logger:
+     default: warning
+     logs:
+       custom_components.hymer_connect: warning
+       custom_components.hymer_connect.api: debug
+       custom_components.hymer_connect.ble_client: debug
+       custom_components.hymer_connect.coordinator: debug
+       custom_components.hymer_connect.signalr_client: info
+       custom_components.hymer_connect.config_flow: debug
+       custom_components.hymer_connect.pia_decoder: warning
+       bleak: warning
+       bleak.backends.bluezdbus.client: info
    ```
 
    | Logger | Level | What it shows |
    |--------|-------|---------------|
    | `hymer_connect` | `warning` | General integration warnings and errors |
-   | `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
+   | `api` | `debug` | OAuth2 token refresh, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
    | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
-   | `signalr_client` | `debug` | Every SignalR message (very verbose) |
-   | `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose) |
-   | `coordinator` | `info` | REST API polling, SignalR reconnect scheduling |
+   | `coordinator` | `info` | REST API polling, command routing, SignalR reconnect scheduling |
    | `ble_client` | `info` | BLE connect/disconnect, bonding results, TLS status |
    | `ble_client` | `debug` | GATT services, D-Bus agent, write mode/pacing, chunk details |
    | `config_flow` | `warning` | BLE pairing attempt progress (🟢/🔴 status) |
+   | `bleak` | `warning` | Suppresses bleak’s default GATT read/write chatter |
+   | `bleak.backends.bluezdbus.client` | `info` | Low-level BlueZ D-Bus calls, MTU negotiation, adapter errors |
 
 3. **Open a GitHub issue** with:
    - Your vehicle brand, model, and base vehicle (Sprinter/Ducato/Transit)

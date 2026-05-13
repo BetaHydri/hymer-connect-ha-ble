@@ -905,51 +905,52 @@ Use `--output <path>` to customize the export filename, and `--duration <seconds
 
 #### Option 3: Enable debug logging
 
-Add this to your `configuration.yaml`:
-```yaml
-logger:
-  logs:
-    custom_components.hymer_connect: debug
-```
+##### Production (recommended)
 
-For production use, the recommended logger configuration is:
+Keep this in your `configuration.yaml` permanently. It gives enough visibility to spot problems without flooding the log:
+
 ```yaml
 logger:
   default: warning
   logs:
+    # --- HYMER Connect integration ---
     custom_components.hymer_connect: warning
     custom_components.hymer_connect.signalr_client: info
-    custom_components.hymer_connect.pia_decoder: warning
     custom_components.hymer_connect.coordinator: info
     custom_components.hymer_connect.ble_client: info
-```
-
-For **troubleshooting BLE command routing** (dual-path, ACK, cloud fallback):
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.hymer_connect: warning
-    custom_components.hymer_connect.coordinator: debug
-    custom_components.hymer_connect.ble_client: debug
-    custom_components.hymer_connect.signalr_client: info
     custom_components.hymer_connect.pia_decoder: warning
+    # --- BLE stack (bleak / BlueZ) ---
+    bleak: warning                          # suppress bleak's INFO-level GATT chatter
 ```
 
-For **troubleshooting EHG token exchange and authentication** (BLE pairing → token → SignalR auth):
+##### Full troubleshooting
+
+Use this temporarily when investigating issues (BLE pairing, token exchange, command routing). It covers **every layer** from the BLE adapter up to SignalR authentication:
+
 ```yaml
 logger:
   default: warning
   logs:
+    # --- HYMER Connect integration ---
     custom_components.hymer_connect: warning
-    custom_components.hymer_connect.api: debug
-    custom_components.hymer_connect.ble_client: debug
-    custom_components.hymer_connect.signalr_client: info
-    custom_components.hymer_connect.config_flow: debug
+    custom_components.hymer_connect.api: debug               # OAuth2 + EHG token exchange
+    custom_components.hymer_connect.ble_client: debug         # BLE bonding, TLS, GATT writes
+    custom_components.hymer_connect.coordinator: debug         # command routing, ACK, fallback
+    custom_components.hymer_connect.signalr_client: info       # connection lifecycle, UpdateTokens
+    custom_components.hymer_connect.config_flow: debug         # pairing ceremony progress
+    custom_components.hymer_connect.pia_decoder: warning       # set to debug only for sensor mapping
+    # --- BLE stack (bleak / BlueZ) ---
+    bleak: warning                                             # suppress GATT read/write noise
+    bleak.backends.bluezdbus.client: info                      # D-Bus calls, MTU negotiation, adapter errors
 ```
+
+> **Tip:** Switch back to the production profile after troubleshooting. The `pia_decoder: debug` and `bleak.backends.bluezdbus.client: info` loggers are very verbose and will grow your HA log quickly.
+
+##### Logger reference
 
 | Logger | Level | What it shows |
 |--------|-------|---------------|
+| **Integration loggers** | | |
 | `hymer_connect` | `warning` | General integration warnings and errors |
 | `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
 | `coordinator` | `info` | Command routing decisions (BLE/cloud), ACK confirmed/timeout, cloud fallback with attempt counter, REST polling, SignalR reconnect scheduling |
@@ -960,6 +961,9 @@ logger:
 | `ble_client` | `debug` | GATT services, D-Bus agent, write mode/pacing, chunk details, TLS handshake |
 | `pia_decoder` | `debug` | Every decoded PIA sensor value (very verbose — use sparingly) |
 | `config_flow` | `warning` | BLE pairing attempt progress (🟢/🔴 status) |
+| **BLE stack loggers** | | |
+| `bleak` | `warning` | Suppress bleak’s default INFO-level GATT read/write chatter that clutters the log |
+| `bleak.backends.bluezdbus.client` | `info` | Low-level BlueZ D-Bus method calls, MTU negotiation results, adapter-level errors. Only needed when `ble_client: debug` doesn’t show enough detail (e.g. GATT handle errors, BlueZ service resolution failures) |
 
 **What to look for when troubleshooting commands:**
 
