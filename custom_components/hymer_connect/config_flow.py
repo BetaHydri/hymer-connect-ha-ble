@@ -240,7 +240,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             # Auto-scan if no MAC address provided
             if not ble_address:
-                scanner = ScuBleClient(scu_address="")
+                scanner = ScuBleClient(scu_address="", hass=self.hass)
                 devices = await scanner.scan_for_scu(timeout=10.0, hass=self.hass)
                 if not devices:
                     self._ble_pairing_error = "ble_no_scu_found"
@@ -269,6 +269,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                         scu_address=ble_address,
                         connect_timeout=15.0,
                         tls_timeout=30.0,
+                        hass=self.hass,
                     )
                     await client.connect()
                     # If connect() succeeded, bonding worked → CONNECTION was pressed!

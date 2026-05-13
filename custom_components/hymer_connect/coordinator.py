@@ -409,6 +409,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_client = ScuBleClient(
                 scu_address=ble_address,
                 on_pia_response=self._on_ble_pia_response,
+                hass=self.hass,
             )
             await self._ble_client.connect()
             await self._ble_client.establish_tls()

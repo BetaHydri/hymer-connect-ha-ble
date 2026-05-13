@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.5] - 2026-05-13
+
+### Changed
+
+- **Use `bleak-retry-connector` for BLE connections** — BLE GATT connections now use Home Assistant's `establish_connection()` from `bleak-retry-connector` instead of raw `BleakClient.connect()`. This provides automatic retries with exponential backoff for transient BLE errors (D-Bus glitches, adapter slot exhaustion, broken pipes) and eliminates the `BleakClient.connect() called without bleak-retry-connector` deprecation warning. Falls back gracefully to raw `BleakClient` when running standalone (tools). All existing bonding, retry, and TLS logic is preserved.
+
+### Fixed
+
+- **Potential `NameError` on BLE connection failure** — When GATT connection failed before a `BleakClient` was created, the stale-bond retry path could reference an unassigned `client` variable. Now safely guarded with `if client:` check.
+
 ## [2.62.4] - 2026-05-13
 
 ### Fixed

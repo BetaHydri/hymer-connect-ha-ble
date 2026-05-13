@@ -767,6 +767,7 @@ class ScuBleClient:
         connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
         tls_timeout: float = DEFAULT_TLS_TIMEOUT,
         on_pia_response: Callable[[str], None] | None = None,
+        hass: Any | None = None,
     ) -> None:
         if not HAS_BLEAK:
             raise BleTransportError(
@@ -776,6 +777,7 @@ class ScuBleClient:
         self._connect_timeout = connect_timeout
         self._tls_timeout = tls_timeout
         self._on_pia_response = on_pia_response
+        self._hass = hass
 
         self._client: BleakClient | None = None
         self._tls: _TlsOverBle | None = None
@@ -865,6 +867,55 @@ class ScuBleClient:
                       [(r["address"], r["name"], r["rssi"]) for r in results])
         return results
 
+    async def _create_connected_client(self) -> BleakClient:
+        """Create and connect a BleakClient, preferring HA's retry connector.
+
+        When running inside Home Assistant (self._hass is set), uses
+        bleak-retry-connector's establish_connection() for reliable
+        connection establishment with automatic retries and backoff.
+        Falls back to raw BleakClient for standalone/tool usage.
+        """
+        if self._hass is not None:
+            try:
+                from homeassistant.components.bluetooth import (
+                    async_ble_device_from_address,
+                )
+                from bleak_retry_connector import establish_connection
+
+                ble_device = async_ble_device_from_address(
+                    self._hass, self._scu_address, connectable=True
+                )
+                if ble_device:
+                    _LOGGER.debug(
+                        "Using HA BLE connector for %s", self._scu_address
+                    )
+                    return await establish_connection(
+                        BleakClient,
+                        ble_device,
+                        f"HYMER SCU {self._scu_address}",
+                        max_attempts=2,
+                    )
+                _LOGGER.debug(
+                    "BLE device %s not in HA registry — "
+                    "falling back to raw BleakClient",
+                    self._scu_address,
+                )
+            except ImportError:
+                _LOGGER.debug(
+                    "bleak-retry-connector not available — "
+                    "using raw BleakClient"
+                )
+            except Exception as err:
+                _LOGGER.debug(
+                    "HA BLE connector failed, falling back to "
+                    "raw BleakClient: %s",
+                    err,
+                )
+        # Standalone / fallback: raw BleakClient
+        client = BleakClient(self._scu_address, timeout=self._connect_timeout)
+        await client.connect()
+        return client
+
     async def connect(self) -> None:
         """Connect to the SCU via BLE and set up NUS notifications."""
         if self._client is not None:
@@ -910,9 +961,9 @@ class ScuBleClient:
             _LOGGER.debug("Device %s is not bonded — no stale records to clear", self._scu_address)
 
         _LOGGER.debug("BLE connecting to %s (timeout=%.1fs)", self._scu_address, self._connect_timeout)
-        client = BleakClient(self._scu_address, timeout=self._connect_timeout)
+        client = None
         try:
-            await client.connect()
+            client = await self._create_connected_client()
         except Exception as connect_err:
             # If bonded but connection fails with "device disconnected", the
             # bond keys are stale/corrupt. Clear them and retry once.
@@ -926,10 +977,11 @@ class ScuBleClient:
                         "retrying in 2s (SCU may need recovery time): %s",
                         connect_err,
                     )
-                    try:
-                        await client.disconnect()
-                    except Exception:
-                        pass
+                    if client:
+                        try:
+                            await client.disconnect()
+                        except Exception:
+                            pass
                     await asyncio.sleep(2.0)
                     await self._connect_inner(retry=False)
                     return
@@ -1108,8 +1160,7 @@ class ScuBleClient:
                 except Exception:
                     pass
                 await asyncio.sleep(0.5)  # let BlueZ settle
-                client = BleakClient(self._scu_address, timeout=self._connect_timeout)
-                await client.connect()
+                client = await self._create_connected_client()
                 _LOGGER.debug("BLE GATT reconnected after bonding")
 
             # Start receiving NUS TX notifications
