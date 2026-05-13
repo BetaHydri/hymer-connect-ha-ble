@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.6] - 2026-05-13
+
+### Fixed
+
+- **Fix bootstrap timeout caused by BLE listen loop** — The BLE listen loop (`_ble_listen_loop`) was started with `hass.async_create_task()`, which HA tracks during bootstrap and shutdown. Since the listen loop runs indefinitely (30s `uart_queue.get()` cycles), HA's bootstrap would time out waiting for it with `"Setup timed out for bootstrap waiting on _ble_listen_loop"`. Now uses `config_entry.async_create_background_task()` which is truly fire-and-forget and not awaited during bootstrap/shutdown.
+
 ## [2.62.5] - 2026-05-13
 
 ### Changed

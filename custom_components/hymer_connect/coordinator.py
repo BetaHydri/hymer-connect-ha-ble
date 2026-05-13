@@ -486,8 +486,16 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     exc_info=True,
                 )
 
-            # Start BLE listen loop in background
-            self.hass.async_create_task(self._ble_listen_loop())
+            # Start BLE listen loop as a background task — NOT a tracked task.
+            # async_create_task() tasks are awaited during HA bootstrap/shutdown,
+            # which causes "Setup timed out" if the BLE connection dies (e.g.
+            # 12V off) and the listen loop's 30s uart_queue.get() keeps cycling.
+            # async_create_background_task() is truly fire-and-forget.
+            self.config_entry.async_create_background_task(
+                self.hass,
+                self._ble_listen_loop(),
+                name=f"hymer_connect_ble_listen_{self._scu_address or 'scu'}",
+            )
             return True
         except Exception as err:
             _LOGGER.warning("BLE connection failed, will use cloud: %s", err)
