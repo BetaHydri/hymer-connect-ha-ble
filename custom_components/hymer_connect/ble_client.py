@@ -1471,9 +1471,10 @@ class ScuBleClient:
         Pacing is applied for ALL large writes (>10 chunks) regardless of
         write mode. Write-With-Response already adds ~30ms ACK overhead per
         chunk, but the SCU's NUS RX processing at MTU=23 still can't keep up
-        with 63 back-to-back writes — ATT error 0x0e ("Unlikely Error") at
-        chunk ~63. A 10ms inter-chunk delay gives the SCU's NUS service time
-        to drain its RX buffer and reassemble the PIA frame.
+        with rapid back-to-back writes — ATT error 0x0e ("Unlikely Error")
+        after ~10-15 chunks. A 50ms inter-chunk delay gives the SCU's NUS
+        service time to drain its RX buffer and reassemble the PIA frame.
+        Total time for 63 chunks at 50ms = ~3.2s (acceptable for pairing).
 
         See: https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/libraries/bluetooth/services/nus.html
         NUS RX supports both Write and Write Without Response.
@@ -1492,9 +1493,10 @@ class ScuBleClient:
         write_mode = "WriteReq" if use_response else "WriteCmd(no-resp)"
         # Pace ALL large writes (>10 chunks), regardless of write mode.
         # Write-With-Response adds ATT-level ACK but the SCU's NUS RX
-        # processing still overflows at 63 rapid chunks (ATT 0x0e).
+        # processing still overflows at ~10-15 rapid chunks (ATT 0x0e).
+        # 50ms delay per chunk at MTU=23 = ~3.2s for 63 chunks.
         pace = total_chunks > 10
-        pace_ms = 10 if use_response else 5  # WriteReq needs more settling time
+        pace_ms = 50 if use_response else 5  # WriteReq needs significant settling time at MTU=23
         _LOGGER.debug(
             "BLE TX %d bytes → %d chunks, mode=%s, pace=%s",
             len(data), total_chunks, write_mode,
@@ -1502,9 +1504,16 @@ class ScuBleClient:
         )
         for i, offset in enumerate(range(0, len(data), self._write_chunk_size)):
             chunk = data[offset : offset + self._write_chunk_size]
-            await self._client.write_gatt_char(
-                UART_RX_UUID, chunk, response=use_response
-            )
+            try:
+                await self._client.write_gatt_char(
+                    UART_RX_UUID, chunk, response=use_response
+                )
+            except Exception as err:
+                _LOGGER.warning(
+                    "BLE TX chunk %d/%d failed after %d successful writes: %s",
+                    i + 1, total_chunks, i, err,
+                )
+                raise
             # Pace large writes to avoid ATT buffer overflow on SCU
             if pace and i < total_chunks - 1:
                 await asyncio.sleep(pace_ms / 1000)

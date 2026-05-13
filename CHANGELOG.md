@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0-alpha.16] - 2026-05-13
+
+### Fixed
+
+- **BLE PairMobileRequest fails with ATT 0x0e after ~10 chunks at MTU=23** — The 10ms inter-chunk pacing for Write-With-Response was too fast for the SCU's NUS RX buffer. At MTU=23 the PairMobileRequest requires 63 sequential ACK'd writes; the SCU's Nordic UART Service could only drain ~10-15 chunks before overflowing, causing `ATT error: 0x0e (Unlikely Error)` and an immediate BLE disconnect ~200ms into the write. Increased pacing from 10ms to 50ms per chunk for WriteReq mode. Total write time for 63 chunks is now ~3.2s (vs ~630ms before), which is acceptable for the one-shot pairing ceremony. Write-Without-Response pacing (5ms, used for PIA subscriptions) is unchanged.
+- **Per-chunk error logging** — When a GATT write fails mid-stream, the log now shows exactly which chunk number failed (e.g. `BLE TX chunk 12/63 failed after 11 successful writes`) instead of a generic transport error. This pinpoints the SCU's buffer overflow threshold.
+
 ## [2.61.0-alpha.15] - 2026-05-13
 
 ### Added
