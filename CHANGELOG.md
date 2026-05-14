@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.9] - 2026-05-14
+
+### Fixed
+
+- **Force re-auth on command failure during extended standby** — backport of hymer-connect-ha#58 / v2.56.0. When the SCU has been offline for more than 10 minutes (extended standby), the cloud session's OAuth2 routing becomes stale and commands are silently dropped by the server instead of being queued. `_verify_send` now detects extended standby via `_scu_disconnected_at` and triggers `force_reauth_and_reconnect()` with a single retry, instead of the previous "command queued until SCU wakes" give-up path. Short standby (<10 min) retains the existing queue-and-wait behavior.
+
 ## [2.62.8] - 2026-05-13
 
 ### Fixed
