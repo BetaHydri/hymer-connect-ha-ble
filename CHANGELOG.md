@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.10] - 2026-05-16
+
+### Fixed
+
+- **Proactive re-auth before commands during extended standby** — Backport of hymer-connect-ha v2.56.1. After >10 min of SCU standby (12V off), the server-side SignalR hub→SCU routing becomes stale, causing commands to be silently dropped. Previously relied on `_verify_send` (60s timeout) for reactive recovery — too slow, required manual reload. Now `async_ensure_signalr_healthy()` proactively detects extended standby and forces a full OAuth2 re-auth + SignalR reconnect BEFORE sending the command.
+
+### Migration Notes
+
+- **Non-breaking.** HACS update + restart is sufficient.
+
 ## [2.62.9] - 2026-05-14
 
 ### Fixed
