@@ -329,38 +329,40 @@ When you're away from the vehicle (RPi not in BLE range):
 
 ### Setup requirements summary
 
-| What you need | Path A: BLE + Cloud | Path B: Cloud (mitmproxy) | Path C: Cloud (no token) |
-|---|---|---|---|
-| EHG account (email + password) | ✅ | ✅ | ✅ |
-| QR code token (JWT from dealer) | ✅ | ❌ | ❌ |
-| EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ | ❌ (add later) |
-| BLE hardware (RPi4 or similar) | ✅ | ❌ | ❌ |
-| Physical access to vehicle | ✅ (press CONNECTION) | ❌ | ❌ |
-| Internet connection | ✅ (initial only) | ✅ (always) | ✅ (always) |
-| Sensors working after setup? | ✅ | ✅ | ❌ (Reconfigure needed) |
+| What you need | Path A: BLE + Cloud | Path B: Cloud (mitmproxy) | Path C: Cloud (Android app) | Path D: Cloud (no token) |
+|---|---|---|---|---|
+| EHG account (email + password) | ✅ | ✅ | ✅ | ✅ |
+| QR code token (JWT from dealer) | ✅ | ❌ | ✅ | ❌ |
+| EHG refresh token (via mitmproxy) | ❌ (BLE obtains it) | ✅ | ❌ (app obtains it) | ❌ (add later) |
+| BLE hardware (RPi4 or similar) | ✅ | ❌ | ❌ | ❌ |
+| Android phone with BLE | ❌ | ❌ | ✅ | ❌ |
+| Physical access to vehicle | ✅ (press CONNECTION) | ❌ | ✅ (press CONNECTION) | ❌ |
+| Internet connection | ✅ (initial only) | ✅ (always) | ✅ (always) | ✅ (always) |
+| Sensors working after setup? | ✅ | ✅ | ✅ | ❌ (Reconfigure needed) |
 
 ---
 
 ## Configuration
 
-The integration supports three setup paths. All require your HYMER Connect email and password.
+The integration supports four setup paths. All require your HYMER Connect email and password.
 
 ### Setup Path Overview
 
-| | **Path A: BLE + Cloud (recommended)** | **Path B: Cloud-only (mitmproxy)** | **Path C: Cloud-only (no token)** |
-|---|---|---|---|
-| **Step 1 — Login** | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* | Brand, email, password. Paste **EHG refresh token**. *(Optional: paste OAuth client header)* | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* |
-| **Step 2 — Vehicle** | QR activation token (JWT from dealer paper) + optional BLE MAC + enable BLE ✅ | Leave **all fields empty** → submit | Leave **all fields empty** → submit |
-| **Step 3 — BLE Pairing** | Progress spinner → press **CONNECTION** on SCU | *(skipped)* | *(skipped)* |
-| **What happens** | EHG refresh token extracted via BLE automatically. BLE + SignalR both active | SignalR active with provided token. Vehicle auto-discovered via cloud | Config entry created but **no EHG token** → sensors show "unknown" |
-| **QR code from dealer** | ✅ Required (JWT starting with `eyJ`) | ❌ Not needed | ❌ Not needed |
-| **mitmproxy / patched APK** | ❌ Not needed | ✅ Required (one-time token capture) | ❌ Not needed |
-| **BLE hardware (RPi4)** | ✅ Required | ❌ Not needed | ❌ Not needed |
-| **Physical access to vehicle** | ✅ Required (press CONNECTION) | ❌ Not needed | ❌ Not needed |
-| **Internet** | ✅ Initial setup only — BLE works offline after | ✅ Always required | ✅ Always required |
-| **Sensors working?** | ✅ ~130 entities | ✅ ~130 entities | ❌ No — add token later via **Reconfigure** |
+| | **Path A: BLE + Cloud (recommended)** | **Path B: Cloud-only (mitmproxy)** | **Path C: Cloud-only (Android app)** | **Path D: Cloud-only (no token)** |
+|---|---|---|---|---|
+| **Step 1 — Login** | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* | Brand, email, password. Paste **EHG refresh token**. *(Optional: paste OAuth client header)* | Brand, email, password. Paste **EHG refresh token** (from Android app). *(Optional: paste OAuth client header)* | Brand, email, password. Leave EHG token **empty**. *(Optional: paste OAuth client header)* |
+| **Step 2 — Vehicle** | QR activation token (JWT from dealer paper) + optional BLE MAC + enable BLE ✅ | Leave **all fields empty** → submit | Leave **all fields empty** → submit | Leave **all fields empty** → submit |
+| **Step 3 — BLE Pairing** | Progress spinner → press **CONNECTION** on SCU | *(skipped)* | *(skipped)* | *(skipped)* |
+| **What happens** | EHG refresh token extracted via BLE automatically. BLE + SignalR both active | SignalR active with provided token. Vehicle auto-discovered via cloud | SignalR active with app-captured token. Vehicle auto-discovered via cloud | Config entry created but **no EHG token** → sensors show "unknown" |
+| **QR code from dealer** | ✅ Required (JWT starting with `eyJ`) | ❌ Not needed | ✅ Required (scanned in Android app) | ❌ Not needed |
+| **mitmproxy / patched APK** | ❌ Not needed | ✅ Required (one-time token capture) | ❌ Not needed | ❌ Not needed |
+| **BLE hardware (RPi4)** | ✅ Required | ❌ Not needed | ❌ Not needed | ❌ Not needed |
+| **Android phone** | ❌ Not needed | ❌ Not needed | ✅ Required (BLE-capable, one-time) | ❌ Not needed |
+| **Physical access to vehicle** | ✅ Required (press CONNECTION) | ❌ Not needed | ✅ Required (press CONNECTION) | ❌ Not needed |
+| **Internet** | ✅ Initial setup only — BLE works offline after | ✅ Always required | ✅ Always required | ✅ Always required |
+| **Sensors working?** | ✅ ~130 entities | ✅ ~130 entities | ✅ ~130 entities | ❌ No — add token later via **Reconfigure** |
 
-> **Path C is a bootstrap path** — it creates the integration entry so you can add the EHG refresh token later via **Reconfigure** (either by BLE pairing with a QR token, or by pasting a mitmproxy-captured token). Until a token is provided, sensor data will not flow.
+> **Path D is a bootstrap path** — it creates the integration entry so you can add the EHG refresh token later via **Reconfigure** (either by BLE pairing with a QR token, by pasting a mitmproxy-captured token, or by pasting a token from the Android app). Until a token is provided, sensor data will not flow.
 
 > **QR activation token format:** The QR code is on a **separate piece of paper from your dealer** (vehicle delivery documents) — not a sticker on the vehicle. When scanned, the text is a long JWT token (~200–600 characters) starting with `eyJ`. This is the same QR code the EHG app asks you to scan during "Fahrzeug verbinden" (Connect Vehicle). Stickers on the vehicle with formats like `E-Trailer;ehg-siu;...` are hardware identifiers and will **not** work.
 
@@ -409,6 +411,31 @@ Use this when your HA instance does not have BLE hardware or you cannot be at th
 3. **Step 1 — Login:** Select your brand, enter email, password, and paste the **EHG Remote Access Refresh Token**
 4. **Step 2 — Vehicle Activation:** Leave both fields empty and submit
 5. The integration auto-discovers your vehicle via the cloud and creates sensor entities
+
+### Path C: Cloud-Only (Android app — no mitmproxy, no HA BLE needed)
+
+Use this when your HA instance has **no BLE hardware** (VM, NUC, remote server) but you have an **Android phone** and **physical access** to the vehicle. The Android app extracts the EHG refresh token via BLE on your phone — you then paste it into the HA integration config.
+
+**One-time setup on the phone:**
+
+1. Download the **EHG Token Extractor** APK from [GitHub Actions artifacts](https://github.com/BetaHydri/hymer-connect-ha-ble/actions/workflows/build-token-app.yml) (latest successful build → `ehg-token-extractor-debug` → download)
+2. Install the APK on your Android phone (enable "Install from unknown sources" if prompted)
+3. Open the app and enter:
+   - **Email** and **Password** — your HYMER Connect / EHG account credentials
+   - **QR Token** — scan the QR code from your dealer's activation document (or paste the JWT manually)
+4. Tap **Start** — the app logs in to the EHG cloud, scans for the SCU via Bluetooth, and begins bonding
+5. **Press CONNECTION** on the SCU touch panel in the vehicle when prompted
+6. The app completes BLE bonding → TLS handshake → PairMobileRequest → receives the EHG refresh token
+7. Tap **Copy** to copy the token to your clipboard
+
+**Then set up HA (Path B style):**
+
+1. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
+2. **Step 1 — Login:** Select your brand, enter email, password, and paste the **EHG refresh token** from the app
+3. **Step 2 — Vehicle Activation:** Leave all fields empty and submit
+4. The integration connects via SignalR with full ~130 sensor coverage
+
+> **The Android app is a one-time tool.** After extracting the token, you don't need the app again — the token is stored permanently in the HA config entry and auto-refreshes via the cloud API. The app uses the same BLE+TLS+PIA protocol as the HA integration's native BLE pairing (Path A), just running on your phone instead of the RPi.
 
 ### Adding BLE Later / Retry Pairing (Reconfigure)
 
