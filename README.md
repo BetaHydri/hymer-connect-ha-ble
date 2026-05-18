@@ -31,6 +31,52 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 | **~130 entities** (vs ~20 in the EHG app) | ❌ | ✅ |
 | **SCU restart** (reboot the control unit remotely) | ✅ | ✅ |
 
+---
+
+### 🔀 Dual-Path Architecture: BLE-First, Cloud-Fallback
+
+This is the only HYMER Connect integration that talks to your vehicle **two ways at once** — and sets itself up without any hacking tools:
+
+**1. Automatic token capture — no mitmproxy, no patched APK**
+Press **CONNECTION** on the SCU touch panel during setup. The integration pairs via Bluetooth, completes a TLS-encrypted handshake with the SCU, and extracts the EHG Remote Access Refresh Token directly — the same token the official app uses internally. No phone interception, no certificate pinning bypass, no manual copy-paste. One button press, done.
+
+**2. BLE-first command routing with automatic cloud safety net**
+When your Home Assistant host (e.g. Raspberry Pi 4) is within Bluetooth range of the vehicle, all commands — lights, heater, fridge, boiler, switches — are sent via **BLE at ~50 ms latency**. The coordinator waits for the SCU's confirmation; if none arrives within 1.5 seconds, the same command is automatically re-sent via the **cloud/SignalR path** as a fallback. Commands are idempotent, so double-delivery is harmless. You get the speed of local Bluetooth with the reliability of the cloud — zero manual intervention.
+
+**3. Seamless failover — drive away, come back, it just works**
+Both paths run concurrently. BLE delivers ~130 sensors with sub-second latency when parked; SignalR keeps all ~130 sensors flowing when you're away. Drive out of Bluetooth range and the cloud path continues uninterrupted. Park back in range and BLE reconnects automatically. Your dashboard and automations never notice the switch.
+
+**4. Works offline at the campsite**
+No internet? No problem. After the initial setup (which requires internet for OAuth2 login), the BLE path operates **fully offline** — sensor streaming and control commands work without any cloud connectivity. Park in a dead zone, deep in the mountains, and your Home Assistant still controls every light, reads every sensor, and runs every automation locally.
+
+```
+ ┌──────────────────────────────────────────────┐
+ │         Home Assistant (RPi 4)               │
+ │                                              │
+ │   BLE path ◄──── preferred (50 ms) ─────┐   │
+ │   Cloud path ◄── fallback (500 ms–2 s) ──┤   │
+ │                                          │   │
+ │   Coordinator: try BLE → ACK? done.      │   │
+ │                 no ACK → resend cloud.    │   │
+ └──────────────────────────────────────────────┘
+                      │          │
+           Bluetooth  │          │  LTE / Internet
+                      ▼          ▼
+                ┌─────────────────────┐
+                │   SCU (in vehicle)  │
+                └─────────────────────┘
+```
+
+| | BLE Direct | Cloud / SignalR |
+|---|---|---|
+| **Latency** | ~50 ms | 500 ms – 2 s |
+| **Range** | ~10 m (inside vehicle) | Worldwide |
+| **12V off** | ✅ SCU BLE stays active | ⚠️ Commands work, passive sensors stop |
+| **Internet** | Not needed after setup | Always required |
+| **Token capture** | Automatic (press CONNECTION) | Manual (mitmproxy) |
+
+---
+
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
 > **v2.62.8** — **BLE dual-path stable!** The BLE listen loop, bonding, TLS handshake, and dual-path command routing are all vehicle-tested and working. Key improvements since v2.61.x: `bleak-retry-connector` for robust BLE connections (v2.62.5), bonding-aware backoff (v2.62.2), 1500ms ACK timeout to prevent dashboard toggle flicker (v2.62.4), and background task fixes for reliable BLE listen loop startup (v2.62.7/v2.62.8). See [CHANGELOG](CHANGELOG.md) for full history.
