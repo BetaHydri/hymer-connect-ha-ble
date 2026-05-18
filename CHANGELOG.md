@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.11] - 2026-05-18
+
+### Fixed
+
+- **Correct stale BLE sensor count in log message** — After BLE PIA subscriptions are sent successfully, the SCU pushes all ~130 sensors over BLE (not just ~28 autonomous sensors). The startup log message now correctly reflects this: "both paths: ~130 sensors" instead of the outdated "BLE: ~28 sensors".
+
 ## [2.62.10] - 2026-05-16
 
 ### Fixed
