@@ -68,6 +68,8 @@ class MainActivity : AppCompatActivity() {
     private var bluetoothGatt: BluetoothGatt? = null
     private val rxQueue = LinkedList<ByteArray>()
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
+    private var servicesDiscovered = CompletableDeferred<Unit>()
+    private var mtuNegotiated = CompletableDeferred<Unit>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -202,14 +204,30 @@ class MainActivity : AppCompatActivity() {
 
                 // GATT connect
                 log("Step 5: GATT connecting...")
+                servicesDiscovered = CompletableDeferred()
+                mtuNegotiated = CompletableDeferred()
                 connectGatt(device)
-                delay(2000) // Wait for service discovery
+                // Wait for service discovery callback (up to 10s)
+                try {
+                    withTimeout(10000) { servicesDiscovered.await() }
+                } catch (_: TimeoutCancellationException) {
+                    log("❌ Service discovery timed out")
+                    return@launch
+                }
+                if (rxCharacteristic == null) {
+                    log("❌ NUS RX characteristic not found — is this an SCU?")
+                    return@launch
+                }
                 log("✅ GATT connected")
 
                 // Request MTU 245 (like the EHG app)
                 bluetoothGatt?.requestMtu(245)
-                delay(1000)
-                log("✅ MTU negotiated")
+                try {
+                    withTimeout(5000) { mtuNegotiated.await() }
+                } catch (_: TimeoutCancellationException) {
+                    log("  ⚠️ MTU negotiation timeout — using default MTU=23")
+                }
+                log("✅ MTU negotiated: $negotiatedMtu")
 
                 // Enable NUS TX notifications
                 enableNotifications()
@@ -265,6 +283,20 @@ class MainActivity : AppCompatActivity() {
                         val parsed = PiaProtocol.parsePairMobileResponse(responseAccumulator.toByteArray())
                         if (parsed?.remoteAccessRefreshToken != null) {
                             extractedToken = parsed.remoteAccessRefreshToken
+
+                            // Send PairMobileConfirmation to finalize pairing on SCU
+                            log("  Sending PairMobileConfirmation...")
+                            try {
+                                val confirmMsg = PiaProtocol.buildPairMobileConfirmation(success = true)
+                                val confirmFrame = PiaProtocol.wrapPiaFrame(confirmMsg)
+                                val confirmEncrypted = tls.encrypt(confirmFrame)
+                                writeToScu(confirmEncrypted)
+                                log("  ✅ PairMobileConfirmation sent")
+                            } catch (e: Exception) {
+                                log("  ⚠️ PairMobileConfirmation failed: ${e.message}")
+                                // Non-fatal — token was already received
+                            }
+
                             log("")
                             log("🎉 SUCCESS! EHG Refresh Token extracted!")
                             log("Token: ${extractedToken!!.take(20)}...")
@@ -344,6 +376,8 @@ class MainActivity : AppCompatActivity() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothGatt.STATE_CONNECTED) {
                 gatt.discoverServices()
+            } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                log("  ⚠️ GATT disconnected (status=$status)")
             }
         }
 
@@ -351,11 +385,23 @@ class MainActivity : AppCompatActivity() {
             val nusService = gatt.getService(NUS_SERVICE_UUID)
             rxCharacteristic = nusService?.getCharacteristic(NUS_RX_UUID)
             log("  Services discovered: ${gatt.services.size}")
+            if (!servicesDiscovered.isCompleted) servicesDiscovered.complete(Unit)
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             negotiatedMtu = mtu
             log("  MTU changed to $mtu (chunk size: ${maxOf(20, mtu - 3)})")
+            if (!mtuNegotiated.isCompleted) mtuNegotiated.complete(Unit)
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (characteristic.uuid == NUS_RX_UUID) {
+                pendingWriteComplete?.complete(Unit)
+            }
         }
 
         override fun onCharacteristicChanged(
@@ -401,27 +447,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var negotiatedMtu: Int = 23  // Updated by onMtuChanged callback
+    private val writeComplete = CompletableDeferred<Unit>()
+    @Volatile private var pendingWriteComplete: CompletableDeferred<Unit>? = null
 
     private suspend fun writeToScu(data: ByteArray) = withContext(Dispatchers.IO) {
         val gatt = bluetoothGatt ?: return@withContext
         val char = rxCharacteristic ?: return@withContext
         val chunkSize = maxOf(20, negotiatedMtu - 3)  // ATT overhead = 3 bytes
         val chunks = data.toList().chunked(chunkSize)
-        // Use Write-With-Response for reliability at any MTU.
+        // Always use Write-With-Response for protocol-critical messages.
         // Write-Without-Response causes ATT 0x0e on the SCU's NUS RX buffer
-        // when >10 chunks are sent rapidly (observed on RPi4 at MTU=23).
-        val writeType = if (chunks.size > 10)
-            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT  // Write-With-Response
-        else
-            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        // at MTU=23 (confirmed on RPi4 and vehicle testing).
         log("  TX ${data.size} bytes -> ${chunks.size} chunks (chunkSize=$chunkSize, MTU=$negotiatedMtu)")
         for ((i, chunk) in chunks.withIndex()) {
+            val ack = CompletableDeferred<Unit>()
+            pendingWriteComplete = ack
             char.value = chunk.toByteArray()
-            char.writeType = writeType
+            char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             gatt.writeCharacteristic(char)
-            // Pace large writes to avoid SCU NUS RX buffer overflow
-            if (chunks.size > 10 && i < chunks.size - 1) {
-                delay(10)  // 10ms between chunks
+            // Wait for onCharacteristicWrite callback before sending next chunk
+            try {
+                withTimeout(5000) { ack.await() }
+            } catch (_: TimeoutCancellationException) {
+                log("  ⚠️ Write ACK timeout on chunk ${i + 1}/${chunks.size}")
+            }
+            // 100ms pacing between chunks (matches ble_client.py)
+            if (i < chunks.size - 1) {
+                delay(100)
             }
         }
     }
@@ -435,7 +487,14 @@ class MainActivity : AppCompatActivity() {
                     (rxQueue as Object).wait(remaining)
                 }
             }
-            rxQueue.poll()
+            if (rxQueue.isEmpty()) return@withContext null
+            // Drain ALL available chunks and concatenate — a single TLS record
+            // spans multiple BLE notifications at MTU=23
+            val accumulated = ByteArrayOutputStream()
+            while (rxQueue.isNotEmpty()) {
+                accumulated.write(rxQueue.poll())
+            }
+            accumulated.toByteArray()
         }
     }
 

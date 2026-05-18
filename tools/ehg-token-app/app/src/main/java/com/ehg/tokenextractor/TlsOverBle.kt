@@ -61,9 +61,14 @@ class TlsOverBle {
     /**
      * Feed encrypted data from SCU, return outbound TLS data to send back.
      * Also returns any decrypted application data.
+     *
+     * IMPORTANT: peerNetBuffer is persistent across calls — it accumulates
+     * partial TLS records that span multiple BLE notifications (common at
+     * MTU=23 where a single TLS record is split across many 20-byte chunks).
      */
     fun feedEncrypted(incoming: ByteArray): Pair<ByteArray, ByteArray> {
-        peerNetBuffer.clear()
+        // Compact any consumed data and append new data (don't clear!)
+        peerNetBuffer.compact()
         peerNetBuffer.put(incoming)
         peerNetBuffer.flip()
 

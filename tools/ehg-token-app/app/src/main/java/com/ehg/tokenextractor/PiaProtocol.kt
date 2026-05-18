@@ -78,6 +78,36 @@ object PiaProtocol {
         return encodeLenDelim(1, request)
     }
 
+    // --- PairMobileConfirmation ---
+
+    /**
+     * Build PairMobileConfirmation(success=true) to finalize the pairing.
+     * The SCU expects this after sending PairMobileResponse — without it,
+     * the pairing may not be persisted on the SCU side.
+     */
+    fun buildPairMobileConfirmation(
+        success: Boolean = true,
+        version: String = "v0.32.0"
+    ): ByteArray {
+        val requestId = (1..1000001).random().toLong()
+        val timestamp = System.currentTimeMillis() / 1000
+
+        // PairMobileConfirmation (field 5 of User)
+        val confirmation = encodeBoolField(1, success)
+
+        // User (field 8 of Request) containing PairMobileConfirmation (field 5)
+        val user = encodeLenDelim(5, confirmation)
+
+        // Request
+        val request = encodeVarintField(1, requestId) +
+                encodeString(2, version) +
+                encodeVarintField(3, timestamp) +
+                encodeLenDelim(8, user)
+
+        // BleProtocol.request (field 1)
+        return encodeLenDelim(1, request)
+    }
+
     // --- PIA Frame ---
 
     fun wrapPiaFrame(payload: ByteArray): ByteArray {
