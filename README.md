@@ -79,7 +79,7 @@ No internet? No problem. After the initial setup (which requires internet for OA
 
 > **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
 
-> **v2.62.8** — **BLE dual-path stable!** The BLE listen loop, bonding, TLS handshake, and dual-path command routing are all vehicle-tested and working. Key improvements since v2.61.x: `bleak-retry-connector` for robust BLE connections (v2.62.5), bonding-aware backoff (v2.62.2), 1500ms ACK timeout to prevent dashboard toggle flicker (v2.62.4), and background task fixes for reliable BLE listen loop startup (v2.62.7/v2.62.8). See [CHANGELOG](CHANGELOG.md) for full history.
+> **v2.62.10** — **BLE dual-path stable!** The BLE listen loop, bonding, TLS handshake, and dual-path command routing are all vehicle-tested and working. Key improvements since v2.61.x: `bleak-retry-connector` for robust BLE connections (v2.62.5), bonding-aware backoff (v2.62.2), 1500ms ACK timeout to prevent dashboard toggle flicker (v2.62.4), background task fixes for reliable BLE listen loop startup (v2.62.7/v2.62.8), and proactive re-auth before commands during extended SCU standby (v2.62.9/v2.62.10). See [CHANGELOG](CHANGELOG.md) for full history.
 
 ### Energy Dashboard
 
