@@ -53,8 +53,8 @@ No internet? No problem. After the initial setup (which requires internet for OA
  ┌──────────────────────────────────────────────┐
  │         Home Assistant (RPi 4)               │
  │                                              │
- │   BLE path ◄──── preferred (50 ms) ─────┐    │
- │   Cloud path ◄── fallback (500 ms–2 s)──┤    │
+ │   BLE path ◄──── preferred (50 ms) ──────┐   │
+ │   Cloud path ◄── fallback (500 ms–2 s)─ ─┤   │
  │                                          │   │
  │   Coordinator: try BLE → ACK? done.      │   │
  │                 no ACK → resend cloud.   │   │
