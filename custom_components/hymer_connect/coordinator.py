@@ -974,7 +974,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._ble_next_attempt = 0.0
                         _LOGGER.info(
                             "BLE direct path active — running alongside SignalR "
-                            "(BLE: ~28 sensors at ~50ms, SignalR: ~130 sensors)"
+                            "(both paths: ~130 sensors, BLE ~50ms / SignalR ~500ms–2s)"
                         )
                     else:
                         is_bonding = ble_result == "bonding_rejected"
