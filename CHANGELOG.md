@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.12] - 2026-05-19
+
+### Fixed
+
+- **Correct misleading Speed/RPM/Torque documentation** — The README incorrectly stated that speed, RPM, and engine torque were available on the S700 but not the S600. In reality, the SCU never exposes these driving sensors via PIA on any Mercedes-based EHG model — the original bus 1 slot labels were wrong, not model-specific. Corrected based on @dan-simms1’s S700 verification (#37). Added mbapi2020 reference for driving data.
+- **Update stale bus 1 labels in mitm_hymer_ws.py** — The standalone WebSocket capture tool still used legacy-incorrect names (speed, rpm, coolant_temp, door_sliding, etc.). Updated all 23 bus 1 entries to match the corrected `base.json` mapping.
+- **Remove orphaned translation keys** — Cleaned up unused `speed`, `rpm`, and `engine_torque` entries from `strings.json` and `translations/en.json` that no sensor map references.
+
 ## [2.62.11] - 2026-05-18
 
 ### Fixed
