@@ -37,6 +37,8 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 This is the only HYMER Connect integration that talks to your vehicle **two ways at once** — and sets itself up without any hacking tools:
 
+> **No BLE hardware?** This integration also works as a **pure cloud-only** setup — no Bluetooth adapter needed. See [Cloud-Only Quick Start](#cloud-only-quick-start-no-ble-hardware-needed) for the 4-step setup.
+
 **1. Automatic token capture — no mitmproxy, no patched APK**
 Press **CONNECTION** on the SCU touch panel during setup. The integration pairs via Bluetooth, completes a TLS-encrypted handshake with the SCU, and extracts the EHG Remote Access Refresh Token directly — the same token the official app uses internally. No phone interception, no certificate pinning bypass, no manual copy-paste. One button press, done.
 
@@ -367,6 +369,33 @@ The integration supports four setup paths. All require your HYMER Connect email 
 > **QR activation token format:** The QR code is on a **separate piece of paper from your dealer** (vehicle delivery documents) — not a sticker on the vehicle. When scanned, the text is a long JWT token (~200–600 characters) starting with `eyJ`. This is the same QR code the EHG app asks you to scan during "Fahrzeug verbinden" (Connect Vehicle). Stickers on the vehicle with formats like `E-Trailer;ehg-siu;...` are hardware identifiers and will **not** work.
 
 > **OAuth client header (v2.61.0-alpha.6+):** All three setup paths now show an optional *OAuth client header* field at Step 1 (Login). Leave it empty during initial setup if you're in a hurry — the integration will fall back to the bundled (deprecated) default and log a one-time warning per startup. You can paste your own value any time later via **Reconfigure** or **Options** to silence the warning and future-proof your install. See [OAuth Client Header](#oauth-client-header-v2610-alpha6) for the rationale and capture instructions.
+
+### Cloud-Only Quick Start (no BLE hardware needed)
+
+This integration works **without BLE hardware**. If your Home Assistant instance runs on a VM, NUC, or remote server — anywhere without Bluetooth — you can use it as a pure cloud integration via SignalR. All ~130 sensor entities, switches, lights, and climate controls work identically over the cloud path.
+
+**What you need:**
+
+- Your HYMER Connect email and password
+- An **EHG refresh token** — a long-lived token that authorizes real-time sensor data via SignalR
+
+**How to get the EHG refresh token (choose one):**
+
+| Method | Requires | Details |
+|---|---|---|
+| **Android app** (easiest) | Android phone + one-time vehicle access | Install the [EHG Token Extractor APK](#path-c-cloud-only-android-app--no-mitmproxy-no-ha-ble-needed), scan your QR code, press CONNECTION on the SCU, copy the token |
+| **mitmproxy** (legacy) | PC + rooted/patched APK | Intercept the token from the official EHG app — see [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) |
+
+**Setup steps:**
+
+1. Go to **Settings → Devices & Services → + Add Integration** → search **HYMER Connect**
+2. **Step 1 — Login:** Select your brand, enter email, password, and paste the **EHG refresh token**
+3. **Step 2 — Vehicle Activation:** Leave **all fields empty** (no QR token, no BLE address, BLE disabled) → submit
+4. Done — the integration auto-discovers your vehicle via the cloud API and creates all entities
+
+> **No BLE hardware? No problem.** The integration detects that BLE is disabled and operates in pure cloud mode. Sensors update in real-time via SignalR push (same protocol as the EHG mobile app). Commands (lights, heating, fridge) are sent via the cloud API. The only limitation is that cloud mode requires internet connectivity and the SCU's 12V main switch must be ON for passive sensor data to flow.
+
+> **Can I add BLE later?** Yes. If you later install HA on a Raspberry Pi in the vehicle, use **Reconfigure** to enable BLE and enter the QR activation token. The integration seamlessly upgrades to dual-path mode (BLE + cloud fallback) without losing entities or history. See [Adding BLE Later / Retry Pairing](#adding-ble-later--retry-pairing-reconfigure).
 
 ### Path A: BLE Pairing (recommended — no mitmproxy needed)
 
