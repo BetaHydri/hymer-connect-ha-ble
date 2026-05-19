@@ -433,9 +433,6 @@
       "solar_active": {
         "name": "Solar active"
       },
-      "gps_fix": {
-        "name": "GPS fix"
-      },
       "scu_connected": {
         "name": "SCU connected"
       },

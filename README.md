@@ -183,7 +183,7 @@ Three computed sensors derived from the CAN bus odometer and fuel level:
 | **BMS** | Pack voltage, current, temperature, SOC, SoH, capacity remaining, time remaining, charge detected, device failure |
 | **Solar** | Voltage, current, power (W), panel connected, charger active |
 | **Water** | Fresh water (EBL), grey water (EBL), water pump |
-| **GPS** | Coordinates, altitude, heading, satellites, signal quality, fix status, UTC time |
+| **GPS** | Coordinates (lat,lng). **Requires the "Find-My-RV" service enabled in the EHG app** (Services und Abonnements). Other bus 30 slots are SCU telemetry (LTE signal, SCU voltage, BT devices), not GPS — see [sensor-map.md](docs/sensor-map.md#bus-30--scusignals-scu-telemetry-lte-bt-gps) |
 | **Doors** | Driver, passenger (open/closed). Sliding/rear doors: CAN-bus only (Mercedes ME / mbapi2020) |
 | **Security** | Lock status, ignition, handbrake, engine running, seatbelt warning |
 | **Chassis** | Parking brake, aux heater available/state, cruise control, downhill assist, coolant warning, motor oil warning, wiping water empty |
@@ -223,6 +223,8 @@ If you identify what an unmapped slot does on your brand/model, please open an i
 
 GPS-based device tracker for vehicle location on the HA map.
 
+> **Prerequisite:** The **"Find-My-RV"** service must be enabled in the EHG app under **Mehr → Services und Abonnements**. Without it, the SCU does not report GPS coordinates to the cloud.
+
 ### 📱 Modern Dashboard (included)
 
 A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
@@ -236,7 +238,7 @@ A ready-to-use tile-based Lovelace dashboard optimized for mobile and desktop:
 | **Vehicle** | Model info, driving sensors, fuel/AdBlue, security |
 | **Doors** | Door status, chassis state (parking brake, aux heater, cruise control) |
 | **Lights** | Interior light controls with master groups |
-| **GPS** | Full map, coordinates, satellites, signal |
+| **GPS** | Full map, coordinates, SCU connectivity (LTE, voltage) |
 | **System** | SCU/Truma firmware, SCU restart button, tyre pressure |
 
 **Prerequisites:** Home Assistant 2022.11+ (tile cards). No HACS frontend cards required — 100% stock HA.

@@ -286,6 +286,10 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 
 ## Bus 30 — ScuSignals (SCU telemetry, LTE, BT, GPS)
 
+> **Prerequisite:** GPS coordinates (slot 1) require the **"Find-My-RV"** service to be
+> enabled in the EHG app under **Mehr → Services und Abonnements**. Without it, the SCU
+> does not report position data.
+
 Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 2026-05-05). Previous mapping incorrectly labelled slots 3-7 as GPS data —
 they are actually LTE quality, SCU voltage, and Bluetooth device counts.

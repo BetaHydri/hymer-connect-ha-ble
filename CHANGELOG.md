@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.14] - 2026-05-19
+
+### Fixed
+
+- **Correct misleading GPS sensor descriptions** — The README GPS sensor row and dashboard table listed altitude, heading, satellites, signal quality, and fix status as GPS entities. These slots (bus 30, slots 3–7) were relabelled in v2.62.12 to their actual functions (LTE signal, SCU voltage, BT device counts). Only slot (30,1) `gps_coordinates` is actual GPS data. Updated all documentation to reflect reality.
+- **Remove orphaned `gps_fix` translation key** — Cleaned up stale `gps_fix` entries from `strings.json` and `translations/en.json`. This entity was relabelled to `lte_connection_state` in the sensor map but the old translation keys were never removed.
+
+### Added
+
+- **Document Find-My-RV prerequisite for GPS** — GPS coordinates require the "Find-My-RV" service to be enabled in the EHG app (Mehr → Services und Abonnements). Added prerequisite callouts to the README sensor table, Device Tracker section, and `docs/sensor-map.md` bus 30 section.
+
 ## [2.62.13] - 2026-05-19
 
 ### Changed
