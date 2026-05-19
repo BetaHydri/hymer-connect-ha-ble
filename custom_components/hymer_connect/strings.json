@@ -93,9 +93,7 @@
       "odometer": {
         "name": "Odometer"
       },
-      "speed": {
-        "name": "Speed"
-      },
+
       "adblue_level": {
         "name": "AdBlue level"
       },
@@ -171,9 +169,7 @@
       "current_gear": {
         "name": "Current gear"
       },
-      "rpm": {
-        "name": "Engine RPM"
-      },
+
       "engine_hours": {
         "name": "Engine hours"
       },
@@ -183,9 +179,7 @@
       "total_fuel_used": {
         "name": "Total fuel used"
       },
-      "engine_torque": {
-        "name": "Engine torque"
-      },
+
       "adblue_temp": {
         "name": "AdBlue temperature"
       },

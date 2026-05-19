@@ -41,14 +41,14 @@ SENSOR_PATH = LOG_DIR / f"ws_sensors_{_TS}.json"
 # Sensor map (subset — enough for decoding; full map in pia_decoder.py)
 _SENSOR_MAP: dict[tuple[int, int], str] = {
     # can0
-    (1, 1): "odometer", (1, 2): "speed", (1, 3): "lock_status",
-    (1, 4): "handbrake", (1, 5): "rpm", (1, 6): "adblue_level",
-    (1, 7): "engine_hours", (1, 8): "vin_text", (1, 9): "coolant_temp",
-    (1, 10): "engine_running", (1, 11): "door_driver", (1, 12): "door_passenger",
-    (1, 13): "door_sliding", (1, 14): "door_rear", (1, 15): "ignition_state",
-    (1, 16): "seatbelt_warning", (1, 17): "turn_signal", (1, 18): "headlamp",
-    (1, 19): "parking_light", (1, 20): "fog_front", (1, 21): "fog_rear",
-    (1, 22): "high_beam", (1, 23): "language",
+    (1, 1): "odometer", (1, 2): "fuel_level", (1, 3): "lock_status",
+    (1, 4): "handbrake", (1, 5): "distance_to_service", (1, 6): "adblue_level",
+    (1, 7): "engine_hours", (1, 8): "vin_text", (1, 9): "outside_temperature",
+    (1, 10): "engine_running", (1, 11): "wiping_water_empty", (1, 12): "door_driver",
+    (1, 13): "door_passenger", (1, 14): "motor_oil_warning", (1, 15): "ignition_state",
+    (1, 16): "seatbelt_warning", (1, 17): "coolant_warning", (1, 18): "parking_brake",
+    (1, 19): "standheizung_available", (1, 20): "standheizung_state", (1, 21): "cruise_control_can",
+    (1, 22): "downhill_assist", (1, 23): "language",
     # lin1
     (3, 1): "main_switch", (3, 2): "power_source", (3, 3): "charger_active",
     (3, 4): "charge_phase", (3, 5): "battery_voltage", (3, 6): "battery_current",
