@@ -800,9 +800,9 @@ You can obtain the APK from your own phone using `adb shell pm path com.ehg.hyme
 #### 4. Run the capture script
 
 ```powershell
-# Clone the cloud sister-repo (the capture script lives there, not in this BLE repo)
-git clone https://github.com/BetaHydri/hymer-connect-ha.git
-cd hymer-connect-ha
+# Clone this repo (the capture scripts live in tools/)
+git clone https://github.com/BetaHydri/hymer-connect-ha-ble.git
+cd hymer-connect-ha-ble
 
 # Windows — run the launcher script:
 .\tools\Start-EhgTokenCapture.ps1
@@ -894,7 +894,7 @@ To silence the warning and prepare for the future removal of the fallback, paste
 
 ### How to capture the header
 
-The capture tool lives in the **cloud repo** (it shares the mitmproxy plumbing). Use [`tools/Start-EhgTokenCapture.ps1` from `BetaHydri/hymer-connect-ha`](https://github.com/BetaHydri/hymer-connect-ha/blob/master/tools/Start-EhgTokenCapture.ps1) — it captures the EHG refresh token *and* the OAuth Basic header in the **same mitmproxy session**, no extra steps. After running the capture you will see two success banners; the second one is:
+Use [`tools/Start-EhgTokenCapture.ps1`](tools/Start-EhgTokenCapture.ps1) — it captures the EHG refresh token *and* the OAuth Basic header in the **same mitmproxy session**, no extra steps. After running the capture you will see two success banners; the second one is:
 
 ```text
 ╔════════════════════════════════════════════════════════════════╗
@@ -1071,14 +1071,12 @@ Similarly, if your vehicle has components that send data on bus/sensor IDs not y
 
 ### How you can help
 
-#### 🚀 Bootstrap a brand overlay with the cloud-repo converter (v2.49.0+)
+#### 🚀 Bootstrap a brand overlay with the converter (v2.49.0+)
 
-If your brand isn't a HYMER Grand Canyon S 600/S 700, you can **generate a starting `sensor_maps/<brand>.json`** instead of writing it by hand. The cloud sister-repo ships [`tools/convert_dan_metadata.py`](https://github.com/BetaHydri/hymer-connect-ha/blob/master/tools/convert_dan_metadata.py) ([docs](https://github.com/BetaHydri/hymer-connect-ha/blob/master/tools/README.md)). It is a **two-step pipeline** — the converter only consumes input, it does not extract from an APK itself:
+If your brand isn't a HYMER Grand Canyon S 600/S 700, you can **generate a starting `sensor_maps/<brand>.json`** instead of writing it by hand. This repo ships [`tools/convert_dan_metadata.py`](tools/convert_dan_metadata.py) ([docs](tools/README.md)). It is a **two-step pipeline** — the converter only consumes input, it does not extract from an APK itself:
 
 1. **First run the upstream extractor** to produce a *local* runtime-metadata directory. The extractor is part of [**HYMER Connect Metadata Edition**](https://github.com/dan-simms1/hymer-connect-ha) by [@dan-simms1](https://github.com/dan-simms1) (see its `scripts/prepare_runtime_metadata.py`). You supply your own EHG APK; nothing APK-derived is committed.
-2. **Then convert it** with the cloud-repo's `convert_dan_metadata.py convert --input ... --output sensor_maps/<brand>.json --brand <brand>`. The output is a **starting point**: read-only sensors and clearly-defined switches/lights are auto-emitted; climate/fridge/boiler/heater are *not* (a `_climate_templates_required` marker is written for hand-porting from `hymer.json`). Review, rename to match `base.json` conventions, test, then open a PR.
-
-The BLE repo and the cloud repo share the same `sensor_maps/` JSON format, so an overlay generated for one can be dropped into the other unchanged.
+2. **Then convert it** with `convert_dan_metadata.py convert --input ... --output sensor_maps/<brand>.json --brand <brand>`. The output is a **starting point**: read-only sensors and clearly-defined switches/lights are auto-emitted; climate/fridge/boiler/heater are *not* (a `_climate_templates_required` marker is written for hand-porting from `hymer.json`). Review, rename to match `base.json` conventions, test, then open a PR.
 
 If you have a different EHG vehicle and want to help expand compatibility:
 
