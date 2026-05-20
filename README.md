@@ -467,6 +467,8 @@ Use this when your HA instance has **no BLE hardware** (VM, NUC, remote server) 
 4. The integration connects via SignalR with full ~130 sensor coverage
 
 > **The Android app is a one-time tool.** After extracting the token, you don't need the app again — the token is stored permanently in the HA config entry and auto-refreshes via the cloud API. The app uses the same BLE+TLS+PIA protocol as the HA integration's native BLE pairing (Path A), just running on your phone instead of the RPi.
+>
+> **Exception:** If you disconnect the vehicle from your account ("Disconnect vehicle" / German: "Verbindung trennen" in the EHG app) or perform a SCU factory reset, **all tokens are invalidated** and you must re-extract the token. See [Paired Device Lifecycle](#paired-device-lifecycle) for details.
 
 ### Adding BLE Later / Retry Pairing (Reconfigure)
 
@@ -564,7 +566,7 @@ Alternatively, check the **EHG app** on your phone — the paired device or conn
 
 The SCU supports **multiple paired clients simultaneously** (e.g. phone + RPi). Each paired device receives its own independent `remote_access_refresh_token` with **no expiry**. Removing one device does not affect the others.
 
-**After a successful BLE pairing, you never need the QR code again.** The token is persisted in the HA config entry and survives restarts, reboots, and updates.
+**After a successful BLE pairing, you never need the QR code again.** The token is persisted in the HA config entry and survives restarts, reboots, and updates. **Exception:** disconnecting the vehicle from your account ("Disconnect vehicle" / "Verbindung trennen") or a SCU factory reset invalidates all tokens — see the table below.
 
 **When is re-pairing (QR code) needed?**
 
@@ -575,19 +577,19 @@ The SCU supports **multiple paired clients simultaneously** (e.g. phone + RPi). 
 | HA integration reconfigured (Reconfigure) | ❌ No | — |
 | Phone re-paired with EHG app | ❌ No | ❌ RPi token stays valid |
 | **Delete integration from HA** | ✅ Yes (config entry + token deleted) | ❌ Phone still works |
-| **"Verbindung trennen" in EHG app** | ✅ Yes (entire vehicle disconnected from account) | ✅ All devices must re-pair |
+| **"Disconnect vehicle" ("Verbindung trennen") in EHG app** | ✅ Yes (entire vehicle disconnected from account) | ✅ All devices must re-pair |
 | **SCU factory reset** | ✅ Yes (all paired devices wiped) | ✅ All devices must re-pair |
 
 **What happens when a token is revoked?**
 
-If the vehicle is disconnected from your account ("Verbindung trennen" in EHG app), or a SCU factory reset is performed:
+If the vehicle is disconnected from your account ("Disconnect vehicle" / "Verbindung trennen" in EHG app), or a SCU factory reset is performed:
 
 1. The cloud marks all refresh tokens for that vehicle as revoked
 2. The integration's next `POST /remoteAccessToken` call returns **401 Forbidden**
 3. The coordinator catches this and triggers HA's **reauth flow**
 4. You must re-pair: enter the QR code again (via Reconfigure or re-add the integration) and press **CONNECTION** on the SCU touchscreen
 
-> **Important: The EHG app has no UI to manage individual paired BLE devices.** The "Gastzugänge" (Guest Access) section manages user account invitations (max 2 devices per person), not BLE device pairings. The SCU's internal paired device list is not visible anywhere in the app. To remove a stale HA pairing from the SCU, either use "Verbindung trennen" (nuclear — removes all devices) or restart the SCU and re-pair with a fresh device name.
+> **Important: The EHG app has no UI to manage individual paired BLE devices.** The "Gastzugänge" (Guest Access) section manages user account invitations (max 2 devices per person), not BLE device pairings. The SCU's internal paired device list is not visible anywhere in the app. To remove a stale HA pairing from the SCU, either use "Disconnect vehicle" ("Verbindung trennen" — nuclear, removes all devices) or restart the SCU and re-pair with a fresh device name.
 
 > **Tip:** Since v2.40.0-alpha.2, the integration uses a unique `mobile_device_name` (`ha-{timestamp}`) for each pairing attempt. This avoids collisions with stale entries in the SCU's internal paired device list.
 
@@ -701,7 +703,7 @@ logger:
 Once the initial BLE pairing succeeds:
 
 - **The BlueZ bond is stored persistently** on the RPi. On subsequent HA restarts, the integration detects the existing bond and skips `Pair()` — no need to press CONNECTION again
-- **The EHG refresh token is stored in the HA config entry** and never expires. It survives restarts, updates, and reboots
+- **The EHG refresh token is stored in the HA config entry** and never expires. It survives restarts, updates, and reboots. **Exception:** "Disconnect vehicle" ("Verbindung trennen") or SCU factory reset invalidates all tokens — re-pairing required (see [Paired Device Lifecycle](#paired-device-lifecycle))
 - **BLE reconnects automatically** on every coordinator poll (~60s). If the vehicle is in range, BLE activates alongside SignalR. If out of range, SignalR continues alone
 - **If the bond is ever lost** (SCU factory reset, BlueZ data cleared, `bluetoothctl remove`), you'll need to press CONNECTION once more. The integration detects the missing bond and prompts accordingly
 
@@ -1449,7 +1451,7 @@ The SCU rejected the `PairMobileRequest` because an existing device name is alre
 4. Press **CONNECTION** on the SCU touch panel, then submit the config flow
 5. The SCU should accept the fresh `PairMobileRequest` with its unique device name and issue a new EHG token
 
-> **Important:** The EHG app has **no UI** to manage individual paired BLE devices. The SCU's internal paired device list is not visible in the app. "Verbindung trennen" (Mein Fahrzeug menu) disconnects the **entire vehicle** from your account — only use this as a last resort.
+> **Important:** The EHG app has **no UI** to manage individual paired BLE devices. The SCU's internal paired device list is not visible in the app. "Disconnect vehicle" ("Verbindung trennen", Mein Fahrzeug menu) disconnects the **entire vehicle** from your account — only use this as a last resort.
 
 ### BLE Pairing — "Timed out waiting for SCU response"
 
@@ -1497,7 +1499,7 @@ The recommended sequence for a clean re-pair:
 | Limitation | Details | Workaround |
 |---|---|---|
 | **GPS requires satellite fix** | GPS slot (30,1) returns a status code (`2` = no fix) instead of coordinates when the SCU's GPS module has no sky visibility. Indoor parking, metal roofs, and engine-off standby often prevent a fix. | Drive to an open area or turn on the Mercedes ignition. GPS fix typically takes 30–60 seconds with clear sky. |
-| **SCU pairing slots are limited** | The SCU maintains an internal list of paired BLE devices (likely 4–5 slots). Each `ha-{timestamp}` pairing consumes a slot. Slots cannot be viewed or individually deleted via the EHG app. | If pairing fails with empty response, use "Verbindung trennen" in the EHG app to clear all slots (nuclear option — all devices must re-pair). |
+| **SCU pairing slots are limited** | The SCU maintains an internal list of paired BLE devices (likely 4–5 slots). Each `ha-{timestamp}` pairing consumes a slot. Slots cannot be viewed or individually deleted via the EHG app. | If pairing fails with empty response, use "Disconnect vehicle" ("Verbindung trennen") in the EHG app to clear all slots (nuclear option — all devices must re-pair). |
 | **Victron MultiPlus (bus 121) non-functional** | The Victron MultiPlus 12/1600/70 communicates via VE.Bus (RS-485), which is electrically incompatible with the vehicle’s CAN bus. The SCU cannot bridge these protocols. Entities exist but always show unavailable. | Use a Victron Cerbo GX or VenusOS device to monitor the MultiPlus separately. |
 | **12V OFF → no passive sensor updates via cloud** | When 12V is off, the SCU enters standby and stops pushing passive sensor data (doors, temps, water). Commands still work. | Use BLE direct path (works in standby) or keep 12V on. |
 | **MTU stays at 23 on HAOS** | BlueZ on RPi4/HAOS doesn’t expose the D-Bus MTU property, so MTU negotiation fails silently. Writes are paced at 100ms/chunk to compensate. | No user action needed — pacing handles it automatically. Slightly slower TLS handshake (~2s vs ~0.5s at MTU 245). |
