@@ -198,7 +198,7 @@ Three computed sensors derived from the CAN bus odometer and fuel level:
 | **Victron** | Inverter on/off, charger on/off, voltages, currents, frequencies, device failure, firmware (bus 121 — disabled by default, **non-functional**: Victron uses VE.Bus/RS-485 which is incompatible with the vehicle CAN bus) |
 | **Total** | **~130 entities** (sensors, binary sensors, lights, switches, climate, selects) from CAN bus, LIN bus, GPS, and connected components |
 
-### � Dynamic Slot Discovery (v2.34.0+)
+### 🔍 Dynamic Slot Discovery (v2.34.0+)
 
 The integration's named sensor map (`SENSOR_MAP`) was reverse-engineered on a HYMER Grand Canyon S 600 CrossOver. **All other EHG brands (Eriba, Bürstner, Dethleffs, LMC, Niesmann+Bischoff, Sunlight, Carado, Laika, FreeOnTour) share the same SCU hardware and PIA protobuf protocol**, but the slot layout can differ — different floor plans, different appliance models, different option packages can place sensors on bus/slot pairs that are not yet in the map.
 
@@ -222,7 +222,7 @@ If you identify what an unmapped slot does on your brand/model, please open an i
 
 > **Existing entities are unaffected.** Discovered entities only ever cover slots that are *not* in `SENSOR_MAP` — there is no collision possible with the named sensors.
 
-### �🗺️ Device Tracker
+### 🗺️ Device Tracker
 
 GPS-based device tracker for vehicle location on the HA map.
 
