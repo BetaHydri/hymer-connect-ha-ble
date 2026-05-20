@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.19] - 2026-05-20
+
+### Fixed
+
+- **BLE write commands now work — missing `connectedComponentIndex` field** — The SCU silently dropped BLE write commands (lights, switches, heater, fridge) because the protobuf payload was missing the `connectedComponentIndex` field (protobuf field 9, always 0). This field is required by the SCU for BLE-path command processing but not for cloud/SignalR. Discovered by decompiling the EHG Android app's Hermes bytecode and comparing the `ConnectedComponentValue` protobuf schema against our `build_light_command()` output. BLE sensor reads were unaffected because they use a different message type (`getCapabilities`/`getValues`).
+
 ## [2.62.18] - 2026-05-20
 
 ### Added
