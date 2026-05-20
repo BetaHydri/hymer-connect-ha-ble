@@ -633,7 +633,7 @@ on SCU touch panel            (RPi4 with BLE)               (in vehicle)
        │                            ├──── ClientHello ────────►│
        │                            │◄─── ServerHello ─────────┤
        │                            ├──── KeyExchange ────────►│
-       │                            │◄─── Finished ───────────┤
+       │                            │◄─── Finished ────────────┤
        │                       7. PairMobileRequest (QR token) │
        │                            ├─────────────────────────►│
        │                       8. PairMobileResponse (EHG JWT) │
@@ -905,8 +905,8 @@ Use [`tools/Start-EhgTokenCapture.ps1`](tools/Start-EhgTokenCapture.ps1) — it 
 
 ```text
 ╔════════════════════════════════════════════════════════════════╗
-║   ✅  OAUTH BASIC-AUTH HEADER CAPTURED SUCCESSFULLY!             ║
-║   Saved to: tools/captured_oauth_basic_auth.txt                 ║
+║   ✅  OAUTH BASIC-AUTH HEADER CAPTURED SUCCESSFULLY!           ║
+║   Saved to: tools/captured_oauth_basic_auth.txt                ║
 ╚════════════════════════════════════════════════════════════════╝
 
    HEADER:
