@@ -87,6 +87,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_next_attempt: float = 0.0  # monotonic time of next BLE attempt
         self._ble_pairing_in_progress = False  # set by config_flow during Step 3 BLE pairing
         self._ble_command_ack = asyncio.Event()  # set when BLE PIA response arrives after a command
+        self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -542,13 +543,25 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         sensor_data = decode_pia_payload(b64_payload)
         if sensor_data:
             self._on_signalr_update(sensor_data)
-            # Signal that a BLE response arrived (for command ACK tracking)
+            # Signal ACK only if the response contains the sensor we commanded.
+            # Previous logic fired on ANY PIA response, causing false ACKs
+            # from unrelated periodic sensor pushes (e.g. battery_current).
+            # When _ble_pending_cmd_key is None (e.g. pia_request), accept
+            # any response as ACK.
             if not self._ble_command_ack.is_set():
-                _LOGGER.debug(
-                    "BLE ACK received (%d fields: %s)",
-                    len(sensor_data), list(sensor_data.keys())[:5],
-                )
-            self._ble_command_ack.set()
+                cmd_key = self._ble_pending_cmd_key
+                if cmd_key is None or cmd_key in sensor_data:
+                    _LOGGER.debug(
+                        "BLE ACK received (%d fields, matched %s)",
+                        len(sensor_data), cmd_key or "any",
+                    )
+                    self._ble_command_ack.set()
+                else:
+                    _LOGGER.debug(
+                        "BLE response ignored for ACK (waiting for %s, got %s)",
+                        cmd_key,
+                        list(sensor_data.keys())[:5],
+                    )
 
     async def _ble_listen_loop(self) -> None:
         """Background loop receiving PIA data from SCU via BLE."""
@@ -655,7 +668,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Send a command with BLE-first routing and cloud fallback.
 
         When BLE is connected, builds the PIA payload and sends it over
-        the BLE direct path (~50ms latency).  Then waits up to 2 seconds
+        the BLE direct path (~50ms latency).  Then waits up to 3 seconds
         for the SCU to echo back a PIA response (ACK).  If no response
         arrives within the timeout, re-sends the same command via the
         cloud/SignalR path as a safety net.  Commands are idempotent
@@ -689,18 +702,37 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             if b64_payload:
                 _LOGGER.info("BLE command routing: %s", cmd_detail)
+                # Resolve the expected sensor name for ACK matching.
+                # The SCU echoes the commanded bus/slot as a PIA response.
+                # We look up the sensor name so _on_ble_pia_response can
+                # match it and avoid false ACKs from unrelated periodic
+                # sensor pushes (e.g. battery_current arriving mid-wait).
+                from .pia_decoder import SENSOR_MAP
+                self._ble_pending_cmd_key = None
+                if method_name == "send_light_command" and len(args) >= 2:
+                    mapped = SENSOR_MAP.get((args[0], args[1]))
+                    self._ble_pending_cmd_key = mapped[0] if mapped else None
+                elif method_name == "send_multi_sensor_command" and args:
+                    # Multi-sensor: use first slot as ACK indicator
+                    first = args[0][0] if args[0] else {}
+                    bk = first.get("bus_id")
+                    sk = first.get("sensor_id")
+                    if bk is not None and sk is not None:
+                        mapped = SENSOR_MAP.get((bk, sk))
+                        self._ble_pending_cmd_key = mapped[0] if mapped else None
+                # send_pia_request: no specific slot — accept any response
                 # Clear the ACK event before sending so we only detect
                 # responses that arrive AFTER our command.
                 self._ble_command_ack.clear()
                 ok = await self._send_via_ble(b64_payload)
                 if ok:
-                    # Wait up to 1.5s for the SCU to echo back a PIA response.
-                    # Vehicle testing shows SCU responds in 600-1100ms depending
-                    # on the target bus.  500ms was too tight, causing unnecessary
-                    # cloud double-sends that produce dashboard toggle flicker.
+                    # Wait up to 3.0s for the SCU to echo back a PIA response.
+                    # Vehicle testing (2026-05-20) shows SCU responds in
+                    # 1969–2331ms consistently.  Previous 1.5s timeout caused
+                    # 100% false cloud fallbacks and dashboard toggle flicker.
                     try:
                         await asyncio.wait_for(
-                            self._ble_command_ack.wait(), timeout=1.5
+                            self._ble_command_ack.wait(), timeout=3.0
                         )
                         _LOGGER.info(
                             "BLE ACK confirmed: %s", cmd_detail
@@ -708,7 +740,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         return
                     except asyncio.TimeoutError:
                         _LOGGER.warning(
-                            "BLE ACK timeout (1500ms): %s "
+                            "BLE ACK timeout (3000ms): %s "
                             "— re-sending via cloud as safety net",
                             cmd_detail,
                         )

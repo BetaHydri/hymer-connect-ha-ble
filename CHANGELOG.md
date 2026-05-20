@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.17] - 2026-05-20
+
+### Fixed
+
+- **BLE ACK timeout too short (1.5s → 3.0s)** — Vehicle testing showed SCU responds to BLE commands in 1969–2331ms consistently, well past the 1500ms timeout. Every BLE command was falsely re-sent via cloud, causing unnecessary dashboard toggle flicker and double-sends. Increased timeout to 3000ms based on measured response times.
+- **False BLE ACK from unrelated sensor pushes** — The ACK mechanism treated *any* PIA response as confirmation of a pending command. If an unrelated periodic sensor update (e.g. `battery_current`) arrived during the ACK wait window, it was wrongly counted as a command ACK. Now tracks the expected sensor name from the commanded `(bus, slot)` via the sensor map and only counts matching responses.
+
 ## [2.62.16] - 2026-05-20
 
 ### Changed
