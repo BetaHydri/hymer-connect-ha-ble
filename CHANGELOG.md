@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.21] - 2026-05-21
+
+### Fixed
+
+- **BLE writes now include `connectedComponentInstance` (CCValue field 10)** — the SCU was silently dropping every `setValues` command on buses that carry a per-instance identifier (e.g. CAN/LIN bus 99 BMS = `b"can2"`). Discovered by analysing v2.62.20 hex-dump logs from a real vehicle test: the SCU's own outbound responses for bus 99 BMS carried `52 04 63616e32` (field 10, 4 bytes, `b"can2"`) while every write attempt from the integration (lights bus 19/12, fridge bus 34, Truma heater bus 58 pair-write) omitted the field and timed out without any SCU response — cross-confirmed with the EHG app showing no physical state change.
+  - Added per-bus `_BUS_INSTANCE_CACHE` in `pia_decoder.py`, populated automatically by `_parse_sensor_entry` from every inbound CCValue that carries a field-10 instance.
+  - `build_light_command` and `build_multi_sensor_command` now consult the cache and echo the cached instance back as `field 10 = bytes` on every outbound write. Buses with no cached instance (e.g. bus 30 SCU singleton) continue to work as before — the field is simply omitted.
+  - Added `get_bus_instance(bus_id)` public helper and DEBUG logging for cache hits/misses on every write build.
+
 ## [2.62.20] - 2026-05-20
 
 ### Reverted

@@ -32,6 +32,18 @@ _SENSOR_MAPS_DIR = Path(__file__).parent / "sensor_maps"
 #       custom_components.hymer_connect.pia_decoder: info
 _discovery_previous: dict[str, Any] = {}
 
+# Cache of CCValue.connectedComponentInstance (field 10, bytes) per bus_id,
+# populated by _parse_sensor_entry from inbound PIA responses. Used by the
+# command builders below to echo the instance back on setValues writes — the
+# SCU silently drops writes that omit it for buses that report one.
+# Confirmed v2.62.20 log: bus 99 BMS responses carry instance b"can2".
+_BUS_INSTANCE_CACHE: dict[int, bytes] = {}
+
+
+def get_bus_instance(bus_id: int) -> bytes | None:
+    """Return the cached connectedComponentInstance bytes for a bus, or None."""
+    return _BUS_INSTANCE_CACHE.get(bus_id)
+
 # Sensor key map: (bus_id, sensor_id) → (name, unit, value_transform)
 # value_transform: None=raw, "div10"=divide by 10, "div100"=divide by 100, "div1000"=divide by 1000, "div3600"=seconds to hours
 # v2.43.0+: Populated at runtime from sensor_maps/base.json + brand overlay.
@@ -414,14 +426,18 @@ def build_light_command(
     """
     # Build ConnectedComponentValue (schema from EHG Hermes decompile,
     # ConnectedComponentValue.encode at index.js:500080):
-    #   field 1 = connectedComponentValueId (uint32)  -> sensor_id
-    #   field 2 = connectedComponentId      (uint32)  -> bus_id
-    #   field 3 = int32Value                (uint32)  -> uint_value
-    #   field 4 = stringValue               (string)  -> str_value
-    #   field 5 = boolValue                 (bool)    -> bool_value
-    #   field 6 = floatValue                (float32) (unused here)
+    #   field 1  = connectedComponentValueId   (uint32) -> sensor_id
+    #   field 2  = connectedComponentId        (uint32) -> bus_id
+    #   field 3  = int32Value                  (uint32) -> uint_value
+    #   field 4  = stringValue                 (string) -> str_value
+    #   field 5  = boolValue                   (bool)   -> bool_value
+    #   field 6  = floatValue                  (float32) (unused here)
+    #   field 10 = connectedComponentInstance  (bytes)  -> bus instance
     # field 9 (connectedComponentIndex) is intentionally NOT set: the EHG app's
     # toPiaValues (index.js:1333489) never populates it for normal writes.
+    # field 10 (connectedComponentInstance) MUST be echoed back when the SCU
+    # has reported one for the bus — v2.62.21: without it the SCU silently
+    # drops the write at the PIA layer.
     sensor_data = _encode_varint_field(1, sensor_id)
     sensor_data += _encode_varint_field(2, bus_id)
     if str_value is not None:
@@ -430,6 +446,18 @@ def build_light_command(
         sensor_data += _encode_varint_field(5, 1 if bool_value else 0)
     elif uint_value is not None:
         sensor_data += _encode_varint_field(3, uint_value)
+    instance = _BUS_INSTANCE_CACHE.get(bus_id)
+    if instance is not None:
+        sensor_data += _encode_bytes_field(10, instance)
+        _LOGGER.debug(
+            "build_light_command bus=%d sid=%d: instance=%r",
+            bus_id, sensor_id, instance,
+        )
+    else:
+        _LOGGER.debug(
+            "build_light_command bus=%d sid=%d: NO cached instance — write may be dropped",
+            bus_id, sensor_id,
+        )
 
     # Nest: sensor_data inside field1 of sub2, inside field2 of inner
     sub2 = _encode_bytes_field(1, sensor_data)
@@ -472,8 +500,10 @@ def build_multi_sensor_command(
 
     entries = b""
     for s in sensors:
-        sensor_data = _encode_varint_field(1, s["sensor_id"])
-        sensor_data += _encode_varint_field(2, s["bus_id"])
+        bus_id = s["bus_id"]
+        sensor_id = s["sensor_id"]
+        sensor_data = _encode_varint_field(1, sensor_id)
+        sensor_data += _encode_varint_field(2, bus_id)
         if "bool_value" in s:
             sensor_data += _encode_varint_field(5, 1 if s["bool_value"] else 0)
         elif "uint_value" in s:
@@ -484,6 +514,20 @@ def build_multi_sensor_command(
             sensor_data += _encode_float_field(6, s["float_value"])
         # field 9 (connectedComponentIndex) intentionally NOT set; see
         # build_light_command() for rationale.
+        # field 10 (connectedComponentInstance) echoed when cached — see
+        # build_light_command() for rationale.
+        instance = _BUS_INSTANCE_CACHE.get(bus_id)
+        if instance is not None:
+            sensor_data += _encode_bytes_field(10, instance)
+            _LOGGER.debug(
+                "build_multi_sensor_command bus=%d sid=%d: instance=%r",
+                bus_id, sensor_id, instance,
+            )
+        else:
+            _LOGGER.debug(
+                "build_multi_sensor_command bus=%d sid=%d: NO cached instance — write may be dropped",
+                bus_id, sensor_id,
+            )
         entries += _encode_bytes_field(1, sensor_data)
 
     inner = _encode_bytes_field(2, entries)
@@ -580,6 +624,7 @@ def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
     sensor_id = 0
     bus_id = 0
     bus_name = ""
+    instance_bytes: bytes | None = None
     # Collect value candidates keyed by protobuf field number.
     values: dict[int, Any] = {}
 
@@ -601,9 +646,24 @@ def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
         elif fn == 7 and wt == 0:
             values[7] = v  # signed int (as varint)
         elif fn == 10 and wt == 2:
+            # connectedComponentInstance (bytes) — cache raw for outbound
+            # writes; also keep printable form for sensor metadata.
+            instance_bytes = v
             s = _try_string(v)
             if s:
                 bus_name = s
+
+    # Cache instance per bus_id for use by build_*_command writers.
+    # Same instance per bus across all sids (confirmed: bus 99 BMS sid 5 and
+    # sid 7 both report b"can2"). Last-writer-wins is safe.
+    if bus_id and instance_bytes is not None:
+        prev = _BUS_INSTANCE_CACHE.get(bus_id)
+        if prev != instance_bytes:
+            _BUS_INSTANCE_CACHE[bus_id] = instance_bytes
+            _LOGGER.debug(
+                "Instance cache: bus=%d instance=%r (was %r)",
+                bus_id, instance_bytes, prev,
+            )
 
     # Pick the best value: prefer string → float → uint → int → bool.
     # uint/int take precedence over bool to avoid True==1 confusion.
