@@ -226,7 +226,7 @@ If you identify what an unmapped slot does on your brand/model, please open an i
 
 GPS-based device tracker for vehicle location on the HA map.
 
-> **Prerequisite:** The **"Find-My-RV"** service must be enabled in the EHG app under **Mehr → Services und Abonnements**. Without it, the SCU does not report GPS coordinates to the cloud.
+> **Prerequisite:** The **"Find-My-RV"** service must be enabled in the EHG app under **Mehr → Services und Abonnements** (or **More → Services and Subscriptions** in English). Without it, the SCU does not include GPS coordinates in its data stream (affects both BLE and cloud paths).
 
 ### 📱 Modern Dashboard (included)
 
