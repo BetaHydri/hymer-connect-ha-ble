@@ -25,6 +25,7 @@ from .const import (
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
     CONF_BRAND,
+    CONF_CLOUD_FALLBACK,
     CONF_EHG_REFRESH_TOKEN,
     CONF_OAUTH_BASIC_AUTH,
     CONF_QR_TOKEN,
@@ -681,6 +682,9 @@ class HymerConnectOptionsFlow(OptionsFlow):
             CONF_BLE_ENABLED,
             self._config_entry.data.get(CONF_BLE_ENABLED, False),
         )
+        current_cloud_fallback = self._config_entry.options.get(
+            CONF_CLOUD_FALLBACK, True
+        )
         current_ble_address = self._config_entry.options.get(
             CONF_BLE_ADDRESS,
             self._config_entry.data.get(CONF_BLE_ADDRESS, ""),
@@ -697,6 +701,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_BLE_ENABLED,
                         default=current_ble_enabled,
+                    ): bool,
+                    vol.Optional(
+                        CONF_CLOUD_FALLBACK,
+                        default=current_cloud_fallback,
                     ): bool,
                     vol.Optional(
                         CONF_BLE_ADDRESS,

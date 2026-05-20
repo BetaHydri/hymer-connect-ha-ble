@@ -43,7 +43,7 @@ This is the only HYMER Connect integration that talks to your vehicle **two ways
 Press **CONNECTION** on the SCU touch panel during setup. The integration pairs via Bluetooth, completes a TLS-encrypted handshake with the SCU, and extracts the EHG Remote Access Refresh Token directly — the same token the official app uses internally. No phone interception, no certificate pinning bypass, no manual copy-paste. One button press, done.
 
 **2. BLE-first command routing with automatic cloud safety net**
-When your Home Assistant host (e.g. Raspberry Pi 4) is within Bluetooth range of the vehicle, all commands — lights, heater, fridge, boiler, switches — are sent via **BLE at ~50 ms latency**. The coordinator waits for the SCU's confirmation; if none arrives within 1.5 seconds, the same command is automatically re-sent via the **cloud/SignalR path** as a fallback. Commands are idempotent, so double-delivery is harmless. You get the speed of local Bluetooth with the reliability of the cloud — zero manual intervention.
+When your Home Assistant host (e.g. Raspberry Pi 4) is within Bluetooth range of the vehicle, all commands — lights, heater, fridge, boiler, switches — are sent via **BLE at ~50 ms latency**. The coordinator waits for the SCU's confirmation; if none arrives within 3 seconds, the same command is automatically re-sent via the **cloud/SignalR path** as a fallback (configurable — see [Cloud Fallback Option](#cloud-fallback-option)). Commands are idempotent, so double-delivery is harmless. You get the speed of local Bluetooth with the reliability of the cloud — zero manual intervention.
 
 **3. Seamless failover — drive away, come back, it just works**
 Both paths run concurrently. BLE delivers ~130 sensors with sub-second latency when parked; SignalR keeps all ~130 sensors flowing when you're away. Drive out of Bluetooth range and the cloud path continues uninterrupted. Park back in range and BLE reconnects automatically. Your dashboard and automations never notice the switch.
@@ -289,7 +289,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
 | **Range** | ~10m (inside vehicle) | Worldwide (LTE) |
 | **Requires** | BLE hardware (RPi4) + physical proximity | Internet connection |
 | **Sensor data** | ~130 sensors (with BLE subscriptions), 1–2s push intervals | ~130 sensors, event-driven push |
-| **Commands** | Full control (lights, heater, fridge, switches) — BLE preferred, cloud fallback | Full control (lights, heater, fridge, switches) |
+| **Commands** | Full control (lights, heater, fridge, switches) — BLE preferred, cloud fallback ([configurable](#cloud-fallback-option)) | Full control (lights, heater, fridge, switches) |
 | **Works with 12V off** | Yes (SCU BLE stays active in standby) | Limited (commands work, passive sensors stop) |
 
 ### What to expect during setup
@@ -309,7 +309,7 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 **After setup completes, the coordinator manages both paths automatically:**
 
 1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers.
-2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 1500ms for the SCU to confirm (PIA response). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net.
+2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are sent via BLE. The coordinator waits up to 3000ms for the SCU to confirm (PIA response matching the commanded bus/slot). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net. This fallback can be disabled in **Options → Cloud fallback on BLE timeout** (see [Cloud Fallback Option](#cloud-fallback-option)).
 3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted** (it was never stopped). Commands fall back to cloud-only.
 4. On next poll, BLE is retried — if the vehicle is back in range, BLE recovers and dual-path resumes.
 
@@ -474,6 +474,19 @@ Use this when your HA instance has **no BLE hardware** (VM, NUC, remote server) 
 > **Exception:** If you disconnect the vehicle from your account ("Disconnect vehicle" / German: "Verbindung trennen" in the EHG app) or perform a SCU factory reset, **all tokens are invalidated** and you must re-extract the token. See [Paired Device Lifecycle](#paired-device-lifecycle) for details.
 
 ### Adding BLE Later / Retry Pairing (Reconfigure)
+
+#### Cloud Fallback Option
+
+When BLE is enabled, the integration sends commands via BLE first and waits up to 3 seconds for the SCU to confirm. If no confirmation arrives, the command is re-sent via cloud/SignalR as a safety net. This "cloud fallback" is **enabled by default** and ensures commands always get through.
+
+You can disable the cloud fallback via **Settings → Integrations → HYMER Connect → Configure → Cloud fallback on BLE timeout**:
+
+| Setting | Behavior |
+|---|---|
+| ✅ Enabled (default) | BLE timeout → re-send via cloud. Guarantees delivery, may cause brief dashboard flicker from double-send |
+| ❌ Disabled | BLE timeout → log warning, do NOT re-send. Pure BLE-only commands. Useful for testing or stable BLE setups |
+
+> **Note:** This only affects command routing. Sensor data always flows via both BLE and SignalR regardless of this setting. If BLE is not connected at all, commands always go via cloud — the toggle only applies when BLE is connected but the SCU doesn't ACK in time.
 
 Already set up cloud-only and want to add BLE? Or pairing failed and you want to retry? No need to delete and re-add:
 

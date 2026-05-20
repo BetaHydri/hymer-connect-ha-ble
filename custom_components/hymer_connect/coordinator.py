@@ -23,6 +23,7 @@ from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
+    CONF_CLOUD_FALLBACK,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
@@ -739,11 +740,22 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         )
                         return
                     except asyncio.TimeoutError:
-                        _LOGGER.warning(
-                            "BLE ACK timeout (3000ms): %s "
-                            "— re-sending via cloud as safety net",
-                            cmd_detail,
+                        cloud_fallback = self.config_entry.options.get(
+                            CONF_CLOUD_FALLBACK, True
                         )
+                        if cloud_fallback:
+                            _LOGGER.warning(
+                                "BLE ACK timeout (3000ms): %s "
+                                "— re-sending via cloud as safety net",
+                                cmd_detail,
+                            )
+                        else:
+                            _LOGGER.warning(
+                                "BLE ACK timeout (3000ms): %s "
+                                "— cloud fallback disabled, not re-sending",
+                                cmd_detail,
+                            )
+                            return
                 else:
                     _LOGGER.warning(
                         "BLE send failed: %s — falling back to cloud",

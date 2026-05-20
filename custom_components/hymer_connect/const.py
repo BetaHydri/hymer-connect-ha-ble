@@ -86,6 +86,7 @@ CONF_QR_TOKEN = "qr_activation_token"
 CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
+CONF_CLOUD_FALLBACK = "cloud_fallback"
 
 # Default diesel tank capacity (litres) — user can override in Options
 # Common Sprinter tanks: 71 L (314/316 CDI), 93 L (419/519 CDI standard)

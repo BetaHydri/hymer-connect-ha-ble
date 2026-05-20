@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.18] - 2026-05-20
+
+### Added
+
+- **Cloud fallback toggle in integration options** — New "Cloud fallback on BLE timeout" checkbox (enabled by default). When disabled, BLE commands that don't receive an ACK within 3 seconds are NOT re-sent via cloud/SignalR. Useful for BLE-only testing, debugging SCU response times, or avoiding dashboard toggle flicker from double-sends. Found under Settings → Integrations → HYMER Connect BLE → Configure.
+
 ## [2.62.17] - 2026-05-20
 
 ### Fixed
