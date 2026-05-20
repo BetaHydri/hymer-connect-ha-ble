@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.15] - 2026-05-20
+
+### Changed
+
+- **Attach token extractor APK to GitHub releases** — The EHG Token Extractor Android app (`ehg-token-extractor.apk`) is now attached as a release asset, downloadable without a GitHub account. Previously it was only available as a GitHub Actions artifact (login required). Updated README download link to point directly to the release asset.
+
 ## [2.62.14] - 2026-05-19
 
 ### Fixed

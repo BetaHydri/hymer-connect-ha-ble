@@ -449,7 +449,7 @@ Use this when your HA instance has **no BLE hardware** (VM, NUC, remote server) 
 
 **One-time setup on the phone:**
 
-1. Download the **EHG Token Extractor** APK from [GitHub Actions artifacts](https://github.com/BetaHydri/hymer-connect-ha-ble/actions/workflows/build-token-app.yml) (latest successful build → `ehg-token-extractor-debug` → download)
+1. Download the **EHG Token Extractor** APK: **[ehg-token-extractor.apk](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk)** (direct download — no GitHub account needed)
 2. Install the APK on your Android phone (enable "Install from unknown sources" if prompted)
 3. Open the app and enter:
    - **Email** and **Password** — your HYMER Connect / EHG account credentials
