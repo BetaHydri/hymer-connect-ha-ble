@@ -79,10 +79,6 @@ No internet? No problem. After the initial setup (which requires internet for OA
 
 ---
 
-> **⚠️ Important:** Real-time sensor data (130 entities: GPS, battery, doors, heater, fridge, lights, etc.) requires an **EHG Remote Access Refresh Token**. With the **BLE pairing path** (v2.40.0-alpha.2+), this token is obtained **automatically** — just press CONNECTION on the SCU touch panel during setup. Without BLE hardware, the token must be captured **once** from your phone using mitmproxy. See [Obtaining the EHG Refresh Token](#obtaining-the-ehg-refresh-token) for both methods.
-
-> **v2.62.10** — **BLE dual-path stable!** The BLE listen loop, bonding, TLS handshake, and dual-path command routing are all vehicle-tested and working. Key improvements since v2.61.x: `bleak-retry-connector` for robust BLE connections (v2.62.5), bonding-aware backoff (v2.62.2), 1500ms ACK timeout to prevent dashboard toggle flicker (v2.62.4), background task fixes for reliable BLE listen loop startup (v2.62.7/v2.62.8), and proactive re-auth before commands during extended SCU standby (v2.62.9/v2.62.10). See [CHANGELOG](CHANGELOG.md) for full history.
-
 ### Energy Dashboard
 
 Monitor your motorhome's complete power flow at a glance — solar production, lithium battery state (SOC, SoH, voltage, temperature), habitation load draw, and charging status. All data comes directly from the vehicle's SCU via SignalR, updated every 60 seconds.
@@ -114,6 +110,13 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 | Dethleffs | | Sunlight |
 | Eriba | | FreeOnTour |
 | LMC | | Niesmann+Bischoff |
+
+> **🚐 Not a Grand Canyon S 600 / S 700?** This integration works on **all EHG vehicles with an SCU**, but sensor mappings were developed on a HYMER Grand Canyon S 600. Other brands and models may have unmapped sensors or different bus layouts. Here's how to help:
+>
+> 1. **Install the integration** — it works out of the box. Sensors shared across all EHG vehicles (battery, water, GPS, doors) are in [`base.json`](custom_components/hymer_connect/sensor_maps/base.json) and work immediately.
+> 2. **Discover your vehicle's sensors** — enable [Dynamic Slot Discovery](#-dynamic-slot-discovery-v2340) or run the [Sensor Discovery Tool](#option-1-run-the-sensor-discovery-tool-recommended) to see which `(bus, slot)` pairs your SCU reports.
+> 3. **Create or improve your brand's overlay** — add mappings to your brand's JSON file in [`sensor_maps/`](custom_components/hymer_connect/sensor_maps/) (e.g. `eriba.json`, `buerstner.json`). See [How you can help](#how-you-can-help) for step-by-step instructions, including a [converter tool](#-bootstrap-a-brand-overlay-with-the-converter-v2490) that generates a starting overlay from the EHG app metadata.
+> 4. **Open a PR or issue** — share your findings so all users of your brand benefit. Even a raw sensor dump is valuable!
 
 ## Features
 
