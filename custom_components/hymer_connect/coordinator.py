@@ -21,12 +21,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
+    CONF_BLE_ACK_TIMEOUT,
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
     CONF_CLOUD_FALLBACK,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
+    DEFAULT_BLE_ACK_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -727,13 +729,21 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._ble_command_ack.clear()
                 ok = await self._send_via_ble(b64_payload)
                 if ok:
-                    # Wait up to 3.0s for the SCU to echo back a PIA response.
-                    # Vehicle testing (2026-05-20) shows SCU responds in
-                    # 1969–2331ms consistently.  Previous 1.5s timeout caused
-                    # 100% false cloud fallbacks and dashboard toggle flicker.
+                    # Wait up to CONF_BLE_ACK_TIMEOUT seconds for the SCU to
+                    # echo back a PIA response. Vehicle testing (2026-05-20)
+                    # showed the SCU responding in 1969–2331 ms when it
+                    # accepts the write; default 2.5 s leaves a small margin.
+                    # Earlier 1.5 s caused 100% false cloud fallbacks and
+                    # dashboard toggle flicker. User-tunable in Options.
+                    ack_timeout = float(
+                        self.config_entry.options.get(
+                            CONF_BLE_ACK_TIMEOUT, DEFAULT_BLE_ACK_TIMEOUT
+                        )
+                    )
+                    ack_timeout_ms = int(ack_timeout * 1000)
                     try:
                         await asyncio.wait_for(
-                            self._ble_command_ack.wait(), timeout=3.0
+                            self._ble_command_ack.wait(), timeout=ack_timeout
                         )
                         _LOGGER.info(
                             "BLE ACK confirmed: %s", cmd_detail
@@ -745,14 +755,16 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         )
                         if cloud_fallback:
                             _LOGGER.warning(
-                                "BLE ACK timeout (3000ms): %s "
+                                "BLE ACK timeout (%dms): %s "
                                 "— re-sending via cloud as safety net",
+                                ack_timeout_ms,
                                 cmd_detail,
                             )
                         else:
                             _LOGGER.warning(
-                                "BLE ACK timeout (3000ms): %s "
+                                "BLE ACK timeout (%dms): %s "
                                 "— cloud fallback disabled, not re-sending",
+                                ack_timeout_ms,
                                 cmd_detail,
                             )
                             return

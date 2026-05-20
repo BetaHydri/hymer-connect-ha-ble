@@ -87,6 +87,16 @@ CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
 CONF_CLOUD_FALLBACK = "cloud_fallback"
+CONF_BLE_ACK_TIMEOUT = "ble_ack_timeout"
+
+# Default BLE ACK wait (seconds) before cloud fallback fires.
+# Vehicle measurements (2026-05-20) show the SCU echoes responses in
+# 1969–2331 ms when it accepts the write. 2.5 s leaves a small margin
+# above the observed maximum while keeping the user-perceived fallback
+# latency snappy. Tunable in Options between 1.0 and 5.0 seconds.
+DEFAULT_BLE_ACK_TIMEOUT = 2.5
+MIN_BLE_ACK_TIMEOUT = 1.0
+MAX_BLE_ACK_TIMEOUT = 5.0
 
 # Default diesel tank capacity (litres) — user can override in Options
 # Common Sprinter tanks: 71 L (314/316 CDI), 93 L (419/519 CDI standard)

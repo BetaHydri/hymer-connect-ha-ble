@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.22] - 2026-05-21
+
+### Added
+
+- **User-tunable BLE ACK timeout** — new `ble_ack_timeout` option in the integration's *Configure* dialog. Range 1.0–5.0 s, default **2.5 s** (lowered from the previous hard-coded 3.0 s). Vehicle measurements show the SCU echoes accepted writes in 1969–2331 ms, so 2.5 s keeps a small safety margin while making the cloud-fallback path snappier when the SCU silently drops writes. Lower values further reduce perceived UI lag at the cost of more frequent false fallbacks when the BLE path is healthy.
+  - Log lines now report the effective timeout (e.g. `BLE ACK timeout (2500ms): ...`).
+  - `coordinator.py` reads the option on every command, so changes take effect without an integration reload.
+  - New constants in `const.py`: `CONF_BLE_ACK_TIMEOUT`, `DEFAULT_BLE_ACK_TIMEOUT` (2.5), `MIN_BLE_ACK_TIMEOUT` (1.0), `MAX_BLE_ACK_TIMEOUT` (5.0).
+
 ## [2.62.21] - 2026-05-21
 
 ### Fixed
