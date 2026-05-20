@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.20] - 2026-05-20
+
+### Reverted
+
+- **v2.62.19 `connectedComponentIndex` fix was incorrect** — Deeper decompile of the EHG app's `toPiaValues` builder (`index.js:1333489`) and `ConnectedComponentValue.encode` (`index.js:500080`) confirmed that field 9 (`connectedComponentIndex`) is **never** populated during normal write flows; only field 1 (`connectedComponentValueId`), field 2 (`connectedComponentId`), the type-specific value field (3/4/5/6), and conditionally field 10 (`connectedComponentInstance`) are set. The v2.62.19 addition of `field 9 = 0` did not match the real app output and did not fix the silent SCU drop on BLE writes. Reverted in `build_light_command` and `build_multi_sensor_command`.
+
+### Added
+
+- **BLE wire-level hex-dump logging** — At DEBUG level the BLE client now logs the plaintext PIA payload of every outbound `send_pia_command` and every inbound response after decryption. Enables forensic capture of failed light/heater/fridge writes for byte-level comparison against real EHG-app BLE traffic. Enable with:
+  ```yaml
+  logger:
+    logs:
+      custom_components.hymer_connect.ble_client: debug
+      custom_components.hymer_connect.pia_decoder: debug
+  ```
+
+### Investigation status
+
+Structural analysis confirms our setValues envelope matches the EHG app byte-for-byte except for the (now reverted) spurious field 9. Working BLE subscriptions use the same outer wrap and same `Request.connectedComponent` field 4 path. Remaining hypotheses (require capture from v2.62.20 logs to disambiguate): (a) `Request.user` (field 8) required for writes; (b) `connectedComponentInstance` (field 10) required per bus type; (c) SCU firmware quirk requiring session refresh before writes. See `/memories/repo/ble-investigation.md` for full schema documentation.
+
 ## [2.62.19] - 2026-05-20
 
 ### Fixed

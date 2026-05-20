@@ -412,9 +412,16 @@ def build_light_command(
     Returns:
         Base64-encoded protobuf payload ready to send as PiaRequest argument.
     """
-    # Build ConnectedComponentValue: field1=connectedComponentValueId (sensor_id),
-    # field2=connectedComponentId (bus_id), field3/4/5=value,
-    # field9=connectedComponentIndex (always 0, required for BLE writes).
+    # Build ConnectedComponentValue (schema from EHG Hermes decompile,
+    # ConnectedComponentValue.encode at index.js:500080):
+    #   field 1 = connectedComponentValueId (uint32)  -> sensor_id
+    #   field 2 = connectedComponentId      (uint32)  -> bus_id
+    #   field 3 = int32Value                (uint32)  -> uint_value
+    #   field 4 = stringValue               (string)  -> str_value
+    #   field 5 = boolValue                 (bool)    -> bool_value
+    #   field 6 = floatValue                (float32) (unused here)
+    # field 9 (connectedComponentIndex) is intentionally NOT set: the EHG app's
+    # toPiaValues (index.js:1333489) never populates it for normal writes.
     sensor_data = _encode_varint_field(1, sensor_id)
     sensor_data += _encode_varint_field(2, bus_id)
     if str_value is not None:
@@ -423,7 +430,6 @@ def build_light_command(
         sensor_data += _encode_varint_field(5, 1 if bool_value else 0)
     elif uint_value is not None:
         sensor_data += _encode_varint_field(3, uint_value)
-    sensor_data += _encode_varint_field(9, 0)  # connectedComponentIndex
 
     # Nest: sensor_data inside field1 of sub2, inside field2 of inner
     sub2 = _encode_bytes_field(1, sensor_data)
@@ -476,7 +482,8 @@ def build_multi_sensor_command(
             sensor_data += _encode_str_field(4, s["str_value"])
         elif "float_value" in s:
             sensor_data += _encode_float_field(6, s["float_value"])
-        sensor_data += _encode_varint_field(9, 0)  # connectedComponentIndex
+        # field 9 (connectedComponentIndex) intentionally NOT set; see
+        # build_light_command() for rationale.
         entries += _encode_bytes_field(1, sensor_data)
 
     inner = _encode_bytes_field(2, entries)

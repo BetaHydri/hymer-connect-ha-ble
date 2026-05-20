@@ -1234,6 +1234,11 @@ class ScuBleClient:
             raise BleTransportError("TLS not established")
         raw = base64.b64decode(b64_payload)
         pia_frame = encode_ble_pia_frame(raw)
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug(
+                "BLE PIA SEND %s: plaintext=%d B framed=%d B hex=%s",
+                self._scu_address, len(raw), len(pia_frame), raw.hex(),
+            )
         encrypted = self._tls.encrypt(pia_frame)
         await self._write_to_scu(encrypted)
 
@@ -1259,6 +1264,11 @@ class ScuBleClient:
                 for frame in self._frame_acc.feed(chunk):
                     try:
                         payload = decode_ble_pia_frame(frame)
+                        if _LOGGER.isEnabledFor(logging.DEBUG):
+                            _LOGGER.debug(
+                                "BLE PIA RECV %s: plaintext=%d B hex=%s",
+                                self._scu_address, len(payload), payload.hex(),
+                            )
                         if self._on_pia_response:
                             self._on_pia_response(base64.b64encode(payload).decode())
                     except BleTransportError as err:
