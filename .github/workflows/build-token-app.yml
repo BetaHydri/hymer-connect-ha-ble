@@ -4,7 +4,17 @@ on:
   push:
     paths:
       - 'tools/ehg-token-app/**'
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to attach the APK to (optional, e.g. v2.62.25)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -36,9 +46,19 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ehg-token-extractor.apk
+
+      - name: Upload APK (Actions artifact)
         uses: actions/upload-artifact@v4
         with:
           name: ehg-token-extractor-debug
-          path: tools/ehg-token-app/app/build/outputs/apk/debug/app-debug.apk
+          path: tools/ehg-token-app/app/build/outputs/apk/debug/ehg-token-extractor.apk
           retention-days: 90
+
+      - name: Attach APK to GitHub Release
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
+        run: gh release upload "$TARGET_TAG" app/build/outputs/apk/debug/ehg-token-extractor.apk --clobber --repo "${{ github.repository }}"
