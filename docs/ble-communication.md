@@ -278,6 +278,73 @@ from `coordinator._send_with_retry`; the PIA encoder, `send_pia_command`,
 and the instance-cache seeder remain in place so the BLE-first leg can be
 restored as a localised change if a future SCU firmware unlocks BLE writes.
 
+#### Cross-check: official EHG Android app uses the same path
+
+After v2.62.24 shipped we ran a parallel jadx investigation of the EHG
+Android app (`com.ehg.hymerconnect`) to determine whether HA was missing a
+separate write characteristic, an additional GATT service, or a different
+payload envelope. The decompiled Java/Kotlin sources confirm:
+
+- EHG writes to the **same NUS RX characteristic `6e400002`** we used.
+- It writes the **same opaque TLS-encrypted PIA bytes** — payload assembly
+  happens entirely on the JavaScript / Hermes side and the native code just
+  passes the encrypted blob through the standard Nordic BLE library.
+- There is no hidden second GATT service, no separate write characteristic,
+  and no extra outer envelope.
+
+In other words, the official EHG app is equally affected by the SCU's
+firmware-side drop — it only *appears* to work because phones almost always
+have LTE available, so the EHG app silently falls back to the cloud just
+like our pre-v2.62.24 builds did. Our cloud-only v2.62.24/v2.62.25 is
+therefore the correct and only viable architecture for SCU firmware
+1.12.0.0. **If a future firmware update unlocks BLE writes, both the EHG
+app and this integration should benefit at the same time** — watch user
+reports.
+
+#### BLE write code path version history (for restoration)
+
+For anyone restoring the BLE-first leg in a future release, the last
+tag with the full BLE write code path was **`v2.62.23`** (commit `e0c0477`).
+
+| Version  | Date       | BLE write change |
+|----------|------------|------------------|
+| v2.62.16 | 2026-05-20 | BLE write code path active. ACK timeout hardcoded 1.5 s. |
+| v2.62.17 | 2026-05-20 | ACK timeout 1.5 s → 3.0 s; bus/slot-keyed ACK matching. |
+| v2.62.18 | 2026-05-20 | `cloud_fallback` option added (`CONF_CLOUD_FALLBACK`, default `True`). |
+| v2.62.19 | 2026-05-20 | Added CCValue field 9 (`connectedComponentIndex`) — **wrong**, reverted in v2.62.20. |
+| v2.62.20 | 2026-05-20 | Reverted field 9; added BLE wire hex-dump logging. |
+| v2.62.21 | 2026-05-21 | Per-bus `_BUS_INSTANCE_CACHE`; emit CCValue field 10 (`connectedComponentInstance`). |
+| v2.62.22 | 2026-05-21 | User-tunable ACK timeout (`CONF_BLE_ACK_TIMEOUT`, default 2.5 s, range 1.0–5.0 s). |
+| v2.62.23 | 2026-05-21 | `_seed_instance_cache_walk()` populates cache from both cloud and BLE PIA frames. **Last release with a BLE write code path.** |
+| v2.62.24 | 2026-05-21 | **BLE write path removed.** Cloud-only writes. `cloud_fallback` + `ble_ack_timeout` options deprecated (still in `const.py`). |
+| v2.62.25 | 2026-05-21 | Removed deprecated BLE-write constants from `const.py`; cosmetic log cleanup. |
+
+Configurable BLE write options that existed in v2.62.18 → v2.62.23:
+
+- `cloud_fallback` (boolean, default `True`) — if `False`, BLE-only mode; if
+  `True`, fall back to cloud on ACK timeout.
+- `ble_ack_timeout` (float seconds, default 2.5, range 1.0–5.0) — how long
+  to wait for a BLE PIA response before falling back to cloud.
+
+Both keys were deleted in v2.62.25. Home Assistant silently ignores unknown
+keys in saved options dicts, so old config entries continue to load.
+
+Code still present in the codebase that would help a future restoration:
+
+- `pia_decoder.build_light_command()` / `build_multi_sensor_command()` — PIA
+  payload encoders, used for cloud writes today; identical bytes work on
+  BLE if the firmware ever cooperates.
+- `pia_decoder._BUS_INSTANCE_CACHE` + `_seed_instance_cache_walk()` —
+  passively primed from every inbound PIA frame; would feed CCValue
+  field 10 (`connectedComponentInstance`) into outbound writes.
+- `ble_client.send_pia_command()` — BLE PIA framing + TLS encrypt + GATT
+  write to NUS RX; still wired and used for nothing today.
+- `coordinator._send_via_ble()` — currently a no-op stub returning `False`;
+  reinstate the original body to bring BLE writes back.
+
+Restoration cost is a localised change in `coordinator._send_with_retry`
+plus re-adding the two Options fields — ≈150 lines total.
+
 ## Credits
 
 - **Dan Simms** (`dan-simms1/hymer-connect-ha`) — PairMobileRequest/Response
