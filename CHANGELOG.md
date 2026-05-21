@@ -5,16 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.62.26] - 2026-05-21
+## [2.62.27] - 2026-05-21
 
 ### Fixed
 
-- **Broken EHG Token Extractor download link in README.** The README pointed at `releases/latest/download/ehg-token-extractor.apk`, but the `build-token-app` workflow only ever uploaded the APK as a GitHub *Actions artifact* (login required, 90-day retention) — it was never attached to a GitHub Release, so the link 404'd. The workflow now triggers on `release: published`, builds the APK, and attaches it to the release as `ehg-token-extractor.apk`. From this release onward, the README link resolves correctly for every release. `workflow_dispatch` also accepts an optional `release_tag` input for backfilling older releases (where allowed by immutability).
+- **Broken EHG Token Extractor download link in README.** The README pointed at `releases/latest/download/ehg-token-extractor.apk`, but the `build-token-app` workflow only ever uploaded the APK as a GitHub *Actions artifact* (login required, 90-day retention) — it was never attached to a GitHub Release, so the link 404'd. The workflow now triggers on `release: published`, builds the APK, and attaches it to the release as `ehg-token-extractor.apk`. From this release onward, the README link resolves correctly for every release. `workflow_dispatch` also accepts an optional `release_tag` input for backfilling older releases.
 
 ### Notes
 
 - No integration / runtime behaviour change. CI-only release.
-- The v2.62.25 release was marked immutable by GitHub and could not be backfilled with the APK, so v2.62.26 is published primarily to make the README download link functional again.
+- Version v2.62.26 was prepared but its release tag could not be created due to the repository's immutable-releases setting (now disabled). v2.62.27 supersedes it; there is no v2.62.26 release.
 
 ## [2.62.25] - 2026-05-21
 
