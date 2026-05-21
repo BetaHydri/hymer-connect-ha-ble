@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.23] - 2026-05-21
+
+### Fixed
+
+- **BLE write instance-cache now seeds from cloud SignalR responses** — v2.62.21 added a per-bus `_BUS_INSTANCE_CACHE` so BLE `setValues` writes could echo back `connectedComponentInstance` (CCValue field 10), which the SCU requires on buses like 34 (fridge `lin1`), 58 (Truma heater) and 99 (BMS `can2`). However the populator only fired from inside `_parse_sensor_entry`, which is gated by the sensor-mapping depth filter — and crucially **BLE push frames are depth-2 `PushSensorValue` blocks whose CCValue body is only 8 bytes and omits field 10 entirely**. Result: the cache was never primed via the BLE path, and every BLE write for instanced buses still went out without field 10 → silently dropped by the SCU (vehicle log 2026-05-21 07:24: `bus=19 sid=1: NO cached instance — write may be dropped`).
+  - New `_seed_instance_cache_walk()` in `pia_decoder.py` walks every inbound PIA payload at all depths (up to 8) looking for any nested message that carries simultaneously field 1 (sid varint), field 2 (bus varint), and field 10 (length-delim instance bytes). Bus + instance are cached unconditionally — independent of the sensor-mapping depth gate.
+  - Called from `decode_pia_payload()`, so it primes the cache from **both** the SignalR PiaResponse pipeline (which already delivers field 10 in its subscription response for every instanced bus) and the BLE pipeline (no-op for current SCU firmware, but future-proof).
+  - Zero new BLE traffic: the cloud subscription response is already received within seconds of HA startup and contains the full component catalog. By the time the user issues their first BLE write, the cache is primed.
+  - Cache writes are logged at DEBUG: `Instance cache seeded (cloud/BLE walk): bus=99 sid=5 instance=b'can2'`.
+  - The existing `_parse_sensor_entry` populator is retained as a belt-and-suspenders fallback for the BLE-only / no-cloud configuration.
+
 ## [2.62.22] - 2026-05-21
 
 ### Added

@@ -32,11 +32,15 @@ _SENSOR_MAPS_DIR = Path(__file__).parent / "sensor_maps"
 #       custom_components.hymer_connect.pia_decoder: info
 _discovery_previous: dict[str, Any] = {}
 
-# Cache of CCValue.connectedComponentInstance (field 10, bytes) per bus_id,
-# populated by _parse_sensor_entry from inbound PIA responses. Used by the
+# Cache of CCValue.connectedComponentInstance (field 10, bytes) per bus_id.
+# Seeded from EVERY inbound PIA payload (cloud SignalR + BLE) by
+# ``_seed_instance_cache_walk`` and ``_parse_sensor_entry``.  Used by the
 # command builders below to echo the instance back on setValues writes — the
 # SCU silently drops writes that omit it for buses that report one.
 # Confirmed v2.62.20 log: bus 99 BMS responses carry instance b"can2".
+# v2.62.23: unconditional cloud-path seeding via ``_seed_instance_cache_walk``
+# guarantees the cache is primed from the SignalR subscription response
+# before the user issues their first BLE write — no extra BLE round-trip.
 _BUS_INSTANCE_CACHE: dict[int, bytes] = {}
 
 
@@ -696,6 +700,19 @@ def decode_pia_payload(b64_payload: str) -> dict[str, Any]:
         _LOGGER.warning("Failed to base64-decode PIA payload")
         return {}
 
+    # v2.62.23: Unconditionally seed the per-bus instance cache from EVERY
+    # inbound PIA payload (cloud SignalR + BLE).  This walks the protobuf
+    # at all depths looking for CCValue blocks that carry field 10
+    # (connectedComponentInstance) — independent of the sensor-mapping
+    # depth filter in _extract_sensors_recursive.  The cloud subscription
+    # response normally delivers field 10 for every bus that has one
+    # (lin1/can2/...) before the user issues their first write, so this
+    # primes the cache without any extra BLE round-trip.
+    try:
+        _seed_instance_cache_walk(raw, depth=0)
+    except Exception:  # noqa: BLE001 — never fail decode on cache seeding
+        _LOGGER.debug("Instance-cache seeding failed", exc_info=True)
+
     sensors: dict[str, Any] = {}
     top_fields = _decode_protobuf(raw)
 
@@ -707,6 +724,60 @@ def decode_pia_payload(b64_payload: str) -> dict[str, Any]:
         _extract_sensors_recursive(v, sensors, depth=0)
 
     return sensors
+
+
+def _seed_instance_cache_walk(data: bytes, depth: int) -> None:
+    """Walk protobuf bytes at all depths, seeding _BUS_INSTANCE_CACHE.
+
+    Any nested message that simultaneously carries:
+      * field 1 (varint)  — connectedComponentValueId (sensor id)
+      * field 2 (varint)  — connectedComponentId    (bus id)
+      * field 10 (bytes)  — connectedComponentInstance
+
+    is treated as a CCValue and its instance bytes are cached against the
+    bus id.  This is intentionally laxer than ``_parse_sensor_entry`` —
+    we don't require a value field (3/4/5/6/7) and we don't apply any
+    depth filter, because the cloud subscription response wraps CCValue
+    blocks at varying nesting levels.  Last-writer-wins is safe; the
+    instance is constant per bus across all sids (verified for bus 99
+    BMS: sid 5 and sid 7 both report b"can2").
+    """
+    if depth > 8:  # safety bound against pathological inputs
+        return
+    try:
+        fields = _decode_protobuf(data)
+    except Exception:  # noqa: BLE001
+        return
+
+    sid = None
+    bus = None
+    instance: bytes | None = None
+    for fn, wt, v in fields:
+        if fn == 1 and wt == 0:
+            sid = v
+        elif fn == 2 and wt == 0:
+            bus = v
+        elif fn == 10 and wt == 2 and isinstance(v, (bytes, bytearray)):
+            instance = bytes(v)
+
+    if (
+        isinstance(sid, int) and isinstance(bus, int) and instance is not None
+        and 0 < bus < 1000 and sid < 1000 and 0 < len(instance) <= 32
+    ):
+        prev = _BUS_INSTANCE_CACHE.get(bus)
+        if prev != instance:
+            _BUS_INSTANCE_CACHE[bus] = instance
+            _LOGGER.debug(
+                "Instance cache seeded (cloud/BLE walk): bus=%d sid=%d "
+                "instance=%r (was %r)",
+                bus, sid, instance, prev,
+            )
+
+    # Recurse into every length-delimited sub-field — cache hits at the
+    # current level do not prevent deeper hits on sibling CCValues.
+    for fn, wt, v in fields:
+        if wt == 2 and isinstance(v, (bytes, bytearray)) and len(v) > 2:
+            _seed_instance_cache_walk(bytes(v), depth + 1)
 
 
 def _extract_sensors_recursive(
