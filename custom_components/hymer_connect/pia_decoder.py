@@ -459,7 +459,7 @@ def build_light_command(
         )
     else:
         _LOGGER.debug(
-            "build_light_command bus=%d sid=%d: NO cached instance — write may be dropped",
+            "build_light_command bus=%d sid=%d: no cached instance (cloud accepts both)",
             bus_id, sensor_id,
         )
 
@@ -529,7 +529,7 @@ def build_multi_sensor_command(
             )
         else:
             _LOGGER.debug(
-                "build_multi_sensor_command bus=%d sid=%d: NO cached instance — write may be dropped",
+                "build_multi_sensor_command bus=%d sid=%d: no cached instance (cloud accepts both)",
                 bus_id, sensor_id,
             )
         entries += _encode_bytes_field(1, sensor_data)

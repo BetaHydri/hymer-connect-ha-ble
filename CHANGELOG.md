@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.25] - 2026-05-21
+
+### Removed
+
+- Deprecated BLE-write constants `CONF_CLOUD_FALLBACK`, `CONF_BLE_ACK_TIMEOUT`, `DEFAULT_BLE_ACK_TIMEOUT`, `MIN_BLE_ACK_TIMEOUT`, `MAX_BLE_ACK_TIMEOUT` deleted from `const.py`. They were already unused after v2.62.24; Home Assistant silently ignores unknown keys in saved options dicts, so dropping the Python identifiers is safe.
+
+### Changed
+
+- `pia_decoder.build_light_command()` and `build_multi_sensor_command()` now log a neutral *"no cached instance (cloud accepts both)"* at DEBUG instead of the stale *"NO cached instance — write may be dropped"* warning. The original message was a leftover from the BLE-write era and was misleading on the cloud-only write path shipped in v2.62.24.
+
 ## [2.62.24] - 2026-05-21
 
 ### Removed

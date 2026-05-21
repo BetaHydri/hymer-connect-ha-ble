@@ -87,21 +87,11 @@ CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
 
-# Deprecated since v2.62.24 — kept only so that loading older config-entry
-# options dicts that still contain these keys does not crash. The BLE
-# write path was removed because vehicle testing on SCU firmware 1.12.0.0
-# proved BLE `setValues` writes are silently dropped regardless of timeout
-# or instance field. All writes now go via the cloud / SignalR path; BLE
-# is read-only. These constants will be removed in a future release.
-CONF_CLOUD_FALLBACK = "cloud_fallback"  # deprecated, no longer read
-CONF_BLE_ACK_TIMEOUT = "ble_ack_timeout"  # deprecated, no longer read
-
-# Default BLE ACK wait — deprecated since v2.62.24, kept for backwards
-# import compatibility only. BLE writes are disabled (see CONF_CLOUD_FALLBACK
-# comment above). Values are no longer read by the coordinator.
-DEFAULT_BLE_ACK_TIMEOUT = 2.5
-MIN_BLE_ACK_TIMEOUT = 1.0
-MAX_BLE_ACK_TIMEOUT = 5.0
+# NOTE: CONF_CLOUD_FALLBACK / CONF_BLE_ACK_TIMEOUT / DEFAULT_/MIN_/MAX_BLE_ACK_TIMEOUT
+# existed up to v2.62.23 and were deprecated in v2.62.24 when the BLE write
+# path was removed (SCU firmware 1.12.0.0 silently drops all BLE setValues).
+# They have been removed entirely; HA simply ignores unknown keys in older
+# config-entry options dicts, so dropping the Python identifiers is safe.
 
 # Default diesel tank capacity (litres) — user can override in Options
 # Common Sprinter tanks: 71 L (314/316 CDI), 93 L (419/519 CDI standard)
