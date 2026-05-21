@@ -86,14 +86,19 @@ CONF_QR_TOKEN = "qr_activation_token"
 CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
-CONF_CLOUD_FALLBACK = "cloud_fallback"
-CONF_BLE_ACK_TIMEOUT = "ble_ack_timeout"
 
-# Default BLE ACK wait (seconds) before cloud fallback fires.
-# Vehicle measurements (2026-05-20) show the SCU echoes responses in
-# 1969–2331 ms when it accepts the write. 2.5 s leaves a small margin
-# above the observed maximum while keeping the user-perceived fallback
-# latency snappy. Tunable in Options between 1.0 and 5.0 seconds.
+# Deprecated since v2.62.24 — kept only so that loading older config-entry
+# options dicts that still contain these keys does not crash. The BLE
+# write path was removed because vehicle testing on SCU firmware 1.12.0.0
+# proved BLE `setValues` writes are silently dropped regardless of timeout
+# or instance field. All writes now go via the cloud / SignalR path; BLE
+# is read-only. These constants will be removed in a future release.
+CONF_CLOUD_FALLBACK = "cloud_fallback"  # deprecated, no longer read
+CONF_BLE_ACK_TIMEOUT = "ble_ack_timeout"  # deprecated, no longer read
+
+# Default BLE ACK wait — deprecated since v2.62.24, kept for backwards
+# import compatibility only. BLE writes are disabled (see CONF_CLOUD_FALLBACK
+# comment above). Values are no longer read by the coordinator.
 DEFAULT_BLE_ACK_TIMEOUT = 2.5
 MIN_BLE_ACK_TIMEOUT = 1.0
 MAX_BLE_ACK_TIMEOUT = 5.0

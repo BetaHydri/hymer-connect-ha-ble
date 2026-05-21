@@ -20,18 +20,20 @@ learned from production issues.
 ```
 Home Assistant
     └── coordinator.py (DataUpdateCoordinator, polls every 60s)
-            ├── ble_client.py (BLE direct path — preferred for commands)
+            ├── ble_client.py (BLE direct path — sensor reads only since v2.62.24)
             │       └── SCU in vehicle (via BLE GATT / TLS / PIA)
-            └── signalr_client.py (always active — full sensor coverage)
+            └── signalr_client.py (always active — full sensor coverage + all writes)
                     └── Azure SignalR Service (ehg-prod-signalr.service.signalr.net)
                             └── SCU in vehicle (via LTE)
 ```
 
 Both paths run concurrently. With BLE subscriptions, both paths can provide
-all ~130 sensors — BLE at ~50ms latency, SignalR at ~500ms–2s. Both merge
-into the same data store. Commands route BLE-first with a 1500ms ACK
-wait — if the SCU does not confirm via BLE, the command is re-sent via
-SignalR as a safety net.
+all ~130 sensors — BLE at ~50 ms latency, SignalR at ~500 ms–2 s. Both merge
+into the same data store. **All write commands are sent via SignalR**
+(cloud) because vehicle testing on SCU firmware 1.12.0.0 proved every BLE
+`setValues` write is silently dropped — see [`ble-communication.md`](ble-communication.md#write-commands-removed-in-v26224)
+for the full investigation. The coordinator does one reconnect-retry on
+SignalR failure; there is no BLE leg in the write path any more.
 
 After initial setup (OAuth2 login + EHG token exchange), the BLE path can
 operate fully offline. SignalR requires ongoing internet connectivity.

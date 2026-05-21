@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.24] - 2026-05-21
+
+### Removed
+
+- **BLE write path removed; all commands now go via cloud / SignalR.** After the v2.62.17 → v2.62.23 investigation (per-bus instance cache, depth-walking seeder, tunable ACK timeout) we conclusively proved on a Grand Canyon S 600 with SCU firmware **1.12.0.0** that every BLE `setValues` write is silently dropped by the SCU. A decisive test with `cloud_fallback=OFF` and `ble_ack_timeout=4000ms` produced **0/5 successful writes** across the fridge (bus 34), Truma heater (bus 58) and lights (buses 12/19), and the EHG app on LTE confirmed no SCU state change. The supposed "BLE ACKs" observed with cloud fallback enabled in v2.62.17–v2.62.22 were in fact cloud-driven echoes relayed back over BLE ~500 ms after the SignalR send — they were not driven by the BLE write itself.
+  - `coordinator._send_with_retry()` now routes **every** command straight to the cloud / SignalR path with one reconnect-retry. The BLE preflight, ACK wait, and cloud-fallback dance have been deleted.
+  - `coordinator._send_via_ble()` is retained as a no-op stub so any external plug-in that imported it keeps working; it returns `False` and logs at DEBUG.
+
+### Changed
+
+- **BLE is now a read-only mirror.** `ble_enabled` still subscribes to the SCU's sensor-push stream over BLE for low-latency local updates and continues to seed the per-bus instance cache (free, future-proof). It no longer participates in any write path. The option label in the *Configure* dialog was updated to *"Enable BLE direct path (sensor reads only)"* with a description explaining that writes go via cloud.
+- **`_seed_instance_cache_walk()` is retained** — it adds no traffic, primes a useful debugging signal, and would be needed unchanged if a future SCU firmware unlocks BLE writes.
+
+### Deprecated
+
+- `CONF_CLOUD_FALLBACK` (`cloud_fallback` Options key) — no longer read by the coordinator. Existing values in saved options dicts are ignored. The constant is retained in `const.py` so older code paths importing it don't crash. The option is no longer shown in the *Configure* dialog.
+- `CONF_BLE_ACK_TIMEOUT` / `DEFAULT_BLE_ACK_TIMEOUT` / `MIN_BLE_ACK_TIMEOUT` / `MAX_BLE_ACK_TIMEOUT` — same treatment. There is no BLE ACK to wait for any more, so a timeout is meaningless.
+- Both keys will be removed in a future release once we are confident no users still depend on the legacy schema.
+
+### Notes
+
+- Users on v2.62.17 → v2.62.23 with `cloud_fallback=ON` (the default) will not notice any behaviour change other than slightly snappier commands (no 2.5 s BLE wait before the cloud send fires).
+- Users who set `cloud_fallback=OFF` to test BLE writes will find that commands now work again — they were silently failing in those releases.
+- If a future SCU firmware fixes the BLE write path, restoring the BLE-first leg is a localised change in `coordinator._send_with_retry`. The PIA encoder (`build_light_command` / `build_multi_sensor_command`) and instance-cache seeder are still in place.
+
 ## [2.62.23] - 2026-05-21
 
 ### Fixed

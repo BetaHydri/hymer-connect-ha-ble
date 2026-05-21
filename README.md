@@ -33,7 +33,7 @@ Unlike the official EHG app, this integration gives you **full Home Assistant po
 
 ---
 
-### 🔀 Dual-Path Architecture: BLE-First, Cloud-Fallback
+### 🔀 Dual-Path Architecture: BLE Sensor Mirror + Cloud Writes
 
 This is the only HYMER Connect integration that talks to your vehicle **two ways at once** — and sets itself up without any hacking tools:
 
@@ -42,10 +42,10 @@ This is the only HYMER Connect integration that talks to your vehicle **two ways
 **1. Automatic token capture — no mitmproxy, no patched APK**
 Press **CONNECTION** on the SCU touch panel during setup. The integration pairs via Bluetooth, completes a TLS-encrypted handshake with the SCU, and extracts the EHG Remote Access Refresh Token directly — the same token the official app uses internally. No phone interception, no certificate pinning bypass, no manual copy-paste. One button press, done.
 
-**2. BLE-first command routing with automatic cloud safety net**
-When your Home Assistant host (e.g. Raspberry Pi 4) is within Bluetooth range of the vehicle, all commands — lights, heater, fridge, boiler, switches — are attempted via **BLE at ~50 ms latency** first. The coordinator waits for the SCU's confirmation; if none arrives within the configured timeout (default 2.5 s, see [Configuration Options](#configuration-options)), the same command is automatically re-sent via the **cloud/SignalR path** as a fallback. Commands are idempotent, so double-delivery is harmless.
+**2. Local low-latency sensor reads over BLE; commands always via cloud**
+When your Home Assistant host (e.g. Raspberry Pi 4) is within Bluetooth range of the vehicle, the integration subscribes to the SCU's sensor-push stream over BLE for ~50 ms read latency on ~28 PIA sensors. **All write commands** (lights, heater, fridge, boiler, switches) are sent over the **cloud / SignalR** path — see the note below for why.
 
-> ⚠️ **Known issue (as of v2.62.22):** The SCU currently **silently drops BLE write commands** — every BLE write times out and the **cloud path actually delivers the command**. Root cause is still under investigation (see open issues). Sensor data over BLE works fine; only writes are affected. **Keep cloud fallback enabled** — it is what makes your switches/lights/heater work today. Sensor read latency still benefits from BLE. If you disable cloud fallback, write commands will not reach the SCU.
+> ℹ️ **Why writes go via cloud (v2.62.24+):** The BLE write path was removed after the v2.62.17 → v2.62.23 investigation conclusively proved on SCU firmware **1.12.0.0** that every BLE `setValues` write is silently dropped by the SCU, regardless of TLS handshake quality, ACK timeout, `connectedComponentInstance` (CCValue field 10), or bus type. A decisive test with cloud fallback off and a 4 s BLE ACK timeout produced 0/5 successful writes across the fridge (bus 34), Truma heater (bus 58) and lights (buses 12/19), and the EHG app on LTE confirmed no SCU state change. Commands had been silently delivered via cloud since v2.62.17 — v2.62.24 just makes that explicit, removes the dead BLE-write code path, and saves the 2.5 s wait per command. **BLE is now a read-only mirror.** If a future SCU firmware re-enables BLE writes, restoring the BLE-first leg is a localised change in `coordinator._send_with_retry`.
 
 **3. Seamless failover — drive away, come back, it just works**
 Both paths run concurrently. BLE delivers ~130 sensors with sub-second latency when parked; SignalR keeps all ~130 sensors flowing when you're away. Drive out of Bluetooth range and the cloud path continues uninterrupted. Park back in range and BLE reconnects automatically. Your dashboard and automations never notice the switch.
@@ -291,7 +291,7 @@ This is the **BLE dual-path edition** of the HYMER Connect integration. It combi
 | **Range** | ~10m (inside vehicle) | Worldwide (LTE) |
 | **Requires** | BLE hardware (RPi4) + physical proximity | Internet connection |
 | **Sensor data** | ~130 sensors (with BLE subscriptions), 1–2s push intervals | ~130 sensors, event-driven push |
-| **Commands** | Full control (lights, heater, fridge, switches) — BLE preferred, cloud fallback ([configurable](#configuration-options)) | Full control (lights, heater, fridge, switches) |
+| **Commands** | Full control via **cloud / SignalR** (BLE writes silently dropped by SCU firmware 1.12.0.0 — see [v2.62.24 notes](#configuration-options)) | Full control (lights, heater, fridge, switches) |
 | **Works with 12V off** | Yes (SCU BLE stays active in standby) | Limited (commands work, passive sensors stop) |
 
 ### What to expect during setup
@@ -310,12 +310,10 @@ Step 3: BLE Pairing    →  Press CONNECTION on SCU (2 min window)
 
 **After setup completes, the coordinator manages both paths automatically:**
 
-1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers.
-2. **Commands go BLE-first** — When BLE is connected, write commands (lights, switches, heater, fridge) are attempted via BLE. The coordinator waits up to the configured BLE ACK timeout (default 2500 ms, range 1000–5000 ms) for the SCU to confirm (PIA response matching the commanded bus/slot). If no confirmation arrives, the same command is automatically re-sent via the cloud path as a safety net. This fallback can be disabled in **Options → Cloud fallback on BLE timeout** (see [Configuration Options](#configuration-options)).
-
-   > ⚠️ **Important (as of v2.62.22):** The SCU is currently **silently dropping every BLE write command** under investigation. In practice **all writes are being delivered via the cloud fallback path**, not via BLE. Sensor data over BLE still works normally. **Do not disable cloud fallback** until this is fixed — commands would otherwise not reach the SCU. Lowering the BLE ACK timeout (e.g. to 1.0–1.5 s) makes the fallback noticeably snappier in this state.
-3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted** (it was never stopped). Commands fall back to cloud-only.
-4. On next poll, BLE is retried — if the vehicle is back in range, BLE recovers and dual-path resumes.
+1. **Both paths run concurrently** — BLE provides ~28 sensors at ~50 ms latency, SignalR provides ~130 sensors. Both feed into the same data store, giving you full sensor coverage with BLE's faster updates for the sensors it covers. **BLE is read-only**: no write traffic is ever sent over it.
+2. **Commands go via cloud / SignalR** — As of v2.62.24, write commands (lights, switches, heater, fridge) are sent directly over the cloud / SignalR path with a single reconnect-retry on failure. The BLE write path was removed because vehicle testing on SCU firmware **1.12.0.0** proved every BLE `setValues` frame is silently dropped — see the [Configuration Options](#configuration-options) section for the full investigation summary.
+3. If BLE disconnects (vehicle driven away, out of range) — **SignalR continues uninterrupted**. Sensor coverage drops back to the ~130 cloud sensors at SignalR's event-driven cadence; writes are unaffected because they go via cloud anyway.
+4. On next poll, BLE is retried — if the vehicle is back in range, the BLE sensor mirror recovers automatically.
 
 **You never need to intervene.** The failover is fully automatic and transparent to your dashboard and automations.
 
@@ -325,9 +323,8 @@ When you're at the vehicle (RPi in BLE range of the SCU):
 
 - **Automatic EHG token extraction** — During initial setup, the BLE pairing ceremony obtains the EHG refresh token directly from the SCU. No mitmproxy, no phone interception, no manual token pasting. Just press CONNECTION on the SCU touch panel.
 - **Low-latency sensor streaming** — After BLE subscription requests are sent, the SCU pushes all ~130 sensors over BLE at 1–2 second intervals with ~50ms latency (vs ~500ms–2s via cloud). Without subscriptions, ~28 sensors are pushed autonomously.
-- **Low-latency control with cloud safety net** — All write commands (lights, switches, heater, fridge, boiler) are sent via BLE (~50ms). The coordinator waits up to 1500ms for the SCU to confirm via PIA response. If no confirmation arrives, the same command is automatically re-sent via the cloud path — commands are idempotent, so duplicates are harmless.
-- **Works when 12V is off** — The SCU's BLE radio stays active in standby. The cloud path stops receiving passive sensor updates when 12V is off, but BLE can still read them directly.
-- **No internet dependency** — When parked in areas with poor cellular coverage, BLE continues to deliver sensor data and accept control commands locally. After the **initial setup** (which requires internet for OAuth2 login and EHG token exchange), BLE can operate fully offline — sensor streaming and control commands work without any cloud connectivity.
+- **Low-latency sensor mirror (read-only)** — Since v2.62.24, BLE carries **only** sensor reads. All write commands (lights, switches, heater, fridge, boiler) go via the cloud / SignalR path, because vehicle testing on SCU firmware 1.12.0.0 conclusively proved BLE writes are silently dropped. See the [v2.62.24 explainer](#configuration-options) for the full investigation.
+- **Works when 12V is off (reads)** — The SCU's BLE radio stays active in standby, so BLE can still mirror sensor pushes the cloud no longer relays. Writes still depend on the cloud being reachable.
 
 ### What the Cloud path provides
 
@@ -404,7 +401,7 @@ This integration works **without BLE hardware**. If your Home Assistant instance
 
 > **No BLE hardware? No problem.** The integration detects that BLE is disabled and operates in pure cloud mode. Sensors update in real-time via SignalR push (same protocol as the EHG mobile app). Commands (lights, heating, fridge) are sent via the cloud API. The only limitation is that cloud mode requires internet connectivity and the SCU's 12V main switch must be ON for passive sensor data to flow.
 
-> **Can I add BLE later?** Yes. If you later install HA on a Raspberry Pi in the vehicle, use **Reconfigure** to enable BLE and enter the QR activation token. The integration seamlessly upgrades to dual-path mode (BLE + cloud fallback) without losing entities or history. See [Adding BLE Later / Retry Pairing](#adding-ble-later--retry-pairing-reconfigure).
+> **Can I add BLE later?** Yes. If you later install HA on a Raspberry Pi in the vehicle, use **Reconfigure** to enable BLE and enter the QR activation token. The integration seamlessly upgrades to dual-path mode (BLE sensor mirror + cloud writes) without losing entities or history. See [Adding BLE Later / Retry Pairing](#adding-ble-later--retry-pairing-reconfigure).
 
 ### Path A: BLE Pairing (recommended — no mitmproxy needed)
 
@@ -484,30 +481,14 @@ Once the integration is set up, **Settings → Devices & Services → HYMER Conn
 | Option | Type | Default | Range / Values | Purpose |
 |---|---|---|---|---|
 | **Tank capacity (L)** | integer | `93` | 30 – 200 | Used by the computed fuel “remaining range” / consumption sensors. Set to your vehicle's actual diesel/petrol tank size. |
-| **BLE direct path enabled** | boolean | from initial setup | on / off | Master switch for the local BLE path. Off = pure cloud mode; on = dual-path BLE + cloud. Reload recommended after toggling. |
-| **Cloud fallback on BLE timeout** | boolean | `on` | on / off | If a BLE write is not confirmed within the BLE ACK timeout, automatically re-send via cloud. **Keep on** — see the warning below about SCU silently dropping BLE writes. |
-| **BLE ACK timeout (seconds)** | float | `2.5` | 1.0 – 5.0 | How long to wait for the SCU's PIA response before falling back to cloud. Vehicle measurements show accepted writes are echoed in 1969–2331 ms, so 2.5 s leaves a small safety margin. Lower it (e.g. 1.0–1.5 s) for snappier perceived UI when the SCU is currently dropping BLE writes. |
+| **BLE direct path enabled** | boolean | from initial setup | on / off | Master switch for the local BLE **sensor-read** mirror. Off = pure cloud mode; on = subscribe to SCU sensor pushes over BLE for ~50 ms read latency. Writes always go via cloud (see note below). Reload recommended after toggling. |
 | **SCU Bluetooth address** | string | empty | MAC `AA:BB:CC:DD:EE:FF` | Pin the SCU's BLE MAC to skip auto-scan and reconnect faster. Leave empty to auto-discover on every connect attempt. |
 | **OAuth client header** | string | empty | base64 `client_id:client_secret` | Override the bundled (deprecated) OAuth client header. See [OAuth Client Header](#oauth-client-header-v2610-alpha6) for how to capture your own. Empty = use the integration's default with a one-time warning. |
 | **Clear BLE bond** | checkbox | off | one-shot | Forces a fresh BLE re-pair: clears the BlueZ bond, the stored EHG refresh token, and the cached SCU address, then triggers the BLE pairing flow on the next reload. Use this after a SCU factory reset, after “Disconnect vehicle” in the EHG app, or when the SCU stops responding to writes for a long time. |
 
-> ⚠️ **Current write-path status (as of v2.62.22):** Investigations show the SCU is **silently dropping every BLE write** and the cloud fallback path is what is actually executing your switch/light/climate commands. Until this is resolved:
+> ℹ️ **Write path (v2.62.24+):** All write commands go via **cloud / SignalR**. The BLE write path was removed after a multi-release investigation (v2.62.17 → v2.62.23) conclusively proved on SCU firmware **1.12.0.0** that BLE `setValues` writes are silently dropped — a decisive test with cloud fallback off produced **0/5 successful writes** across the fridge (bus 34), Truma heater (bus 58) and lights (buses 12/19), with the EHG app on LTE confirming no SCU state change. The old `cloud_fallback` and `ble_ack_timeout` Options were removed: they had no remaining function. **Sensor data over BLE is unaffected** — it still benefits from sub-second latency for the ~28 sensors covered by BLE subscriptions.
 >
-> - **Leave “Cloud fallback on BLE timeout” enabled** — it is the only working write path right now.
-> - Consider lowering **BLE ACK timeout** to 1.0–1.5 s so the cloud fallback fires faster and the UI feels less laggy.
-> - **Sensor data over BLE is unaffected** — only writes are impacted.
-> - If you have just paired today and writes still don't echo over BLE, try **Clear BLE bond** and re-pair from scratch.
-
-#### Cloud Fallback Option (details)
-
-When BLE is enabled, the integration sends write commands via BLE first and waits up to the **BLE ACK timeout** (default 2.5 s, configurable 1.0–5.0 s) for the SCU to confirm. If no confirmation arrives, the command is re-sent via cloud/SignalR as a safety net. This "cloud fallback" is **enabled by default**.
-
-| Setting | Behavior |
-|---|---|
-| ✅ Enabled (default) | BLE timeout → re-send via cloud. Guarantees delivery; brief dashboard flicker possible from double-send if BLE later also ACKs. |
-| ❌ Disabled | BLE timeout → log warning, do NOT re-send. Pure BLE-only commands. ⚠️ **Not recommended today** — see the v2.62.22 SCU-drop-writes notice above. |
-
-> **Scope of this toggle:** This only affects **write** routing. Sensor data always flows via both BLE and SignalR regardless of this setting. If BLE is not connected at all, commands always go via cloud — the toggle only applies when BLE is connected but the SCU doesn't ACK in time.
+> If a future SCU firmware re-enables BLE writes, the integration will need to be updated; the PIA encoder and instance-cache seeder are retained and ready, so re-enabling the BLE-first leg is a localised change.
 
 ### Adding BLE Later / Retry Pairing (Reconfigure)
 
@@ -1219,8 +1200,8 @@ logger:
 | **Integration loggers** | | |
 | `hymer_connect` | `warning` | General integration warnings and errors |
 | `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
-| `coordinator` | `info` | Command routing decisions (BLE/cloud), ACK confirmed/timeout, cloud fallback with attempt counter, REST polling, SignalR reconnect scheduling |
-| `coordinator` | `debug` | BLE ACK event details (decoded field names), path skip reasons (BLE not connected), connection mode changes |
+| `coordinator` | `info` | Command routing (cloud / SignalR with reconnect-retry), REST polling, SignalR reconnect scheduling. BLE is read-only since v2.62.24 — no BLE write decisions are logged. |
+| `coordinator` | `debug` | BLE subscription events (sensor pushes only), path skip reasons (BLE not connected), connection mode changes |
 | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
 | `signalr_client` | `debug` | Every SignalR message (very verbose) |
 | `ble_client` | `info` | BLE connect/disconnect, bonding results, TLS status, GATT write success |
@@ -1231,18 +1212,14 @@ logger:
 | `bleak` | `warning` | Suppress bleak’s default INFO-level GATT read/write chatter that clutters the log |
 | `bleak.backends.bluezdbus.client` | `info` | Low-level BlueZ D-Bus method calls, MTU negotiation results, adapter-level errors. Only needed when `ble_client: debug` doesn’t show enough detail (e.g. GATT handle errors, BlueZ service resolution failures) |
 
-**What to look for when troubleshooting commands:**
+**What to look for when troubleshooting commands (v2.62.24+ — all writes go via cloud):**
 
 | Log message | Meaning |
 |-------------|---------|
-| `BLE command routing: set_value bus=11 sid=1 ...` | Command entering BLE path |
-| `BLE command sent (84 chars payload)` | GATT write succeeded |
-| `BLE ACK confirmed: set_value bus=11 sid=1 ...` | SCU responded within 1500ms — command worked |
-| `BLE ACK timeout (1500ms): ... — re-sending via cloud` | SCU didn't respond via BLE — cloud safety net activated |
-| `BLE command GATT write failed` | BLE transport error — immediate cloud fallback |
-| `BLE not connected — routing ... via cloud` | BLE unavailable — cloud-only mode |
-| `Cloud command sent (attempt 1/2, ..., ble_connected=True)` | Cloud fallback after BLE failure |
-| `Cloud command sent (attempt 1/2, ..., ble_connected=False)` | Normal cloud-only command |
+| `Cloud command sent (attempt 1/2, ...)` | Normal successful command via SignalR |
+| `Cloud command failed (attempt 1/2) — forcing reconnect` | SignalR send returned False; coordinator marks the connection unhealthy and retries once |
+| `Command failed after reconnect+retry` | Both SignalR attempts failed — raised as HomeAssistantError to the caller |
+| `BLE sensor push: ...` (debug) | BLE read mirror is delivering a sensor update; no write traffic |
 
 **What to look for when troubleshooting token exchange / authentication:**
 
@@ -1392,7 +1369,7 @@ graph TB
     end
 
     subgraph "Home Assistant"
-        HA["HYMER Connect Integration<br/>(BLE preferred · SignalR fallback)"]
+        HA["HYMER Connect Integration<br/>(BLE sensor reads · SignalR writes + reads)"]
     end
 
     subgraph "SCU — Smart Control Unit"
@@ -1422,8 +1399,8 @@ graph TB
     APP -.->|"① BLE direct (near vehicle)<br/>NUS GATT · TLS-encrypted PIA"| SCU
     APP -->|"② LTE cloud (away)"| CLOUD
     CLOUD <-->|"cellular (LTE)"| SCU
-    HA -.->|"③ BLE direct (preferred)<br/>NUS GATT · TLS-encrypted PIA"| SCU
-    HA -->|"④ SignalR WebSocket<br/>(cloud fallback)"| CLOUD
+    HA -.->|"③ BLE direct (sensor reads only)<br/>NUS GATT · TLS-encrypted PIA"| SCU
+    HA -->|"④ SignalR WebSocket<br/>(all writes + sensor reads)"| CLOUD
     SCU <--> CAN0
     SCU <--> CAN2
     SCU <--> LIN1

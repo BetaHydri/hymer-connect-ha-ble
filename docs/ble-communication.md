@@ -235,36 +235,48 @@ BLE can operate fully offline — sensor streaming and control commands work
 without any cloud connectivity.  A fresh installation always requires internet
 for the OAuth2 handshake and `confirmationToken` API call during BLE pairing.
 
-### Write Commands
+### Write Commands (REMOVED in v2.62.24)
 
-The coordinator's `_send_with_retry()` builds the PIA protobuf payload locally
+> ⚠️ **Historical only.** As of v2.62.24 the integration **does not send any
+> writes over BLE**. All commands (lights, switches, heater, fridge, boiler)
+> are routed via the cloud / SignalR path with a single reconnect-retry on
+> failure. The text below describes how the BLE write path was *intended* to
+> work in v2.62.16 → v2.62.23 and is kept for archival / future-firmware
+> reference. See the **Why removed** subsection at the end.
+
+The coordinator's `_send_with_retry()` built the PIA protobuf payload locally
 (same `build_light_command()` / `build_multi_sensor_command()` used for SignalR)
-and sends it via `ble_client.send_pia_command(b64_payload)`, which:
+and sent it via `ble_client.send_pia_command(b64_payload)`, which:
 
-1. Base64-decodes the payload
-2. Wraps it in a BLE PIA frame (magic `0xA0CB` + length + CRC32)
-3. Encrypts via TLS
-4. Writes to NUS RX (`6e400002`) using chunked GATT writes
+1. Base64-decoded the payload
+2. Wrapped it in a BLE PIA frame (magic `0xA0CB` + length + CRC32)
+3. Encrypted via TLS
+4. Wrote to NUS RX (`6e400002`) using chunked GATT writes
 
-The SCU processes the command identically to a cloud-received PIA command and
-responds via NUS TX notifications. The response is decoded by the BLE listen
-loop and updates sensor state immediately.
+The SCU was expected to process the command identically to a cloud-received
+PIA command and respond via NUS TX notifications. In practice (SCU firmware
+1.12.0.0) **no SCU state change ever occurred from a BLE write**, regardless
+of TLS handshake quality, ACK timeout, or `connectedComponentInstance`
+(CCValue field 10).
 
-### ACK-based Cloud Safety Net
+#### ACK-based Cloud Safety Net (historical)
 
-After sending a command via BLE, the coordinator waits up to **1500ms** for
-the SCU to echo back a PIA response (confirming it processed the command).
-BLE round-trip is ~50–200ms, but the SCU's internal bus relay adds 600–1100ms
-depending on the target bus (CBE ~600ms, Thetford ~900ms, Truma ~1100ms).
-If no response arrives within the timeout, the same command is automatically
-re-sent via the cloud/SignalR path as a safety net.  Commands are idempotent
-(set-value, not toggle), so a duplicate is harmless.
+v2.62.17 → v2.62.23 waited up to a tunable timeout (1.5–5.0 s, default 2.5 s)
+for the SCU to echo back a PIA response after a BLE write, then fell back to
+cloud. Post-mortem analysis showed the apparent BLE ACKs were in fact cloud
+echoes relayed back over BLE ~500 ms after the SignalR send — the BLE write
+itself never reached the SCU's command handler.
 
-```
-BLE send → wait 1500ms for PIA response
-    ├─ Response received  → ✅ confirmed, done
-    └─ Timeout (no ACK)   → ⚠️ re-send via cloud
-```
+#### Why removed
+
+Decisive test (2026-05-21, SCU firmware 1.12.0.0, cloud fallback OFF, ACK
+timeout 4 s): **0/5** writes accepted across the fridge (bus 34), Truma
+heater (bus 58) and lights (buses 12/19). The EHG app on LTE confirmed no
+SCU state change. Conclusion: the SCU silently drops every inbound BLE
+`setValues` frame on this firmware. The BLE write path has been removed
+from `coordinator._send_with_retry`; the PIA encoder, `send_pia_command`,
+and the instance-cache seeder remain in place so the BLE-first leg can be
+restored as a localised change if a future SCU firmware unlocks BLE writes.
 
 ## Credits
 

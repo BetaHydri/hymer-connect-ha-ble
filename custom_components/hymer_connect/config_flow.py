@@ -22,11 +22,9 @@ from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     BRANDS,
     CONF_ACCESS_TOKEN,
-    CONF_BLE_ACK_TIMEOUT,
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
     CONF_BRAND,
-    CONF_CLOUD_FALLBACK,
     CONF_EHG_REFRESH_TOKEN,
     CONF_OAUTH_BASIC_AUTH,
     CONF_QR_TOKEN,
@@ -34,11 +32,8 @@ from .const import (
     CONF_SCU_URN,
     CONF_TANK_CAPACITY,
     CONF_VEHICLE_URN,
-    DEFAULT_BLE_ACK_TIMEOUT,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
-    MAX_BLE_ACK_TIMEOUT,
-    MIN_BLE_ACK_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -686,14 +681,6 @@ class HymerConnectOptionsFlow(OptionsFlow):
             CONF_BLE_ENABLED,
             self._config_entry.data.get(CONF_BLE_ENABLED, False),
         )
-        current_cloud_fallback = self._config_entry.options.get(
-            CONF_CLOUD_FALLBACK, True
-        )
-        current_ble_ack_timeout = float(
-            self._config_entry.options.get(
-                CONF_BLE_ACK_TIMEOUT, DEFAULT_BLE_ACK_TIMEOUT
-            )
-        )
         current_ble_address = self._config_entry.options.get(
             CONF_BLE_ADDRESS,
             self._config_entry.data.get(CONF_BLE_ADDRESS, ""),
@@ -711,20 +698,6 @@ class HymerConnectOptionsFlow(OptionsFlow):
                         CONF_BLE_ENABLED,
                         default=current_ble_enabled,
                     ): bool,
-                    vol.Optional(
-                        CONF_CLOUD_FALLBACK,
-                        default=current_cloud_fallback,
-                    ): bool,
-                    vol.Optional(
-                        CONF_BLE_ACK_TIMEOUT,
-                        default=current_ble_ack_timeout,
-                    ): vol.All(
-                        vol.Coerce(float),
-                        vol.Range(
-                            min=MIN_BLE_ACK_TIMEOUT,
-                            max=MAX_BLE_ACK_TIMEOUT,
-                        ),
-                    ),
                     vol.Optional(
                         CONF_BLE_ADDRESS,
                         default=current_ble_address,

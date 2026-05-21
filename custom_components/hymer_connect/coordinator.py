@@ -21,14 +21,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
-    CONF_BLE_ACK_TIMEOUT,
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
-    CONF_CLOUD_FALLBACK,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
-    DEFAULT_BLE_ACK_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -651,139 +648,46 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     async def _send_via_ble(self, b64_payload: str) -> bool:
-        """Send a base64-encoded PIA command over the BLE direct path.
+        """Deprecated stub — retained only for API compatibility.
 
-        Returns True if sent successfully, False on failure.
+        v2.62.24: BLE write path was permanently removed after the
+        v2.62.17 → v2.62.23 investigation conclusively proved the SCU
+        (firmware 1.12.0.0) silently drops every BLE `setValues` frame
+        regardless of `connectedComponentInstance` (CCValue field 10),
+        ACK timeout, or bus type. All writes now go via the cloud /
+        SignalR path. BLE remains a read-only mirror for low-latency
+        sensor pushes. See CHANGELOG v2.62.24 and README "BLE write path"
+        for details. This method is kept as a no-op so any external
+        plug-ins that may have called it continue to import cleanly.
         """
-        if not self._ble_client or not self._ble_connected:
-            return False
-        try:
-            await self._ble_client.send_pia_command(b64_payload)
-            _LOGGER.info("BLE command sent (%d chars payload)", len(b64_payload))
-            return True
-        except Exception:
-            _LOGGER.warning("BLE command GATT write failed", exc_info=True)
-            return False
+        _LOGGER.debug(
+            "_send_via_ble() called but BLE write path is disabled "
+            "since v2.62.24 — caller should route via cloud/SignalR"
+        )
+        return False
 
     async def _send_with_retry(
         self, method_name: str, *args: Any, **kwargs: Any
     ) -> None:
-        """Send a command with BLE-first routing and cloud fallback.
+        """Send a command via the cloud / SignalR path with one retry.
 
-        When BLE is connected, builds the PIA payload and sends it over
-        the BLE direct path (~50ms latency).  Then waits up to 3 seconds
-        for the SCU to echo back a PIA response (ACK).  If no response
-        arrives within the timeout, re-sends the same command via the
-        cloud/SignalR path as a safety net.  Commands are idempotent
-        (set-value, not toggle), so a duplicate is harmless.
+        v2.62.24: BLE write path removed. Vehicle testing on SCU firmware
+        1.12.0.0 showed every BLE `setValues` write was silently dropped
+        regardless of timeout, instance field, or bus. The only working
+        write transport is cloud / SignalR, so we route directly there.
 
-        If BLE is not connected, sends directly via cloud.
+        BLE is still used aggressively for **reads** (sensor pushes
+        decode through the same PIA pipeline as cloud) — only the write
+        leg is gone.
 
         Args:
             method_name: Name of the method on HymerSignalRClient
-                         (e.g. 'send_light_command').
+                         (e.g. ``send_light_command``).
             *args, **kwargs: Forwarded to the client method.
 
-        Raises HomeAssistantError if all attempts fail.
+        Raises:
+            HomeAssistantError: All send attempts failed.
         """
-        # --- BLE path: try first when connected ---
-        if self._ble_connected and self._ble_client:
-            from .pia_decoder import build_light_command, build_multi_sensor_command
-            b64_payload: str | None = None
-            cmd_detail = method_name  # human-readable command description
-            if method_name == "send_light_command":
-                b64_payload = build_light_command(*args, **kwargs)
-                bus_id, sensor_id = args[0], args[1]
-                cmd_detail = f"set_value bus={bus_id} sid={sensor_id} {kwargs}"
-            elif method_name == "send_multi_sensor_command":
-                b64_payload = build_multi_sensor_command(*args)
-                slots = [(s.get('bus_id'), s.get('sensor_id')) for s in args[0]]
-                cmd_detail = f"multi_sensor {slots}"
-            elif method_name == "send_pia_request":
-                b64_payload = args[0] if args else None
-                cmd_detail = f"pia_request ({len(b64_payload) if b64_payload else 0} chars)"
-
-            if b64_payload:
-                _LOGGER.info("BLE command routing: %s", cmd_detail)
-                # Resolve the expected sensor name for ACK matching.
-                # The SCU echoes the commanded bus/slot as a PIA response.
-                # We look up the sensor name so _on_ble_pia_response can
-                # match it and avoid false ACKs from unrelated periodic
-                # sensor pushes (e.g. battery_current arriving mid-wait).
-                from .pia_decoder import SENSOR_MAP
-                self._ble_pending_cmd_key = None
-                if method_name == "send_light_command" and len(args) >= 2:
-                    mapped = SENSOR_MAP.get((args[0], args[1]))
-                    self._ble_pending_cmd_key = mapped[0] if mapped else None
-                elif method_name == "send_multi_sensor_command" and args:
-                    # Multi-sensor: use first slot as ACK indicator
-                    first = args[0][0] if args[0] else {}
-                    bk = first.get("bus_id")
-                    sk = first.get("sensor_id")
-                    if bk is not None and sk is not None:
-                        mapped = SENSOR_MAP.get((bk, sk))
-                        self._ble_pending_cmd_key = mapped[0] if mapped else None
-                # send_pia_request: no specific slot — accept any response
-                # Clear the ACK event before sending so we only detect
-                # responses that arrive AFTER our command.
-                self._ble_command_ack.clear()
-                ok = await self._send_via_ble(b64_payload)
-                if ok:
-                    # Wait up to CONF_BLE_ACK_TIMEOUT seconds for the SCU to
-                    # echo back a PIA response. Vehicle testing (2026-05-20)
-                    # showed the SCU responding in 1969–2331 ms when it
-                    # accepts the write; default 2.5 s leaves a small margin.
-                    # Earlier 1.5 s caused 100% false cloud fallbacks and
-                    # dashboard toggle flicker. User-tunable in Options.
-                    ack_timeout = float(
-                        self.config_entry.options.get(
-                            CONF_BLE_ACK_TIMEOUT, DEFAULT_BLE_ACK_TIMEOUT
-                        )
-                    )
-                    ack_timeout_ms = int(ack_timeout * 1000)
-                    try:
-                        await asyncio.wait_for(
-                            self._ble_command_ack.wait(), timeout=ack_timeout
-                        )
-                        _LOGGER.info(
-                            "BLE ACK confirmed: %s", cmd_detail
-                        )
-                        return
-                    except asyncio.TimeoutError:
-                        cloud_fallback = self.config_entry.options.get(
-                            CONF_CLOUD_FALLBACK, True
-                        )
-                        if cloud_fallback:
-                            _LOGGER.warning(
-                                "BLE ACK timeout (%dms): %s "
-                                "— re-sending via cloud as safety net",
-                                ack_timeout_ms,
-                                cmd_detail,
-                            )
-                        else:
-                            _LOGGER.warning(
-                                "BLE ACK timeout (%dms): %s "
-                                "— cloud fallback disabled, not re-sending",
-                                ack_timeout_ms,
-                                cmd_detail,
-                            )
-                            return
-                else:
-                    _LOGGER.warning(
-                        "BLE send failed: %s — falling back to cloud",
-                        cmd_detail,
-                    )
-        elif self._ble_connected:
-            _LOGGER.debug(
-                "BLE connected but no client — routing %s via cloud",
-                method_name,
-            )
-        else:
-            _LOGGER.debug(
-                "BLE not connected — routing %s via cloud", method_name
-            )
-
-        # --- Cloud/SignalR path: fallback with reconnect + retry ---
         for attempt in range(2):
             await self.async_ensure_signalr_healthy()
             method = getattr(self._signalr, method_name)
