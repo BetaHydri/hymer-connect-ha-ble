@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.29] - 2026-06-01
+
+### Added
+
+- **HYMER ML-T 570 CrossOver Dometic compressor fridge mappings (read + switch).** Added bus 114 to `sensor_maps/hymer.json` after [@mcfly1969](https://github.com/mcfly1969) confirmed it at the vehicle via the dynamic-discovery diagnostic sensors ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7)):
+  - `114,1` → `binary_sensor.fridge_dometic_power` + `switch.fridge_dometic_power_ctrl` (on/off, write bool)
+  - `114,2` → `binary_sensor.fridge_dometic_silent` + `switch.fridge_dometic_silent_ctrl` (night / silent mode, write bool)
+  - `114,4` → `sensor.fridge_dometic_freezer` (freezer compartment level, 0 = Off, 1–3 = step; read-only for now)
+- This is the **first Dometic compressor fridge** ever mapped in this repo. All previously supported fridges (S 600 / S 700 etc.) are Thetford on bus 34/37 — those mappings are untouched, so both fridge types coexist without any user action.
+
+### Notes
+
+- Sensor-map-only change — no Python code modified.
+- Full Dometic *climate / select* entity (writable cooling step 1–5, door sensor, warning bits, freezer-step write) is tracked separately for **v2.63.0** and requires real-vehicle confirmation of bus 114 slots 3, 5 and 7 first. See the tracking issue for status.
+- Existing `discovered_bus_114_*` diagnostic sensors become redundant for slots 1, 2 and 4 once the named entities appear and can be disabled.
+
 ## [2.62.28] - 2026-06-01
 
 ### Added

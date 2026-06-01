@@ -279,6 +279,9 @@
       "fridge_dc_voltage": {
         "name": "Fridge DC voltage"
       },
+      "fridge_dometic_freezer": {
+        "name": "Dometic fridge freezer level"
+      },
       "fresh_water_level": {
         "name": "Fresh water level"
       },
@@ -583,6 +586,12 @@
       "dometic_fridge_power": {
         "name": "Dometic fridge power"
       },
+      "fridge_dometic_power": {
+        "name": "Dometic fridge"
+      },
+      "fridge_dometic_silent": {
+        "name": "Dometic fridge silent mode"
+      },
       "dometic_compressor_on": {
         "name": "Dometic compressor"
       },
@@ -623,6 +632,12 @@
       },
       "fridge_eco_ctrl": {
         "name": "Fridge ECO"
+      },
+      "fridge_dometic_power_ctrl": {
+        "name": "Dometic fridge power"
+      },
+      "fridge_dometic_silent_ctrl": {
+        "name": "Dometic fridge silent mode"
       }
     },
     "climate": {

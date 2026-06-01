@@ -85,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 92 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66). |
+| `hymer.json` | 95 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Dometic compressor fridge (bus 114). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
@@ -526,6 +526,27 @@ diesel tank capacity (default: 93 L for Sprinter 419/519 CDI).
 **Tank capacity configuration:**
 Settings → Integrations → HYMER Connect → Configure → "Diesel tank capacity"
 Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI standard).
+
+## Bus 114 — Dometic compressor fridge (ML-T 570 CrossOver, confirmed 2026-06-01)
+
+Not present on Grand Canyon S 600/S 700 — those use a Thetford fridge on bus 34/37 instead.
+Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in
+[#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery
+diagnostic sensors. **First Dometic compressor fridge ever mapped in this repo.**
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (114, 1) | `fridge_dometic_power` | bool | On/off (writable via `switch.fridge_dometic_power_ctrl`) |
+| (114, 2) | `fridge_dometic_silent` | bool | Silent / night mode (writable via `switch.fridge_dometic_silent_ctrl`) |
+| (114, 4) | `fridge_dometic_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step (read-only in v2.62.29; writable in v2.63.0) |
+
+**Pending confirmation** (waiting on real-vehicle access from @mcfly1969):
+
+- Slot 3 — expected: cooling step 1–5 for the main fridge compartment.
+- Slot 5 — expected: door open/closed (binary).
+- Slot 7 — expected: warning / error code (int).
+
+Once confirmed, a full Dometic *climate / select* entity (parallel to the existing Thetford one) will ship in v2.63.0.
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 
