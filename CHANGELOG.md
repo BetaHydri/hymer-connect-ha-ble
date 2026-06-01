@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.28] - 2026-06-01
+
+### Added
+
+- **HYMER ML-T 570 CrossOver light mappings.** Added bus 14 (`light_bedroom_ceiling` / `..._brightness`) and bus 66 (`light_dinette_pendant` / `..._brightness`) to `sensor_maps/hymer.json`. Both lights are dimmable (0–100 %), no color-temperature channel. Bus 14 is a member of the bus 27 *Privat* group; bus 66 of the bus 24 *Wohnen* group, so the existing group toggles also drive them. No conflict with Grand Canyon S 600 / S 700 mappings — these buses are not used on those models. Confirmed by [@mcfly1969](https://github.com/mcfly1969) via the dynamic-discovery diagnostic sensors and verified at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7)).
+
+### Notes
+
+- Sensor-map-only change — no Python code modified. After updating via HACS and reloading the integration, two new light entities (`light.<device>_bedroom_ceiling` and `light.<device>_dinette_pendant`) plus their underlying on/off + brightness sensors are created automatically.
+- Existing `discovered_bus_14_*` / `discovered_bus_66_*` diagnostic sensors from dynamic discovery become redundant once these named entities appear and can be disabled.
+
 ## [2.62.27] - 2026-05-21
 
 ### Fixed

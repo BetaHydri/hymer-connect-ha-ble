@@ -231,6 +231,12 @@
       "light_bedroom_ambient_color_temp": {
         "name": "Bedroom ambient color temp"
       },
+      "light_bedroom_ceiling_brightness": {
+        "name": "Bedroom ceiling brightness"
+      },
+      "light_dinette_pendant_brightness": {
+        "name": "Dinette pendant brightness"
+      },
       "tire_pressure": {
         "name": "Tyre pressure"
       },
@@ -395,6 +401,12 @@
       "light_bedroom_ambient": {
         "name": "Bedroom ambient"
       },
+      "light_bedroom_ceiling": {
+        "name": "Bedroom ceiling"
+      },
+      "light_dinette_pendant": {
+        "name": "Dinette pendant"
+      },
       "light_nightlight": {
         "name": "Night light"
       },
@@ -456,6 +468,12 @@
       },
       "light_bedroom_ambient": {
         "name": "Bedroom ambient light"
+      },
+      "light_bedroom_ceiling": {
+        "name": "Bedroom ceiling light"
+      },
+      "light_dinette_pendant": {
+        "name": "Dinette pendant lamp"
       },
       "light_nightlight": {
         "name": "Night light"

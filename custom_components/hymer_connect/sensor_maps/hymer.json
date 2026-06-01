@@ -71,6 +71,20 @@
     "12,3": {
       "name": "light_living_ambient_color_temp"
     },
+    "14,1": {
+      "_doc": "ML-T 570 CrossOver: bedroom ceiling light (Schlafzimmer Deckenlicht). Confirmed by user 2026-06-01 (issue #7). Member of bus 27 (Privat) group.",
+      "name": "light_bedroom_ceiling",
+      "platform": "binary_sensor",
+      "device_class": "light",
+      "icon": "mdi:ceiling-light"
+    },
+    "14,2": {
+      "name": "light_bedroom_ceiling_brightness",
+      "unit": "%",
+      "platform": "sensor",
+      "state_class": "measurement",
+      "icon": "mdi:ceiling-light"
+    },
     "15,1": {
       "name": "light_bedroom_ambient",
       "platform": "binary_sensor",
@@ -311,6 +325,20 @@
       "platform": "binary_sensor",
       "icon": "mdi:shield-check"
     },
+    "66,1": {
+      "_doc": "ML-T 570 CrossOver: pendant lamp over dinette table (Pendelleuchte Wohnbereich). Confirmed by user 2026-06-01 (issue #7). Member of bus 24 (Wohnen) group.",
+      "name": "light_dinette_pendant",
+      "platform": "binary_sensor",
+      "device_class": "light",
+      "icon": "mdi:ceiling-light-outline"
+    },
+    "66,2": {
+      "name": "light_dinette_pendant_brightness",
+      "unit": "%",
+      "platform": "sensor",
+      "state_class": "measurement",
+      "icon": "mdi:ceiling-light-outline"
+    },
     "99,1": {
       "name": "bms_voltage",
       "unit": "V",
@@ -515,6 +543,13 @@
       "brightness": true,
       "color_temp": true
     },
+    "14": {
+      "_comment": "ML-T 570 CrossOver bedroom ceiling light (confirmed 2026-06-01, issue #7). Dimmable, no color temp.",
+      "name": "light_bedroom_ceiling",
+      "icon": "mdi:ceiling-light",
+      "brightness": true,
+      "color_temp": false
+    },
     "15": {
       "name": "light_bedroom_ambient",
       "icon": "mdi:wall-sconce-flat",
@@ -562,6 +597,13 @@
     "27": {
       "name": "light_privat_group",
       "icon": "mdi:lightbulb-group",
+      "brightness": true,
+      "color_temp": false
+    },
+    "66": {
+      "_comment": "ML-T 570 CrossOver dinette pendant lamp (confirmed 2026-06-01, issue #7). Dimmable, no color temp.",
+      "name": "light_dinette_pendant",
+      "icon": "mdi:ceiling-light-outline",
       "brightness": true,
       "color_temp": false
     },

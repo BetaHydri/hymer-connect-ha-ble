@@ -11,6 +11,7 @@ unit, and value transform. The base map was built on the S600 but includes
 additive mappings from other EHG vehicles:
 
 - **Bus 60** (Dometic compressor fridge) — contributed by @mvondemhagen on Eriba Car 602 (#54)
+- **Bus 14 / 66** (bedroom ceiling light, dinette pendant lamp) — confirmed by @mcfly1969 on HYMER ML-T 570 CrossOver (#7, 2026-06-01)
 
 Slot assignments are identical on S600 and S700 Grand Canyon models — both use
 the same SCU component types and bus IDs (confirmed by @dan-simms1 in [#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)).
@@ -84,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 88 | 8, 11–27, 34, 37, 43–44, 49, 58, 99, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron |
+| `hymer.json` | 92 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
@@ -215,6 +216,15 @@ reading the raw slot (8, 7) directly.
 | (12, 1) | `light_living_ambient` | — | On/off |
 | (12, 2) | `light_living_ambient_brightness` | % | Brightness |
 | (12, 3) | `light_living_ambient_color_temp` | — | Color temperature |
+
+## Bus 14 — Bedroom ceiling light (ML-T 570 CrossOver, confirmed 2026-06-01)
+
+Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery diagnostic sensors. Member of the bus 27 *Privat* group — toggling the group also drives this light.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (14, 1) | `light_bedroom_ceiling` | — | On/off |
+| (14, 2) | `light_bedroom_ceiling_brightness` | % | Brightness (0–100, dimmable; no color temp) |
 
 ## Bus 15 — Bedroom ambient light
 
@@ -412,6 +422,15 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 | (60, 17) | `dometic_fridge_ai_type` | — | — | AI type: "Refrigeration" (r) |
 
 > **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
+
+## Bus 66 — Dinette pendant lamp (ML-T 570 CrossOver, confirmed 2026-06-01)
+
+Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery diagnostic sensors. Member of the bus 24 *Wohnen* group — toggling the group also drives this light.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (66, 1) | `light_dinette_pendant` | — | On/off |
+| (66, 2) | `light_dinette_pendant_brightness` | % | Brightness (0–100, dimmable; no color temp) |
 
 ## Bus 99 — BOS LUX LiFePO4 BMS (4×80Ah)
 

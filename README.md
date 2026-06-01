@@ -1387,7 +1387,7 @@ graph TB
     end
 
     subgraph "PIA-addressed Devices"
-        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>On/Off · Brightness · Color temp"]
+        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>ML-T 570: Bus 14 · 66<br/>On/Off · Brightness · Color temp"]
         GROUPS["Light Groups<br/>Bus 24 — Wohnen (all living)<br/>Bus 27 — Privat (all bedroom/bath)"]
         LEDBAR["LED Bar (outside)<br/>Bus 25 (primary) · Bus 22 (duplicate)"]
         FRIDGE["Thetford N4112A Fridge<br/>Bus 34 — Control (power · ECO · step)<br/>Bus 37 — Status (mode · door)"]
@@ -1422,6 +1422,7 @@ graph TB
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
 | 8 | `lin2` | **LIN** | Voltronic MPP260CI | Solar voltage, current, power, charger status, error flags |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness, color temp) |
+| 14 | — | PIA | ML-T 570 bedroom ceiling | On/off, brightness (member of Privat group, bus 27) |
 | 22 | — | PIA | LED bar (duplicate) | Mirrors bus 25 — disabled by default |
 | 24 | — | PIA | Wohnen light group | Hardware group toggle for all living area lights |
 | 25 | — | PIA | Outside LED bar | On/off, brightness |
@@ -1433,6 +1434,7 @@ graph TB
 | 45 | `scu` | PIA | SCU module | Connected flag, firmware version |
 | 49 | `truma` | PIA | Truma LIM module | Connected flag, status, firmware |
 | 58 | `heater` | PIA | Truma Combi D6E | Setpoint, fan speed, fuel type, electric power, operating mode |
+| 66 | — | PIA | ML-T 570 dinette pendant lamp | On/off, brightness (member of Wohnen group, bus 24) |
 | 99 | `can2` | **CAN** | BOS LUX LiFePO4 BMS | Pack V/A/°C, SOC, SoH, capacity, charge detect, device failure |
 | 121 | — | PIA | Victron MultiPlus | Inverter/charger state, V/A/Hz, shore input (disabled — **non-functional**, VE.Bus incompatible with vehicle CAN) |
 
@@ -1557,6 +1559,14 @@ If you have a non-HYMER EHG vehicle, your sensor bus/slot layout may differ. Run
 - **Commit messages**: Use conventional format (`fix:`, `feat:`, `docs:`, `refactor:`)
 - **Breaking changes**: Discuss in an issue first before submitting a PR
 - **Sensor map PRs**: Strip `_generated_by` and `_source_vehicle_id` headers from converter output before committing
+
+### Acknowledgements
+
+Big thanks to everyone who contributed sensor mappings, debugging time, or APK metadata:
+
+- [@dan-simms1](https://github.com/dan-simms1) — corrected Mercedes bus 1 chassis sensor labels on Grand Canyon S700 ([#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) and built the upstream [EHG runtime-metadata extractor](https://github.com/dan-simms1/hymer-connect-ha) that powers the brand-overlay bootstrap.
+- [@mvondemhagen](https://github.com/mvondemhagen) — Dometic compressor fridge mapping (bus 60) on Eriba Car 602 ([#54](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/54)).
+- [@mcfly1969](https://github.com/mcfly1969) — first HYMER ML-T 570 CrossOver mappings (bus 14 bedroom ceiling, bus 66 dinette pendant), discovered via the dynamic-discovery diagnostic sensors and confirmed at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), 2026-06-01).
 
 ## License
 
