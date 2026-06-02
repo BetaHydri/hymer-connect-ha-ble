@@ -217,18 +217,13 @@ A write `step` is a list of one or more steps applied in order. Each step is one
 4. **Reload** the integration. A new `select.<key>_ctrl` entity is created automatically — pick steps in HA to confirm the writes round-trip via the SCU.
 5. **Add to `CHANGELOG.md`** under your release. No version of the integration is bumped automatically.
 
-### Do I need to edit translation files? (the short answer)
+### Do I need to edit translation files?
 
-| Adding a … | Edit `sensor_maps/<brand>.json`? | Edit `strings.json` + `translations/en.json`? |
-|---|---|---|
-| Sensor / binary sensor | Yes | **Yes — both files, in the matching `sensor` / `binary_sensor` section.** Translation key = the JSON `name` field. |
-| Light | Yes (`lights` section) | **Yes — both files, in the matching `sensor` section for the underlying brightness/color-temp sub-sensors. The light entity itself uses the `lights` JSON `name`.** |
-| Switch | Yes (`switches` section) | **Yes — both files, in the `switch` section.** |
-| Existing fridge / heater select (`fridge_mode_ctrl`, `boiler_mode_ctrl`, `heater_energy_ctrl`) | Yes (`climate.fridge` / `climate.truma_heater`) | **Yes — both files, in the `select` section.** |
-| **Stepped-switch select (`climate.selects.<key>`)** | **Yes** | **No — the `name` field in the JSON is used directly as the entity display name.** This is the only entity type where translation files can be skipped. |
-| Button | Code change | **Yes — both files, in the `button` section.** |
+For the stepped-switch select specifically: **no** — the JSON `name` field is used directly as the entity display name. This is the only entity type that bypasses `strings.json` / `translations/en.json`.
 
-> Rule of thumb: any entity that uses a `_attr_translation_key` in Python requires the dual-file translation entry. The stepped-switch driver intentionally sets `_attr_name` from JSON instead, so it bypasses that requirement.
+For **every other** entity type (sensors, binary sensors, lights, switches, classic fridge/heater selects, buttons), you must add the matching translation key to **both** `custom_components/hymer_connect/strings.json` **and** `custom_components/hymer_connect/translations/en.json` — otherwise HA shows the raw key string instead of a friendly label.
+
+The full step-by-step playbook with copy-paste examples for every entity type lives in [`docs/translations.md`](translations.md).
 
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
