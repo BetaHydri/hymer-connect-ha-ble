@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.0] - 2026-06-02
+
+### Added
+
+- **Generic JSON-driven `stepped_switch` select driver** for stepped appliances (fridge cooling steps, freezer levels, fan speeds, etc.). New devices can be added by editing the brand overlay JSON only — no Python changes required. The driver lives in `select.HymerSteppedSelect`, reads its definitions from `climate.selects.<key>` in any `sensor_maps/*.json` overlay, and supports multi-step write recipes with optional inter-step delays. Existing entities are unaffected:
+  - The Thetford T2000 fridge driver (`select.fridge_mode_ctrl`, S 600 / S 700) is unchanged.
+  - The Truma Combi heater / boiler driver (`select.boiler_mode_ctrl`, `select.heater_energy_ctrl`) is unchanged.
+- **Dometic compressor fridge freezer compartment is now writable** on the HYMER ML-T 570 CrossOver: new `select.fridge_dometic_freezer_ctrl` with options `Off / 1 / 2 / 3`, driven by the new stepped-switch driver. Confirmed against bus 114 slot 4 ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
+
+### Changed
+
+- Stepped-switch selects get their display name **directly from the JSON `name` field** — no edits to `strings.json` / `translations/en.json` are needed when you add a new stepped device. (Sensors / lights / switches / the existing fridge / heater selects still use translation keys and the dual-file rule still applies to those — see the docs.)
+
+### Breaking
+
+- `sensor.fridge_dometic_freezer` (read-only sensor introduced in v2.62.29) is **removed**. The same value is now exposed as the writable `select.fridge_dometic_freezer_ctrl`. ML-T 570 users with dashboard cards or automations referencing `sensor.fridge_dometic_freezer` must replace them with `select.fridge_dometic_freezer_ctrl`. The underlying SCU value remains available in coordinator data as `signalr_sensors.fridge_dometic_freezer`.
+
+### Notes
+
+- Full Dometic *cooling step* (slot 114,3) and *door / warning* sensors (slots 5 / 7) are still pending real-vehicle confirmation from [@mcfly1969](https://github.com/mcfly1969); once confirmed they will reuse the same `stepped_switch` driver (no further code changes needed). See [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
+- Documentation: see the new **"Stepped switch / select driver"** section in `docs/sensor-map.md` for the JSON schema and a worked Dometic example.
+
 ## [2.62.29] - 2026-06-01
 
 ### Added

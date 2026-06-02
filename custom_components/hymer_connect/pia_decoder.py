@@ -71,6 +71,13 @@ SWITCH_DEFS: dict[str, dict[str, Any]] = {}
 # climate.py and select.py to parameterize write commands per brand.
 CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
 
+# Generic stepped-switch select definitions (v2.63.0+) loaded from the
+# ``"climate"."selects"`` JSON subsection.  Drives appliances exposing a
+# small set of integer steps (fridge cooling 1-5, freezer 1-3, fan
+# speed 1-3 …) — see :class:`select.HymerSteppedSelect` for the schema
+# and ``docs/sensor-map.md`` for the user-facing JSON contract.
+STEPPED_SELECT_DEFS: dict[str, dict[str, Any]] = {}
+
 # Track whether overlays have already been loaded (prevents re-loading on
 # integration reload, since SENSOR_MAP is module-level and persists).
 _overlays_loaded: set[str] = set()
@@ -166,9 +173,17 @@ def _load_json_overlay(filename: str) -> int:
     # --- Climate section (v2.45.0+) ---
     # Defines bus/slot IDs for heater, fridge, and boiler per brand.
     # Later entries override earlier ones (brand overrides base).
+    # The reserved subkey ``"selects"`` is consumed separately and feeds
+    # the generic stepped-switch driver (v2.63.0+).
     climate = data.get("climate", {})
     for key, climate_def in climate.items():
         if key.startswith("_"):
+            continue
+        if key == "selects" and isinstance(climate_def, dict):
+            for sel_key, sel_def in climate_def.items():
+                if sel_key.startswith("_") or not isinstance(sel_def, dict):
+                    continue
+                STEPPED_SELECT_DEFS[sel_key] = sel_def
             continue
         if isinstance(climate_def, dict):
             CLIMATE_DEFS[key] = climate_def
@@ -227,10 +242,11 @@ def load_sensor_map(brand: str) -> None:
     _overlays_loaded.add(cache_key)
     _LOGGER.info(
         "Sensor map ready: %d total entries (base=%d, %s=%d, hardcoded=%d), "
-        "%d lights, %d switches, %d climate defs",
+        "%d lights, %d switches, %d climate defs, %d stepped selects",
         len(SENSOR_MAP), base_count, brand, brand_count,
         len(SENSOR_MAP) - base_count - brand_count,
         len(LIGHT_DEFS), len(SWITCH_DEFS), len(CLIMATE_DEFS),
+        len(STEPPED_SELECT_DEFS),
     )
 
 

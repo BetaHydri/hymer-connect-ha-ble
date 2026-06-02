@@ -119,7 +119,116 @@ HA entity descriptions created from ENTITY_DEFS at setup time
 Entities appear in HA with correct device_class, icon, state_class, etc.
 ```
 
-Entries **without** a `platform` field are decode-only — they appear in `coordinator.data["signalr_sensors"]` but don't create an HA entity. This is useful for raw slots that are consumed by computed sensors (e.g. `lithium_soc` is decode-only, consumed by the static `battery_soc` entity which reads from it).
+Entries **without** a `platform` field are decode-only — they appear in `coordinator.data["signalr_sensors"]` but don't create an HA entity. This is useful for raw slots that are consumed by computed sensors (e.g. `lithium_soc` is decode-only, consumed by the static `battery_soc` entity which reads from it). It is also the right pattern for slots that feed a **stepped-switch select** (see below) — the select reads from `signalr_sensors.<name>` and writes via its own recipe, so no sensor entity is needed.
+
+## Stepped switch / select driver (v2.63.0+)
+
+The generic `stepped_switch` driver lets you expose any appliance that has a small set of integer steps — fridge cooling 1–5, freezer 1–3, fan speed 1–3, etc. — as a writable `select.*_ctrl` entity **without writing any Python**. Add a block to your brand overlay under `climate.selects.<key>` and reload the integration; an entity called `select.<key>_ctrl` appears.
+
+### When does this fit?
+
+Use the stepped-switch driver when **all** of the following are true:
+
+- The appliance is controlled by **one or a few integer slots** (optionally plus a single bool "power" slot).
+- An `Off` state maps to a single integer (commonly `0`) or to "power = False".
+- Each non-Off step is a single SCU write (with an optional inter-step delay for "power-on then set level" sequences).
+
+Don't use it for:
+
+- The **Thetford fridge on bus 34** — already shipped as `climate.fridge` (type `thetford_t2000`); leave it as-is.
+- The **Truma Combi heater / boiler** — already shipped as `climate.truma_heater` + `select.boiler_mode_ctrl` + `select.heater_energy_ctrl`; the multi-slot Mix/Electric recipes are intentionally code-driven.
+- Anything that needs string writes following Truma's `Diesel / Both / Electric` pattern across multiple slots — also code-driven for now.
+
+### JSON schema
+
+Add the entry to the **brand** overlay only (e.g. `sensor_maps/hymer.json`), under the `climate.selects` subsection. The subkey `selects` is reserved — entries under it are NOT loaded into `CLIMATE_DEFS`; they go into `STEPPED_SELECT_DEFS` instead.
+
+```jsonc
+"climate": {
+  "selects": {
+    "fridge_dometic_freezer": {
+      "name": "Dometic freezer compartment",   // shown in HA UI (no translation file edit needed)
+      "icon": "mdi:snowflake",
+      "control_bus": 114,
+      "options": ["Off", "1", "2", "3"],       // labels visible to the user; non-Off labels MUST be parseable as int
+      "read": {
+        "step_sensor": "fridge_dometic_freezer", // signalr_sensors.<name> used to compute current state
+        "off_value": 0,                          // step_sensor int value that means "Off" (default 0)
+        // Optional: gate "Off" detection on a separate boolean power slot
+        // "power_sensor": "fridge_dometic_power",
+        // "off_when_power_false": true
+      },
+      "writes": {
+        "off":  [{"sid": 4, "uint": 0}],
+        "step": [{"sid": 4, "uint": "$option_int"}]   // $option_int is replaced with int(option), e.g. 1/2/3
+      }
+    }
+  }
+}
+```
+
+A write `step` is a list of one or more steps applied in order. Each step is one of:
+
+| Step shape | Meaning |
+|---|---|
+| `{"sid": N, "bool": true \| false}` | Send a boolean to slot `(control_bus, N)`. |
+| `{"sid": N, "uint": <int> \| "$option_int"}` | Send an unsigned int. `"$option_int"` is replaced with `int(option)` chosen by the user. |
+| `{"sid": N, "str": "..."}` | Send a string (used by Truma-style appliances). |
+| `{"delay_ms": <int>}` | Sleep before the next step (useful for "power on, then set level" sequences). |
+
+### Worked example — a hypothetical "Thetford as stepped" driver
+
+(Don't actually do this — the existing Thetford driver is already in `climate.fridge` and is more user-friendly; this is here only to show how the recipe shape generalizes.)
+
+```jsonc
+"selects": {
+  "fridge_thetford_demo": {
+    "name": "Thetford fridge (demo)",
+    "icon": "mdi:fridge",
+    "control_bus": 34,
+    "options": ["Off", "1", "2", "3", "4", "5"],
+    "read": {
+      "step_sensor": "fridge_cooling_step",
+      "power_sensor": "fridge_power",
+      "off_when_power_false": true
+    },
+    "writes": {
+      "off":  [{"sid": 1, "bool": false}],
+      "step": [
+        {"sid": 1, "bool": true},
+        {"delay_ms": 500},
+        {"sid": 3, "uint": "$option_int"}
+      ]
+    }
+  }
+}
+```
+
+### Step-by-step: add a new stepped device
+
+1. **Identify the slot** producing the step value. Enable `custom_components.hymer_connect.pia_decoder: debug`, change the appliance in the EHG app, and watch for `Discovered unmapped slot` log lines.
+2. **Add a sensor-map entry** in your brand JSON for that slot but **omit the `platform` field**. The decoded value lands in `signalr_sensors.<name>` without creating a sensor entity:
+
+   ```jsonc
+   "114,4": { "name": "fridge_dometic_freezer", "icon": "mdi:snowflake" }
+   ```
+
+3. **Add the `climate.selects.<key>` entry** following the schema above. The `step_sensor` must match the `name` you used in step 2.
+4. **Reload** the integration. A new `select.<key>_ctrl` entity is created automatically — pick steps in HA to confirm the writes round-trip via the SCU.
+5. **Add to `CHANGELOG.md`** under your release. No version of the integration is bumped automatically.
+
+### Do I need to edit translation files? (the short answer)
+
+| Adding a … | Edit `sensor_maps/<brand>.json`? | Edit `strings.json` + `translations/en.json`? |
+|---|---|---|
+| Sensor / binary sensor | Yes | **Yes — both files, in the matching `sensor` / `binary_sensor` section.** Translation key = the JSON `name` field. |
+| Light | Yes (`lights` section) | **Yes — both files, in the matching `sensor` section for the underlying brightness/color-temp sub-sensors. The light entity itself uses the `lights` JSON `name`.** |
+| Switch | Yes (`switches` section) | **Yes — both files, in the `switch` section.** |
+| Existing fridge / heater select (`fridge_mode_ctrl`, `boiler_mode_ctrl`, `heater_energy_ctrl`) | Yes (`climate.fridge` / `climate.truma_heater`) | **Yes — both files, in the `select` section.** |
+| **Stepped-switch select (`climate.selects.<key>`)** | **Yes** | **No — the `name` field in the JSON is used directly as the entity display name.** This is the only entity type where translation files can be skipped. |
+| Button | Code change | **Yes — both files, in the `button` section.** |
+
+> Rule of thumb: any entity that uses a `_attr_translation_key` in Python requires the dual-file translation entry. The stepped-switch driver intentionally sets `_attr_name` from JSON instead, so it bypasses that requirement.
 
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
@@ -538,15 +647,15 @@ diagnostic sensors. **First Dometic compressor fridge ever mapped in this repo.*
 |------|------------|------|-------|
 | (114, 1) | `fridge_dometic_power` | bool | On/off (writable via `switch.fridge_dometic_power_ctrl`) |
 | (114, 2) | `fridge_dometic_silent` | bool | Silent / night mode (writable via `switch.fridge_dometic_silent_ctrl`) |
-| (114, 4) | `fridge_dometic_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step (read-only in v2.62.29; writable in v2.63.0) |
+| (114, 4) | `fridge_dometic_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step. **Writable in v2.63.0+ via `select.fridge_dometic_freezer_ctrl`** (generic stepped-switch driver, see "Stepped switch / select driver" above). The underlying value still lives in `signalr_sensors.fridge_dometic_freezer` — no separate sensor entity exists. |
 
 **Pending confirmation** (waiting on real-vehicle access from @mcfly1969):
 
-- Slot 3 — expected: cooling step 1–5 for the main fridge compartment.
-- Slot 5 — expected: door open/closed (binary).
+- Slot 3 — expected: cooling step 1–5 for the main fridge compartment. Once confirmed, will be exposed as `select.fridge_dometic_cooling_step_ctrl` reusing the same stepped-switch driver (JSON-only addition).
+- Slot 5 — expected: door open/closed (binary, add as `platform: binary_sensor`).
 - Slot 7 — expected: warning / error code (int).
 
-Once confirmed, a full Dometic *climate / select* entity (parallel to the existing Thetford one) will ship in v2.63.0.
+No new Python is required for any of these — slot 3 follows the stepped-switch schema, slots 5 / 7 are plain sensors.
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 

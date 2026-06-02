@@ -284,9 +284,6 @@
       "fridge_dc_voltage": {
         "name": "Fridge DC voltage"
       },
-      "fridge_dometic_freezer": {
-        "name": "Dometic fridge freezer level"
-      },
       "fresh_water_level": {
         "name": "Fresh water level"
       },

@@ -40,7 +40,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HYMER Connect select entities from a config entry."""
-    from .pia_decoder import CLIMATE_DEFS
+    from .pia_decoder import CLIMATE_DEFS, STEPPED_SELECT_DEFS
 
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SelectEntity] = []
@@ -56,10 +56,21 @@ async def async_setup_entry(
         entities.append(HymerHeaterEnergySelect(coordinator, entry, heater_def))
         _LOGGER.debug("Select platform: boiler+energy on bus %d", heater_def.get("heater_bus", 58))
 
+    # Generic JSON-driven stepped-switch selects (v2.63.0+).
+    for key, defn in STEPPED_SELECT_DEFS.items():
+        try:
+            entities.append(HymerSteppedSelect(coordinator, entry, key, defn))
+            _LOGGER.debug(
+                "Select platform: stepped select '%s' on bus %s",
+                key, defn.get("control_bus"),
+            )
+        except Exception:  # noqa: BLE001 — never let one bad JSON entry kill the platform
+            _LOGGER.exception("Failed to create stepped select '%s' — skipping", key)
+
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("Select platform: no fridge or heater definitions — skipping")
+        _LOGGER.debug("Select platform: no fridge, heater, or stepped definitions — skipping")
 
 
 class HymerFridgeSelect(
@@ -391,3 +402,175 @@ class HymerHeaterEnergySelect(
 # write back to "Normal", so the slot is effectively read-only for this
 # Combi configuration. The reading is still available via
 # sensor.hymer_heater_operating_mode.
+
+
+class HymerSteppedSelect(
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+):
+    """Generic JSON-driven stepped-switch select (v2.63.0+).
+
+    Drives any appliance that exposes a small set of integer steps —
+    fridge cooling 1-5, freezer 1-3, fan speed 1-3, etc. — optionally
+    gated by a separate boolean "power" slot. Read sources and write
+    recipes live entirely in the brand overlay JSON under
+    ``climate.selects.<key>`` so adding a new device is a JSON-only
+    change.
+
+    See ``docs/sensor-map.md`` ("Stepped switch / select driver") for the
+    full schema and worked examples.
+    """
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        defn: dict[str, Any],
+    ) -> None:
+        """Initialize a stepped-switch select from a JSON definition."""
+        super().__init__(coordinator)
+        self._key = key
+        self._defn = defn
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._attr_icon = defn.get("icon", "mdi:tune-vertical")
+        self._attr_options = list(defn.get("options", []))
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+        # Translation key takes precedence; otherwise use the JSON-provided
+        # display name directly so adding a new device needs zero changes
+        # to strings.json / translations/en.json.
+        if "translation_key" in defn:
+            self._attr_translation_key = defn["translation_key"]
+        else:
+            self._attr_name = defn.get("name") or key
+
+        self._bus = int(defn.get("control_bus", 0))
+        read = defn.get("read", {}) or {}
+        self._step_sensor: str | None = read.get("step_sensor")
+        self._power_sensor: str | None = read.get("power_sensor")
+        self._off_when_power_false: bool = bool(read.get("off_when_power_false", False))
+        try:
+            self._off_value: int = int(read.get("off_value", 0))
+        except (TypeError, ValueError):
+            self._off_value = 0
+        writes = defn.get("writes", {}) or {}
+        self._writes_off: list[dict[str, Any]] = list(writes.get("off", []))
+        self._writes_step: list[dict[str, Any]] = list(writes.get("step", []))
+        self._optimistic: str | None = None
+
+    @property
+    def current_option(self) -> str | None:
+        """Resolve the active option from coordinator data."""
+        if self._optimistic is not None:
+            return self._optimistic
+        if self.coordinator.data is None:
+            return None
+
+        if self._off_when_power_false and self._power_sensor:
+            power = _resolve_path(
+                self.coordinator.data, f"signalr_sensors.{self._power_sensor}"
+            )
+            if power is False:
+                return "Off"
+
+        if not self._step_sensor:
+            return None
+        raw = _resolve_path(
+            self.coordinator.data, f"signalr_sensors.{self._step_sensor}"
+        )
+        if raw is None:
+            return None
+        try:
+            n = int(raw)
+        except (TypeError, ValueError):
+            return None
+        if n == self._off_value:
+            return "Off" if "Off" in self._attr_options else None
+        label = str(n)
+        return label if label in self._attr_options else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Execute the JSON-defined write recipe for ``option``."""
+        import asyncio
+
+        if option not in self._attr_options:
+            _LOGGER.warning("Unknown option '%s' for stepped select '%s'", option, self._key)
+            return
+
+        is_off = option == "Off"
+        recipe = self._writes_off if is_off else self._writes_step
+        if not recipe:
+            _LOGGER.warning(
+                "Stepped select '%s' has no '%s' write recipe — ignoring",
+                self._key, "off" if is_off else "step",
+            )
+            return
+
+        try:
+            option_int = self._off_value if is_off else int(option)
+        except ValueError:
+            option_int = self._off_value
+
+        for step in recipe:
+            if not isinstance(step, dict):
+                continue
+            if "delay_ms" in step:
+                try:
+                    delay = max(0, int(step["delay_ms"])) / 1000.0
+                except (TypeError, ValueError):
+                    continue
+                if delay:
+                    await asyncio.sleep(delay)
+                continue
+
+            sid = int(step.get("sid", 0))
+            if not sid:
+                _LOGGER.warning(
+                    "Stepped select '%s': write step missing 'sid' — skipping (%s)",
+                    self._key, step,
+                )
+                continue
+
+            if "bool" in step:
+                await self.coordinator.async_send_light_command(
+                    self._bus, sid, bool_value=bool(step["bool"])
+                )
+            elif "uint" in step:
+                val = step["uint"]
+                if val == "$option_int":
+                    val = option_int
+                try:
+                    await self.coordinator.async_send_light_command(
+                        self._bus, sid, uint_value=int(val)
+                    )
+                except (TypeError, ValueError):
+                    _LOGGER.warning(
+                        "Stepped select '%s': cannot coerce uint value %r",
+                        self._key, val,
+                    )
+            elif "str" in step:
+                await self.coordinator.async_send_light_command(
+                    self._bus, sid, str_value=str(step["str"])
+                )
+            else:
+                _LOGGER.warning(
+                    "Stepped select '%s': unrecognized write step %s",
+                    self._key, step,
+                )
+
+        self._optimistic = option
+        self.async_write_ha_state()
+
+    def _handle_coordinator_update(self) -> None:
+        """Clear optimistic state once the coordinator confirms it."""
+        if self._optimistic is not None and self.coordinator.data:
+            actual = self.current_option
+            if actual == self._optimistic:
+                self._optimistic = None
+        super()._handle_coordinator_update()
