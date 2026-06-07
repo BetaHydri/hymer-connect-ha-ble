@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.1] - 2026-06-07
+
+### Changed
+
+- **Bus 114 fridge corrected from Dometic to Thetford Compressor T2120C** (Item-No: 693465, 101.6 L + 17 L freezer). User @mcfly1969 confirmed the ML-T 570 CrossOver uses a Thetford compressor fridge, not Dometic ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)). All entity IDs renamed from `fridge_dometic_*` to `fridge_compressor_*`.
+
+### Added
+
+- **Bus 114 slot 3** — `fridge_compressor_cooling_step`: main compartment cooling step 1–5, writable via `select.fridge_compressor_cooling_step_ctrl` (stepped-switch driver). Confirmed by @mcfly1969.
+- **Bus 114 slot 5** — `fridge_compressor_door`: door open/closed (`binary_sensor`, `device_class: door`). Confirmed by @mcfly1969.
+- **Bus 114 slot 6** — `fridge_compressor_slot6`: purpose unknown, user reports value 15 (possibly internal fridge temperature °C). Under observation.
+- **Bus 114 slot 7** — `fridge_compressor_warning`: warning/error code sensor. Shows "unavailable" when no active fault (normal).
+
+### Breaking
+
+- **ML-T 570 users**: all bus 114 entity IDs changed from `fridge_dometic_*` to `fridge_compressor_*`. Dashboard cards and automations referencing the old IDs must be updated:
+  - `binary_sensor.fridge_dometic_power` → `binary_sensor.fridge_compressor_power`
+  - `binary_sensor.fridge_dometic_silent` → `binary_sensor.fridge_compressor_silent`
+  - `switch.fridge_dometic_power_ctrl` → `switch.fridge_compressor_power_ctrl`
+  - `switch.fridge_dometic_silent_ctrl` → `switch.fridge_compressor_silent_ctrl`
+  - `select.fridge_dometic_freezer_ctrl` → `select.fridge_compressor_freezer_ctrl`
+
 ## [2.63.0] - 2026-06-02
 
 ### Added

@@ -85,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 95 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Dometic compressor fridge (bus 114). |
+| `hymer.json` | 101 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
@@ -146,16 +146,16 @@ Add the entry to the **brand** overlay only (e.g. `sensor_maps/hymer.json`), und
 ```jsonc
 "climate": {
   "selects": {
-    "fridge_dometic_freezer": {
-      "name": "Dometic freezer compartment",   // shown in HA UI (no translation file edit needed)
+    "fridge_compressor_freezer": {
+      "name": "Compressor fridge freezer",     // shown in HA UI (no translation file edit needed)
       "icon": "mdi:snowflake",
       "control_bus": 114,
       "options": ["Off", "1", "2", "3"],       // labels visible to the user; non-Off labels MUST be parseable as int
       "read": {
-        "step_sensor": "fridge_dometic_freezer", // signalr_sensors.<name> used to compute current state
+        "step_sensor": "fridge_compressor_freezer", // signalr_sensors.<name> used to compute current state
         "off_value": 0,                          // step_sensor int value that means "Off" (default 0)
         // Optional: gate "Off" detection on a separate boolean power slot
-        // "power_sensor": "fridge_dometic_power",
+        // "power_sensor": "fridge_compressor_power",
         // "off_when_power_false": true
       },
       "writes": {
@@ -210,7 +210,7 @@ A write `step` is a list of one or more steps applied in order. Each step is one
 2. **Add a sensor-map entry** in your brand JSON for that slot but **omit the `platform` field**. The decoded value lands in `signalr_sensors.<name>` without creating a sensor entity:
 
    ```jsonc
-   "114,4": { "name": "fridge_dometic_freezer", "icon": "mdi:snowflake" }
+   "114,4": { "name": "fridge_compressor_freezer", "icon": "mdi:snowflake" }
    ```
 
 3. **Add the `climate.selects.<key>` entry** following the schema above. The `step_sensor` must match the `name` you used in step 2.
@@ -631,26 +631,24 @@ diesel tank capacity (default: 93 L for Sprinter 419/519 CDI).
 Settings → Integrations → HYMER Connect → Configure → "Diesel tank capacity"
 Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI standard).
 
-## Bus 114 — Dometic compressor fridge (ML-T 570 CrossOver, confirmed 2026-06-01)
+## Bus 114 — Thetford Compressor T2120C fridge (ML-T 570 CrossOver, confirmed 2026-06-07)
 
-Not present on Grand Canyon S 600/S 700 — those use a Thetford fridge on bus 34/37 instead.
+Not present on Grand Canyon S 600/S 700 — those use a Thetford absorber fridge on bus 34/37 instead.
 Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in
 [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery
-diagnostic sensors. **First Dometic compressor fridge ever mapped in this repo.**
+diagnostic sensors. Initially mapped as "Dometic" in v2.62.29; corrected to **Thetford Compressor
+T2120C-N306D310R25CI** (Item-No: 693465, 101.6 L + 17 L freezer) in v2.63.1 based on user
+feedback in [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (114, 1) | `fridge_dometic_power` | bool | On/off (writable via `switch.fridge_dometic_power_ctrl`) |
-| (114, 2) | `fridge_dometic_silent` | bool | Silent / night mode (writable via `switch.fridge_dometic_silent_ctrl`) |
-| (114, 4) | `fridge_dometic_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step. **Writable in v2.63.0+ via `select.fridge_dometic_freezer_ctrl`** (generic stepped-switch driver, see "Stepped switch / select driver" above). The underlying value still lives in `signalr_sensors.fridge_dometic_freezer` — no separate sensor entity exists. |
-
-**Pending confirmation** (waiting on real-vehicle access from @mcfly1969):
-
-- Slot 3 — expected: cooling step 1–5 for the main fridge compartment. Once confirmed, will be exposed as `select.fridge_dometic_cooling_step_ctrl` reusing the same stepped-switch driver (JSON-only addition).
-- Slot 5 — expected: door open/closed (binary, add as `platform: binary_sensor`).
-- Slot 7 — expected: warning / error code (int).
-
-No new Python is required for any of these — slot 3 follows the stepped-switch schema, slots 5 / 7 are plain sensors.
+| (114, 1) | `fridge_compressor_power` | bool | On/off (writable via `switch.fridge_compressor_power_ctrl`) |
+| (114, 2) | `fridge_compressor_silent` | bool | Silent / night mode (writable via `switch.fridge_compressor_silent_ctrl`) |
+| (114, 3) | `fridge_compressor_cooling_step` | step | Main compartment cooling step 1–5. **Writable via `select.fridge_compressor_cooling_step_ctrl`** (stepped-switch driver). |
+| (114, 4) | `fridge_compressor_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step. **Writable via `select.fridge_compressor_freezer_ctrl`** (stepped-switch driver). |
+| (114, 5) | `fridge_compressor_door` | bool | Door open/closed (FALSE = closed, TRUE = open). `binary_sensor` with `device_class: door`. |
+| (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports value 15. Possibly internal fridge temperature (°C). Under observation. |
+| (114, 7) | `fridge_compressor_warning` | int | Warning / error code. Shows "unavailable" when no active fault — normal. |
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 
