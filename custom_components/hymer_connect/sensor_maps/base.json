@@ -171,10 +171,11 @@
       "icon": "mdi:power-plug"
     },
     "3,3": {
-      "name": "charger_active",
+      "_doc": "Water pump on/off state. Readback sensor for the water_pump_ctrl switch. Legacy name was 'charger_active' (misidentified as EBL charger in early development). Confirmed as water pump on both S 600 and ML-T 570 (v2.63.2, issue #8).",
+      "name": "water_pump_active",
       "platform": "binary_sensor",
-      "device_class": "battery_charging",
-      "icon": "mdi:battery-charging"
+      "device_class": "running",
+      "icon": "mdi:water-pump"
     },
     "3,4": {
       "name": "charge_phase"
@@ -404,7 +405,7 @@
       "icon": "mdi:water-pump",
       "write_type": "bool",
       "on_value": true,
-      "read_path": "signalr_sensors.charger_active",
+      "read_path": "signalr_sensors.water_pump_active",
       "requires_12v": true
     }
   }

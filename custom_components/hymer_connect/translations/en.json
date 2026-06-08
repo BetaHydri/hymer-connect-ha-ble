@@ -462,6 +462,9 @@
       "charger_active": {
         "name": "Charger"
       },
+      "water_pump_active": {
+        "name": "Water pump"
+      },
       "solar_connected": {
         "name": "Solar panel"
       },

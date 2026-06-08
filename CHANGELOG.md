@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.3] - 2026-06-08
+
+### Changed
+
+- **Rename `charger_active` → `water_pump_active`** — bus 3 slot 3 was misidentified as the EBL charger in early development (v2.8.0). Confirmed on both the S 600 and ML-T 570 that this slot is actually the **water pump on/off state** — the `water_pump_ctrl` switch already writes to the same `(bus=3, sid=3)`. Sensor now uses `device_class: running` and `mdi:water-pump` icon instead of the misleading `battery_charging` / `mdi:battery-charging`. The old `charger_active` translation key is retained so HA’s entity registry migration finds it. Triggered by @mcfly1969’s observation in [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
+
+### Breaking
+
+- `binary_sensor.charger_active` → `binary_sensor.water_pump_active`. Dashboard cards or automations referencing the old entity ID must be updated. **Existing users**: after HACS update + HA restart, the old entity becomes orphaned — delete it from Settings → Entities and use the new one.
+
 ## [2.63.2] - 2026-06-08
 
 ### Changed
