@@ -290,6 +290,36 @@ _INT_LABELS: dict[str, dict[int, str]] = {
     "dpf_status": {0: "Normal", 1: "Regeneration"},
     "fridge_mode": {0: "On", 1: "Eco", 2: "Boost", 8: "Off"},
     "fridge_status": {0: "Open", 1: "Closed"},  # Operating state labels from SCU, not physical door
+    # Thetford N4000 absorber fridge (bus 34, slot 6) — generic error codes.
+    # EHG app shows "check the manual, error code: N" for all codes 0-13.
+    "fridge_warning": {
+        0: "Error 0",
+        1: "Error 1",
+        2: "Error 2",
+        3: "Error 3",
+        4: "Error 4",
+        5: "Error 5",
+        6: "Error 6",
+        7: "Error 7",
+        8: "Error 8",
+        9: "Error 9",
+        10: "Error 10",
+        11: "Error 11",
+        12: "Error 12",
+        13: "Error 13",
+    },
+    # DellCool / Thetford Compressor T2120C fridge warning codes.
+    # Source: EHG app DELL_COOL.ERRORS enum (Hermes bundle).
+    # Note: on bus 114 the EHG capability WarningErrorInformation maps to
+    # a PIA slot that has NOT been confirmed yet — slot 6 shows constant 15
+    # (outside 0-11 range), slot 7 is supply voltage. The warning slot may
+    # not be pushed by the SCU unless an actual fault occurs.
+    # Kept here for future use when the correct slot is identified.
+    # "fridge_compressor_warning": {
+    #     0: "No error",
+    #     1: "Voltage failure",
+    #     ...
+    # },
 }
 
 # Sentinel float values that indicate "sensor unavailable / not connected".

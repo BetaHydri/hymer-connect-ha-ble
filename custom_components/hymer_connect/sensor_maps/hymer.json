@@ -196,7 +196,7 @@
       "icon": "mdi:fridge-outline"
     },
     "34,6": {
-      "_doc": "EHG: WarningErrorInformation — fridge warning/error code (int)",
+      "_doc": "EHG: WarningErrorInformation — Thetford N4000 absorber fridge warning/error code (int, 0-13). EHG app shows generic 'check manual' for all codes. Integration maps to 'Error 0'–'Error 13' via _INT_LABELS. Value 0 = 'Error 0' (not 'no error'). Normal state is typically unavailable (no value pushed when no fault).",
       "name": "fridge_warning",
       "platform": "sensor",
       "icon": "mdi:fridge-alert"

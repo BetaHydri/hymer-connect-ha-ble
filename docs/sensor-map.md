@@ -440,7 +440,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (34, 3) | `FridgeLevel` | `fridge_cooling_step` | Cooling step 1–5 (uint write). Discovery: `2` |
 | (34, 4) | `FreezerLevel` | `fridge_freezer_level` | Freezer level (deprecated in EHG app). Discovery: `0` (int) |
 | (34, 5) | **`DoorOpen`** | `fridge_door` | **Fridge door open/closed** (bool, read-only). Binary sensor. Previously unmapped — fridge_door entity was incorrectly reading from bus 37 slot 2 (VehicleBrand). Fixed in v2.53.0. |
-| (34, 6) | `WarningErrorInformation` | `fridge_warning` | Fridge warning/error code (int). Discovery: `0` |
+| (34, 6) | `WarningErrorInformation` | `fridge_warning` | Fridge warning/error code (int). EHG app shows generic "check manual, error code: N" for Thetford N4000 series (codes 0–13). Displayed as "Error N" by the integration. Discovery: `0` |
 | (34, 7) | `DCVoltage` | `fridge_dc_voltage` | Fridge DC supply voltage (int, mV). Discovery: `13000` |
 
 ## Bus 37 — VehicleInformation (EHG) / Fridge status readback (PIA)
@@ -647,7 +647,7 @@ feedback in [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
 | (114, 3) | `fridge_compressor_cooling_step` | step | Main compartment cooling step 1–5. **Writable via `select.fridge_compressor_cooling_step_ctrl`** (stepped-switch driver). |
 | (114, 4) | `fridge_compressor_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step. **Writable via `select.fridge_compressor_freezer_ctrl`** (stepped-switch driver). |
 | (114, 5) | `fridge_compressor_door` | bool | Door open/closed (FALSE = closed, TRUE = open). `binary_sensor` with `device_class: door`. |
-| (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports constant value 15. Not temperature (unchanged by cooling/weather). Under observation. |
+| (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports constant value 15. Not temperature (unchanged by cooling/weather). The EHG app defines DellCool error codes 0–11 for the `WarningErrorInformation` capability, but the PIA slot carrying those codes has not been confirmed (15 is outside 0–11 range). Under observation. |
 | (114, 7) | `fridge_compressor_supply_voltage` | V | Fridge supply voltage in millivolts (raw), displayed as V via `div1000`. Oscillates 12.8–12.9 V under compressor load. Renamed from `fridge_compressor_warning` in v2.63.2. |
 
 ## Bus 74 — SIU Smart Temperature Sensor (ML-T 570 CrossOver, confirmed 2026-06-08)
