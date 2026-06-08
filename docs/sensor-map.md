@@ -441,7 +441,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (34, 4) | `FreezerLevel` | `fridge_freezer_level` | Freezer level (deprecated in EHG app). Discovery: `0` (int) |
 | (34, 5) | **`DoorOpen`** | `fridge_door` | **Fridge door open/closed** (bool, read-only). Binary sensor. Previously unmapped — fridge_door entity was incorrectly reading from bus 37 slot 2 (VehicleBrand). Fixed in v2.53.0. |
 | (34, 6) | `WarningErrorInformation` | `fridge_warning` | Fridge warning/error code (int). EHG app shows generic "check manual, error code: N" for Thetford N4000 series (codes 0–13). Displayed as "Error N" by the integration. Discovery: `0` |
-| (34, 7) | `DCVoltage` | `fridge_dc_voltage` | Fridge DC supply voltage (int, mV). Discovery: `13000` |
+| (34, 7) | `DCVoltage` | `fridge_dc_voltage` | Fridge DC supply voltage. Raw value in mV, displayed as V via `div1000` (e.g. 13000 → 13.0 V). `device_class: voltage`. |
 
 ## Bus 37 — VehicleInformation (EHG) / Fridge status readback (PIA)
 
