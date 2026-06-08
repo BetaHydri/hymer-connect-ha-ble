@@ -85,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 104 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 74, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74). |
+| `hymer.json` | 106 | 8, 11\u201327, 34, 37, 43\u201344, 49, 58, 66, 74, 76, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74), water tanks (bus 76). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
@@ -665,6 +665,18 @@ SIU sensor ecosystem documentation.
 |------|------------|------|-------|
 | (74, 1) | `smart_temperature_1` | °C | Temperature reading. User reports 37.0 °C matching EHG app. |
 | (74, 2) | `smart_humidity_1` | % | Humidity reading. User reports 32–33 % matching EHG app. |
+
+## Bus 76 — Water tank levels (ML-T 570 CrossOver, confirmed 2026-06-08)
+
+Not present on Grand Canyon S 600/S 700 — those use bus 3 slots 8/9 (`fresh_water_level_ebl` /
+`grey_water_level_ebl`) from the CBE EBL402 controller. The ML-T 570 uses a separate bus 76
+for water levels. Confirmed by @mcfly1969 by running water and watching discovered sensor
+changes in real time ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (76, 1) | `fresh_water_level` | % | Fresh water tank level. Value decreases when water flows out. |
+| (76, 2) | `gray_water_level` | % | Grey water tank level. Value increases when drain water flows in. |
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 

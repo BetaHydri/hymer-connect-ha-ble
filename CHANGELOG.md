@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.5] - 2026-06-08
+
+### Added
+
+- **Bus 76 — ML-T 570 water tank levels.** The ML-T 570 uses **bus 76** for water levels instead of bus 3 slots 8/9 (which the S 600/S 700 uses via the CBE EBL402). Confirmed by @mcfly1969 by running water and watching discovered sensor changes ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)):
+  - `76,1` → `sensor.fresh_water_level`: fresh water tank level in % (value decreases when water flows)
+  - `76,2` → `sensor.gray_water_level`: grey water tank level in % (value increases when drain fills)
+- The existing `fresh_water_level_ebl` / `grey_water_level_ebl` sensors (bus 3, slots 8/9) remain for S 600/S 700 users.
+
 ## [2.63.4] - 2026-06-08
 
 ### Removed

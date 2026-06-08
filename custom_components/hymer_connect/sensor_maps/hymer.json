@@ -404,6 +404,22 @@
       "state_class": "measurement",
       "icon": "mdi:water-percent"
     },
+    "76,1": {
+      "_doc": "ML-T 570 CrossOver: Fresh water tank level (%). NOT on bus 3 slot 8 like the S 600 — the ML-T uses bus 76 for water levels. Confirmed by user 2026-06-08 (issue #8): value decreases when water runs, increases when tank is filled.",
+      "name": "fresh_water_level",
+      "unit": "%",
+      "platform": "sensor",
+      "state_class": "measurement",
+      "icon": "mdi:water"
+    },
+    "76,2": {
+      "_doc": "ML-T 570 CrossOver: Grey water tank level (%). Confirmed by user 2026-06-08 (issue #8): value increases when drain water flows into the grey tank.",
+      "name": "gray_water_level",
+      "unit": "%",
+      "platform": "sensor",
+      "state_class": "measurement",
+      "icon": "mdi:water-opacity"
+    },
     "99,1": {
       "name": "bms_voltage",
       "unit": "V",

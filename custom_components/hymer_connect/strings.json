@@ -288,6 +288,9 @@
       "fresh_water_level_ebl": {
         "name": "Fresh water (EBL)"
       },
+      "fresh_water_level": {
+        "name": "Fresh water level"
+      },
       "grey_water_level_ebl": {
         "name": "Grey water (EBL)"
       },
