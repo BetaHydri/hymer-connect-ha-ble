@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.4] - 2026-06-08
+
+### Removed
+
+- **Duplicate `water_pump` binary sensor** — the hardcoded static `binary_sensor.water_pump` in `binary_sensor.py` (reading from `signalr_sensors.light_nightlight` — a legacy cross-reference from the v1.x era when bus 16 was misidentified as the water pump) conflicted with the new JSON-driven `binary_sensor.water_pump_active` from v2.63.3. Both had `translation_key: "Water pump"`, causing HA to create a duplicate `_2` entity. Removed the hardcoded static entry; the correct pump status is now solely provided by `water_pump_active` (bus 3, slot 3) via `base.json`.
+
 ## [2.63.3] - 2026-06-08
 
 ### Changed

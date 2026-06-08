@@ -56,14 +56,6 @@ STATIC_BINARY_SENSORS: tuple[HymerBinarySensorEntityDescription, ...] = (
         value_path="computed.solar_active",
         icon="mdi:solar-power",
     ),
-    # Water pump reads from light_nightlight (cross-ref)
-    HymerBinarySensorEntityDescription(
-        key="water_pump",
-        translation_key="water_pump",
-        device_class=BinarySensorDeviceClass.RUNNING,
-        value_path="signalr_sensors.light_nightlight",
-        icon="mdi:water-pump",
-    ),
 )
 
 # Keys of static descriptions — the dynamic builder skips these.
