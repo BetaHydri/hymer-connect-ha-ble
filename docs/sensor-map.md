@@ -85,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 106 | 8, 11\u201327, 34, 37, 43\u201344, 49, 58, 66, 74, 76, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74), water tanks (bus 76). |
+| `hymer.json` | 106 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 74, 76, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74), water tanks (bus 76). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
