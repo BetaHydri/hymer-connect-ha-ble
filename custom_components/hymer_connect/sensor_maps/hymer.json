@@ -202,10 +202,12 @@
       "icon": "mdi:fridge-alert"
     },
     "34,7": {
-      "_doc": "EHG: DCVoltage — fridge DC supply voltage (int, mV)",
+      "_doc": "EHG: DCVoltage — fridge DC supply voltage. Raw value in mV, displayed as V via div1000 transform.",
       "name": "fridge_dc_voltage",
-      "unit": "mV",
+      "unit": "V",
+      "transform": "div1000",
       "platform": "sensor",
+      "device_class": "voltage",
       "state_class": "measurement",
       "icon": "mdi:flash-triangle-outline"
     },
