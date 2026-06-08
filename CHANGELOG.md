@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.6] - 2026-06-08
+
+### Changed
+
+- **Fridge DC voltage now displayed in Volts** — `fridge_dc_voltage` (bus 34, slot 7) converted from raw mV to V via `div1000` transform. Now shows `13.0 V` instead of `13000 mV`. Added `device_class: voltage` for proper HA formatting. Consistent with the compressor fridge supply voltage (bus 114, slot 7) added in v2.63.2.
+
+### Added
+
+- **Fridge warning code labels** — `fridge_warning` (bus 34, slot 6) now shows human-readable labels instead of raw integers. Thetford N4000 absorber codes 0–13 are mapped to "Error 0" through "Error 13" (EHG app only provides generic "check the manual" descriptions for this fridge type). DellCool compressor error codes 0–11 (with detailed descriptions like "Voltage failure", "Starting fault", "Abnormal tilt angle") are documented in `pia_decoder.py` for future use when the correct bus 114 PIA slot is confirmed.
+
 ## [2.63.5] - 2026-06-08
 
 ### Added
