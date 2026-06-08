@@ -377,10 +377,32 @@
       "icon": "mdi:fridge-variant-outline"
     },
     "114,7": {
-      "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge warning/error code. 'unavailable' when no active fault. Confirmed by user 2026-06-07 (issue #8).",
-      "name": "fridge_compressor_warning",
+      "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge supply voltage in millivolts. Oscillates between 12800-12900 (12.8-12.9 V) — drops under compressor load, recovers when compressor pauses. Confirmed dynamic (not static) by user 2026-06-08 (issue #8). Renamed from fridge_compressor_warning in v2.63.2.",
+      "name": "fridge_compressor_supply_voltage",
+      "unit": "V",
+      "transform": "div1000",
       "platform": "sensor",
-      "icon": "mdi:fridge-alert-outline"
+      "device_class": "voltage",
+      "state_class": "measurement",
+      "icon": "mdi:flash"
+    },
+    "74,1": {
+      "_doc": "ML-T 570 CrossOver: SIU Smart Temperature Sensor — temperature reading (°C). First SIU (Smart Interface Unit) sensor ever mapped. Bus 74 is one of possibly three smart sensor buses (user has 3 SIU temp sensors in EHG app, but only bus 74 visible so far). Confirmed by user 2026-06-08 (issue #8): value 37.0 matches EHG app Wohnbereich/Schlafbereich reading.",
+      "name": "smart_temperature_1",
+      "unit": "°C",
+      "platform": "sensor",
+      "device_class": "temperature",
+      "state_class": "measurement",
+      "icon": "mdi:thermometer"
+    },
+    "74,2": {
+      "_doc": "ML-T 570 CrossOver: SIU Smart Temperature Sensor — humidity reading (%). Paired with (74,1) temperature. Confirmed by user 2026-06-08 (issue #8): value 32-33 matches EHG app humidity display.",
+      "name": "smart_humidity_1",
+      "unit": "%",
+      "platform": "sensor",
+      "device_class": "humidity",
+      "state_class": "measurement",
+      "icon": "mdi:water-percent"
     },
     "99,1": {
       "name": "bms_voltage",

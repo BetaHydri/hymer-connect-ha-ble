@@ -380,8 +380,14 @@
       "fridge_compressor_slot6": {
         "name": "Compressor fridge slot 6"
       },
-      "fridge_compressor_warning": {
-        "name": "Compressor fridge warning"
+      "fridge_compressor_supply_voltage": {
+        "name": "Compressor fridge supply voltage"
+      },
+      "smart_temperature_1": {
+        "name": "Smart temperature sensor 1"
+      },
+      "smart_humidity_1": {
+        "name": "Smart humidity sensor 1"
       },
       "distance_to_service": {
         "name": "Distance to service"

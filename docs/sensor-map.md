@@ -85,7 +85,7 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 | File | Entries | Buses | Loaded when | Purpose |
 |------|---------|-------|-------------|---------|
 | `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 101 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114). |
+| `hymer.json` | 104 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 74, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74). |
 | `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
 | `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
 | `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
@@ -647,8 +647,24 @@ feedback in [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
 | (114, 3) | `fridge_compressor_cooling_step` | step | Main compartment cooling step 1–5. **Writable via `select.fridge_compressor_cooling_step_ctrl`** (stepped-switch driver). |
 | (114, 4) | `fridge_compressor_freezer` | step | Freezer compartment level: 0 = Off, 1–3 = step. **Writable via `select.fridge_compressor_freezer_ctrl`** (stepped-switch driver). |
 | (114, 5) | `fridge_compressor_door` | bool | Door open/closed (FALSE = closed, TRUE = open). `binary_sensor` with `device_class: door`. |
-| (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports value 15. Possibly internal fridge temperature (°C). Under observation. |
-| (114, 7) | `fridge_compressor_warning` | int | Warning / error code. Shows "unavailable" when no active fault — normal. |
+| (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports constant value 15. Not temperature (unchanged by cooling/weather). Under observation. |
+| (114, 7) | `fridge_compressor_supply_voltage` | V | Fridge supply voltage in millivolts (raw), displayed as V via `div1000`. Oscillates 12.8–12.9 V under compressor load. Renamed from `fridge_compressor_warning` in v2.63.2. |
+
+## Bus 74 — SIU Smart Temperature Sensor (ML-T 570 CrossOver, confirmed 2026-06-08)
+
+First **SIU (Smart Interface Unit)** sensor bus ever mapped. The SIU is an EHG BLE gateway that
+connects external wireless sensors (temperature, humidity, tyre pressure, gas level, etc.) to the
+SCU. Sensors pair to the SIU via QR code in the EHG app.
+
+The ML-T 570 has 3 SIU temperature/humidity sensors in the EHG app (Kühlschrank / Schlafbereich /
+Wohnbereich). Bus 74 is the first one confirmed — the other two likely use different bus IDs
+(discovered buses 71, 73, 76, etc. are candidates). See `docs/external-sensors.md` for the full
+SIU sensor ecosystem documentation.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (74, 1) | `smart_temperature_1` | °C | Temperature reading. User reports 37.0 °C matching EHG app. |
+| (74, 2) | `smart_humidity_1` | % | Humidity reading. User reports 32–33 % matching EHG app. |
 
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 

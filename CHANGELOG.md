@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.2] - 2026-06-08
+
+### Changed
+
+- **Bus 114 slot 7 identified as fridge supply voltage** — the value oscillates between 12800 and 12900, corresponding to **12.8–12.9 V** in millivolts. Voltage drops under compressor load and recovers when the compressor pauses — classic battery behavior. Renamed from `fridge_compressor_warning` to `fridge_compressor_supply_voltage` with `unit: V`, `transform: div1000`, `device_class: voltage`. Confirmed dynamic by @mcfly1969 ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
+
+### Added
+
+- **Bus 74 — first SIU Smart Temperature Sensor mapped.** The EHG ecosystem uses a Smart Interface Unit (SIU) to connect external BLE sensors to the SCU. Bus 74 is the first SIU sensor bus ever confirmed in this integration. Confirmed by @mcfly1969 on the ML-T 570 CrossOver ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)):
+  - `74,1` → `sensor.smart_temperature_1`: temperature in °C (`device_class: temperature`). User reports 37.0 °C matching EHG app.
+  - `74,2` → `sensor.smart_humidity_1`: humidity in % (`device_class: humidity`). User reports 32–33 % matching EHG app.
+- The ML-T 570 has 3 SIU temperature sensors in the EHG app (Kühlschrank / Schlafbereich / Wohnbereich) but only bus 74 is visible so far. The other two likely use different discovered buses (71, 73, 76, etc.) — under investigation.
+
+### Breaking
+
+- **ML-T 570 users**: `sensor.fridge_compressor_warning` renamed to `sensor.fridge_compressor_supply_voltage`. Dashboard cards or automations referencing the old entity ID must be updated.
+
 ## [2.63.1] - 2026-06-07
 
 ### Changed
