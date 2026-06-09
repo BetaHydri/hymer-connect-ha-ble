@@ -650,6 +650,32 @@ feedback in [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8).
 | (114, 6) | `fridge_compressor_slot6` | int | Purpose unknown — user reports constant value 15. Not temperature (unchanged by cooling/weather). The EHG app defines DellCool error codes 0–11 for the `WarningErrorInformation` capability, but the PIA slot carrying those codes has not been confirmed (15 is outside 0–11 range). Under observation. |
 | (114, 7) | `fridge_compressor_supply_voltage` | V | Fridge supply voltage in millivolts (raw), displayed as V via `div1000`. Oscillates 12.8–12.9 V under compressor load. Renamed from `fridge_compressor_warning` in v2.63.2. |
 
+### DellCool error codes (Thetford Compressor T2120C / ThetfordT2152 / DellCoolFridge)
+
+Extracted from the decompiled EHG app (APK 2.10.14). These codes apply to
+DellCool-based compressor fridges on bus 114 (`ThetfordT2152`) and bus 116
+(`DellCoolFridge`). The PIA slot carrying the error code on bus 114 has **not
+been confirmed yet** — slot 6 reports a constant value of 15 (outside the 0–11
+range), so the error code may arrive on an as-yet-undiscovered slot or only
+appear transiently during fault conditions.
+
+See [#8 (comment)](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8#issuecomment-4653225087).
+
+| Code | Meaning |
+|------|---------|
+| 0 | No error |
+| 1 | Voltage error — input voltage out of range |
+| 2 | Too many start attempts or fan overcurrent |
+| 3 | Compressor start failure |
+| 4 | Minimum speed error |
+| 5 | Thermal shutdown of electronics |
+| 6 | Compressor thermostat defective |
+| 7 | Abnormal tilt angle |
+| 8 | Hardware error — compressor controller |
+| 9 | Fridge temperature sensor defective |
+| 10 | Ambient temperature sensor defective |
+| 11 | Ambient temperature shutdown |
+
 ## Bus 74 — SIU Smart Temperature Sensor (ML-T 570 CrossOver, confirmed 2026-06-08)
 
 First **SIU (Smart Interface Unit)** sensor bus ever mapped. The SIU is an EHG BLE gateway that
