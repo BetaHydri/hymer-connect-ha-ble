@@ -358,7 +358,10 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 |------|------------|------|-------|
 | (21, 1) | `light_kitchen` | — | On/off |
 | (21, 2) | `light_kitchen_brightness` | % | Brightness |
-| (21, 3) | `light_kitchen_color_temp` | — | Color temperature |
+
+> **Note:** EHG app metadata defines only 2 slots for `LightCircuit11` (On + Brightness).
+> No color temperature control — confirmed in the EHG app UI. Previously mapped slot 3
+> as `light_kitchen_color_temp` was removed in v2.63.7.
 
 ## Bus 22 — Outside LED bar (confirmed at vehicle 2026-04-23)
 

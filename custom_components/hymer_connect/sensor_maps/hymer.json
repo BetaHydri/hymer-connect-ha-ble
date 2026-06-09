@@ -134,9 +134,6 @@
       "state_class": "measurement",
       "icon": "mdi:ceiling-light"
     },
-    "21,3": {
-      "name": "light_kitchen_color_temp"
-    },
     "22,1": {
       "name": "light_led_bar_2"
     },
@@ -655,7 +652,7 @@
       "name": "light_kitchen",
       "icon": "mdi:ceiling-light",
       "brightness": true,
-      "color_temp": true
+      "color_temp": false
     },
     "22": {
       "_comment": "Duplicate of bus 25 (same physical outside LED bar, separate SCU component). Confirmed 2026-04-23.",
