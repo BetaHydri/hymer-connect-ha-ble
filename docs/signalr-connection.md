@@ -1,6 +1,6 @@
 # SignalR Connection Architecture
 
-> **Last updated:** 2026-05-13 (v2.62.8)
+> **Last updated:** 2026-06-09 (v2.63.11)
 
 This document explains how the HYMER Connect integration maintains its real-time
 connection to the vehicle SCU (Smart Connectivity Unit) through Azure SignalR Service.
@@ -172,7 +172,7 @@ because the hub's routing table points to the old SCU session.
 
 | Trigger | Handler | Backoff | Sends commands? |
 |---------|---------|---------|----------------|
-| WebSocket closed/error | `_on_connection_lost()` | Reset to 60s | No — connection only |
+| WebSocket closed/error | `_on_connection_lost()` | Reset to 60s (or 5s cooldown after rapid drop) | No — connection only |
 | No WebSocket activity for 90s | Keepalive timeout in `listen()` | Reset to 60s | No — connection only |
 | Connection age > 50 min | `needs_reconnect` property | Immediate | No — connection only |
 | Send failure | `_send_with_retry()` | Immediate (1 retry) | Only retries the user''s command |
@@ -193,6 +193,32 @@ Cap: 900s (15 min) maximum between attempts
 After **5 consecutive failures**, the integration assumes the OAuth2 token has expired
 and forces a full token refresh before retrying. This prevents getting permanently stuck
 in backoff when the auth state is stale.
+
+### Rapid-Drop Cooldown (v2.63.11)
+
+When a SignalR session drops within 30 seconds of being established (`_RAPID_DROP_THRESHOLD`),
+the coordinator applies a 5-second cooldown (`_RAPID_DROP_COOLDOWN`) before reconnecting.
+This prevents hammering the Azure SignalR Service when the server hasn't cleaned up the
+old session yet — a pattern observed as "8-message rapid drops" in production logs:
+
+```
+SignalR listen loop ended after 8 messages — requesting immediate reconnect
+SignalR connection dropped after 0.9s — applying 5s cooldown before reconnect
+```
+
+Sessions that lasted longer than 30 seconds reconnect immediately (the normal path).
+The coordinator tracks the connection timestamp via `_signalr_connected_at` (set on
+successful connect in `start_signalr()`).
+
+### Options Update (v2.63.10)
+
+The config entry `update_listener` callback (`_async_options_updated`) no longer calls
+`async_reload()`. The previous behavior caused a full integration teardown and re-setup
+(killing SignalR, destroying all entities, then recreating everything) every time HA
+evaluated the config entry options (~every 5 minutes). Since options like tank capacity
+and BLE address are read dynamically from `config_entry.options` on every poll cycle,
+no reload is needed. This also fixes the HA 2026.12 deprecation warning for
+`add_update_listener`.
 
 ### Command Retry (`_send_with_retry`)
 

@@ -145,7 +145,7 @@ Control 8 interior lights with on/off, brightness, and color temperature:
 | **Wohnen** (Living) | Ceiling, Ambient, Kitchen, Seating Overhead | On/Off, Brightness, Color Temp* |
 | **Privat** (Private) | Bedroom Ambient, Night Light, Bathroom Ceiling, Bedroom Overhead | On/Off, Brightness, Color Temp* |
 
-*Color temperature supported on Ambient and Kitchen lights.
+*Color temperature supported on Ambient lights only (Wohnen + Privat). Kitchen light has on/off and brightness only.
 
 The outside **LED bar** is controllable via `light.hymer` (bus 25) with on/off and brightness.
 
@@ -194,7 +194,7 @@ Three computed sensors derived from the CAN bus odometer and fuel level:
 | **Chassis** | Parking brake, aux heater available/state, cruise control, downhill assist, coolant warning, motor oil warning, wiping water empty |
 | **Heating** | Truma connected/status/firmware, fan speed, fuel type, electric power (0/900/1800W), setpoint, operating mode |
 | **Fridge** | Mode (cooling step), door status (binary sensor), ECO/Quiet mode, power on/off |
-| **Lights** | 8 interior lights (on/off, brightness, color temp), LED bar (on/off, brightness), Wohnen group, Privat group |
+| **Lights** | 8 interior lights (on/off, brightness; color temp on ambient lights only), LED bar (on/off, brightness), Wohnen group, Privat group |
 | **Fuel** | Level (%), liters, consumption (L/100km), estimated range (computed) |
 | **System** | SCU connected/firmware, Truma firmware, LTE connected, paired BT devices, SCU restart button |
 | **Victron** | Inverter on/off, charger on/off, voltages, currents, frequencies, device failure, firmware (bus 121 — disabled by default, **non-functional**: Victron uses VE.Bus/RS-485 which is incompatible with the vehicle CAN bus) |
@@ -1087,7 +1087,7 @@ The integration should work on **any EHG vehicle with an SCU**, but with some li
 | **GPS** (bus 30) | ✅ Likely | Slots (30,1) and (30,2) carry GPS coordinates on both S600 and S700. Other slots on bus 30 are LTE/SCU/BT telemetry, not GPS |
 | **Habitation sensors** (bus 3 — water, power source, charge phase) | ✅ Likely | LIN bus sensors on bus 3 (lin1) are part of the standard SCU wiring |
 | **CAN bus sensors** (bus 1 — speed, RPM, doors, locks) | ⚠️ Partial | Bus 1 sensor **slots differ between models**. The S600 maps (1,2) as speed; the S700 maps it as fuel level. A mitmproxy capture on your vehicle is needed to verify |
-| **Lights** | ⚠️ Partial | Light bus IDs (11, 12, 15, 16, 19, 21, 24, 43, 44) and their capabilities (brightness, color temp) are specific to the Grand Canyon S layout. Your vehicle may have different lights on different buses |
+| **Lights** | ⚠️ Partial | Light bus IDs (11, 12, 15, 16, 19, 21, 24, 43, 44) and their capabilities (brightness; color temp on ambient lights only) are specific to the Grand Canyon S layout. Your vehicle may have different lights on different buses |
 | **Truma heater** (bus 58) | ⚠️ Depends | Only if your vehicle has a Truma heater connected via the SCU. Vehicles with Alde or other heating systems may use different bus IDs |
 | **Fridge** (bus 34) | ⚠️ Depends | Only if your vehicle has a Thetford fridge connected via the SCU |
 | **Solar** (bus 8) | ⚠️ Depends | Mapped for the Voltronic MPP260CI (S600) / MPP250Duo (S700) MPPT charger. Other solar setups may report on different bus IDs |
@@ -1399,7 +1399,7 @@ graph TB
     end
 
     subgraph "PIA-addressed Devices"
-        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>ML-T 570: Bus 14 · 66<br/>On/Off · Brightness · Color temp"]
+        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>ML-T 570: Bus 14 · 66<br/>On/Off · Brightness · Color temp (ambient only)"]
         GROUPS["Light Groups<br/>Bus 24 — Wohnen (all living)<br/>Bus 27 — Privat (all bedroom/bath)"]
         LEDBAR["LED Bar (outside)<br/>Bus 25 (primary) · Bus 22 (duplicate)"]
         FRIDGE["Thetford N4112A Fridge<br/>Bus 34 — Control (power · ECO · step)<br/>Bus 37 — Status (mode · door)"]
@@ -1433,7 +1433,7 @@ graph TB
 | 1 | `can0` | **CAN** | Mercedes Sprinter chassis | Odometer, fuel, doors, ignition, engine, AdBlue, VIN, temperature |
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
 | 8 | `lin2` | **LIN** | Voltronic MPP260CI | Solar voltage, current, power, charger status, error flags |
-| 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness, color temp) |
+| 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
 | 14 | — | PIA | ML-T 570 bedroom ceiling | On/off, brightness (member of Privat group, bus 27) |
 | 22 | — | PIA | LED bar (duplicate) | Mirrors bus 25 — disabled by default |
 | 24 | — | PIA | Wohnen light group | Hardware group toggle for all living area lights |

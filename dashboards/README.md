@@ -36,14 +36,14 @@ Entity IDs are predictable and brand-agnostic — no per-install suffix is neede
 | `light.hymer` | Outside LED bar (bus 25) | On/Off, Brightness |
 | `light.hymer_living_ceiling` | Living ceiling | On/Off, Brightness |
 | `light.hymer_living_ambient` | Living ambient | On/Off, Brightness, Color Temp |
-| `light.hymer_kitchen` | Kitchen | On/Off, Brightness, Color Temp |
+| `light.hymer_kitchen` | Kitchen | On/Off, Brightness |
 | `light.hymer_seating_overhead` | Seating overhead | On/Off, Brightness |
 | `light.hymer_bedroom_ambient` | Bedroom ambient | On/Off, Brightness, Color Temp |
 | `light.hymer_night_light` | Night light | On/Off, Brightness |
 | `light.hymer_bathroom_ceiling` | Bathroom ceiling | On/Off, Brightness |
 | `light.hymer_bedroom_overhead` | Bedroom overhead | On/Off, Brightness |
-| `light.hymer_wohnen_all_lights` | **Native SCU group**: All Wohnen (bus 24) | On/Off, Brightness, Color Temp |
-| `light.hymer_privat_all_lights` | **Native SCU group**: All Privat (bus 27) | On/Off, Brightness, Color Temp |
+| `light.hymer_wohnen_all_lights` | **Native SCU group**: All Wohnen (bus 24) | On/Off, Brightness |
+| `light.hymer_privat_all_lights` | **Native SCU group**: All Privat (bus 27) | On/Off, Brightness |
 
 > **Native SCU light groups (since v2.26.0)**: The two `*_all_lights` entities are not Home Assistant `light.group` helpers — they map directly onto the SCU bus 24/27 hardware group endpoints, the same ones the EHG app uses. They are reliable and respond instantly. You do **not** need to create your own HA light groups.
 
