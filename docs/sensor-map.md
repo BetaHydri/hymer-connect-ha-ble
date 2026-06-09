@@ -380,7 +380,7 @@ Sending (24,1)=true toggles all living area lights (ceiling, ambient, kitchen, s
 |------|------------|------|-------|
 | (24, 1) | `light_wohnen_group` | — | On/off. Toggles all Wohnen lights |
 | (24, 2) | `light_wohnen_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
-| (24, 3) | `light_wohnen_group_night_mode` | — | Night mode (bool). Reduces group brightness to night-time level. Renamed from `color_temp` in v2.63.8. **Writable via `switch.light_wohnen_night_mode_ctrl`.** |
+| (24, 3) | `light_wohnen_group_night_mode` | — | EHG: `NightMode`. SCU readback = `100` (brightness percentage, not bool). Sending `bool=True` is ignored by SCU. **Not writable as a simple toggle** — may require a different write type or may not be supported on S600 LIM modules. Decode-only. Under observation. |
 
 ## Bus 25 — Outside LED bar (confirmed via mitmproxy 2026-04-22)
 
@@ -390,7 +390,7 @@ Previously mislabelled as grey water. Mitmproxy capture confirmed the EHG app se
 |------|------------|------|-------|
 | (25, 1) | `light_led_bar` | — | On/off (bool) |
 | (25, 2) | `light_led_bar_brightness` | % | Brightness (0-100) |
-| (25, 3) | `light_led_bar_night_mode` | — | Night mode (bool). Reduces LED bar brightness to night-time level. Added in v2.63.8. **Writable via `switch.light_led_bar_night_mode_ctrl`.** |
+| (25, 3) | `light_led_bar_night_mode` | — | EHG: `NightMode`. Same as bus 24 slot 3 — not writable as bool. Decode-only. Under observation. |
 
 ## Bus 27 — All Privat light group (discovered 2026-04-22)
 
@@ -400,7 +400,7 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 |------|------------|------|-------|
 | (27, 1) | `light_privat_group` | — | On/off (bool). Toggles all Privat lights |
 | (27, 2) | `light_privat_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
-| (27, 3) | `light_privat_group_night_mode` | — | Night mode (bool). Reduces group brightness to night-time level. Renamed from `color_temp` in v2.63.8. **Writable via `switch.light_privat_night_mode_ctrl`.** |
+| (27, 3) | `light_privat_group_night_mode` | — | EHG: `NightMode`. Same as bus 24 slot 3 — not writable as bool. Decode-only. Under observation. |
 
 ## Bus 30 — ScuSignals (SCU telemetry, LTE, BT, GPS)
 

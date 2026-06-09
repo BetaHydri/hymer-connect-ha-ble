@@ -619,20 +619,10 @@ views:
             icon: mdi:lightbulb-group
             color: amber
           - type: tile
-            entity: switch.hymer_wohnen_night_mode
-            name: Wohnen Night
-            icon: mdi:weather-night
-            color: deep-purple
-          - type: tile
             entity: light.hymer_privat_all_lights
             name: All Privat
             icon: mdi:lightbulb-group-outline
             color: amber
-          - type: tile
-            entity: switch.hymer_privat_night_mode
-            name: Privat Night
-            icon: mdi:weather-night
-            color: deep-purple
       - type: markdown
         content: "## 🛋️ Living Area"
       - type: grid
@@ -696,11 +686,6 @@ views:
             name: LED Bar
             icon: mdi:led-strip-variant
             color: amber
-          - type: tile
-            entity: switch.hymer_led_bar_night_mode
-            name: LED Night
-            icon: mdi:weather-night
-            color: deep-purple
   - title: GPS
     path: gps
     icon: mdi:map-marker

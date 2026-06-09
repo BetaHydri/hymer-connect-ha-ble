@@ -736,33 +736,6 @@
       "write_type": "bool",
       "on_value": true,
       "read_path": "signalr_sensors.fridge_compressor_silent"
-    },
-    "24,3": {
-      "_doc": "LightGroup01 NightMode — writable switch to reduce all Wohnen lights to night-time brightness. Added in v2.63.8.",
-      "name": "light_wohnen_night_mode_ctrl",
-      "icon": "mdi:weather-night",
-      "write_type": "bool",
-      "on_value": true,
-      "read_path": "signalr_sensors.light_wohnen_group_night_mode",
-      "requires_12v": true
-    },
-    "25,3": {
-      "_doc": "LightGroup02 NightMode — writable switch to reduce LED bar to night-time brightness. Added in v2.63.8.",
-      "name": "light_led_bar_night_mode_ctrl",
-      "icon": "mdi:weather-night",
-      "write_type": "bool",
-      "on_value": true,
-      "read_path": "signalr_sensors.light_led_bar_night_mode",
-      "requires_12v": true
-    },
-    "27,3": {
-      "_doc": "LightGroup04 NightMode — writable switch to reduce all Privat lights to night-time brightness. Added in v2.63.8.",
-      "name": "light_privat_night_mode_ctrl",
-      "icon": "mdi:weather-night",
-      "write_type": "bool",
-      "on_value": true,
-      "read_path": "signalr_sensors.light_privat_group_night_mode",
-      "requires_12v": true
     }
   },
   "climate": {

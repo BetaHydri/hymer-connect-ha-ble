@@ -688,15 +688,6 @@
       },
       "fridge_compressor_silent_ctrl": {
         "name": "Compressor fridge silent mode"
-      },
-      "light_wohnen_night_mode_ctrl": {
-        "name": "Wohnen night mode"
-      },
-      "light_led_bar_night_mode_ctrl": {
-        "name": "LED bar night mode"
-      },
-      "light_privat_night_mode_ctrl": {
-        "name": "Privat night mode"
       }
     },
     "climate": {
