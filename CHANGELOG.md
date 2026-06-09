@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.11] - 2026-06-09
+
+### Fixed
+
+- **TrackerEntity deprecation** — import `TrackerEntity` from `homeassistant.components.device_tracker` instead of the deprecated `config_entry` submodule. Removes the HA Core 2027.6 deprecation warning that appeared in logs on every startup.
+- **SignalR rapid-reconnect cooldown** — when a SignalR session drops within 30 seconds (e.g., the 8-message rapid drops seen in logs), the coordinator now waits 5 seconds before reconnecting. This gives the Azure SignalR service time to clean up the old session server-side. Long-lived sessions (>30 s) still reconnect immediately.
+
+## [2.63.10] - 2026-06-09
+
+### Fixed
+
+- **Fix SignalR cycling / "Initialisieren" loop** — the `_async_options_updated` callback was calling `async_reload()` which tore down SignalR and all entities every time HA evaluated the config entry options (~5 min intervals). Options (tank capacity, BLE address, BLE enabled) are already read dynamically on every poll cycle, so the full reload was unnecessary. Also fixes the HA 2026.12 deprecation warning for `update_listener`. Reported by @mcfly1969 on the ML-T 570 CrossOver ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
+
+## [2.63.9] - 2026-06-09
+
+### Reverted
+
+- **Revert non-functional NightMode switches** — the NightMode switches for light groups (buses 24/25/27, slot 3) added in v2.63.8 were reverted. The SCU reads back brightness (0–100 %) on these slots, not a boolean — sending `True` is silently ignored. NightMode is likely an app-side convenience that sets brightness via slot 2. Removed switch entries from `hymer.json`, `strings.json`, and `translations/en.json`. Dashboard night mode tiles also removed.
+
+## [2.63.8] - 2026-06-09
+
+### Added
+
+- **Solar MPPT diagnostic sensors promoted to binary_sensor** — bus 8 slots 4–6 renamed from legacy `vent_1`/`vent_2`/`vent_3` to `solar_error`, `solar_reduced_power`, `solar_aes_active` and promoted from plain sensors to `binary_sensor` entities with proper device classes. Slot 7 renamed from `tire_pressure` to `solar_power_raw` (decode-only, superseded by computed V×A). Added to dashboard Energy page.
+- **NightMode switches for light groups** (buses 24/25/27, slot 3) — *(reverted in v2.63.9)*.
+
+### Changed
+
+- **Light group slot 3 relabelled** from `color_temp` to `night_mode` on buses 24, 25, 27. The EHG app metadata confirms these are NightMode controls, not color temperature.
+
+## [2.63.7] - 2026-06-09
+
+### Fixed
+
+- **Remove incorrect `color_temp` from kitchen light** (bus 21) — EHG app metadata shows `LightCircuit11` has only 2 slots (on/off + brightness). Slot 3 was incorrectly mapped as color temperature. Removed slot 3 from `hymer.json` and set `color_temp: false` in the lights section.
+
+### Added
+
+- **Complete EHG component slot tables** — expanded `docs/ehg-app-metadata.md` with 35+ new slot tables covering all 127 components (929+ slot definitions). Includes heaters, AC units, fridges, habitation, batteries, toilets, satellite, tanks, chassis, ventilation, switches, dimmers, and lights.
+- **DellCool compressor fridge error codes** — documented error codes 0–11 in `docs/sensor-map.md` with detailed descriptions (voltage failure, starting fault, tilt angle, etc.).
+- **Dashboard YAML updated** from live HA instance — reflects kitchen light fix and latest entity layout.
+
 ## [2.63.6] - 2026-06-08
 
 ### Changed
