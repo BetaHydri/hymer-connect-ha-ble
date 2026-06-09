@@ -40,6 +40,8 @@ _LOGGER = logging.getLogger(__name__)
 _INITIAL_BACKOFF = 60  # 1 minute
 _MAX_BACKOFF = 900  # 15 minutes
 _MAX_CONSECUTIVE_FAILURES = 5  # force re-auth after this many failures
+_RAPID_DROP_THRESHOLD = 30  # seconds — connection shorter than this = rapid drop
+_RAPID_DROP_COOLDOWN = 5  # seconds to wait before reconnecting after a rapid drop
 _REST_METADATA_INTERVAL = 600  # 10 minutes between full REST metadata refreshes
 _RESUBSCRIBE_INTERVAL = 600  # 10 minutes — only resubscribe periodically, not every poll
 
@@ -79,6 +81,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cached_rest_data: dict[str, Any] = {}
         self._signalr_lock = asyncio.Lock()  # prevent concurrent reconnect attempts
         self._shutting_down = False  # suppress reconnects during HA shutdown/unload
+        self._signalr_connected_at: float = 0.0  # monotonic time of last successful connect
         # BLE dual-path support (experimental)
         self._ble_client = None  # ScuBleClient instance when BLE is enabled
         self._ble_connected = False
@@ -227,19 +230,35 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
 
     def _on_signalr_connection_lost(self) -> None:
-        """Handle SignalR connection loss — schedule immediate reconnect.
+        """Handle SignalR connection loss — schedule reconnect.
 
         Called from the listen loop's finally block when the WebSocket
-        closes unexpectedly.  Resets backoff and triggers a coordinator
-        refresh so `_async_update_data` reconnects within seconds instead
-        of waiting for the next poll interval + exponential backoff.
+        closes unexpectedly.  If the connection was long-lived (>30s),
+        reconnects immediately.  If the connection dropped quickly (<30s),
+        applies a short cooldown to avoid hammering the Azure SignalR
+        service — rapid reconnects cause the server to drop the new
+        connection within seconds (seen as 8-message drops in logs).
         """
         if self._shutting_down:
             _LOGGER.debug("SignalR connection lost during shutdown — suppressing reconnect")
             return
-        _LOGGER.info("SignalR connection lost — scheduling immediate reconnect")
+
+        session_duration = time.monotonic() - self._signalr_connected_at if self._signalr_connected_at else 0
         self._reconnect_backoff = _INITIAL_BACKOFF
-        self._last_reconnect_attempt = 0.0
+
+        if session_duration < _RAPID_DROP_THRESHOLD:
+            # Short-lived session — server likely hasn't cleaned up yet.
+            # Apply a cooldown so the next reconnect waits a few seconds.
+            _LOGGER.info(
+                "SignalR connection dropped after %.1fs — applying %ds cooldown before reconnect",
+                session_duration, _RAPID_DROP_COOLDOWN,
+            )
+            self._last_reconnect_attempt = time.monotonic() - _INITIAL_BACKOFF + _RAPID_DROP_COOLDOWN
+        else:
+            # Long-lived session — normal disconnect, reconnect immediately.
+            _LOGGER.info("SignalR connection lost after %.0fs — scheduling immediate reconnect", session_duration)
+            self._last_reconnect_attempt = 0.0
+
         # Schedule an async coordinator refresh — listen loop runs on the
         # HA event loop (asyncio.ensure_future), so async_create_task is safe.
         self.hass.async_create_task(self.async_request_refresh())
@@ -292,6 +311,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._reconnect_backoff = _INITIAL_BACKOFF
                 self._consecutive_failures = 0
                 self._shutting_down = False
+                self._signalr_connected_at = time.monotonic()
             except HymerConnectApiError as err:
                 self._consecutive_failures += 1
                 _LOGGER.warning(
