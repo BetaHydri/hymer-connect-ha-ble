@@ -120,6 +120,8 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 > 3. **Create or improve your brand's overlay** — add mappings to your brand's JSON file in [`sensor_maps/`](custom_components/hymer_connect/sensor_maps/) (e.g. `eriba.json`, `buerstner.json`). See [How you can help](#how-you-can-help) for step-by-step instructions, including a [converter tool](#-bootstrap-a-brand-overlay-with-the-converter-v2490) that generates a starting overlay from the EHG app metadata.
 > 4. **Open a PR or issue** — share your findings so all users of your brand benefit. Even a raw sensor dump is valuable!
 
+> **⚠️ Shared brand overlays — not all entities apply to every model:** Each brand overlay (e.g. `hymer.json`) contains sensor mappings for **all known models** of that brand. For example, `hymer.json` includes both the Thetford N4112A absorber fridge (bus 34, Grand Canyon S 600/S 700) and the Thetford T2120C compressor fridge (bus 114, ML-T 570). If your vehicle doesn't have a particular component, those entities will show as **"unknown"** or **"unavailable"**. This is normal — simply **disable** any entities that don't apply to your vehicle in **Settings → Entities** (filter by "hymer", then disable the unwanted ones). The integration cannot auto-detect which components your specific vehicle has.
+
 ## Features
 
 ### 🔌 Switch Controls
