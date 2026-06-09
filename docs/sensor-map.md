@@ -301,10 +301,10 @@ reading the raw slot (8, 7) directly.
 | (8, 1) | `solar_active` | — | MPPT "charging active" flag. Computed from `solar_current > 0`. Legacy code label: `gray_water_sensor` |
 | (8, 2) | `solar_voltage` | V | Panel voltage — confirmed 19.9V live |
 | (8, 3) | `solar_current` | A | Charge current — confirmed 2.1A live |
-| (8, 4) | `solar_error` | — | MPPT error flag. Legacy code label: `vent_1` |
-| (8, 5) | `solar_reduced_power` | — | MPPT reduced power flag. Legacy code label: `vent_2` |
-| (8, 6) | `solar_aes_active` | — | MPPT AES mode flag. Legacy code label: `vent_3` |
-| (8, 7) | `solar_power` | W | MPPT power output. Computed as V×I instead. Legacy code label: `tire_pressure` |
+| (8, 4) | `solar_error` | — | MPPT error flag (bool). `binary_sensor` with `device_class: problem`. Promoted from decode-only in v2.63.8. Legacy code label: `vent_1` |
+| (8, 5) | `solar_reduced_power` | — | MPPT reduced power flag (bool). `binary_sensor`. Promoted in v2.63.8. Legacy code label: `vent_2` |
+| (8, 6) | `solar_aes_active` | — | MPPT AES (Automatic Energy Selector) mode flag (bool). `binary_sensor`. Promoted in v2.63.8. Legacy code label: `vent_3` |
+| (8, 7) | `solar_power_raw` | W | Raw MPPT power output. Decode-only — superseded by computed `solar_power` (V×A). Renamed from `tire_pressure` in v2.63.8. |
 
 ## Bus 11 — Living ceiling light
 
@@ -380,7 +380,7 @@ Sending (24,1)=true toggles all living area lights (ceiling, ambient, kitchen, s
 |------|------------|------|-------|
 | (24, 1) | `light_wohnen_group` | — | On/off. Toggles all Wohnen lights |
 | (24, 2) | `light_wohnen_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
-| (24, 3) | `light_wohnen_group_color_temp` | — | Group color temperature context |
+| (24, 3) | `light_wohnen_group_night_mode` | — | Night mode (bool). Reduces group brightness to night-time level. Renamed from `color_temp` in v2.63.8. **Writable via `switch.light_wohnen_night_mode_ctrl`.** |
 
 ## Bus 25 — Outside LED bar (confirmed via mitmproxy 2026-04-22)
 
@@ -390,6 +390,7 @@ Previously mislabelled as grey water. Mitmproxy capture confirmed the EHG app se
 |------|------------|------|-------|
 | (25, 1) | `light_led_bar` | — | On/off (bool) |
 | (25, 2) | `light_led_bar_brightness` | % | Brightness (0-100) |
+| (25, 3) | `light_led_bar_night_mode` | — | Night mode (bool). Reduces LED bar brightness to night-time level. Added in v2.63.8. **Writable via `switch.light_led_bar_night_mode_ctrl`.** |
 
 ## Bus 27 — All Privat light group (discovered 2026-04-22)
 
@@ -399,7 +400,7 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 |------|------------|------|-------|
 | (27, 1) | `light_privat_group` | — | On/off (bool). Toggles all Privat lights |
 | (27, 2) | `light_privat_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
-| (27, 3) | `light_privat_group_color_temp` | — | Group color temperature context |
+| (27, 3) | `light_privat_group_night_mode` | — | Night mode (bool). Reduces group brightness to night-time level. Renamed from `color_temp` in v2.63.8. **Writable via `switch.light_privat_night_mode_ctrl`.** |
 
 ## Bus 30 — ScuSignals (SCU telemetry, LTE, BT, GPS)
 

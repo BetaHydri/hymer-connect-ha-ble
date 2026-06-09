@@ -645,6 +645,15 @@
       },
       "vehicle_movement": {
         "name": "Vehicle movement"
+      },
+      "solar_error": {
+        "name": "Solar MPPT error"
+      },
+      "solar_reduced_power": {
+        "name": "Solar reduced power"
+      },
+      "solar_aes_active": {
+        "name": "Solar AES active"
       }
     },
     "switch": {
@@ -668,6 +677,15 @@
       },
       "fridge_compressor_silent_ctrl": {
         "name": "Compressor fridge silent mode"
+      },
+      "light_wohnen_night_mode_ctrl": {
+        "name": "Wohnen night mode"
+      },
+      "light_led_bar_night_mode_ctrl": {
+        "name": "LED bar night mode"
+      },
+      "light_privat_night_mode_ctrl": {
+        "name": "Privat night mode"
       }
     },
     "climate": {

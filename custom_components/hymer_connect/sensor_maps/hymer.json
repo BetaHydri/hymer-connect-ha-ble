@@ -26,21 +26,27 @@
       "icon": "mdi:solar-power"
     },
     "8,4": {
-      "name": "vent_1"
+      "_doc": "EHG: Error — MPPT error flag. Legacy code label: vent_1. Promoted to binary_sensor in v2.63.8.",
+      "name": "solar_error",
+      "platform": "binary_sensor",
+      "device_class": "problem",
+      "icon": "mdi:solar-power-variant-outline"
     },
     "8,5": {
-      "name": "vent_2"
+      "_doc": "EHG: ReducedPower — MPPT operating at reduced power. Legacy code label: vent_2. Promoted in v2.63.8.",
+      "name": "solar_reduced_power",
+      "platform": "binary_sensor",
+      "icon": "mdi:solar-power-variant-outline"
     },
     "8,6": {
-      "name": "vent_3"
+      "_doc": "EHG: AESActive — MPPT AES (Automatic Energy Selector) mode active. Legacy code label: vent_3. Promoted in v2.63.8.",
+      "name": "solar_aes_active",
+      "platform": "binary_sensor",
+      "icon": "mdi:solar-power-variant"
     },
     "8,7": {
-      "name": "tire_pressure",
-      "unit": "bar",
-      "platform": "sensor",
-      "device_class": "pressure",
-      "state_class": "measurement",
-      "icon": "mdi:car-tire-alert"
+      "_doc": "EHG: SolarPanelPower — raw MPPT power output. Superseded by computed solar_power (V×A). Legacy code label: tire_pressure. Fixed in v2.63.8.",
+      "name": "solar_power_raw"
     },
     "11,1": {
       "name": "light_living_ceiling",
@@ -153,7 +159,8 @@
       "unit": "%"
     },
     "24,3": {
-      "name": "light_wohnen_group_color_temp"
+      "_doc": "LightGroup01 NightMode — reduces brightness to night-time level (bool). EHG slot 3 for all light groups.",
+      "name": "light_wohnen_group_night_mode"
     },
     "25,1": {
       "name": "light_led_bar"
@@ -161,6 +168,10 @@
     "25,2": {
       "name": "light_led_bar_brightness",
       "unit": "%"
+    },
+    "25,3": {
+      "_doc": "LightGroup02 NightMode — reduces LED bar brightness to night-time level (bool). Previously unmapped.",
+      "name": "light_led_bar_night_mode"
     },
     "27,1": {
       "name": "light_privat_group"
@@ -170,7 +181,8 @@
       "unit": "%"
     },
     "27,3": {
-      "name": "light_privat_group_color_temp"
+      "_doc": "LightGroup04 NightMode — reduces brightness to night-time level (bool). EHG slot 3 for all light groups.",
+      "name": "light_privat_group_night_mode"
     },
     "34,1": {
       "name": "fridge_power"
@@ -724,6 +736,33 @@
       "write_type": "bool",
       "on_value": true,
       "read_path": "signalr_sensors.fridge_compressor_silent"
+    },
+    "24,3": {
+      "_doc": "LightGroup01 NightMode — writable switch to reduce all Wohnen lights to night-time brightness. Added in v2.63.8.",
+      "name": "light_wohnen_night_mode_ctrl",
+      "icon": "mdi:weather-night",
+      "write_type": "bool",
+      "on_value": true,
+      "read_path": "signalr_sensors.light_wohnen_group_night_mode",
+      "requires_12v": true
+    },
+    "25,3": {
+      "_doc": "LightGroup02 NightMode — writable switch to reduce LED bar to night-time brightness. Added in v2.63.8.",
+      "name": "light_led_bar_night_mode_ctrl",
+      "icon": "mdi:weather-night",
+      "write_type": "bool",
+      "on_value": true,
+      "read_path": "signalr_sensors.light_led_bar_night_mode",
+      "requires_12v": true
+    },
+    "27,3": {
+      "_doc": "LightGroup04 NightMode — writable switch to reduce all Privat lights to night-time brightness. Added in v2.63.8.",
+      "name": "light_privat_night_mode_ctrl",
+      "icon": "mdi:weather-night",
+      "write_type": "bool",
+      "on_value": true,
+      "read_path": "signalr_sensors.light_privat_group_night_mode",
+      "requires_12v": true
     }
   },
   "climate": {
