@@ -676,6 +676,87 @@ See [#8 (comment)](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8#is
 | 10 | Ambient temperature sensor defective |
 | 11 | Ambient temperature shutdown |
 
+## Bus 116 — DellCool Compressor Fridge (unmapped — no vehicle confirmed yet)
+
+EHG component `DellCoolFridge` (kind: `fridge`). **Not yet mapped** — no user has
+reported data on bus 116. Documented here so users with this fridge can create
+their own brand overlay JSON. The DellCool error codes (0–11) above also apply
+to this bus.
+
+Compared to bus 114 (`ThetfordT2152`): slot 2 = `PowerMode` (not `NightMode`),
+slot 4 = `CompressorOn` (not `FreezerLevel`), no `DCVoltage` slot (6 slots vs 7).
+
+| Slot | EHG Capability | Suggested `name` | Notes |
+|------|---------------|-----------------|-------|
+| (116, 1) | `FridgeOn` | `dellcool_fridge_power` | Power on/off (bool, rw) |
+| (116, 2) | `PowerMode` | `dellcool_fridge_power_mode` | Operating mode string (rw) — e.g. "Normal", "ECO" |
+| (116, 3) | `FridgeLevel` | `dellcool_fridge_level` | Cooling step 1–5 (int, rw) |
+| (116, 4) | `CompressorOn` | `dellcool_compressor_on` | Compressor running (bool, r) |
+| (116, 5) | `DoorOpen` | `dellcool_fridge_door` | Door open/closed (bool, r) |
+| (116, 6) | `WarningErrorInformation` | `dellcool_fridge_warning` | Error code 0–11 (int, r) — see DellCool error codes above |
+
+<details>
+<summary>Ready-to-use JSON overlay template for bus 116</summary>
+
+Add this to your `{brand}.json` overlay file once a user confirms data on bus 116:
+
+```json
+{
+  "sensors": {
+    "116,1": {
+      "_doc": "DellCool compressor fridge power on/off.",
+      "name": "dellcool_fridge_power",
+      "platform": "binary_sensor",
+      "device_class": "power",
+      "icon": "mdi:fridge"
+    },
+    "116,2": {
+      "_doc": "DellCool operating mode (e.g. Normal, ECO).",
+      "name": "dellcool_fridge_power_mode",
+      "platform": "sensor",
+      "icon": "mdi:fridge-variant"
+    },
+    "116,3": {
+      "_doc": "DellCool cooling step 1-5. Decode-only — used by select entity.",
+      "name": "dellcool_fridge_level",
+      "icon": "mdi:fridge-industrial-outline"
+    },
+    "116,4": {
+      "_doc": "DellCool compressor running state.",
+      "name": "dellcool_compressor_on",
+      "platform": "binary_sensor",
+      "device_class": "running",
+      "icon": "mdi:fridge-outline"
+    },
+    "116,5": {
+      "_doc": "DellCool fridge door open/closed.",
+      "name": "dellcool_fridge_door",
+      "platform": "binary_sensor",
+      "device_class": "door",
+      "icon": "mdi:fridge-outline"
+    },
+    "116,6": {
+      "_doc": "DellCool error code 0-11. See DellCool error codes in docs/sensor-map.md.",
+      "name": "dellcool_fridge_warning",
+      "platform": "sensor",
+      "icon": "mdi:fridge-alert"
+    }
+  },
+  "switches": {
+    "116,1": {
+      "name": "dellcool_fridge_power_ctrl",
+      "icon": "mdi:fridge",
+      "write_type": "bool",
+      "on_value": true,
+      "read_path": "signalr_sensors.dellcool_fridge_power",
+      "requires_12v": true
+    }
+  }
+}
+```
+
+</details>
+
 ## Bus 74 — SIU Smart Temperature Sensor (ML-T 570 CrossOver, confirmed 2026-06-08)
 
 First **SIU (Smart Interface Unit)** sensor bus ever mapped. The SIU is an EHG BLE gateway that
