@@ -369,19 +369,17 @@ views:
         square: false
         cards:
           - type: tile
-            entity: select.hymer_fridge_mode
-            name: Fridge Cooling
-            icon: mdi:fridge
-            color: light-blue
-          - type: tile
             entity: switch.hymer_fridge_eco
             name: Fridge Quiet
             icon: mdi:volume-off
             color: teal
       - type: entities
-        title: ❄️ Fridge Status
+        title: ❄️ Fridge
         show_header_toggle: false
         entities:
+          - entity: select.hymer_fridge_mode
+            name: Cooling Step
+            icon: mdi:fridge
           - entity: binary_sensor.hymer_fridge_door
             name: Door
             icon: mdi:fridge-alert
