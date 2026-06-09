@@ -364,15 +364,6 @@ views:
               - "off"
         show_current_as_primary: false
         name: Truma Heater
-      - type: grid
-        columns: 2
-        square: false
-        cards:
-          - type: tile
-            entity: switch.hymer_fridge_eco
-            name: Fridge Quiet
-            icon: mdi:volume-off
-            color: teal
       - type: entities
         title: ❄️ Fridge
         show_header_toggle: false
@@ -380,9 +371,14 @@ views:
           - entity: select.hymer_fridge_mode
             name: Cooling Step
             icon: mdi:fridge
+            secondary_info: none
+          - entity: switch.hymer_fridge_eco
+            name: ECO
+            secondary_info: last-changed
           - entity: binary_sensor.hymer_fridge_door
             name: Door
             icon: mdi:fridge-alert
+            secondary_info: last-changed
           - entity: sensor.hymer_fridge_dc_voltage
             name: DC Voltage
           - entity: sensor.hymer_fridge_warning
