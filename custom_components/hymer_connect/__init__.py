@@ -104,8 +104,15 @@ async def async_setup_entry(
 async def _async_options_updated(
     hass: HomeAssistant, entry: HymerConnectConfigEntry
 ) -> None:
-    """Handle options update — reload integration to apply new settings."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Handle options update — apply new settings without full reload.
+
+    Options (tank capacity, BLE address, etc.) are read dynamically from
+    config_entry.options on every coordinator poll cycle, so no reload is
+    needed.  A full async_reload() caused the 'Initialisieren' cycling bug
+    where SignalR was torn down and reconnected every time options were
+    evaluated.  Fixed in v2.63.10.
+    """
+    _LOGGER.info("Options updated for %s — applied without reload", entry.title)
 
 
 def _async_enable_new_entities(
