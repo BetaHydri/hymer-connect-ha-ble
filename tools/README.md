@@ -1,5 +1,10 @@
 # Tools
 
+> **Most users do not need these tools.** For normal installation and setup,
+> start with the repository root [`README.md`](../README.md). This file is mainly
+> for advanced troubleshooting, token capture fallback paths, and contributor
+> workflows.
+
 Only the items listed below are shipped with the repository. Everything else
 under `tools/` (including local trace artifacts under `tools/traces/`) is
 gitignored.

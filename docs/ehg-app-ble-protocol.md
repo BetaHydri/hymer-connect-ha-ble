@@ -1,5 +1,8 @@
 # EHG App — BLE Protocol & Decompilation Analysis
 
+> **Audience:** Maintainers and reverse-engineering contributors. Normal users
+> can safely skip this file.
+
 Findings from reverse-engineering the HYMER Connect (EHG) Android app v2.10.14.  
 Source: `source/androidapp/com.ehg.hymerconnect/` (APK) and `_jadx_output/` (decompiled).
 

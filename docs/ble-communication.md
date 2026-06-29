@@ -1,5 +1,8 @@
 # BLE Communication Protocol
 
+> **Audience:** Maintainers and reverse-engineering contributors. Normal users
+> do not need this file to install or operate the integration.
+
 Technical documentation for the HYMER Connect SCU BLE communication layer.
 
 ## Architecture Overview

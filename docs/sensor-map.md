@@ -1,395 +1,45 @@
-# PIA Sensor Bus Map
+# PIA sensor bus map
 
-> **Primary vehicle:** HYMER Grand Canyon S 600 CrossOver (2025), Mercedes Sprinter 419 CDI
-> **SCU Firmware:** 1.12.0.0
-> **Validated:** April 2026 via mitmproxy captures + live HA correlation
-> **Discovery scan:** 2026-04-23 — 129 sensors, 129 mapped, 0 unmapped. Vehicle-verified at Unterföhring.
-> **JSON architecture:** v2.44.0+ — all sensor mappings, entity definitions, lights, and switches loaded from `base.json` + `{brand}.json`.
+> **Audience:** Users who want to look up current bus/slot meanings and contributors who need the current canonical names.
+> **Primary baseline vehicle:** HYMER Grand Canyon S 600 CrossOver (2025), Mercedes Sprinter 419 CDI.
 
-This document maps every known `(bus_id, sensor_id)` slot to its sensor name,
-unit, and value transform. The base map was built on the S600 but includes
-additive mappings from other EHG vehicles:
+This file is the **current reference map** of known `(bus_id, sensor_id)` slots.
+It intentionally focuses on the **current meaning** of each bus and slot, not
+the full discovery history.
 
-- **Bus 60** (Dometic compressor fridge) — contributed by @mvondemhagen on Eriba Car 602 (#54)
-- **Bus 14 / 66** (bedroom ceiling light, dinette pendant lamp) — confirmed by @mcfly1969 on HYMER ML-T 570 CrossOver (#7, 2026-06-01)
+## How to use this document
 
-Slot assignments are identical on S600 and S700 Grand Canyon models — both use
-the same SCU component types and bus IDs (confirmed by @dan-simms1 in [#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)).
-Other EHG brands may differ — see the [Multi-Brand Notes](../README.md#-multi-brand-notes-eriba-bürstner-dethleffs-etc) in the README.
+- Use this file when you want to know **what a bus/slot currently means**.
+- Use the main [`README.md`](../README.md) for installation, first setup, and
+  user-facing troubleshooting.
+- Use [`translations.md`](translations.md) when you add or rename entities and
+  need to know when `strings.json` / `translations/en.json` must be updated.
 
-### Dynamic JSON overlays (v2.41.0+, fully JSON-driven since v2.43.0)
+## Scope and conventions
 
-Starting with v2.43.0, **all** sensor mappings and entity definitions are loaded
-from JSON files in `custom_components/hymer_connect/sensor_maps/`.  The hardcoded
-Python `SENSOR_MAP` dict is empty — everything comes from JSON.
+- `base.json` contains universal EHG buses shared across vehicles.
+- Brand overlays such as `hymer.json` and `eriba.json` add or override
+  vehicle-specific mappings.
+- Some buses below are confirmed on S600/S700, some were added from other EHG
+  vehicles such as the ML-T 570 or Eriba Car 602.
+- If your vehicle exposes additional unmapped slots, enable debug logging and
+  use the dynamic discovery helpers described in the main README.
 
-At startup the integration loads `base.json` (universal buses shared by all EHG
-brands) + `{brand}.json` (brand-specific overlays, e.g. `hymer.json` for S600/S700).
+## What is intentionally not repeated here
 
-#### JSON file format (v2.43.0+ object format)
+The following topics are documented elsewhere to keep this file shorter and
+easier to use as a reference:
 
-Each sensor entry is a JSON object with **decode fields** (how the raw protobuf
-value is processed) and optional **entity fields** (how the HA entity is configured):
+- JSON overlay architecture and loading behavior → `README.md`
+- translation-file update rules → [`translations.md`](translations.md)
+- deep BLE / SignalR / reverse-engineering notes → the other files in `docs/`
 
-```json
-{
-  "_comment": "Description (ignored by loader)",
-  "sensors": {
-    "1,1": {
-      "name": "odometer",
-      "unit": "km",
-      "transform": "div1000",
-      "platform": "sensor",
-      "device_class": "distance",
-      "state_class": "total_increasing",
-      "icon": "mdi:counter"
-    },
-    "1,10": {
-      "name": "engine_running",
-      "platform": "binary_sensor",
-      "device_class": "running",
-      "icon": "mdi:engine"
-    },
-    "1,8": {
-      "name": "vin_text"
-    }
-  }
-}
-```
+## Practical notes for contributors
 
-**Decode fields** (how the raw value is processed):
-
-| Field | Required | Description | Examples |
-|-------|----------|-------------|----------|
-| `name` | **Yes** | Sensor name — becomes the HA entity key and translation key | `"odometer"`, `"bms_voltage"` |
-| `unit` | No | HA unit string | `"V"`, `"A"`, `"°C"`, `"%"`, `"W"`, `"km"`, `"bar"`, `"m"`, `"min"`, `"Ah"`, `"h"` |
-| `transform` | No | Value transform | `"div10"`, `"div100"`, `"div1000"`, `"div3600"` (seconds → hours) |
-
-**Entity fields** (how the HA entity is configured — all optional):
-
-| Field | Description | Examples |
-|-------|-------------|----------|
-| `platform` | `"sensor"` or `"binary_sensor"`. If omitted, the entry is decode-only (value stored in coordinator data but no HA entity created). | `"sensor"`, `"binary_sensor"` |
-| `device_class` | HA device class string | `"temperature"`, `"voltage"`, `"current"`, `"door"`, `"running"`, `"power"`, `"lock"` |
-| `state_class` | HA state class | `"measurement"`, `"total_increasing"` |
-| `icon` | MDI icon | `"mdi:thermometer"`, `"mdi:battery"` |
-| `on_value` | Binary sensor only — the raw value that means "on" | `"Open"`, `"On"`, `1`, `true` (default: `true`) |
-| `enabled` | Set to `false` to disable the entity by default (user can enable in entity registry) | `false` |
-
-Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by the loader.
-
-> **Backward compat:** The old v2.41/v2.42 array format `["name", "unit", "transform"]` is still accepted for decode-only entries but does not support entity metadata.
-
-#### Available overlay files
-
-| File | Entries | Buses | Loaded when | Purpose |
-|------|---------|-------|-------------|---------|
-| `base.json` | 63 | 1, 3, 30, 45 | Always (first) | Universal sensors shared by ALL EHG vehicles |
-| `hymer.json` | 106 | 8, 11–27, 34, 37, 43–44, 49, 58, 66, 74, 76, 99, 114, 121 | Brand = HYMER | S600/S700: lights, Voltronic solar, Thetford fridge, Truma, BOS BMS, Victron. ML-T 570 CrossOver: bedroom ceiling (bus 14), dinette pendant (bus 66), Thetford Compressor T2120C fridge (bus 114), SIU smart sensor (bus 74), water tanks (bus 76). |
-| `eriba.json` | 33 | 18, 59, 60, 93 | Brand = Eriba | Eriba Car 602: Dometic fridge, shower light, Truma AC, furniture light |
-| `buerstner.json` | — | — | Brand = Bürstner | Community-contributed (empty) |
-| `dethleffs.json` | — | — | Brand = Dethleffs | Community-contributed (empty) |
-| `lmc.json` | — | — | Brand = LMC | Community-contributed (empty) |
-| `niesmann-bischoff.json` | — | — | Brand = Niesmann+Bischoff | Community-contributed (empty) |
-| `sunlight.json` | — | — | Brand = Sunlight | Community-contributed (empty) |
-| `carado.json` | — | — | Brand = Carado | Community-contributed (empty) |
-| `laika.json` | — | — | Brand = Laika | Community-contributed (empty) |
-| `freeontour.json` | — | — | Brand = FreeOnTour | Community-contributed (empty) |
-
-#### Loading order and precedence
-
-```
-1. base.json (universal sensors)         ← 63 entries (buses 1, 3, 30, 45)
-2. + {brand}.json (brand-specific)       ← overrides base entries for same (bus, slot)
-```
-
-Later entries win — a brand file can override anything in base.
-
-## Pinned sensor mappings and auto-slot templates
-
-Some vehicles report multiple physical devices on the same `(bus_id, sensor_id)`
-slot. In that case, mapping only by `(bus,slot)` is not enough. The decoder can
-also use the PIA field 10 discriminator (`connectedComponentInstance`) via
-`bus_name` in JSON.
-
-### When to use which pattern
-
-| Pattern | Use when | Typical `bus_name` |
-|---|---|---|
-| `pin` (fixed) | Device ID is stable and known | `pin-6`, `pin-7`, `lin1`, `can2` |
-| `auto` (dynamic) | Device IDs are unknown per vehicle and vary by owner | `hex:...` from SIU smart sensors |
-
-### Pattern 1 — fixed pinned mapping (`pin-*`)
-
-Use this when one slot is shared but each physical source has a stable
-identifier.
-
-```json
-{
-  "sensors": {
-    "76,1#fresh": {
-      "name": "fresh_water_level",
-      "unit": "%",
-      "platform": "sensor",
-      "device_class": "water",
-      "state_class": "measurement",
-      "icon": "mdi:water",
-      "restore_last": true,
-      "bus_name": "pin-6"
-    },
-    "76,1#gray": {
-      "name": "gray_water_level",
-      "unit": "%",
-      "platform": "sensor",
-      "device_class": "water",
-      "state_class": "measurement",
-      "icon": "mdi:water-percent",
-      "restore_last": true,
-      "bus_name": "pin-7"
-    }
-  }
-}
-```
-
-Notes:
-
-- The `#fresh` / `#gray` part is only to keep JSON keys unique.
-- Matching is done by `bus_name` only.
-- You may use the same `(bus,slot)` multiple times with different `bus_name`.
-
-### Pattern 2 — dynamic auto-slot mapping (`auto:*`)
-
-Use this for SIU external sensors where every owner's IDs are different
-(`hex:...`).
-
-```json
-{
-  "sensors": {
-    "70,1#t1": {
-      "name": "hss_tyre1_status",
-      "platform": "sensor",
-      "icon": "mdi:car-tire-alert",
-      "bus_name": "auto:tyre:1"
-    },
-    "70,2#t1": {
-      "name": "hss_tyre1_bar",
-      "unit": "bar",
-      "transform": "div100",
-      "platform": "sensor",
-      "device_class": "pressure",
-      "state_class": "measurement",
-      "icon": "mdi:gauge",
-      "bus_name": "auto:tyre:1"
-    },
-    "74,1#tp1": {
-      "name": "hss_temp1_c",
-      "unit": "°C",
-      "platform": "sensor",
-      "device_class": "temperature",
-      "state_class": "measurement",
-      "icon": "mdi:thermometer",
-      "bus_name": "auto:temp:1"
-    }
-  }
-}
-```
-
-How it works:
-
-1. The JSON defines only template sensor `:1` entries.
-1. Decoder sees unknown `hex:...` IDs on that bus.
-1. It assigns stable numbers (`sensor1`, `sensor2`, ...).
-1. It materializes names/entities dynamically from your `:1` template.
-1. Mapping is persisted in `sensor_maps/_auto_slots.json`.
-
-Result: users do not need to hardcode their own hex IDs.
-
-### Optional JSON label decoding (less hardcode)
-
-You can define per-sensor label maps directly in JSON:
-
-```json
-{
-  "sensors": {
-    "1,17": {
-      "name": "coolant_warning",
-      "platform": "binary_sensor",
-      "value_labels": {
-        "OFF": "Off",
-        "ON": "On"
-      },
-      "int_labels": {
-        "0": "Off",
-        "1": "On"
-      }
-    }
-  }
-}
-```
-
-`value_labels` maps string raw values, `int_labels` maps integer raw values.
-
-### Step-by-step for users of other HYMER models
-
-1. Enable `custom_components.hymer_connect.pia_decoder: debug`.
-1. Trigger the real hardware action in the EHG app.
-1. Inspect log lines containing `RAW PIA ... f10/wt2=hex:...`.
-1. Choose one strategy:
-   - known stable ID per channel → `bus_name: "pin-..."`
-   - unknown varying SIU IDs → `bus_name: "auto:<group>:1"` templates
-1. Add entries to your brand overlay (`sensor_maps/<brand>.json`).
-1. Reload integration and verify entity creation + stable naming.
-
-### Does this help Grand Canyon S 600 users?
-
-Yes, with two practical benefits:
-
-1. **Immediate robustness** for any future slot-collision cases where one
-   `(bus,slot)` carries multiple channels distinguishable only by field 10.
-1. **Future-proof SIU support** (external sensors) without hardcoding per-vehicle
-   hex IDs. The same JSON can be shared by all users.
-
-For a stock S600 with only classic buses, you might not notice a visual change
-today. But the mapping model now scales cleanly as soon as additional modules
-or firmware variants expose colliding slots.
-
-### Relevance for BMC I 680 (Issue #9)
-
-Yes — this is directly relevant for the BMC I 680 case in
-[`Issue #9`](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)
-(HYMER BMC I 680, model year 2024, Alde + Thetford absorber reported).
-
-Why this helps:
-
-1. BMC users can keep `base.json` as common baseline and override only the
-  differing buses/slots in `hymer.json`.
-1. If a BMC channel collides on the same `(bus,slot)` as another source,
-  `bus_name` (`pin-*`) cleanly separates the values.
-1. If external smart sensors expose vehicle-specific `hex:...` IDs,
-  `auto:*` templates avoid per-user hardcoded IDs.
-
-This is exactly the migration path for models that differ from S600/S700 while
-staying JSON-driven and shareable across users.
-
-#### How entity creation works (v2.43.0+)
-
-```
-JSON "sensors" entry with "platform" field
-    ↓
-pia_decoder.load_sensor_map() stores in SENSOR_MAP (decode) + ENTITY_DEFS (entity metadata)
-    ↓
-sensor.py / binary_sensor.py call _build_dynamic_sensors() / _build_dynamic_binary_sensors()
-    ↓
-HA entity descriptions created from ENTITY_DEFS at setup time
-    ↓
-Entities appear in HA with correct device_class, icon, state_class, etc.
-```
-
-Entries **without** a `platform` field are decode-only — they appear in `coordinator.data["signalr_sensors"]` but don't create an HA entity. This is useful for raw slots that are consumed by computed sensors (e.g. `lithium_soc` is decode-only, consumed by the static `battery_soc` entity which reads from it). It is also the right pattern for slots that feed a **stepped-switch select** (see below) — the select reads from `signalr_sensors.<name>` and writes via its own recipe, so no sensor entity is needed.
-
-## Stepped switch / select driver (v2.63.0+)
-
-The generic `stepped_switch` driver lets you expose any appliance that has a small set of integer steps — fridge cooling 1–5, freezer 1–3, fan speed 1–3, etc. — as a writable `select.*_ctrl` entity **without writing any Python**. Add a block to your brand overlay under `climate.selects.<key>` and reload the integration; an entity called `select.<key>_ctrl` appears.
-
-### When does this fit?
-
-Use the stepped-switch driver when **all** of the following are true:
-
-- The appliance is controlled by **one or a few integer slots** (optionally plus a single bool "power" slot).
-- An `Off` state maps to a single integer (commonly `0`) or to "power = False".
-- Each non-Off step is a single SCU write (with an optional inter-step delay for "power-on then set level" sequences).
-
-Don't use it for:
-
-- The **Thetford fridge on bus 34** — already shipped as `climate.fridge` (type `thetford_t2000`); leave it as-is.
-- The **Truma Combi heater / boiler** — already shipped as `climate.truma_heater` + `select.boiler_mode_ctrl` + `select.heater_energy_ctrl`; the multi-slot Mix/Electric recipes are intentionally code-driven.
-- Anything that needs string writes following Truma's `Diesel / Both / Electric` pattern across multiple slots — also code-driven for now.
-
-### JSON schema
-
-Add the entry to the **brand** overlay only (e.g. `sensor_maps/hymer.json`), under the `climate.selects` subsection. The subkey `selects` is reserved — entries under it are NOT loaded into `CLIMATE_DEFS`; they go into `STEPPED_SELECT_DEFS` instead.
-
-```jsonc
-"climate": {
-  "selects": {
-    "fridge_compressor_freezer": {
-      "name": "Compressor fridge freezer",     // shown in HA UI (no translation file edit needed)
-      "icon": "mdi:snowflake",
-      "control_bus": 114,
-      "options": ["Off", "1", "2", "3"],       // labels visible to the user; non-Off labels MUST be parseable as int
-      "read": {
-        "step_sensor": "fridge_compressor_freezer", // signalr_sensors.<name> used to compute current state
-        "off_value": 0,                          // step_sensor int value that means "Off" (default 0)
-        // Optional: gate "Off" detection on a separate boolean power slot
-        // "power_sensor": "fridge_compressor_power",
-        // "off_when_power_false": true
-      },
-      "writes": {
-        "off":  [{"sid": 4, "uint": 0}],
-        "step": [{"sid": 4, "uint": "$option_int"}]   // $option_int is replaced with int(option), e.g. 1/2/3
-      }
-    }
-  }
-}
-```
-
-A write `step` is a list of one or more steps applied in order. Each step is one of:
-
-| Step shape | Meaning |
-|---|---|
-| `{"sid": N, "bool": true \| false}` | Send a boolean to slot `(control_bus, N)`. |
-| `{"sid": N, "uint": <int> \| "$option_int"}` | Send an unsigned int. `"$option_int"` is replaced with `int(option)` chosen by the user. |
-| `{"sid": N, "str": "..."}` | Send a string (used by Truma-style appliances). |
-| `{"delay_ms": <int>}` | Sleep before the next step (useful for "power on, then set level" sequences). |
-
-### Worked example — a hypothetical "Thetford as stepped" driver
-
-(Don't actually do this — the existing Thetford driver is already in `climate.fridge` and is more user-friendly; this is here only to show how the recipe shape generalizes.)
-
-```jsonc
-"selects": {
-  "fridge_thetford_demo": {
-    "name": "Thetford fridge (demo)",
-    "icon": "mdi:fridge",
-    "control_bus": 34,
-    "options": ["Off", "1", "2", "3", "4", "5"],
-    "read": {
-      "step_sensor": "fridge_cooling_step",
-      "power_sensor": "fridge_power",
-      "off_when_power_false": true
-    },
-    "writes": {
-      "off":  [{"sid": 1, "bool": false}],
-      "step": [
-        {"sid": 1, "bool": true},
-        {"delay_ms": 500},
-        {"sid": 3, "uint": "$option_int"}
-      ]
-    }
-  }
-}
-```
-
-### Step-by-step: add a new stepped device
-
-1. **Identify the slot** producing the step value. Enable `custom_components.hymer_connect.pia_decoder: debug`, change the appliance in the EHG app, and watch for `Discovered unmapped slot` log lines.
-2. **Add a sensor-map entry** in your brand JSON for that slot but **omit the `platform` field**. The decoded value lands in `signalr_sensors.<name>` without creating a sensor entity:
-
-   ```jsonc
-   "114,4": { "name": "fridge_compressor_freezer", "icon": "mdi:snowflake" }
-   ```
-
-3. **Add the `climate.selects.<key>` entry** following the schema above. The `step_sensor` must match the `name` you used in step 2.
-4. **Reload** the integration. A new `select.<key>_ctrl` entity is created automatically — pick steps in HA to confirm the writes round-trip via the SCU.
-5. **Add to `CHANGELOG.md`** under your release. No version of the integration is bumped automatically.
-
-### Do I need to edit translation files?
-
-For the stepped-switch select specifically: **no** — the JSON `name` field is used directly as the entity display name. This is the only entity type that bypasses `strings.json` / `translations/en.json`.
-
-For **every other** entity type (sensors, binary sensors, lights, switches, classic fridge/heater selects, buttons), you must add the matching translation key to **both** `custom_components/hymer_connect/strings.json` **and** `custom_components/hymer_connect/translations/en.json` — otherwise HA shows the raw key string instead of a friendly label.
-
-The full step-by-step playbook with copy-paste examples for every entity type lives in [`docs/translations.md`](translations.md).
+- Keep entries here focused on the **current bus meaning**.
+- Prefer short notes over issue-history narratives.
+- Only keep backward-compatibility or legacy-name notes when they still help
+  users understand an existing entity name.
 
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 

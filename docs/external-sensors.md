@@ -1,5 +1,9 @@
 # External SIU Sensors — EHG App Analysis
 
+> **Audience:** Maintainers and advanced contributors. Normal users can ignore
+> this file unless they are reverse-engineering SIU-based external sensors on a
+> new vehicle.
+
 > **Source:** HYMER Connect APK v2.10.14 — Hermes bytecode bundle string extraction
 > **Date:** 2026-04-29
 > **Method:** Regex extraction of readable strings (≥6 chars) from `index.android.bundle`

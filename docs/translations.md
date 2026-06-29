@@ -1,5 +1,8 @@
 # Translations — when (and when not) to edit `strings.json` and `translations/en.json`
 
+> **Audience:** Contributors and maintainers. Normal users do not need this file
+> unless they are editing sensor maps or creating pull requests.
+
 > **TL;DR**
 >
 > Whenever you add a new entity to a brand overlay (`custom_components/hymer_connect/sensor_maps/<brand>.json`), Home Assistant needs to know how to display its name. There are **two ways** the integration provides that name:

@@ -1,5 +1,8 @@
 # SignalR Connection Architecture
 
+> **Audience:** Maintainers and advanced troubleshooters. Normal users only need
+> the setup and troubleshooting guidance in the main README.
+
 > **Last updated:** 2026-06-09 (v2.63.11)
 
 This document explains how the HYMER Connect integration maintains its real-time
