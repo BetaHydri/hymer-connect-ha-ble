@@ -5,16 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.64.1] - 2026-06-29
+## [2.64.2] - 2026-06-29
 
 ### Changed
 
-- **Auto-Slot Template Syntax** — All HYMER Smart Sensor templates migrated from `#X1` notation to new `{n}` placeholder syntax for automatic device numbering in v2.64.1+:
+- **Auto-Slot Template Syntax** — All HYMER Smart Sensor templates migrated from `#X1` notation to new `{n}` placeholder syntax for automatic device numbering:
   - Tyres (bus 70): `hss_tyre{n}_*` with `auto:tyre:{n}`
   - Temperature sensors (bus 74): `hss_temp{n}_*` with `auto:temp:{n}`
   - Contact sensors (bus 73): `hss_contact{n}_*` with `auto:contact:{n}`
   - Gas-bottle sensors (bus 71): `hss_gaslevel{n}_*` with `auto:gas:{n}`
-  - The integration automatically expands `{n}` to instantiate devices #1–#N without manual JSON duplication.
+  - The integration automatically expands `{n}` to instantiate devices #1–#N without manual JSON duplication. Future-proof for unlimited device discovery.
+
+## [2.64.1] - 2026-06-29
 
 ### Fixed
 
