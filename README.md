@@ -626,6 +626,444 @@ That section includes copy-paste JSON examples for:
 This path is explicitly relevant for the BMC owner discussion in
 [`Issue #9`](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9).
 
+---
+
+## Step-by-step: Creating a brand overlay JSON
+
+### Why a brand overlay?
+
+Each EHG brand may have different components on different bus/slot pairs. The integration ships with:
+- **`base.json`** — universal buses shared across all vehicles (battery, water, GPS, Mercedes CAN, etc.)
+- **`hymer.json`**, **`eriba.json`**, etc. — brand-specific overlays that **override** or **add to** base.json
+
+When you define a sensor on bus 70 slot 1 in `hymer.json` and the same bus/slot exists in `base.json`, your brand mapping wins. This means you can:
+- Rename entities for your brand
+- Override device_class or unit
+- Add new components not in the base
+- Support multi-device buses with auto-slot templates
+
+### JSON structure overview
+
+```json
+{
+  "_doc": "HYMER Grand Canyon S 600/S 700, ML-T 570 CrossOver sensor mappings.",
+  "_schema_version": "1.0",
+  "sensors": {
+    "8,1": { ... },
+    "8,2": { ... }
+  },
+  "lights": {
+    "11": { "1": { ... }, "2": { ... } },
+    "12": { "1": { ... }, "2": { ... }, "3": { ... } }
+  },
+  "switches": {
+    "3,1": { ... },
+    "3,3": { ... }
+  },
+  "climate": {
+    "truma_heater": { ... },
+    "fridge": { ... }
+  },
+  "select": {
+    "34,3": { ... },
+    "37,1": { ... }
+  }
+}
+```
+
+### Field reference — all available fields per entity type
+
+#### **sensors**
+
+Key format: `"bus_id,sensor_id"` or `"bus_id,sensor_id#group_id"` (the `#group_id` suffix is optional, for readability only; it does not affect parsing).
+
+| Field | Type | Mandatory? | Description | Example |
+|-------|------|:---:|-----------|---------|
+| **`name`** | string | ✅ Yes | Entity name prefix in HA (platform + name becomes entity ID) | `"battery_voltage"` → entity: `sensor.hymer_battery_voltage` |
+| **`platform`** | string | ✅ Yes | HA platform: `sensor`, `binary_sensor`, `button`, `switch` (select/climate are inferred) | `"sensor"` |
+| **`unit`** | string | ❌ No | Unit of measurement. Overrides any hardcoded default | `"V"`, `"%"`, `"°C"`, `"A"` |
+| **`state_class`** | string | ❌ No | `"measurement"` (most sensors), `"total"` (cumulative), `"total_increasing"` (never resets) | `"measurement"` |
+| **`device_class`** | string | ❌ No | HA device class (enables icons, UOM, automations) | `"temperature"`, `"voltage"`, `"pressure"`, `"battery"` |
+| **`icon`** | string | ❌ No | MDI icon override | `"mdi:thermometer"`, `"mdi:battery"` |
+| **`bus_name`** | string | ❌ No | **Multi-device discriminator** (required for multi-device buses only). Use: fixed pins (`"pin-6"`), hex IDs (`"hex:1a2b3c4d"`), or auto-slot template (`"auto:tyre:1"`) | `"auto:tyre:1"` |
+| **`transform`** | string | ❌ No | Raw value transform: `"div100"`, `"div1000"`, `"mul10"`, etc. Applied before unit display | `"div1000"` for mV → V |
+| **`friendly_name`** | string | ❌ No | Override HA entity friendly_name. Normally auto-generated from name + strings.json | `"Front Left Tyre"` |
+| **`int_labels`** | dict | ❌ No | Map integer raw values → display strings. Priority over hardcoded `_INT_LABELS` | `{"0": "Off", "1": "On", "2": "Error"}` |
+| **`value_labels`** | dict | ❌ No | Map string raw values → display strings (e.g. LTE quality "poor" → "⚠️ Poor") | `{"poor": "⚠️ Poor", "excellent": "✅ Excellent"}` |
+| **`_doc`** | string | ❌ No | Developer comment explaining non-obvious mappings (not parsed, for contributors) | `"Fridge door sensor, not VehicleBrand"` |
+
+#### **lights**
+
+Key format: `"bus_id"` (top-level) → `"1"`, `"2"`, `"3"` (slots; by convention: 1=on/off, 2=brightness, 3=color_temp).
+
+| Field | Type | Mandatory? | Description |
+|-------|------|:---:|-----------|
+| **`name`** | string | ✅ Yes | Entity name (without platform prefix) |
+| **`icon`** | string | ❌ No | MDI icon |
+| **`_doc`** | string | ❌ No | Developer comment |
+
+Example:
+```json
+"12": {
+  "1": { "name": "light_living_ambient", "icon": "mdi:lightbulb" },
+  "2": { "name": "light_living_ambient_brightness" },
+  "3": { "name": "light_living_ambient_color_temp" }
+}
+```
+
+#### **switches**
+
+Key format: `"bus_id,sensor_id"`. Typically boolean on/off controls (fridge ECO, water pump, 12V main).
+
+| Field | Type | Mandatory? | Description |
+|-------|------|:---:|-----------|
+| **`name`** | string | ✅ Yes | Entity name |
+| **`icon`** | string | ❌ No | MDI icon |
+| **`_doc`** | string | ❌ No | Developer comment |
+
+#### **select**
+
+Key format: `"bus_id,sensor_id"`. Multi-option controls (fridge mode, heater energy source).
+
+| Field | Type | Mandatory? | Description |
+|-------|------|:---:|-----------|
+| **`name`** | string | ✅ Yes | Entity name |
+| **`icon`** | string | ❌ No | MDI icon |
+| **`options`** | list | ✅ Yes (v2.64.0+) | List of valid string options (no labels yet; use hardcoded `_VALUE_LABELS` in code or JSON int_labels for int-based selects) |
+| **`_doc`** | string | ❌ No | Developer comment |
+
+Example (stepped switch for fridge — raw ints 0–5):
+```json
+"34,3": {
+  "name": "fridge_cooling_step",
+  "type": "stepped_switch",
+  "min": 0,
+  "max": 5,
+  "step": 1,
+  "int_labels": { "0": "Off", "1": "Min", "2": "Low", "3": "Medium", "4": "High", "5": "Max" }
+}
+```
+
+#### **climate** (Truma heater, boiler)
+
+Special nested structure for complex multi-slot appliances.
+
+```json
+"climate": {
+  "truma_heater": {
+    "setpoint_slot": "58,1",
+    "mode_slot": "58,2",
+    "fuel_type_slot": "58,3",
+    "fan_speed_slot": "58,4",
+    "electric_power_slot": "58,5"
+  },
+  "fridge": {
+    "mode_slot": "37,1",
+    "power_slot": "34,1",
+    "cooling_step_slot": "34,3",
+    "eco_slot": "34,2",
+    "door_slot": "34,5"
+  }
+}
+```
+
+### Decision matrix — when do you need which fields?
+
+| Scenario | Required Fields | Optional But Recommended |
+|----------|---|---|
+| **Simple read-only sensor** (e.g. voltage, temperature) | `name`, `platform`, (maybe `unit`, `device_class`) | `state_class`, `icon`, `int_labels`/`value_labels` |
+| **Computed sensor with transform** (e.g. raw mV → display V) | `name`, `platform`, `unit`, `transform` | `state_class`, `device_class` |
+| **Integer enum sensor** (e.g. fridge mode, error codes) | `name`, `platform`, `int_labels` | `icon`, `_doc` |
+| **String enum sensor** (e.g. LTE quality) | `name`, `platform`, `value_labels` | — |
+| **Light with brightness** | Use 3 entries (on/off + brightness + color_temp) in lights section | `icon` |
+| **Multi-device bus** (e.g. 4 tyre sensors on bus 70) | `name`, `platform`, `bus_name: "auto:tyre:1"` | `device_class`, `unit`, `icon` |
+| **Fixed discriminator** (e.g. only 2 specific hex IDs, never more) | `name`, `platform`, `bus_name: "pin-6"` or `"hex:1a2b3c4d"` | — |
+
+### Step 1: Identify your vehicle's bus/slot pairs
+
+Run the **Sensor Discovery Tool** (recommended, see above) or enable [Dynamic Slot Discovery](#-dynamic-slot-discovery-v2340) in the integration and let the HA logs show you unmapped sensors.
+
+**Expected output:**
+
+```
+(bus, slot) | raw_value | mapped_name
+(3, 1)      | 1.0       | main_switch
+(3, 5)      | 13.1      | battery_voltage
+(8, 2)      | 19.9      | solar_voltage
+(34, 1)     | False     | ??? (unmapped)
+```
+
+### Step 2: Determine the entity type and write the JSON entry
+
+#### **Example 1: Simple temperature sensor (bus 3, slot 16)**
+
+```json
+"3,16": {
+  "name": "ambient_temperature",
+  "platform": "sensor",
+  "unit": "°C",
+  "state_class": "measurement",
+  "device_class": "temperature",
+  "icon": "mdi:thermometer"
+}
+```
+
+This creates: `sensor.hymer_ambient_temperature` with value display like "23.5 °C" in HA.
+
+---
+
+#### **Example 2: Binary sensor with label map (bus 3, slot 1 — 12V switch)**
+
+Raw values: `0` = Off, `1` = On, but the SCU sends string values `"On"` / `"Off"` or sometimes booleans.
+
+```json
+"3,1": {
+  "name": "main_switch",
+  "platform": "binary_sensor",
+  "device_class": "switch",
+  "value_labels": { "On": "On", "Off": "Off" },
+  "int_labels": { "0": "Off", "1": "On" }
+}
+```
+
+**Why both?** The decoder tries all three: (1) exact value match in `value_labels`, (2) fallback to `int_labels`, (3) raw value if neither matches.
+
+---
+
+#### **Example 3: Stepped switch with transform (fridge cooling step 0–5)**
+
+Raw slot (34,3) sends ints 0–5 where 0=off, 1–5=intensity levels.
+
+```json
+"34,3": {
+  "name": "fridge_cooling_step",
+  "platform": "select",
+  "type": "stepped_switch",
+  "min": 0,
+  "max": 5,
+  "step": 1,
+  "int_labels": {
+    "0": "Off",
+    "1": "Low",
+    "2": "Medium-Low",
+    "3": "Medium",
+    "4": "Medium-High",
+    "5": "High"
+  },
+  "_doc": "Stepped brightness-like switch for fridge compressor cooling intensity."
+}
+```
+
+Creates: `select.hymer_fridge_cooling_step` with options "Off"–"High". Selecting "High" sends raw int `5` to the SCU.
+
+---
+
+#### **Example 4: Multi-device auto-slot template (bus 70 — 4 tyre sensors)**
+
+Vehicle has 4 identical HYMER Smart tyre sensors. Each has slots 1–4 (status, pressure, temperature, battery). Raw hex IDs are different but unknown at JSON-write time. Use auto-slot template:
+
+```json
+"70,1#t1": {
+  "_doc": "HYMER Smart tyre sensor #1 (auto-numbered), status readback.",
+  "name": "hss_tyre{n}_status",
+  "bus_name": "auto:tyre:1",
+  "platform": "sensor",
+  "icon": "mdi:car-tire-alert"
+},
+"70,2#t1": {
+  "name": "hss_tyre{n}_pressure",
+  "bus_name": "auto:tyre:1",
+  "unit": "bar",
+  "platform": "sensor",
+  "device_class": "pressure",
+  "state_class": "measurement",
+  "icon": "mdi:gauge"
+},
+"70,3#t1": {
+  "name": "hss_tyre{n}_temperature",
+  "bus_name": "auto:tyre:1",
+  "unit": "°C",
+  "platform": "sensor",
+  "device_class": "temperature",
+  "state_class": "measurement",
+  "icon": "mdi:thermometer"
+},
+"70,4#t1": {
+  "name": "hss_tyre{n}_battery",
+  "bus_name": "auto:tyre:1",
+  "unit": "%",
+  "platform": "sensor",
+  "device_class": "battery",
+  "state_class": "measurement",
+  "icon": "mdi:battery"
+}
+```
+
+**Key points:**
+- `"name"` contains `{n}` placeholder — replaced at runtime with slot number 1, 2, 3, 4
+- All 4 entries share same `"bus_name": "auto:tyre:1"` group → grouped together in auto-slot assignment
+- `#t1` suffix in key is a comment (never parsed)
+- Result: `sensor.hymer_hss_tyre1_pressure`, `sensor.hymer_hss_tyre2_pressure`, etc.
+
+---
+
+### Step 3: Update strings.json and translations/en.json
+
+**Only for human-readable entity names** (most entity types). The integration looks up friendly names in:
+
+1. JSON `friendly_name` field (if present)
+2. `custom_components/hymer_connect/strings.json` (platform-scoped)
+3. `custom_components/hymer_connect/translations/en.json` (platform + name keys)
+
+**Example:** After adding `"hss_tyre1_pressure"` sensor, edit `strings.json`:
+
+```json
+{
+  "entity": {
+    "sensor": {
+      "hss_tyre1_pressure": { "name": "HYMER Smart Tyre 1 Pressure" },
+      "hss_tyre2_pressure": { "name": "HYMER Smart Tyre 2 Pressure" },
+      ...
+    }
+  }
+}
+```
+
+Same keys go into `translations/en.json` under each platform section. See [translations.md](docs/translations.md) for the complete playbook — **do not skip this**, or HA will display ugly translation-key names.
+
+---
+
+### Step 4: Test and validate
+
+1. **Syntax:** Paste your JSON into [JSONLint](https://jsonlint.com/) to verify no syntax errors
+2. **Integration:** Copy your updated `sensor_maps/<brand>.json` to a test HA instance
+3. **Reload:** Go to **Settings → Integrations → HYMER Connect → (⋮ menu) → Reload integration**
+4. **Check:** **Settings → Devices & Services → HYMER Connect → Device** — enable newly discovered entities
+5. **Verify:** Physical action (toggle light, open door, change heater temp) should update entity state in **Developer Tools → States**
+
+---
+
+### Common mistakes
+
+| ❌ Mistake | ✅ Fix |
+|-----------|--------|
+| `"name"` not unique within platform (e.g. two sensors with `"battery_voltage"`) | Suffix with appliance or location: `"fridge_battery_voltage"`, `"bms_battery_voltage"` |
+| Missing `"platform"` on sensor entry | Always include: `"platform": "sensor"` or `"binary_sensor"` etc. |
+| Typo in unit (e.g. `"°C"` as `"C"`) | Copy-paste from reference examples or JSON field reference above |
+| `"unit"` but no `"device_class"` | Many units auto-infer device_class (V→voltage, %, °C→temperature); explicit is safer |
+| Int labels with string keys (e.g. `"1": "On"` instead of `1: "On"` or `"1": "On"` for JSON) | JSON int_labels keys **must be strings** (JSON doesn't have int keys): `{ "0": "Off", "1": "On" }` |
+| Multi-device bus without `"bus_name"` | Every entry on a multi-device bus needs `"bus_name": "auto:group:n"` or `"bus_name": "pin-6"` or similar discriminator |
+| `{n}` placeholder in `"name"` but no `"bus_name": "auto:…"` | Placeholders only work in auto-slot templates; fixed names ignore them |
+| Forgot to update `strings.json` and `translations/en.json` | New entities show ugly translation-key names in HA (e.g. `entity.sensor.hymer_hss_tyre1_pressure` instead of friendly name) |
+| JSON keys like `"70,1#t1"` with wrong format | Format is `"bus_id,slot_id"` or `"bus_id,slot_id#comment"` — the `#comment` part doesn't affect parsing, but typos in `bus_id,slot_id` will create unmapped slots |
+
+---
+
+### Example: Complete brand overlay for a fictional "BestVan S1"
+
+```json
+{
+  "_doc": "BestVan S1 (2025, Fiat Ducato base) sensor mappings.",
+  "_schema_version": "1.0",
+  "sensors": {
+    "1,1": { "name": "odometer", "unit": "km", "transform": "div1000", "platform": "sensor", "state_class": "total_increasing" },
+    "1,2": { "name": "fuel_level", "unit": "%", "platform": "sensor", "state_class": "measurement", "device_class": "battery" },
+    "3,5": { "name": "battery_voltage", "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement" },
+    "3,6": { "name": "battery_current", "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement" },
+    "8,1": { "name": "solar_active", "platform": "binary_sensor" },
+    "8,2": { "name": "solar_voltage", "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement" },
+    "11,1": { "name": "light_interior", "platform": "binary_sensor" },
+    "34,1": { "name": "fridge_power", "platform": "switch", "icon": "mdi:fridge" },
+    "70,2#t1": {
+      "_doc": "Multi-device tyre sensor pressure (auto-slot).",
+      "name": "hss_tyre{n}_pressure",
+      "bus_name": "auto:tyre:1",
+      "unit": "bar",
+      "platform": "sensor",
+      "device_class": "pressure",
+      "state_class": "measurement"
+    }
+  },
+  "lights": {
+    "11": {
+      "1": { "name": "light_interior" },
+      "2": { "name": "light_interior_brightness" }
+    },
+    "12": {
+      "1": { "name": "light_ambient" },
+      "2": { "name": "light_ambient_brightness" },
+      "3": { "name": "light_ambient_color_temp" }
+    }
+  },
+  "switches": {
+    "3,1": { "name": "main_switch_12v", "icon": "mdi:power" },
+    "34,1": { "name": "fridge_power", "icon": "mdi:fridge" }
+  },
+  "select": {
+    "34,3": {
+      "name": "fridge_cooling_step",
+      "type": "stepped_switch",
+      "min": 0,
+      "max": 5,
+      "int_labels": { "0": "Off", "1": "Low", "2": "Mid", "3": "High" }
+    }
+  },
+  "climate": {
+    "fridge": {
+      "mode_slot": "37,1",
+      "power_slot": "34,1",
+      "cooling_step_slot": "34,3",
+      "eco_slot": "34,2",
+      "door_slot": "34,5"
+    }
+  }
+}
+```
+
+This covers: battery (sensor), lights (on/off + brightness), fridge (switch + climate), multi-device tyre sensors (auto-slot), and select entity for cooling step.
+
+---
+
+### Translations
+
+For each new entity added above, add matching entries in `custom_components/hymer_connect/strings.json`:
+
+```json
+{
+  "entity": {
+    "sensor": {
+      "odometer": { "name": "Odometer" },
+      "fuel_level": { "name": "Fuel Level" },
+      "battery_voltage": { "name": "Battery Voltage" },
+      "hss_tyre1_pressure": { "name": "Front Left Pressure" },
+      "hss_tyre2_pressure": { "name": "Front Right Pressure" },
+      ...
+    },
+    "switch": {
+      "main_switch_12v": { "name": "12V Main Switch" },
+      "fridge_power": { "name": "Fridge Power" }
+    }
+  }
+}
+```
+
+Same keys in `translations/en.json` for each platform section.
+
+---
+
+### Ready to contribute?
+
+Once you've created and tested your brand overlay:
+
+1. Open a **GitHub issue** with your vehicle brand, model, and test results
+2. Open a **PR** adding or updating `sensor_maps/<brand>.json`
+3. Update `strings.json` + `translations/en.json` with friendly names
+4. Include a **changelog entry** (CHANGELOG.md)
+
+See [CONTRIBUTING](https://github.com/BetaHydri/hymer-connect-ha-ble/blob/master/CONTRIBUTING.md) for the full PR template.
+
+---
+
 ### Translations (when to edit `strings.json` / `translations/en.json`)
 
 When you add a new entity to a brand overlay, Home Assistant needs a friendly display name. For most entity types this requires the matching key in **both** `custom_components/hymer_connect/strings.json` and `custom_components/hymer_connect/translations/en.json` — the only exception is the v2.63.0+ stepped-switch select driver, which reads its name directly from the JSON. Full step-by-step playbook with copy-paste examples per entity type: [`docs/translations.md`](docs/translations.md).

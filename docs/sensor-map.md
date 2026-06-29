@@ -41,6 +41,129 @@ easier to use as a reference:
 - Only keep backward-compatibility or legacy-name notes when they still help
   users understand an existing entity name.
 
+## Multi-device buses and discriminators (v2.64.0+)
+
+### The Problem: Shared Slots on Multi-Device Buses
+
+Some buses host **multiple identical physical devices** that share the same `(bus_id, sensor_id)` slots.
+The devices are distinguished **only** by their factory-assigned binary ID (PIA field 10, the `connectedComponentInstance`).
+
+**Example**: HYMER Smart tyre-pressure sensors on **bus 70**:
+- 4 sensors, each with slots 1=status, 2=pressure, 3=temperature, 4=battery
+- Each sensor has a different hex factory ID (e.g., `0x1a2b3c4d`, `0x1a2b3c4e`, …)
+- Without discrimination, all 4 would map to the same sensor name (`"tyre_pressure"`) — HA would create only 1 entity instead of 4
+
+### Solution 1: `bus_name` discriminator (pin-6, pin-7, hex:…)
+
+The JSON `"sensors"` entry can declare an optional `"bus_name"` field to distinguish devices on the same bus:
+
+```json
+"70,2": {
+  "name": "hss_tyre1_pressure",
+  "bus_name": "auto:tyre:1",
+  "unit": "bar",
+  "platform": "sensor"
+}
+```
+
+When decoding a PIA response on bus 70 slot 2:
+1. If the response carries a `connectedComponentInstance` (field 10), the decoder looks up `(bus_id=70, sensor_id=2, bus_name_hex=...)` in **`SENSOR_MAP_PINNED`** (the "pinned" discriminator map)
+2. If found, use that name; otherwise fall back to `SENSOR_MAP[(70, 2)]` (the default)
+3. If no field 10 exists, use the default map
+
+### Solution 2: Auto-slot templates (auto:group:n)
+
+For buses with **N identical devices and portable numbering**, the JSON uses a **template discriminator**:
+
+```json
+"70,1#t1": { "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", ... },
+"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", ... },
+"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", ... },
+"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", ... },
+```
+
+**How it works:**
+- The `"bus_name": "auto:tyre:1"` syntax means: **"auto-assign group 'tyre', device #1"**
+- The `#t1` suffix in the JSON key is just a comment (doesn't affect parsing); it's there for human readability
+- At **decode time**, the decoder observes distinct hex IDs arriving on bus 70 for the first time, assigns each one a **slot number** in stable first-seen order, and resolves the `auto:…` entries accordingly
+- **Example:** If the decoder sees hex IDs `[0xaabbccdd, 0xaabbccde, 0xaabbccdf, 0xaabbcce0]` in that order, they are assigned slot numbers 1, 2, 3, 4 respectively — **and this assignment persists across restarts** via a JSON file (`_auto_slots.json`)
+- On the second restart, the same 4 IDs will receive the same 4 slot numbers, so "tyre 1" stays on the same physical wheel every time
+
+**Result**: Users never edit hex IDs in JSON. They simply rename the HA entities once in the UI ("Tyre sensor 1" → "Front left tyre") and the persisted mapping keeps them stable.
+
+### Example: HYMER Smart Tyre Sensors (Bus 70)
+
+```json
+"70,1#t1": { "_doc": "HYMER Smart tyre sensor #1 (auto-numbered).", "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", "platform": "sensor", "icon": "mdi:car-tire-alert" },
+"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
+"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+```
+
+When the first user's 4 tyre sensors are observed on bus 70, they are assigned slot numbers 1, 2, 3, 4 in stable order.
+When a **second user with a different vehicle** adds their 4 tyre sensors, they are automatically assigned to slot numbers 5, 6, 7, 8 (or whatever the next available numbers are).
+Each user's tyre sensors are created in HA as:
+- `sensor.<device>_hss_tyre1_pressure`, `sensor.<device>_hss_tyre2_pressure`, …, `sensor.<device>_hss_tyre4_pressure`
+- And so on for temperature, battery, status
+
+This works because the template name `"hss_tyre{n}_pressure"` contains a `{n}` placeholder, which is filled in at runtime by the decoder.
+
+### Example: Other Multi-Device Buses
+
+- **Bus 74** — HYMER Smart temperature sensors (2-4 devices per vehicle)
+  - `"auto:temp:1"` for the first temperature sensor, `"auto:temp:2"` for the second, etc.
+  - 3 slots per device: temperature, humidity, battery
+
+- **Bus 73** — HYMER Smart contact sensors (door/window sensors; 1-N per vehicle)
+  - `"auto:contact:1"` for the first contact sensor, etc.
+  - 2 slots per device: status, battery
+
+- **Bus 71** — HYMER Smart gas-bottle sensors (1-N per vehicle)
+  - `"auto:gas:1"` for the first gas sensor, etc.
+  - 2 slots per device: gas level percentage, height
+
+### JSON label maps: value_labels and int_labels (v2.64.0+)
+
+To eliminate hardcoded value mappings in Python, the JSON can declare **per-sensor label maps**:
+
+#### `value_labels` — String-to-string mapping
+
+```json
+"30,3": {
+  "name": "lte_connection_quality",
+  "value_labels": {
+    "poor": "⚠️ Poor",
+    "fair": "Fair",
+    "good": "Good",
+    "excellent": "Excellent"
+  }
+}
+```
+
+When the PIA decoder receives a raw value `"good"` for this sensor, it looks up the label and displays "Good".
+Without this, raw values are passed through as-is.
+
+#### `int_labels` — Integer-to-string mapping
+
+```json
+"34,6": {
+  "name": "fridge_warning",
+  "int_labels": {
+    "0": "Error 0",
+    "1": "Error 1",
+    "2": "Temperature Warning",
+    "3": "Door Open",
+    ...
+    "13": "Error 13"
+  }
+}
+```
+
+When the PIA decoder receives a raw integer value `2` for this sensor, it looks up the label and displays "Temperature Warning".
+JSON int_labels take precedence over hardcoded `_INT_LABELS` in `pia_decoder.py`, so new mappings can be added without modifying Python code.
+
+**Benefit**: Contributors can extend or add label mappings to any sensor by editing JSON only — no Python coding required.
+
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
 > **⚠️ Ignition dependency:** Bus 1 data comes from the Mercedes chassis CAN, which is
