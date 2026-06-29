@@ -9,9 +9,9 @@ and troubleshooting, see the main README.
 
 ## Quick Links
 
+- [Quick start](../../quick-start.md)
 - [Installation](../../README.md#installation)
-- [How the Dual-Path Works](../../README.md#how-the-dual-path-integration-works)
-- [BLE Pairing Guide](../../README.md#ble-pairing--how-it-works-at-the-vehicle)
+- [Setup and first configuration](../../README.md#setup-and-first-configuration)
 - [Sensor Map Reference](../../docs/sensor-map.md)
 - [Translations (when to edit strings.json / en.json)](../../docs/translations.md)
 - [Brand Overlay Architecture](../../README.md#compatibility-with-other-vehicles)
