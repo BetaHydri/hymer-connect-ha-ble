@@ -687,6 +687,7 @@ Key format: `"bus_id,sensor_id"` or `"bus_id,sensor_id#group_id"` (the `#group_i
 | **`icon`** | string | ❌ No | MDI icon override | `"mdi:thermometer"`, `"mdi:battery"` |
 | **`bus_name`** | string | ❌ No | **Multi-device discriminator** (required for multi-device buses only). Use: fixed pins (`"pin-6"`), hex IDs (`"hex:1a2b3c4d"`), or auto-slot template (`"auto:tyre:1"`) | `"auto:tyre:1"` |
 | **`transform`** | string | ❌ No | Raw value transform: `"div100"`, `"div1000"`, `"mul10"`, etc. Applied before unit display | `"div1000"` for mV → V |
+| **`restore`** | boolean | ❌ No | Restore the last known value after a Home Assistant restart until a fresh live value arrives. Useful for slowly-updating or standby-only sensors such as tank levels. **Currently implemented only for `platform: "sensor"`.** | `true` |
 | **`friendly_name`** | string | ❌ No | Override HA entity friendly_name. Normally auto-generated from name + strings.json | `"Front Left Tyre"` |
 | **`int_labels`** | dict | ❌ No | Map integer raw values → display strings. Priority over hardcoded `_INT_LABELS` | `{"0": "Off", "1": "On", "2": "Error"}` |
 | **`value_labels`** | dict | ❌ No | Map string raw values → display strings (e.g. LTE quality "poor" → "⚠️ Poor") | `{"poor": "⚠️ Poor", "excellent": "✅ Excellent"}` |
@@ -772,6 +773,7 @@ Special nested structure for complex multi-slot appliances.
 | Scenario | Required Fields | Optional But Recommended |
 |----------|---|---|
 | **Simple read-only sensor** (e.g. voltage, temperature) | `name`, `platform`, (maybe `unit`, `device_class`) | `state_class`, `icon`, `int_labels`/`value_labels` |
+| **Sensor that should survive HA restarts** (e.g. water tank level while SCU is in standby) | `name`, `platform: "sensor"`, `restore: true` | `unit`, `state_class`, `device_class`, `icon` |
 | **Computed sensor with transform** (e.g. raw mV → display V) | `name`, `platform`, `unit`, `transform` | `state_class`, `device_class` |
 | **Integer enum sensor** (e.g. fridge mode, error codes) | `name`, `platform`, `int_labels` | `icon`, `_doc` |
 | **String enum sensor** (e.g. LTE quality) | `name`, `platform`, `value_labels` | — |
@@ -809,6 +811,25 @@ Run the **Sensor Discovery Tool** (recommended, see above) or enable [Dynamic Sl
 ```
 
 This creates: `sensor.hymer_ambient_temperature` with value display like "23.5 °C" in HA.
+
+If the sensor should keep showing its last known value across a Home Assistant
+restart until the SCU pushes a new live reading, add `"restore": true`:
+
+```json
+"76,1#pin-6": {
+  "name": "fresh_water_level",
+  "bus_name": "pin-6",
+  "platform": "sensor",
+  "restore": true,
+  "unit": "%",
+  "state_class": "measurement",
+  "icon": "mdi:water"
+}
+```
+
+Current implementation note: this optional restore behavior is only wired for
+plain `sensor` entities, not for `binary_sensor`, `switch`, `light`, `select`,
+or `climate`.
 
 ---
 
