@@ -1263,6 +1263,18 @@ This helps map sensor IDs for different vehicle configurations and benefits all 
 
 A complete slot-by-slot reference for the S600 is available in [`docs/sensor-map.md`](docs/sensor-map.md). This documents every `(bus_id, sensor_id)` mapping with units, transforms, and known S700 conflicts.
 
+For other HYMER users who need to map shared slots dynamically, see
+**Pinned sensor mappings and auto-slot templates** in
+[`docs/sensor-map.md`](docs/sensor-map.md#pinned-sensor-mappings-and-auto-slot-templates).
+That section includes copy-paste JSON examples for:
+
+- fixed discriminators (`bus_name: "pin-6"`, `"pin-7"`)
+- dynamic SIU templates (`bus_name: "auto:<group>:1"`)
+- JSON label maps (`value_labels`, `int_labels`)
+
+This path is explicitly relevant for the BMC owner discussion in
+[`Issue #9`](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9).
+
 ### Translations (when to edit `strings.json` / `translations/en.json`)
 
 When you add a new entity to a brand overlay, Home Assistant needs a friendly display name. For most entity types this requires the matching key in **both** `custom_components/hymer_connect/strings.json` and `custom_components/hymer_connect/translations/en.json` — the only exception is the v2.63.0+ stepped-switch select driver, which reads its name directly from the JSON. Full step-by-step playbook with copy-paste examples per entity type: [`docs/translations.md`](docs/translations.md).

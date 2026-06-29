@@ -48,15 +48,33 @@ def get_bus_instance(bus_id: int) -> bytes | None:
     """Return the cached connectedComponentInstance bytes for a bus, or None."""
     return _BUS_INSTANCE_CACHE.get(bus_id)
 
+
 # Sensor key map: (bus_id, sensor_id) → (name, unit, value_transform)
 # value_transform: None=raw, "div10"=divide by 10, "div100"=divide by 100, "div1000"=divide by 1000, "div3600"=seconds to hours
 # v2.43.0+: Populated at runtime from sensor_maps/base.json + brand overlay.
 SENSOR_MAP: dict[tuple[int, int], tuple[str, str | None, str | None]] = {}
 
+# Discriminator map for sensors that share (bus_id, sensor_id) but differ
+# by bus_name (PIA field 10, connectedComponentInstance, e.g. "pin-6"/"pin-7",
+# but also "can2"/"lin1"/… on other buses).
+# Key: (bus_id, sensor_id, bus_name) → (name, unit, transform).
+# Populated from JSON sensor entries that carry an optional "bus_name" field.
+# Looked up BEFORE SENSOR_MAP in the decoder so that a (bus, slot) pair which
+# would otherwise collide can be split apart by the third discriminator.
+SENSOR_MAP_PINNED: dict[tuple[int, int, str], tuple[str, str | None, str | None]] = {}
+
 # Entity metadata loaded from JSON overlays.  Populated by load_sensor_map().
 # Key: sensor name (str).  Value: dict with platform, device_class, etc.
 # Only entries with a ``"platform"`` field in the JSON appear here.
 ENTITY_DEFS: dict[str, dict[str, Any]] = {}
+
+# Optional JSON-defined label maps (per sensor-name) to minimize hardcoded
+# decoding logic in Python. Loaded from sensor entry objects via
+#   "value_labels": {"RAW": "Readable"}
+#   "int_labels": {"0": "Off", "1": "On"}
+# Keys in int_labels may be strings in JSON and are converted to int.
+JSON_VALUE_LABELS: dict[str, dict[str, str]] = {}
+JSON_INT_LABELS: dict[str, dict[int, str]] = {}
 
 # Light definitions loaded from JSON ``"lights"`` section.
 # Key: bus_id (int).  Value: dict with name, icon, brightness, color_temp.
@@ -82,6 +100,180 @@ STEPPED_SELECT_DEFS: dict[str, dict[str, Any]] = {}
 # integration reload, since SENSOR_MAP is module-level and persists).
 _overlays_loaded: set[str] = set()
 
+# ---------------------------------------------------------------------------
+# Auto-slot assignment (v2.64.0+) — universal multi-device sensor numbering.
+#
+# Some buses host several physically identical devices that share the same
+# (bus_id, sensor_id) slots and are told apart ONLY by their binary
+# connectedComponentInstance (PIA field 10, surfaced as a "hex:…" bus_name).
+# The canonical example is the four HYMER Smart tyre-pressure sensors on
+# bus 70 (slots 1=status, 2=pressure, 3=temperature, 4=battery).  Each owner's
+# four sensors carry different, factory-assigned hex ids, so hard-coding them
+# in the JSON is not portable.
+#
+# Instead, a JSON sensor entry may use a *template* discriminator of the form
+#   "bus_name": "auto:<group>:<n>"
+# where <group> ties the four slots of one logical device together (so they
+# get the SAME number) and <n> is 1..N.  At decode time, the decoder observes
+# the distinct hex ids appearing on that bus, assigns each one the next free
+# slot number in stable first-seen order, and resolves the "auto:…" entries
+# accordingly.  The hex→number mapping is persisted to a small JSON file so the
+# numbering survives restarts: tyre "sensor 1" stays the same wheel every time.
+#
+# Owners never edit hex ids.  They simply rename "Tyre sensor 1/2/3/4" in the
+# HA UI to the real wheel positions once, and the persisted map keeps it stable.
+#
+# AUTO_SLOT_GROUPS: bus_id -> { "max": int, "groups": set[str] }
+#   Derived from JSON entries whose bus_name matches "auto:<group>:<n>".
+#   "max" is the highest <n> explicitly defined in the JSON; it is a soft
+#   upper bound for pre-defined entries only.  When AUTO_SLOT_TEMPLATES has a
+#   template for the bus, devices beyond "max" are still accepted and their
+#   entries are generated on the fly (no hard limit).
+AUTO_SLOT_GROUPS: dict[int, dict[str, Any]] = {}
+
+# AUTO_SLOT_TEMPLATES: bus_id -> { sensor_id(int) -> template_dict }
+#   Captured from the JSON's *first* auto-slot device (the "...:1" entries) so
+#   that any later-numbered device on the same bus can have its name + entity
+#   metadata generated dynamically.  Each template_dict holds:
+#     "name_tmpl": str with "{n}" placeholder (e.g. "hss_gaslevel{n}_percent")
+#     "group":     str (e.g. "gas")
+#     "unit", "transform", "meta": as parsed from the JSON entry
+#   This is what makes the auto-slot mechanism unbounded: the JSON only needs
+#   to define device #1 as a template; devices #2, #3, … are materialised at
+#   runtime by _materialise_auto_slot() the first time they are observed.
+AUTO_SLOT_TEMPLATES: dict[int, dict[int, dict[str, Any]]] = {}
+
+# AUTO_SLOT_ASSIGN: bus_id -> { hex_id(str without "hex:") -> slot_number(int) }
+#   Runtime + persisted assignment of observed device hex ids to slot numbers.
+AUTO_SLOT_ASSIGN: dict[int, dict[str, int]] = {}
+
+# Path of the persisted assignment file (JSON).  Lives next to the sensor maps
+# so it travels with the integration's config, not the read-only source tree.
+_AUTO_SLOT_STORE = _SENSOR_MAPS_DIR / "_auto_slots.json"
+
+
+def _load_auto_slot_store() -> None:
+    """Load the persisted hex→slot assignments, if any."""
+    if not _AUTO_SLOT_STORE.is_file():
+        return
+    try:
+        with open(_AUTO_SLOT_STORE, encoding="utf-8") as f:
+            raw = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        _LOGGER.warning("Could not read auto-slot store: %s", exc)
+        return
+    for bus_str, mapping in raw.items():
+        try:
+            bus_id = int(bus_str)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(mapping, dict):
+            AUTO_SLOT_ASSIGN[bus_id] = {
+                str(k): int(v) for k, v in mapping.items()
+                if isinstance(v, int) or (isinstance(v, str) and v.isdigit())
+            }
+
+
+def _save_auto_slot_store() -> None:
+    """Persist the current hex→slot assignments to disk (best-effort)."""
+    try:
+        serializable = {
+            str(bus): dict(sorted(mapping.items(), key=lambda kv: kv[1]))
+            for bus, mapping in AUTO_SLOT_ASSIGN.items()
+            if mapping
+        }
+        tmp = _AUTO_SLOT_STORE.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(serializable, f, indent=2)
+        tmp.replace(_AUTO_SLOT_STORE)
+    except OSError as exc:
+        _LOGGER.warning("Could not write auto-slot store: %s", exc)
+
+
+def _make_auto_name_template(name: str, group: str) -> str:
+    """Turn a concrete device-#1 name into a "{n}" template.
+
+    ``hss_gaslevel1_percent`` + group ``gas`` → ``hss_gaslevel{n}_percent``.
+    We replace the first ``1`` that appears after the group stem so unrelated
+    digits elsewhere are left intact.  Falls back to appending ``{n}`` only if
+    no ``1`` is present (shouldn't happen for a well-formed template entry).
+    """
+    idx = name.find("1")
+    if idx == -1:
+        return name + "{n}"
+    return name[:idx] + "{n}" + name[idx + 1:]
+
+
+def _materialise_auto_slot(bus_id: int, sensor_id: int, n: int) -> tuple | None:
+    """Generate (and register) the mapping for an auto-slot device number N.
+
+    Uses the template captured from device #1 to build the concrete name and
+    entity metadata for device N, registering them in SENSOR_MAP_PINNED and
+    ENTITY_DEFS so subsequent lookups (and sensor.py's discovery listener)
+    treat the new device exactly like a pre-defined one.  Returns the
+    ``(name, unit, transform)`` tuple, or ``None`` if no template exists for
+    this (bus, slot).
+    """
+    tmpl_bus = AUTO_SLOT_TEMPLATES.get(bus_id)
+    if not tmpl_bus:
+        return None
+    tmpl = tmpl_bus.get(sensor_id)
+    if not tmpl:
+        return None
+    name = tmpl["name_tmpl"].replace("{n}", str(n))
+    unit = tmpl["unit"]
+    transform = tmpl["transform"]
+    grp = tmpl["group"]
+    disc = f"auto:{grp}:{n}"
+    SENSOR_MAP_PINNED[(bus_id, sensor_id, disc)] = (name, unit, transform)
+    if tmpl["meta"] is not None and name not in ENTITY_DEFS:
+        ENTITY_DEFS[name] = dict(tmpl["meta"])
+    _LOGGER.info(
+        "Auto-slot: materialised %s (bus=%d slot=%d, device #%d) from template",
+        name, bus_id, sensor_id, n,
+    )
+    return (name, unit, transform)
+
+
+def _assign_auto_slot(bus_id: int, hex_id: str) -> int | None:
+    """Return the stable slot number for a device hex id on an auto bus.
+
+    Assigns the next free number in first-seen order the first time a hex id
+    is observed, persists the result, and returns it.  Returns ``None`` if the
+    bus has no auto-slot group.
+
+    Numbering is unbounded when a template exists for the bus (see
+    AUTO_SLOT_TEMPLATES): a brand-new device simply takes the next free number
+    and its entries are materialised on demand.  Without a template we keep the
+    old behaviour and cap at the JSON-defined "max".
+    """
+    grp = AUTO_SLOT_GROUPS.get(bus_id)
+    if not grp:
+        return None
+    assigned = AUTO_SLOT_ASSIGN.setdefault(bus_id, {})
+    existing = assigned.get(hex_id)
+    if existing is not None:
+        return existing
+    used = set(assigned.values())
+    has_template = bool(AUTO_SLOT_TEMPLATES.get(bus_id))
+    # With a template the cap is effectively unlimited; without one we keep the
+    # JSON's "max" as a hard ceiling so unmapped buses don't sprawl.
+    ceiling = 9999 if has_template else grp["max"]
+    for n in range(1, ceiling + 1):
+        if n not in used:
+            assigned[hex_id] = n
+            _LOGGER.info(
+                "Auto-slot: bus=%d device hex:%s → sensor %d (newly assigned)",
+                bus_id, hex_id, n,
+            )
+            _save_auto_slot_store()
+            return n
+    _LOGGER.warning(
+        "Auto-slot: bus=%d has more devices than slots (max=%d); "
+        "hex:%s left unassigned", bus_id, grp["max"], hex_id,
+    )
+    return None
+
 
 def _load_json_overlay(filename: str) -> int:
     """Load a single JSON overlay file and merge into SENSOR_MAP / ENTITY_DEFS.
@@ -94,6 +286,18 @@ def _load_json_overlay(filename: str) -> int:
     Object entries with a ``"platform"`` key are also stored in
     :data:`ENTITY_DEFS` so that ``sensor.py`` / ``binary_sensor.py`` can
     build HA entity descriptions at runtime.
+
+    Object entries may carry an optional ``"bus_name"`` discriminator.  When
+    present, the entry is stored in :data:`SENSOR_MAP_PINNED` keyed by
+    ``(bus_id, sensor_id, bus_name)`` instead of :data:`SENSOR_MAP`.  This lets
+    two sensors that share the same ``(bus_id, sensor_id)`` be told apart by
+    the inbound ``bus_name`` (PIA field 10, e.g. ``"pin-6"`` / ``"pin-7"``).
+
+    The JSON object key for such an entry may carry a ``"#<suffix>"`` so the
+    same ``bus_id,sensor_id`` can appear more than once in one JSON object
+    (e.g. ``"76,1#pin-6"`` and ``"76,1#pin-7"``).  The suffix is stripped before
+    the key is parsed and is otherwise ignored — only the ``"bus_name"`` field
+    matters for matching.
 
     Additionally loads ``"lights"`` and ``"switches"`` sections (v2.44.0+)
     into :data:`LIGHT_DEFS` and :data:`SWITCH_DEFS`.
@@ -122,7 +326,12 @@ def _load_json_overlay(filename: str) -> int:
     sensors = data.get("sensors", {})
     count = 0
     for key_str, value in sensors.items():
-        parts = key_str.split(",")
+        # Allow an optional "#<discriminator>" suffix on the JSON key so the
+        # same (bus_id, sensor_id) can appear multiple times in one object.
+        # The suffix is display-only; the actual discriminator is the "pin"
+        # field inside the value object (read below).
+        raw_key = key_str.split("#", 1)[0]
+        parts = raw_key.split(",")
         if len(parts) != 2:
             continue
         bus_id, sensor_id = int(parts[0].strip()), int(parts[1].strip())
@@ -136,6 +345,20 @@ def _load_json_overlay(filename: str) -> int:
             name = value.get("name", f"bus{bus_id}_s{sensor_id}")
             unit = value.get("unit")
             transform = value.get("transform")
+            # Optional JSON-driven decode label maps
+            if isinstance(value.get("value_labels"), dict):
+                JSON_VALUE_LABELS[name] = {
+                    str(k): str(v) for k, v in value["value_labels"].items()
+                }
+            if isinstance(value.get("int_labels"), dict):
+                int_map: dict[int, str] = {}
+                for k, v in value["int_labels"].items():
+                    try:
+                        int_map[int(k)] = str(v)
+                    except (TypeError, ValueError):
+                        continue
+                if int_map:
+                    JSON_INT_LABELS[name] = int_map
             # Store entity metadata when a platform is declared
             if "platform" in value:
                 meta = {k: value[k] for k in _ENTITY_FIELDS if k in value}
@@ -145,7 +368,52 @@ def _load_json_overlay(filename: str) -> int:
         else:
             continue
 
-        SENSOR_MAP[(bus_id, sensor_id)] = (name, unit, transform)
+        # Optional bus_name discriminator: route to the pinned map when present
+        # so that colliding (bus_id, sensor_id) pairs stay separable. These
+        # entries are intentionally NOT placed in SENSOR_MAP so they cannot
+        # satisfy the un-discriminated lookup.
+        disc = value.get("bus_name") if isinstance(value, dict) else None
+        if disc:
+            SENSOR_MAP_PINNED[(bus_id, sensor_id, disc)] = (name, unit, transform)
+            # Auto-slot template: "auto:<group>:<n>" registers this bus as an
+            # auto-numbered multi-device bus.  The entry stays in the pinned map
+            # under its literal "auto:…" key; the decoder rewrites an inbound
+            # "hex:…" discriminator to the matching "auto:<group>:<n>" key once
+            # the device has been assigned a stable slot number.
+            if disc.startswith("auto:"):
+                _parts = disc.split(":")
+                if len(_parts) == 3 and _parts[2].isdigit():
+                    _n = int(_parts[2])
+                    _grp = _parts[1]
+                    bucket = AUTO_SLOT_GROUPS.setdefault(
+                        bus_id, {"max": 0, "groups": set()}
+                    )
+                    bucket["groups"].add(_grp)
+                    if _n > bucket["max"]:
+                        bucket["max"] = _n
+                    # Capture a template from device #1 so higher-numbered
+                    # devices can be materialised on the fly.  The name must
+                    # contain the device number so we can swap it for "{n}";
+                    # we look for the literal "1" that follows the group name
+                    # (e.g. "hss_gaslevel1_percent" → "hss_gaslevel{n}_percent").
+                    if _n == 1:
+                        _meta = None
+                        if isinstance(value, dict) and "platform" in value:
+                            _meta = {
+                                k: value[k] for k in _ENTITY_FIELDS if k in value
+                            }
+                            if unit is not None:
+                                _meta["unit"] = unit
+                        _name_tmpl = _make_auto_name_template(name, _grp)
+                        AUTO_SLOT_TEMPLATES.setdefault(bus_id, {})[sensor_id] = {
+                            "name_tmpl": _name_tmpl,
+                            "group": _grp,
+                            "unit": unit,
+                            "transform": transform,
+                            "meta": _meta,
+                        }
+        else:
+            SENSOR_MAP[(bus_id, sensor_id)] = (name, unit, transform)
         count += 1
 
     # --- Lights section (v2.44.0+) ---
@@ -240,14 +508,29 @@ def load_sensor_map(brand: str) -> None:
         _LOGGER.debug("Sensor map: no brand overlay for '%s' (using base only)", brand)
 
     _overlays_loaded.add(cache_key)
+
+    # Load any persisted auto-slot assignments so multi-device buses (e.g. the
+    # four tyre sensors on bus 70) keep their stable sensor1..N numbering across
+    # restarts.  Safe to call repeatedly; it only reads.
+    _load_auto_slot_store()
+
     _LOGGER.info(
         "Sensor map ready: %d total entries (base=%d, %s=%d, hardcoded=%d), "
-        "%d lights, %d switches, %d climate defs, %d stepped selects",
+        "%d pinned, %d lights, %d switches, %d climate defs, %d stepped selects",
         len(SENSOR_MAP), base_count, brand, brand_count,
         len(SENSOR_MAP) - base_count - brand_count,
+        len(SENSOR_MAP_PINNED),
         len(LIGHT_DEFS), len(SWITCH_DEFS), len(CLIMATE_DEFS),
         len(STEPPED_SELECT_DEFS),
     )
+    if AUTO_SLOT_GROUPS:
+        _LOGGER.info(
+            "Auto-slot buses active: %s",
+            ", ".join(
+                f"bus {b} (max {info['max']}, groups {sorted(info['groups'])})"
+                for b, info in sorted(AUTO_SLOT_GROUPS.items())
+            ),
+        )
 
 
 # Human-readable mappings for raw SCU string values
@@ -308,18 +591,6 @@ _INT_LABELS: dict[str, dict[int, str]] = {
         12: "Error 12",
         13: "Error 13",
     },
-    # DellCool / Thetford Compressor T2120C fridge warning codes.
-    # Source: EHG app DELL_COOL.ERRORS enum (Hermes bundle).
-    # Note: on bus 114 the EHG capability WarningErrorInformation maps to
-    # a PIA slot that has NOT been confirmed yet — slot 6 shows constant 15
-    # (outside 0-11 range), slot 7 is supply voltage. The warning slot may
-    # not be pushed by the SCU unless an actual fault occurs.
-    # Kept here for future use when the correct slot is identified.
-    # "fridge_compressor_warning": {
-    #     0: "No error",
-    #     1: "Voltage failure",
-    #     ...
-    # },
 }
 
 # Sentinel float values that indicate "sensor unavailable / not connected".
@@ -327,9 +598,6 @@ _INT_LABELS: dict[str, dict[int, str]] = {
 _FLOAT_SENTINELS: set[float] = {3276.8, 32768.0, 65535.0, 6553.5}
 
 # Mercedes Sprinter 7G-TRONIC automatic transmission gear mapping.
-# CAN bus reports gear position as integers; this maps them to readable labels.
-# Confirmed: 100 = P (observed while parked).
-# TODO: Capture R, N, D values while driving via mitmproxy (#5).
 _GEAR_MAP: dict[int, str] = {
     0: "N",
     1: "1",
@@ -343,8 +611,6 @@ _GEAR_MAP: dict[int, str] = {
 }
 
 # All PiaRequest payloads captured from the Hymer Connect app.
-# These initialise sensor groups and subscribe to all sensor data from the SCU.
-# The server requires all of them to be sent in sequence.
 _PIA_REQUESTS = (
     "EhcI/4kTEgd2MC4zMi4wGNr5ws4GIgIKAA==",
     "ErUKCMO2AhIHdjAuMzIuMBja+cLOBiKfChqcCgoKCAEQAVIEY2FuMAoKCAIQAVIEY2FuMAoKCAMQAVIEY2FuMAoKCAQQAVIEY2FuMAoKCAUQAVIEY2FuMAoKCAYQAVIEY2FuMAoKCAcQAVIEY2FuMAoKCAgQAVIEY2FuMAoKCAkQAVIEY2FuMAoKCAoQAVIEY2FuMAoKCAsQAVIEY2FuMAoKCAwQAVIEY2FuMAoKCA0QAVIEY2FuMAoKCA4QAVIEY2FuMAoKCA8QAVIEY2FuMAoKCBAQAVIEY2FuMAoKCBEQAVIEY2FuMAoKCBIQAVIEY2FuMAoKCBMQAVIEY2FuMAoKCBQQAVIEY2FuMAoKCBUQAVIEY2FuMAoKCBYQAVIEY2FuMAoKCBcQAVIEY2FuMAoKCAEQA1IEbGluMQoKCAIQA1IEbGluMQoKCAMQA1IEbGluMQoKCAQQA1IEbGluMQoKCAUQA1IEbGluMQoKCAYQA1IEbGluMQoKCAcQA1IEbGluMQoKCAgQA1IEbGluMQoKCAkQA1IEbGluMQoKCAoQA1IEbGluMQoKCAsQA1IEbGluMQoKCAwQA1IEbGluMQoKCA0QA1IEbGluMQoKCA4QA1IEbGluMQoKCA8QA1IEbGluMQoKCBAQA1IEbGluMQoKCBEQA1IEbGluMQoKCBIQA1IEbGluMQoKCBMQA1IEbGluMQoKCBQQA1IEbGluMQoKCBUQA1IEbGluMQoKCBYQA1IEbGluMQoKCAEQCFIEbGluMgoKCAIQCFIEbGluMgoKCAMQCFIEbGluMgoKCAQQCFIEbGluMgoKCAUQCFIEbGluMgoKCAYQCFIEbGluMgoKCAcQCFIEbGluMgoECAEQCwoECAIQCwoECAEQDAoECAIQDAoECAMQDAoECAEQDwoECAIQDwoECAMQDwoECAEQEAoECAIQEAoECAEQEwoECAIQEwoECAEQFQoECAIQFQoECAEQFgoECAIQFgoECAEQGAoECAIQGAoECAMQGAoECAEQGQoECAIQGQoECAEQGwoECAIQGwoECAMQGwoECAEQHgoECAIQHgoECAMQHgoECAQQHgoECAUQHgoECAYQHgoECAcQHgoECAgQHgoECAkQHgoECAoQHgoECAsQHgoECAwQHgoECA0QHgoECA4QHgoKCAEQIlIEbGluMQoKCAIQIlIEbGluMQoKCAMQIlIEbGluMQoKCAQQIlIEbGluMQoKCAUQIlIEbGluMQoKCAYQIlIEbGluMQoKCAcQIlIEbGluMQoECAEQJQoECAIQJQoECAEQKwoECAIQKwoECAEQLAoECAIQLAoKCAgQLVIEbGluMQoKCAkQLVIEbGluMQoKCAoQLVIEbGluMQoKCAsQLVIEbGluMQoKCAgQMVIEbGluMQoKCAoQMVIEbGluMQoKCAsQMVIEbGluMQoKCAQQOlIEbGluMQoKCAUQOlIEbGluMQoKCAYQOlIEbGluMQoKCAcQOlIEbGluMQoKCAgQOlIEbGluMQoKCAkQOlIEbGluMQoKCAoQOlIEbGluMQoKCAsQOlIEbGluMQoKCAwQOlIEbGluMQoKCA0QOlIEbGluMQoKCA4QOlIEbGluMQoKCAEQY1IEY2FuMgoKCAIQY1IEY2FuMgoKCAMQY1IEY2FuMgoKCAQQY1IEY2FuMgoKCAUQY1IEY2FuMgoKCAYQY1IEY2FuMgoKCAcQY1IEY2FuMgoKCAgQY1IEY2FuMgoKCAkQY1IEY2FuMgoKCAoQY1IEY2FuMg==",
@@ -353,65 +619,44 @@ _PIA_REQUESTS = (
     "EhcItPYkEgd2MC4zMi4wGNv5ws4GYgIKAA==",
     "EhcIjI8GEgd2MC4zMi4wGNv5ws4GSgIKAA==",
     "EhUIjekiEgd2MC4zMi4wGNz5ws4GegA=",
-    # Entries 7-12 removed: were device COMMANDS (light ON/OFF, fridge ECO/OFF,
-    # water valve ON/OFF) captured during an app session, NOT subscriptions.
-    # Re-sending them on every resubscribe would toggle devices every 60 seconds.
 )
 
 
 def build_subscription_requests() -> list[str]:
-    """Build PiaRequest payloads for sensor data subscription.
-
-    Returns a list of Base64-encoded protobuf payloads ready to send
-    as PiaRequest arguments.  The 7 requests initialise different
-    sensor groups and trigger the full data flow from the SCU.
-    """
+    """Build PiaRequest payloads for sensor data subscription."""
     return list(_PIA_REQUESTS)
 
 
 def build_refresh_command() -> str:
-    """Build a PiaRequest poll/refresh command to force SCU to re-report all states.
-
-    The EHG app sends this after subscribing (shows "aktualisiere").
-    Uses protobuf field 9 (empty) which triggers a full state refresh.
-    """
+    """Build a PiaRequest poll/refresh command to force SCU to re-report all states."""
     import random
+
     msg_id = random.randint(1, 10_000_000)
     ts = int(time.time())
 
     wrapper = _encode_varint_field(1, msg_id)
     wrapper += _encode_bytes_field(2, b"v0.32.0")
     wrapper += _encode_varint_field(3, ts)
-    wrapper += _encode_bytes_field(9, b"")  # field 9 = refresh/poll
+    wrapper += _encode_bytes_field(9, b"")
 
     payload = _encode_bytes_field(2, wrapper)
     return base64.b64encode(payload).decode("ascii")
 
 
 def build_restart_system_request(*, cold: bool = True) -> str:
-    """Build a Request.command.restart PIA request to reboot the SCU.
-
-    Mirrors the EHG app's request.command.restart path:
-    - Request.command → field 9
-    - CommandRequestTopic.restart → field 2
-    - RestartCommand.cold → field 1 (1 = cold reboot)
-
-    Credit: Dan Simms (dan-simms1/hymer-connect-ha) decoded this protocol path.
-    """
+    """Build a Request.command.restart PIA request to reboot the SCU."""
     import random
+
     msg_id = random.randint(1, 10_000_000)
     ts = int(time.time())
 
-    # RestartCommand: field 1 = cold (bool as varint)
     restart_cmd = _encode_varint_field(1, 1 if cold else 0)
-    # CommandRequestTopic: field 2 = restart
     command_topic = _encode_bytes_field(2, restart_cmd)
 
-    # Request envelope
     wrapper = _encode_varint_field(1, msg_id)
     wrapper += _encode_bytes_field(2, b"v0.32.0")
     wrapper += _encode_varint_field(3, ts)
-    wrapper += _encode_bytes_field(9, command_topic)  # field 9 = command
+    wrapper += _encode_bytes_field(9, command_topic)
 
     payload = _encode_bytes_field(2, wrapper)
     return base64.b64encode(payload).decode("ascii")
@@ -462,32 +707,7 @@ def build_light_command(
     uint_value: int | None = None,
     str_value: str | None = None,
 ) -> str:
-    """Build a PiaRequest payload to control a light or switch.
-
-    Args:
-        bus_id: The bus ID (e.g. 11 for living ceiling, 3 for main switch).
-        sensor_id: 1=on/off, 2=brightness, 3=color_temp.
-        bool_value: True/False for on/off (sensor_id=1).
-        uint_value: 0-100 for brightness/color_temp (sensor_id=2,3).
-        str_value: String value (e.g. "On"/"Off" for main switch on bus 3).
-
-    Returns:
-        Base64-encoded protobuf payload ready to send as PiaRequest argument.
-    """
-    # Build ConnectedComponentValue (schema from EHG Hermes decompile,
-    # ConnectedComponentValue.encode at index.js:500080):
-    #   field 1  = connectedComponentValueId   (uint32) -> sensor_id
-    #   field 2  = connectedComponentId        (uint32) -> bus_id
-    #   field 3  = int32Value                  (uint32) -> uint_value
-    #   field 4  = stringValue                 (string) -> str_value
-    #   field 5  = boolValue                   (bool)   -> bool_value
-    #   field 6  = floatValue                  (float32) (unused here)
-    #   field 10 = connectedComponentInstance  (bytes)  -> bus instance
-    # field 9 (connectedComponentIndex) is intentionally NOT set: the EHG app's
-    # toPiaValues (index.js:1333489) never populates it for normal writes.
-    # field 10 (connectedComponentInstance) MUST be echoed back when the SCU
-    # has reported one for the bus — v2.62.21: without it the SCU silently
-    # drops the write at the PIA layer.
+    """Build a PiaRequest payload to control a light or switch."""
     sensor_data = _encode_varint_field(1, sensor_id)
     sensor_data += _encode_varint_field(2, bus_id)
     if str_value is not None:
@@ -509,12 +729,11 @@ def build_light_command(
             bus_id, sensor_id,
         )
 
-    # Nest: sensor_data inside field1 of sub2, inside field2 of inner
     sub2 = _encode_bytes_field(1, sensor_data)
     inner = _encode_bytes_field(2, sub2)
 
-    # Build wrapper: msg_id, version, timestamp, command
     import random
+
     msg_id = random.randint(1, 10_000_000)
     version_bytes = b"v0.32.0"
     ts = int(time.time())
@@ -524,7 +743,6 @@ def build_light_command(
     wrapper += _encode_varint_field(3, ts)
     wrapper += _encode_bytes_field(4, inner)
 
-    # Top-level: field 2 = wrapper
     payload = _encode_bytes_field(2, wrapper)
 
     return base64.b64encode(payload).decode("ascii")
@@ -533,19 +751,7 @@ def build_light_command(
 def build_multi_sensor_command(
     sensors: list[dict],
 ) -> str:
-    """Build a PiaRequest payload with multiple sensor entries.
-
-    Each sensor dict must have:
-        bus_id: int
-        sensor_id: int
-    And one of:
-        bool_value: bool
-        uint_value: int
-        str_value: str
-        float_value: float
-
-    Used for heater setpoint (temp + fuel type) and boiler mode commands.
-    """
+    """Build a PiaRequest payload with multiple sensor entries."""
     import random
 
     entries = b""
@@ -562,10 +768,6 @@ def build_multi_sensor_command(
             sensor_data += _encode_str_field(4, s["str_value"])
         elif "float_value" in s:
             sensor_data += _encode_float_field(6, s["float_value"])
-        # field 9 (connectedComponentIndex) intentionally NOT set; see
-        # build_light_command() for rationale.
-        # field 10 (connectedComponentInstance) echoed when cached — see
-        # build_light_command() for rationale.
         instance = _BUS_INSTANCE_CACHE.get(bus_id)
         if instance is not None:
             sensor_data += _encode_bytes_field(10, instance)
@@ -619,22 +821,22 @@ def _decode_protobuf(data: bytes) -> list[tuple[int, int, Any]]:
             break
         field_number = tag >> 3
         wire_type = tag & 0x07
-        if wire_type == 0:  # varint
+        if wire_type == 0:
             value, pos = _decode_varint(data, pos)
             fields.append((field_number, 0, value))
-        elif wire_type == 1:  # fixed64
+        elif wire_type == 1:
             if pos + 8 > len(data):
                 break
             value = struct.unpack_from("<d", data, pos)[0]
             pos += 8
             fields.append((field_number, 1, value))
-        elif wire_type == 5:  # fixed32
+        elif wire_type == 5:
             if pos + 4 > len(data):
                 break
             value = struct.unpack_from("<f", data, pos)[0]
             pos += 4
             fields.append((field_number, 5, round(value, 2)))
-        elif wire_type == 2:  # length-delimited
+        elif wire_type == 2:
             length, pos = _decode_varint(data, pos)
             if pos + length > len(data):
                 break
@@ -658,25 +860,36 @@ def _try_string(data: bytes) -> str | None:
 
 
 def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
-    """Parse a single sensor entry from protobuf bytes.
-
-    Each sensor carries its value in exactly one of several typed protobuf
-    fields (uint, string, bool, float, int).  However the SCU sometimes
-    populates *both* a uint/int field **and** the bool field for the same
-    sensor.  Because ``True == 1`` in Python the bool would silently
-    satisfy an ``on_value=1`` check even when the uint is 0.
-
-    To avoid this, we collect *all* value candidates and prefer the more
-    specific numeric types (uint → field 3, int → field 7) over the
-    boolean (field 5) whenever both are present.
-    """
+    """Parse a single sensor entry from protobuf bytes."""
     fields = _decode_protobuf(data)
     sensor_id = 0
     bus_id = 0
     bus_name = ""
     instance_bytes: bytes | None = None
-    # Collect value candidates keyed by protobuf field number.
     values: dict[int, Any] = {}
+
+    if _LOGGER.isEnabledFor(logging.DEBUG):
+        try:
+            _raw_sid = next((v for fn, wt, v in fields if fn == 1 and wt == 0), None)
+            _raw_bus = next((v for fn, wt, v in fields if fn == 2 and wt == 0), None)
+            _parts = []
+            for _fn, _wt, _v in fields:
+                if isinstance(_v, (bytes, bytearray)):
+                    _hexs = bytes(_v).hex()
+                    _txt = _try_string(bytes(_v))
+                    if _txt is not None:
+                        _vrepr = f'hex:{_hexs} ("{_txt}")'
+                    else:
+                        _vrepr = f"hex:{_hexs}"
+                else:
+                    _vrepr = repr(_v)
+                _parts.append(f"f{_fn}/wt{_wt}={_vrepr}")
+            _LOGGER.debug(
+                "RAW PIA bus=%s | sid=%s | %s",
+                _raw_bus, _raw_sid, " | ".join(_parts),
+            )
+        except Exception:
+            pass
 
     for fn, wt, v in fields:
         if fn == 1 and wt == 0:
@@ -684,28 +897,25 @@ def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
         elif fn == 2 and wt == 0:
             bus_id = v
         elif fn == 3 and wt == 0:
-            values[3] = v  # uint
+            values[3] = v
         elif fn == 4 and wt == 2:
             s = _try_string(v)
             if s is not None:
                 values[4] = s
         elif fn == 5 and wt == 0:
-            values[5] = bool(v)  # bool stored as varint
+            values[5] = bool(v)
         elif fn == 6 and wt == 5:
-            values[6] = v  # float32
+            values[6] = v
         elif fn == 7 and wt == 0:
-            values[7] = v  # signed int (as varint)
+            values[7] = v
         elif fn == 10 and wt == 2:
-            # connectedComponentInstance (bytes) — cache raw for outbound
-            # writes; also keep printable form for sensor metadata.
             instance_bytes = v
             s = _try_string(v)
             if s:
                 bus_name = s
+            elif v:
+                bus_name = "hex:" + bytes(v).hex()
 
-    # Cache instance per bus_id for use by build_*_command writers.
-    # Same instance per bus across all sids (confirmed: bus 99 BMS sid 5 and
-    # sid 7 both report b"can2"). Last-writer-wins is safe.
     if bus_id and instance_bytes is not None:
         prev = _BUS_INSTANCE_CACHE.get(bus_id)
         if prev != instance_bytes:
@@ -715,8 +925,6 @@ def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
                 bus_id, instance_bytes, prev,
             )
 
-    # Pick the best value: prefer string → float → uint → int → bool.
-    # uint/int take precedence over bool to avoid True==1 confusion.
     value: Any = None
     for candidate_field in (4, 6, 3, 7, 5):
         if candidate_field in values:
@@ -735,28 +943,16 @@ def _parse_sensor_entry(data: bytes) -> dict[str, Any] | None:
 
 
 def decode_pia_payload(b64_payload: str) -> dict[str, Any]:
-    """Decode a PiaResponse Base64 payload into named sensor values.
-
-    Returns a dict keyed by sensor name (e.g. "battery_voltage": 12.8).
-    Unknown sensors are keyed as "bus{bus_id}_s{sensor_id}".
-    """
+    """Decode a PiaResponse Base64 payload into named sensor values."""
     try:
         raw = base64.b64decode(b64_payload)
     except Exception:
         _LOGGER.warning("Failed to base64-decode PIA payload")
         return {}
 
-    # v2.62.23: Unconditionally seed the per-bus instance cache from EVERY
-    # inbound PIA payload (cloud SignalR + BLE).  This walks the protobuf
-    # at all depths looking for CCValue blocks that carry field 10
-    # (connectedComponentInstance) — independent of the sensor-mapping
-    # depth filter in _extract_sensors_recursive.  The cloud subscription
-    # response normally delivers field 10 for every bus that has one
-    # (lin1/can2/...) before the user issues their first write, so this
-    # primes the cache without any extra BLE round-trip.
     try:
         _seed_instance_cache_walk(raw, depth=0)
-    except Exception:  # noqa: BLE001 — never fail decode on cache seeding
+    except Exception:
         _LOGGER.debug("Instance-cache seeding failed", exc_info=True)
 
     sensors: dict[str, Any] = {}
@@ -765,34 +961,18 @@ def decode_pia_payload(b64_payload: str) -> dict[str, Any]:
     for fn, wt, v in top_fields:
         if wt != 2 or not isinstance(v, bytes):
             continue
-
-        # Try to find sensor entries at multiple nesting levels
         _extract_sensors_recursive(v, sensors, depth=0)
 
     return sensors
 
 
 def _seed_instance_cache_walk(data: bytes, depth: int) -> None:
-    """Walk protobuf bytes at all depths, seeding _BUS_INSTANCE_CACHE.
-
-    Any nested message that simultaneously carries:
-      * field 1 (varint)  — connectedComponentValueId (sensor id)
-      * field 2 (varint)  — connectedComponentId    (bus id)
-      * field 10 (bytes)  — connectedComponentInstance
-
-    is treated as a CCValue and its instance bytes are cached against the
-    bus id.  This is intentionally laxer than ``_parse_sensor_entry`` —
-    we don't require a value field (3/4/5/6/7) and we don't apply any
-    depth filter, because the cloud subscription response wraps CCValue
-    blocks at varying nesting levels.  Last-writer-wins is safe; the
-    instance is constant per bus across all sids (verified for bus 99
-    BMS: sid 5 and sid 7 both report b"can2").
-    """
-    if depth > 8:  # safety bound against pathological inputs
+    """Walk protobuf bytes at all depths, seeding _BUS_INSTANCE_CACHE."""
+    if depth > 8:
         return
     try:
         fields = _decode_protobuf(data)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return
 
     sid = None
@@ -819,8 +999,6 @@ def _seed_instance_cache_walk(data: bytes, depth: int) -> None:
                 bus, sid, instance, prev,
             )
 
-    # Recurse into every length-delimited sub-field — cache hits at the
-    # current level do not prevent deeper hits on sibling CCValues.
     for fn, wt, v in fields:
         if wt == 2 and isinstance(v, (bytes, bytearray)) and len(v) > 2:
             _seed_instance_cache_walk(bytes(v), depth + 1)
@@ -835,7 +1013,6 @@ def _extract_sensors_recursive(
 
     fields = _decode_protobuf(data)
 
-    # Check if this looks like a sensor entry (has field 1 + field 2 as varints)
     has_sid = any(fn == 1 and wt == 0 for fn, wt, _ in fields)
     has_bus = any(fn == 2 and wt == 0 for fn, wt, _ in fields)
     has_value = any(
@@ -844,33 +1021,37 @@ def _extract_sensors_recursive(
     )
 
     if has_sid and has_bus and has_value:
-        # Guard against message wrappers that mimic sensor structure.
-        # Wrappers carry F1=msg_id (e.g. 39747) and F3=epoch-ms timestamp;
-        # real sensors have IDs < 1000.  Wrappers must fall through to
-        # recursion so the actual sensor entries nested inside get decoded.
-        #
-        # Additionally, real sensor entries appear at depth 2-3 in the
-        # protobuf hierarchy.  Entries at depth >= 4 are misinterpreted
-        # container structures that produce phantom sensor values (e.g.
-        # fresh_water_level=0 at depth 5 overwriting the real value).
-        #
-        # Exception: known SENSOR_MAP entries at depth 4 are accepted.
-        # The SCU nests real-time push updates one level deeper than the
-        # initial subscription response.  Without this, sensors like
-        # fridge_status (37,2) and heater_diesel_safety (58,14)
-        # silently stop updating after the initial state is received.
         sid_val = next((v for fn, wt, v in fields if fn == 1 and wt == 0), 0)
         bus_val = next((v for fn, wt, v in fields if fn == 2 and wt == 0), 0)
-        is_known = (bus_val, sid_val) in SENSOR_MAP
+
+        is_known = (bus_val, sid_val) in SENSOR_MAP or any(
+            k[0] == bus_val and k[1] == sid_val for k in SENSOR_MAP_PINNED
+        ) or bus_val in AUTO_SLOT_GROUPS
         if sid_val < 1000 and bus_val < 1000 and (depth <= 3 or (depth == 4 and is_known)):
             entry = _parse_sensor_entry(data)
             if entry and entry["value"] is not None:
-                key = (entry["bus_id"], entry["sensor_id"])
-                mapped = SENSOR_MAP.get(key)
+                disc = entry.get("bus_name") or ""
+                if disc.startswith("hex:") and entry["bus_id"] in AUTO_SLOT_GROUPS:
+                    _hex = disc[4:]
+                    _slot = _assign_auto_slot(entry["bus_id"], _hex)
+                    if _slot is not None:
+                        _grp_info = AUTO_SLOT_GROUPS[entry["bus_id"]]
+                        _grp = sorted(_grp_info["groups"])[0]
+                        disc = f"auto:{_grp}:{_slot}"
+                mapped = SENSOR_MAP_PINNED.get(
+                    (entry["bus_id"], entry["sensor_id"], disc)
+                )
+                if mapped is None and disc.startswith("auto:"):
+                    _n_part = disc.rsplit(":", 1)[-1]
+                    if _n_part.isdigit():
+                        mapped = _materialise_auto_slot(
+                            entry["bus_id"], entry["sensor_id"], int(_n_part)
+                        )
+                if mapped is None:
+                    mapped = SENSOR_MAP.get((entry["bus_id"], entry["sensor_id"]))
                 if mapped:
                     name, unit, transform = mapped
                     val = entry["value"]
-                    # Filter out CAN/SCU sentinel "not available" values
                     if isinstance(val, (int, float)) and val in _FLOAT_SENTINELS:
                         return
                     if transform == "div10" and isinstance(val, (int, float)):
@@ -883,17 +1064,19 @@ def _extract_sensors_recursive(
                         val = round(val / 3600, 1)
                     elif transform == "invert100" and isinstance(val, (int, float)):
                         val = 100 - val
-                    # Map raw string values to readable labels
-                    if isinstance(val, str) and name in _VALUE_LABELS:
-                        val = _VALUE_LABELS[name].get(val, val)
-                    # Map integer values to readable labels (gear, fridge, etc.)
-                    if isinstance(val, int) and name in _INT_LABELS:
-                        val = _INT_LABELS[name].get(val, val)
-                    # Map gear integer to readable position
+                    if isinstance(val, str):
+                        if name in JSON_VALUE_LABELS:
+                            val = JSON_VALUE_LABELS[name].get(val, val)
+                        elif name in _VALUE_LABELS:
+                            val = _VALUE_LABELS[name].get(val, val)
+                    if isinstance(val, int):
+                        if name in JSON_INT_LABELS:
+                            val = JSON_INT_LABELS[name].get(val, val)
+                        elif name in _INT_LABELS:
+                            val = _INT_LABELS[name].get(val, val)
                     if name == "current_gear" and isinstance(val, int):
                         val = _GEAR_MAP.get(val, str(val))
                     sensors[name] = val
-                    # Discovery: track mapped sensor changes at DEBUG
                     prev = _discovery_previous.get(name)
                     if prev != val:
                         _discovery_previous[name] = val
@@ -902,8 +1085,6 @@ def _extract_sensors_recursive(
                             entry["bus_id"], entry["sensor_id"],
                             name, prev, val,
                         )
-                        # Log door/window state changes at INFO so they
-                        # are visible without enabling DEBUG logging.
                         if name in ("fridge_status", "heater_diesel_safety", "main_switch", "scu_connected"):
                             _LOGGER.info(
                                 "State change (%d,%d) %s: %r → %r (depth=%d)",
@@ -913,8 +1094,6 @@ def _extract_sensors_recursive(
                 else:
                     fallback = f"bus{entry['bus_id']}_s{entry['sensor_id']}"
                     sensors[fallback] = entry["value"]
-                    # Discovery logging: log unmapped sensor value changes
-                    # to help identify what unknown slots actually report.
                     prev = _discovery_previous.get(fallback)
                     if prev != entry["value"]:
                         _discovery_previous[fallback] = entry["value"]
@@ -925,7 +1104,6 @@ def _extract_sensors_recursive(
                         )
             return
 
-    # Not a sensor entry (or wrapper) — recurse into length-delimited sub-fields
     for fn, wt, v in fields:
         if wt == 2 and isinstance(v, bytes) and len(v) > 2:
             _extract_sensors_recursive(v, sensors, depth + 1)

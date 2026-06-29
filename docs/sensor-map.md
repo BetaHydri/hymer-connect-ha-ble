@@ -105,6 +105,172 @@ Fields starting with `_` (e.g. `_comment`, `_doc`, `_vehicles`) are ignored by t
 
 Later entries win — a brand file can override anything in base.
 
+## Pinned sensor mappings and auto-slot templates
+
+Some vehicles report multiple physical devices on the same `(bus_id, sensor_id)`
+slot. In that case, mapping only by `(bus,slot)` is not enough. The decoder can
+also use the PIA field 10 discriminator (`connectedComponentInstance`) via
+`bus_name` in JSON.
+
+### When to use which pattern
+
+| Pattern | Use when | Typical `bus_name` |
+|---|---|---|
+| `pin` (fixed) | Device ID is stable and known | `pin-6`, `pin-7`, `lin1`, `can2` |
+| `auto` (dynamic) | Device IDs are unknown per vehicle and vary by owner | `hex:...` from SIU smart sensors |
+
+### Pattern 1 — fixed pinned mapping (`pin-*`)
+
+Use this when one slot is shared but each physical source has a stable
+identifier.
+
+```json
+{
+  "sensors": {
+    "76,1#fresh": {
+      "name": "fresh_water_level",
+      "unit": "%",
+      "platform": "sensor",
+      "device_class": "water",
+      "state_class": "measurement",
+      "icon": "mdi:water",
+      "restore_last": true,
+      "bus_name": "pin-6"
+    },
+    "76,1#gray": {
+      "name": "gray_water_level",
+      "unit": "%",
+      "platform": "sensor",
+      "device_class": "water",
+      "state_class": "measurement",
+      "icon": "mdi:water-percent",
+      "restore_last": true,
+      "bus_name": "pin-7"
+    }
+  }
+}
+```
+
+Notes:
+
+- The `#fresh` / `#gray` part is only to keep JSON keys unique.
+- Matching is done by `bus_name` only.
+- You may use the same `(bus,slot)` multiple times with different `bus_name`.
+
+### Pattern 2 — dynamic auto-slot mapping (`auto:*`)
+
+Use this for SIU external sensors where every owner's IDs are different
+(`hex:...`).
+
+```json
+{
+  "sensors": {
+    "70,1#t1": {
+      "name": "hss_tyre1_status",
+      "platform": "sensor",
+      "icon": "mdi:car-tire-alert",
+      "bus_name": "auto:tyre:1"
+    },
+    "70,2#t1": {
+      "name": "hss_tyre1_bar",
+      "unit": "bar",
+      "transform": "div100",
+      "platform": "sensor",
+      "device_class": "pressure",
+      "state_class": "measurement",
+      "icon": "mdi:gauge",
+      "bus_name": "auto:tyre:1"
+    },
+    "74,1#tp1": {
+      "name": "hss_temp1_c",
+      "unit": "°C",
+      "platform": "sensor",
+      "device_class": "temperature",
+      "state_class": "measurement",
+      "icon": "mdi:thermometer",
+      "bus_name": "auto:temp:1"
+    }
+  }
+}
+```
+
+How it works:
+
+1. The JSON defines only template sensor `:1` entries.
+1. Decoder sees unknown `hex:...` IDs on that bus.
+1. It assigns stable numbers (`sensor1`, `sensor2`, ...).
+1. It materializes names/entities dynamically from your `:1` template.
+1. Mapping is persisted in `sensor_maps/_auto_slots.json`.
+
+Result: users do not need to hardcode their own hex IDs.
+
+### Optional JSON label decoding (less hardcode)
+
+You can define per-sensor label maps directly in JSON:
+
+```json
+{
+  "sensors": {
+    "1,17": {
+      "name": "coolant_warning",
+      "platform": "binary_sensor",
+      "value_labels": {
+        "OFF": "Off",
+        "ON": "On"
+      },
+      "int_labels": {
+        "0": "Off",
+        "1": "On"
+      }
+    }
+  }
+}
+```
+
+`value_labels` maps string raw values, `int_labels` maps integer raw values.
+
+### Step-by-step for users of other HYMER models
+
+1. Enable `custom_components.hymer_connect.pia_decoder: debug`.
+1. Trigger the real hardware action in the EHG app.
+1. Inspect log lines containing `RAW PIA ... f10/wt2=hex:...`.
+1. Choose one strategy:
+   - known stable ID per channel → `bus_name: "pin-..."`
+   - unknown varying SIU IDs → `bus_name: "auto:<group>:1"` templates
+1. Add entries to your brand overlay (`sensor_maps/<brand>.json`).
+1. Reload integration and verify entity creation + stable naming.
+
+### Does this help Grand Canyon S 600 users?
+
+Yes, with two practical benefits:
+
+1. **Immediate robustness** for any future slot-collision cases where one
+   `(bus,slot)` carries multiple channels distinguishable only by field 10.
+1. **Future-proof SIU support** (external sensors) without hardcoding per-vehicle
+   hex IDs. The same JSON can be shared by all users.
+
+For a stock S600 with only classic buses, you might not notice a visual change
+today. But the mapping model now scales cleanly as soon as additional modules
+or firmware variants expose colliding slots.
+
+### Relevance for BMC I 680 (Issue #9)
+
+Yes — this is directly relevant for the BMC I 680 case in
+[`Issue #9`](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)
+(HYMER BMC I 680, model year 2024, Alde + Thetford absorber reported).
+
+Why this helps:
+
+1. BMC users can keep `base.json` as common baseline and override only the
+  differing buses/slots in `hymer.json`.
+1. If a BMC channel collides on the same `(bus,slot)` as another source,
+  `bus_name` (`pin-*`) cleanly separates the values.
+1. If external smart sensors expose vehicle-specific `hex:...` IDs,
+  `auto:*` templates avoid per-user hardcoded IDs.
+
+This is exactly the migration path for models that differ from S600/S700 while
+staying JSON-driven and shareable across users.
+
 #### How entity creation works (v2.43.0+)
 
 ```

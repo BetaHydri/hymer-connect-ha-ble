@@ -24,28 +24,21 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
-    UnitOfElectricCurrent,
-    UnitOfElectricPotential,
-    UnitOfFrequency,
     UnitOfLength,
     UnitOfPower,
-    UnitOfPressure,
-    UnitOfSpeed,
-    UnitOfTemperature,
-    UnitOfTime,
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Pattern matching unmapped slot fallback keys produced by pia_decoder when a
-# (bus_id, sensor_id) pair is NOT present in SENSOR_MAP, e.g. "bus47_s3".
 _DISCOVERED_KEY_RE = re.compile(r"^bus(\d+)_s(\d+)$")
 
 
@@ -54,14 +47,10 @@ class HymerSensorEntityDescription(SensorEntityDescription):
     """Describe a HYMER Connect sensor."""
 
     value_path: str
+    restore_last: bool = False
+    friendly_name: str | None = None
 
 
-# ---------------------------------------------------------------------------
-# Static sensor descriptions — entities that need special handling or read
-# from a source key different from their own name.
-# ---------------------------------------------------------------------------
-
-# REST-based sensors (vehicle metadata)
 REST_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
     HymerSensorEntityDescription(
         key="vehicle_model",
@@ -83,11 +72,7 @@ REST_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
     ),
 )
 
-# Sensors that need special value logic, computed values, or cross-referenced
-# source keys.  These MUST stay hardcoded because the dynamic builder cannot
-# express their behaviour.
 STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
-    # --- Computed fuel metrics ---
     HymerSensorEntityDescription(
         key="fuel_level_liters",
         translation_key="fuel_level_liters",
@@ -114,7 +99,6 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         value_path="signalr_sensors.fuel_range_estimated",
         icon="mdi:map-marker-distance",
     ),
-    # --- Computed solar power (V × A) ---
     HymerSensorEntityDescription(
         key="solar_power",
         translation_key="solar_power",
@@ -124,7 +108,6 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         value_path="computed.solar_power",
         icon="mdi:solar-power",
     ),
-    # --- Battery SoC reads from lithium_soc (bus 99), not battery_soc (bus 3) ---
     HymerSensorEntityDescription(
         key="battery_soc",
         translation_key="battery_soc",
@@ -134,57 +117,66 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         value_path="signalr_sensors.lithium_soc",
         icon="mdi:battery",
     ),
-    # --- Charge phase has special idle override logic ---
     HymerSensorEntityDescription(
         key="charge_phase",
         translation_key="charge_phase",
         value_path="signalr_sensors.charge_phase",
         icon="mdi:battery-charging",
     ),
-
 )
 
-# Keys of static descriptions — the dynamic builder skips these.
 _STATIC_SENSOR_KEYS: set[str] = {
     d.key for d in REST_SENSORS + STATIC_SIGNALR_SENSORS
 }
 
+_DISPLAY_ACRONYMS = {"hss": "HSS"}
+
+
+def _make_friendly_name(key: str) -> str:
+    words = key.replace("_", " ").title().split()
+    return " ".join(_DISPLAY_ACRONYMS.get(w.lower(), w) for w in words)
+
+
+def _make_sensor_description(
+    name: str, meta: dict[str, Any]
+) -> HymerSensorEntityDescription | None:
+    if meta.get("platform") != "sensor":
+        return None
+    if name in _STATIC_SENSOR_KEYS:
+        return None
+    kwargs: dict[str, Any] = {
+        "key": name,
+        "translation_key": name,
+        "value_path": f"signalr_sensors.{name}",
+        "friendly_name": _make_friendly_name(name),
+    }
+    if meta.get("unit"):
+        kwargs["native_unit_of_measurement"] = meta["unit"]
+    if meta.get("device_class"):
+        kwargs["device_class"] = SensorDeviceClass(meta["device_class"])
+    if meta.get("state_class"):
+        kwargs["state_class"] = SensorStateClass(meta["state_class"])
+    if meta.get("icon"):
+        kwargs["icon"] = meta["icon"]
+    if meta.get("enabled") is False:
+        kwargs["entity_registry_enabled_default"] = False
+    if meta.get("restore") is True:
+        kwargs["restore_last"] = True
+    return HymerSensorEntityDescription(**kwargs)
+
 
 def _build_dynamic_sensors() -> list[HymerSensorEntityDescription]:
-    """Build sensor entity descriptions from JSON-loaded ENTITY_DEFS.
-
-    Only entries where ``platform == "sensor"`` produce a description.
-    Entries whose name collides with a static description are skipped.
-    """
     from .pia_decoder import ENTITY_DEFS
 
     descriptions: list[HymerSensorEntityDescription] = []
     for name, meta in ENTITY_DEFS.items():
-        if meta.get("platform") != "sensor":
-            continue
-        if name in _STATIC_SENSOR_KEYS:
-            continue
-        kwargs: dict[str, Any] = {
-            "key": name,
-            "translation_key": name,
-            "value_path": f"signalr_sensors.{name}",
-        }
-        if meta.get("unit"):
-            kwargs["native_unit_of_measurement"] = meta["unit"]
-        if meta.get("device_class"):
-            kwargs["device_class"] = SensorDeviceClass(meta["device_class"])
-        if meta.get("state_class"):
-            kwargs["state_class"] = SensorStateClass(meta["state_class"])
-        if meta.get("icon"):
-            kwargs["icon"] = meta["icon"]
-        if meta.get("enabled") is False:
-            kwargs["entity_registry_enabled_default"] = False
-        descriptions.append(HymerSensorEntityDescription(**kwargs))
+        desc = _make_sensor_description(name, meta)
+        if desc is not None:
+            descriptions.append(desc)
     return descriptions
 
 
 def _resolve_path(data: dict[str, Any], path: str) -> Any | None:
-    """Resolve a dot-separated path into nested dicts."""
     current: Any = data
     for key in path.split("."):
         if isinstance(current, dict):
@@ -201,10 +193,8 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up HYMER Connect sensors from a config entry."""
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    # Build the full description list: static + JSON-driven dynamic
     dynamic = _build_dynamic_sensors()
     all_descriptions = REST_SENSORS + STATIC_SIGNALR_SENSORS + tuple(dynamic)
     _LOGGER.debug(
@@ -219,11 +209,7 @@ async def async_setup_entry(
         for desc in all_descriptions
     )
 
-    # --- Dynamic slot discovery ---
-    # The PIA decoder stores any (bus_id, sensor_id) pair NOT in SENSOR_MAP
-    # under a fallback key "bus{B}_s{S}".  Watch the coordinator for new such
-    # keys and create a generic, disabled-by-default diagnostic sensor for
-    # each one so users can opt-in to inspect raw values from the SCU.
+    created_named: set[str] = {desc.key for desc in all_descriptions}
     discovered: set[str] = set()
 
     @callback
@@ -233,8 +219,21 @@ async def async_setup_entry(
         sensors = coordinator.data.get("signalr_sensors")
         if not isinstance(sensors, dict):
             return
-        new_entities: list[HymerDiscoveredSensor] = []
+        from .pia_decoder import ENTITY_DEFS
+
+        new_entities: list[Any] = []
         for key in sensors:
+            if key not in created_named and key in ENTITY_DEFS:
+                desc = _make_sensor_description(key, ENTITY_DEFS[key])
+                if desc is not None:
+                    created_named.add(key)
+                    new_entities.append(
+                        HymerConnectSensor(coordinator, desc, entry)
+                    )
+                    _LOGGER.info(
+                        "Auto-slot: adding runtime sensor entity %s", key
+                    )
+                    continue
             if key in discovered:
                 continue
             match = _DISCOVERED_KEY_RE.match(key)
@@ -253,16 +252,13 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    # Run once for any data already present, then on every coordinator update.
     _async_discover_slots()
     entry.async_on_unload(coordinator.async_add_listener(_async_discover_slots))
 
 
 class HymerConnectSensor(
-    CoordinatorEntity[HymerConnectCoordinator], SensorEntity
+    CoordinatorEntity[HymerConnectCoordinator], RestoreEntity, SensorEntity
 ):
-    """Representation of a HYMER Connect sensor."""
-
     entity_description: HymerSensorEntityDescription
     _attr_has_entity_name = True
 
@@ -272,26 +268,42 @@ class HymerConnectSensor(
         description: HymerSensorEntityDescription,
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        if description.friendly_name:
+            self._attr_name = description.friendly_name
+            self._attr_translation_key = None
+            self._attr_suggested_object_id = description.key
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "HYMER",
             "manufacturer": MANUFACTURER,
             "model": "Smart Interface Unit",
         }
+        self._last_real_value: Any | None = None
+        self._last_real_update: str | None = None
+        self._value_is_restored: bool = False
 
-    @property
-    def native_value(self) -> Any | None:
-        """Return the sensor value."""
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if not self.entity_description.restore_last:
+            return
+        last_state = await self.async_get_last_state()
+        if last_state is None:
+            return
+        if last_state.state in (None, "unknown", "unavailable", ""):
+            return
+        self._last_real_value = last_state.state
+        self._last_real_update = last_state.attributes.get("last_real_update")
+        self._value_is_restored = True
+
+    def _live_value(self) -> Any | None:
         if self.coordinator.data is None:
             return None
 
         path = self.entity_description.value_path
 
-        # Computed solar power = voltage × current
         if path == "computed.solar_power":
             sensors = self.coordinator.data.get("signalr_sensors", {})
             voltage = sensors.get("solar_voltage")
@@ -300,9 +312,6 @@ class HymerConnectSensor(
                 return round(voltage * current, 1)
             return None
 
-        # The EBL always reports its last charge phase (typically "Bulk")
-        # even when no charging is happening.  Override to "Idle" when
-        # neither solar nor mains charger is active.
         if path == "signalr_sensors.charge_phase":
             sensors = self.coordinator.data.get("signalr_sensors", {})
             solar_current = sensors.get("solar_current")
@@ -311,38 +320,49 @@ class HymerConnectSensor(
             mains_charging = charger_active is True or charger_active == 1
             if not solar_charging and not mains_charging:
                 return "Idle"
-            # Fall through to return the real phase value (Bulk/Absorption/Float)
 
-        value = _resolve_path(
-            self.coordinator.data, path
-        )
-        # Filter out sentinel values
+        value = _resolve_path(self.coordinator.data, path)
         if value is not None and isinstance(value, (int, float)):
-            # -273°C = absolute zero = heater off / sensor unavailable
             if value <= -273:
                 return None
-            # 3276.8 = 32768/10 = CAN "no data" sentinel (solar voltage etc.)
             if value in (3276.8, 32768.0, 65535.0, 6553.5):
                 return None
         return value
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        if self.entity_description.restore_last:
+            live = self._live_value()
+            if live is not None:
+                if live != self._last_real_value or self._value_is_restored:
+                    self._last_real_update = dt_util.utcnow().isoformat()
+                self._last_real_value = live
+                self._value_is_restored = False
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self) -> Any | None:
+        if not self.entity_description.restore_last:
+            return self._live_value()
+
+        live = self._live_value()
+        if live is not None:
+            return live
+        return self._last_real_value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not self.entity_description.restore_last:
+            return None
+        return {
+            "last_real_update": self._last_real_update,
+            "restored": self._value_is_restored,
+        }
 
 
 class HymerDiscoveredSensor(
     CoordinatorEntity[HymerConnectCoordinator], SensorEntity
 ):
-    """Generic diagnostic sensor for an unmapped PIA (bus, slot) pair.
-
-    Created dynamically when the SCU reports a sensor whose (bus_id,
-    sensor_id) is not present in :data:`pia_decoder.SENSOR_MAP`.  These
-    entities are disabled by default so they never appear in the UI unless
-    the user explicitly enables them via the entity registry.
-
-    Their primary purpose is to make discovery (previously only available
-    via ``tools/discover_sensors.py``) accessible from inside Home
-    Assistant — users can enable a slot, observe how its value reacts to
-    physical actions, and propose a mapping for ``SENSOR_MAP``.
-    """
-
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
@@ -355,10 +375,7 @@ class HymerDiscoveredSensor(
         bus_id: int,
         sensor_id: int,
     ) -> None:
-        """Initialize a discovered slot sensor."""
         super().__init__(coordinator)
-        self._bus_id = bus_id
-        self._sensor_id = sensor_id
         self._key = f"bus{bus_id}_s{sensor_id}"
         self._attr_unique_id = f"{entry.entry_id}_discovered_{self._key}"
         self._attr_name = f"Discovered bus {bus_id} slot {sensor_id}"
@@ -371,14 +388,12 @@ class HymerDiscoveredSensor(
 
     @property
     def native_value(self) -> Any | None:
-        """Return the raw value reported by the SCU for this slot."""
         if self.coordinator.data is None:
             return None
         sensors = self.coordinator.data.get("signalr_sensors")
         if not isinstance(sensors, dict):
             return None
         value = sensors.get(self._key)
-        # Coerce non-primitive types so HA's state machine can store them.
         if isinstance(value, (bytes, bytearray)):
             return value.hex()
         return value
