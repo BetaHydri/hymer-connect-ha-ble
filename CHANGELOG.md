@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.64.1] - 2026-06-29
 
+### Changed
+
+- **Auto-Slot Template Syntax** — All HYMER Smart Sensor templates migrated from `#X1` notation to new `{n}` placeholder syntax for automatic device numbering in v2.64.1+:
+  - Tyres (bus 70): `hss_tyre{n}_*` with `auto:tyre:{n}`
+  - Temperature sensors (bus 74): `hss_temp{n}_*` with `auto:temp:{n}`
+  - Contact sensors (bus 73): `hss_contact{n}_*` with `auto:contact:{n}`
+  - Gas-bottle sensors (bus 71): `hss_gaslevel{n}_*` with `auto:gas:{n}`
+  - The integration automatically expands `{n}` to instantiate devices #1–#N without manual JSON duplication.
+
 ### Fixed
 
 - **Commands failed after 50-minute reconnect timeout** — After the automatic SignalR reconnect every 50 minutes (when connection age exceeds 3000 seconds), light and boiler control commands were silently dropped until the user manually reloaded the integration. Root cause: after handshake, subscriptions were sent asynchronously, but commands could arrive before the SCU finished processing them, causing silent drops. Fixed by: (1) sending explicit re-subscriptions after reconnect, and (2) waiting for first sensor data before allowing commands to confirm subscriptions are active. Reported during v2.63.11 production use (2026-06-24).
