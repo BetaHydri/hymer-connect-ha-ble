@@ -304,6 +304,18 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 await self._signalr.start()
                 _LOGGER.info("SignalR connected for %s", self._vehicle_urn)
+                
+                # v2.64.1: After successful handshake, send explicit re-subscription
+                # to ensure the SCU has received and processed all bus subscriptions.
+                # Without this, commands sent immediately after reconnect may be silently
+                # dropped if the SCU hasn't finished processing the initial subscriptions.
+                # See issue #XX (50min reconnect timeout causing command failures).
+                try:
+                    await self._signalr.resubscribe()
+                    _LOGGER.debug("Explicit re-subscription sent after reconnect")
+                except Exception:
+                    _LOGGER.warning("Re-subscription after reconnect failed", exc_info=True)
+                
                 # Reset backoff, failure counter, and shutdown flag on success.
                 # _shutting_down MUST be reset here — stop_signalr() sets it
                 # to True, but after a successful reconnect the connection-lost
@@ -631,6 +643,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Waiting for _verify_send (60s) to detect the failure is too slow;
         the user sees an unresponsive switch and has to reload.  See #48.
 
+        v2.64.1: After reconnect, wait for first sensor update to confirm
+        subscriptions are active. Without this, commands arrive before the
+        SCU processes subscriptions, causing silent drops. See issue #XX.
+
         Raises HomeAssistantError if reconnection fails.
         """
         from .signalr_client import EXTENDED_STANDBY_THRESHOLD
@@ -655,8 +671,32 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         "Cannot send command — SignalR reconnect after "
                         "extended standby failed. Try reloading the integration."
                     )
+                # Fall through to subscription confirmation wait below
+            else:
+                # v2.64.1: After reconnect, confirm subscriptions are active
+                # by waiting for first sensor update. Subscriptions may have
+                # been sent but not yet processed by the SCU.
+                now = time.monotonic()
+                reconnect_age = now - self._signalr_connected_at if self._signalr_connected_at else 999
+                if reconnect_age < 10 and len(self._signalr_data) == 0:
+                    _LOGGER.info(
+                        "SignalR just reconnected (%.1fs ago) — waiting for "
+                        "subscription confirmation (first sensor update)",
+                        reconnect_age,
+                    )
+                    # Wait up to 5 seconds for first sensor data
+                    for i in range(50):
+                        await asyncio.sleep(0.1)
+                        if len(self._signalr_data) > 0:
+                            _LOGGER.debug(
+                                "Subscriptions confirmed active (received after %.1fs)",
+                                time.monotonic() - now,
+                            )
+                            return
+                    _LOGGER.warning(
+                        "No sensor data received after reconnect — subscriptions may not be active"
+                    )
                 return
-            return
 
         reason = "stale" if (client and client.connected) else "disconnected"
         _LOGGER.info("SignalR %s — reconnecting before command", reason)

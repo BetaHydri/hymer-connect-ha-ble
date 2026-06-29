@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.1] - 2026-06-29
+
+### Fixed
+
+- **Commands failed after 50-minute reconnect timeout** — After the automatic SignalR reconnect every 50 minutes (when connection age exceeds 3000 seconds), light and boiler control commands were silently dropped until the user manually reloaded the integration. Root cause: after handshake, subscriptions were sent asynchronously, but commands could arrive before the SCU finished processing them, causing silent drops. Fixed by: (1) sending explicit re-subscriptions after reconnect, and (2) waiting for first sensor data before allowing commands to confirm subscriptions are active. Reported during v2.63.11 production use (2026-06-24).
+
+## [2.64.0] - 2026-06-24
+
+### Features
+
+- **Auto-Slot Templates** — Dynamic SIU numbering for multi-device bus slots (e.g., `auto:tyre:1`, `auto:temp:1`, etc.), allowing flexible sensor discovery and naming across multiple external sensors on the same bus.
+- **Pinned Sensor Mappings** — Fixed discriminators for dual-source buses (pin-6, pin-7) to ensure consistent slot-to-entity mapping when multiple sensors report on the same bus.
+- **BMC I 680 Onboarding** — Complete sensor-map documentation and JSON examples for the Hymer BMC I 680 model with external sensors, Alde heater support, and brand-specific overrides.
+- **RestoreEntity Mixin** (Optional) — Experimental support for optional last-value restore on integration startup, for entities that need state persistence across HA restarts.
+
+### Fixed
+
+- **60-Second Toggle Bug** — Removed device command retransmission on SignalR reconnect (v2.63.11 rapid-reconnect cooldown feature). Previously, commands sent just before a reconnect trigger were re-sent on reconnect, causing double-toggles (lights turned on, then immediately off). Now commands are only sent once.
+- **BLE Write Path Removed** — Removed deprecated BLE write path (disabled since v2.62.23). Cloud/SignalR is now the only write transport. BLE remains read-only for low-latency sensor pushes.
+
+### Testing
+
+- **Backward Compatible** — All S600/S700 buses verified safe: Truma Combi D6E, Thetford Fridge, Voltronic Solar, Lights.
+- **No Regressions** — Refactored pia_decoder.py & sensor.py (additive features, no breaking changes). All existing sensor mappings unchanged.
+- **Translation Complete** — No missing keys; v2.62.28 regression avoided.
+
 ## [2.63.11] - 2026-06-09
 
 ### Fixed
