@@ -1283,11 +1283,11 @@ When you add a new entity to a brand overlay, Home Assistant needs a friendly di
 
 The Mercedes Sprinter CAN bus goes silent when the engine is turned off — **without sending a final "off" or "0" update**. The SCU caches the last received value, causing `binary_sensor.hymer_engine` to show "On" even while parked with ignition off.
 
-The Mercedes Sprinter CAN bus goes silent when the engine is turned off — **without sending a final "off" or "0" update**. The SCU caches the last received value, causing `binary_sensor.hymer_engine` to show "On" even while parked with ignition off.
-
 ### Required: Engine Running (Corrected) template sensor
 
 Create this template sensor to fix the stale engine state. Without it, the dashboard shows the engine as running while parked.
+
+The earlier helper logic only checked ignition and could still produce poor results during short reconnect gaps. Also, a custom availability template can make the helper show **Unavailable** while driving if `sensor.hymer_ignition` briefly drops out. The improved logic below treats `binary_sensor.hymer_vehicle_movement` as a strong positive signal and avoids a fragile availability rule.
 
 **Via HA UI (recommended):** Settings > Helpers > + Create Helper > Template > Template a binary sensor
 
@@ -1298,16 +1298,19 @@ Create this template sensor to fix the stale engine state. Without it, the dashb
 
 ```jinja
 {% set ignition = states('sensor.hymer_ignition') %}
+{% set moving = is_state('binary_sensor.hymer_vehicle_movement', 'on') %}
 {% set locked = is_state('binary_sensor.hymer_lock', 'on') %}
 {% set engine_raw = is_state('binary_sensor.hymer_engine', 'on') %}
-{% if ignition in ['Off', 'Accessory'] or locked %}false{% else %}{{ engine_raw }}{% endif %}
+{% if moving %}
+  true
+{% elif ignition in ['Off', 'Accessory'] or locked %}
+  false
+{% else %}
+  {{ engine_raw }}
+{% endif %}
 ```
 
-- **Availability template:**
-
-```jinja
-{{ states('sensor.hymer_ignition') not in ['unknown', 'unavailable'] }}
-```
+- **Availability template:** leave empty / do not set one
 
 **Via configuration.yaml:**
 
@@ -1320,24 +1323,28 @@ template:
         icon: mdi:engine
         state: >
           {% set ignition = states('sensor.hymer_ignition') %}
+          {% set moving = is_state('binary_sensor.hymer_vehicle_movement', 'on') %}
           {% set locked = is_state('binary_sensor.hymer_lock', 'on') %}
           {% set engine_raw = is_state('binary_sensor.hymer_engine', 'on') %}
-          {% if ignition in ['Off', 'Accessory'] or locked %}
+          {% if moving %}
+            true
+          {% elif ignition in ['Off', 'Accessory'] or locked %}
             false
           {% else %}
             {{ engine_raw }}
           {% endif %}
-        availability: >
-          {{ states('sensor.hymer_ignition') not in ['unknown', 'unavailable'] }}
 ```
 
 Then use `binary_sensor.hymer_engine_running_corrected` in your dashboard instead of `binary_sensor.hymer_engine`. The [dashboard YAML](dashboards/hymer_connect.yaml) already references the corrected entity.
 
 | Condition | Result |
 |-----------|--------|
+| Vehicle movement is "On" | Engine forced to **On** |
 | Ignition is "Off" or "Accessory" | Engine forced to **Off** |
 | Vehicle is locked | Engine forced to **Off** |
 | Otherwise | Uses the raw `engine_running` value |
+
+If you already created the older helper, edit it and remove any custom availability template.
 
 ### Recommended: Solar Energy (Riemann Sum) helper
 

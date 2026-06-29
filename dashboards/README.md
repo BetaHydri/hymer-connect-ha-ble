@@ -125,6 +125,12 @@ Already correctly attributed (`device_class: power`, `state_class: measurement`)
 
 The Mercedes Sprinter CAN bus goes silent when the engine is turned off — without sending a final "off" update. The SCU caches the last received value, so the raw `binary_sensor.hymer_engine` keeps showing **On** while parked. The template below cross-references ignition state and lock state to suppress the stale value.
 
+The earlier helper logic only checked ignition and could still behave poorly during short reconnect gaps. In addition, an availability template can make the helper show **Unavailable** (`Außer Betrieb`) while driving if the ignition entity briefly drops out during a reconnect. The safer approach is to:
+
+- treat `binary_sensor.hymer_vehicle_movement` as a strong positive signal,
+- still force **Off** when ignition is `Off`/`Accessory` or the vehicle is locked,
+- avoid a custom availability template so the helper stays usable during transient data gaps.
+
 ### Create via HA UI (recommended)
 
 **Settings → Devices & Services → Helpers → + Create Helper → Template → Template a binary sensor**
@@ -136,16 +142,19 @@ The Mercedes Sprinter CAN bus goes silent when the engine is turned off — with
 
   ```jinja
   {% set ignition = states('sensor.hymer_ignition') %}
+  {% set moving = is_state('binary_sensor.hymer_vehicle_movement', 'on') %}
   {% set locked = is_state('binary_sensor.hymer_lock', 'on') %}
   {% set engine_raw = is_state('binary_sensor.hymer_engine', 'on') %}
-  {% if ignition in ['Off', 'Accessory'] or locked %}false{% else %}{{ engine_raw }}{% endif %}
+  {% if moving %}
+    true
+  {% elif ignition in ['Off', 'Accessory'] or locked %}
+    false
+  {% else %}
+    {{ engine_raw }}
+  {% endif %}
   ```
 
-- **Availability template**:
-
-  ```jinja
-  {{ states('sensor.hymer_ignition') not in ['unknown', 'unavailable'] }}
-  ```
+- **Availability template**: leave empty / do not set one
 
 ### Or add to `configuration.yaml`
 
@@ -158,24 +167,31 @@ template:
         icon: mdi:engine
         state: >
           {% set ignition = states('sensor.hymer_ignition') %}
+          {% set moving = is_state('binary_sensor.hymer_vehicle_movement', 'on') %}
           {% set locked = is_state('binary_sensor.hymer_lock', 'on') %}
           {% set engine_raw = is_state('binary_sensor.hymer_engine', 'on') %}
-          {% if ignition in ['Off', 'Accessory'] or locked %}
+          {% if moving %}
+            true
+          {% elif ignition in ['Off', 'Accessory'] or locked %}
             false
           {% else %}
             {{ engine_raw }}
           {% endif %}
-        availability: >
-          {{ states('sensor.hymer_ignition') not in ['unknown', 'unavailable'] }}
 ```
 
 | Condition | Result |
 |-----------|--------|
+| Vehicle movement is `On` | Engine forced to **On** |
 | Ignition is `Off` or `Accessory` | Engine forced to **Off** |
 | Vehicle is locked | Engine forced to **Off** |
 | Otherwise | Uses the raw `binary_sensor.hymer_engine` value |
 
 After creating the helper, the dashboard's Vehicle/Doors tabs will display the correct engine state automatically — no further changes needed.
+
+If you already created the older helper, edit it and:
+
+1. add the `vehicle_movement` line and `if moving` branch,
+2. remove any custom availability template.
 
 > **Tip**: hide the raw `binary_sensor.hymer_engine` via **Settings → Devices & Services → Entities** so it does not clutter the UI.
 
