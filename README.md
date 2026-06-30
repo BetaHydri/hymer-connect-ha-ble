@@ -427,11 +427,22 @@ graph TD
 
 ## Compatibility with Other Vehicles
 
-> **⚠️ This integration was developed and tested on a HYMER Grand Canyon S 600 CrossOver (2025)** on a Mercedes Sprinter base with Truma Combi D6E heater, Thetford N4112A fridge, and Voltronic MPP260CI solar charger. The sensor mapping, light configuration, and bus IDs are based on this specific vehicle.
+> **⚠️ Primary development vehicle:** HYMER Grand Canyon S 600 CrossOver (2025)
+> on a Mercedes Sprinter base with Truma Combi D6E heater, Thetford N4112A
+> fridge, and Voltronic MPP260CI solar charger.
+>
+> **Also field-validated by community users:** HYMER ML-T 570 and ML-T 580,
+> including external smart sensors (tyre pressure, gas, temperature/humidity)
+> where present.
+>
+> Sensor maps are still shared at brand level, so individual bus/slot behavior
+> can differ by model year and installed equipment.
 
 ### Will it work on my vehicle?
 
 The integration should work on **any EHG vehicle with an SCU**, but with some limitations:
+
+Known working examples include Grand Canyon S 600/S 700 and ML-T 570/580.
 
 | What | Works? | Details |
 |------|--------|---------|
