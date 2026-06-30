@@ -696,7 +696,7 @@ Key format: `"bus_id,sensor_id"` or `"bus_id,sensor_id#group_id"` (the `#group_i
 | **`state_class`** | string | ❌ No | `"measurement"` (most sensors), `"total"` (cumulative), `"total_increasing"` (never resets) | `"measurement"` |
 | **`device_class`** | string | ❌ No | HA device class (enables icons, UOM, automations) | `"temperature"`, `"voltage"`, `"pressure"`, `"battery"` |
 | **`icon`** | string | ❌ No | MDI icon override | `"mdi:thermometer"`, `"mdi:battery"` |
-| **`bus_name`** | string | ❌ No | **Multi-device discriminator** (required for multi-device buses only). Use: fixed pins (`"pin-6"`), hex IDs (`"hex:1a2b3c4d"`), or auto-slot template (`"auto:tyre:1"`) | `"auto:tyre:1"` |
+| **`bus_name`** | string | ❌ No | **Multi-device discriminator** (required for multi-device buses only). Use: fixed pins (`"pin-6"`), hex IDs (`"hex:1a2b3c4d"`), or auto-slot template (`"auto:tyre:{n}"`) | `"auto:tyre:{n}"` |
 | **`transform`** | string | ❌ No | Raw value transform: `"div100"`, `"div1000"`, `"mul10"`, etc. Applied before unit display | `"div1000"` for mV → V |
 | **`restore`** | boolean | ❌ No | Restore the last known value after a Home Assistant restart until a fresh live value arrives. Useful for slowly-updating or standby-only sensors such as tank levels. **Currently implemented only for `platform: "sensor"`.** | `true` |
 | **`friendly_name`** | string | ❌ No | Override HA entity friendly_name. Normally auto-generated from name + strings.json | `"Front Left Tyre"` |
@@ -789,7 +789,7 @@ Special nested structure for complex multi-slot appliances.
 | **Integer enum sensor** (e.g. fridge mode, error codes) | `name`, `platform`, `int_labels` | `icon`, `_doc` |
 | **String enum sensor** (e.g. LTE quality) | `name`, `platform`, `value_labels` | — |
 | **Light with brightness** | Use 3 entries (on/off + brightness + color_temp) in lights section | `icon` |
-| **Multi-device bus** (e.g. 4 tyre sensors on bus 70) | `name`, `platform`, `bus_name: "auto:tyre:1"` | `device_class`, `unit`, `icon` |
+| **Multi-device bus** (e.g. 4 tyre sensors on bus 70) | `name`, `platform`, `bus_name: "auto:tyre:{n}"` | `device_class`, `unit`, `icon` |
 | **Fixed discriminator** (e.g. only 2 specific hex IDs, never more) | `name`, `platform`, `bus_name: "pin-6"` or `"hex:1a2b3c4d"` | — |
 
 ### Step 1: Identify your vehicle's bus/slot pairs
@@ -895,34 +895,34 @@ Creates: `select.hymer_fridge_cooling_step` with options "Off"–"High". Selecti
 Vehicle has 4 identical HYMER Smart tyre sensors. Each has slots 1–4 (status, pressure, temperature, battery). Raw hex IDs are different but unknown at JSON-write time. Use auto-slot template:
 
 ```json
-"70,1#t1": {
+"70,1#t{n}": {
   "_doc": "HYMER Smart tyre sensor #1 (auto-numbered), status readback.",
   "name": "hss_tyre{n}_status",
-  "bus_name": "auto:tyre:1",
+  "bus_name": "auto:tyre:{n}",
   "platform": "sensor",
   "icon": "mdi:car-tire-alert"
 },
-"70,2#t1": {
+"70,2#t{n}": {
   "name": "hss_tyre{n}_pressure",
-  "bus_name": "auto:tyre:1",
+  "bus_name": "auto:tyre:{n}",
   "unit": "bar",
   "platform": "sensor",
   "device_class": "pressure",
   "state_class": "measurement",
   "icon": "mdi:gauge"
 },
-"70,3#t1": {
+"70,3#t{n}": {
   "name": "hss_tyre{n}_temperature",
-  "bus_name": "auto:tyre:1",
+  "bus_name": "auto:tyre:{n}",
   "unit": "°C",
   "platform": "sensor",
   "device_class": "temperature",
   "state_class": "measurement",
   "icon": "mdi:thermometer"
 },
-"70,4#t1": {
+"70,4#t{n}": {
   "name": "hss_tyre{n}_battery",
-  "bus_name": "auto:tyre:1",
+  "bus_name": "auto:tyre:{n}",
   "unit": "%",
   "platform": "sensor",
   "device_class": "battery",
@@ -933,8 +933,8 @@ Vehicle has 4 identical HYMER Smart tyre sensors. Each has slots 1–4 (status, 
 
 **Key points:**
 - `"name"` contains `{n}` placeholder — replaced at runtime with slot number 1, 2, 3, 4
-- All 4 entries share same `"bus_name": "auto:tyre:1"` group → grouped together in auto-slot assignment
-- `#t1` suffix in key is a comment (never parsed)
+- All 4 entries share same `"bus_name": "auto:tyre:{n}"` group pattern → grouped together in auto-slot assignment
+- `#t{n}` suffix in key is a comment (never parsed)
 - Result: `sensor.hymer_hss_tyre1_pressure`, `sensor.hymer_hss_tyre2_pressure`, etc.
 
 ---
@@ -984,10 +984,10 @@ Same keys go into `translations/en.json` under each platform section. See [trans
 | Typo in unit (e.g. `"°C"` as `"C"`) | Copy-paste from reference examples or JSON field reference above |
 | `"unit"` but no `"device_class"` | Many units auto-infer device_class (V→voltage, %, °C→temperature); explicit is safer |
 | Int labels with string keys (e.g. `"1": "On"` instead of `1: "On"` or `"1": "On"` for JSON) | JSON int_labels keys **must be strings** (JSON doesn't have int keys): `{ "0": "Off", "1": "On" }` |
-| Multi-device bus without `"bus_name"` | Every entry on a multi-device bus needs `"bus_name": "auto:group:n"` or `"bus_name": "pin-6"` or similar discriminator |
+| Multi-device bus without `"bus_name"` | Every entry on a multi-device bus needs `"bus_name": "auto:group:{n}"` or `"bus_name": "pin-6"` or similar discriminator |
 | `{n}` placeholder in `"name"` but no `"bus_name": "auto:…"` | Placeholders only work in auto-slot templates; fixed names ignore them |
 | Forgot to update `strings.json` and `translations/en.json` | New entities show ugly translation-key names in HA (e.g. `entity.sensor.hymer_hss_tyre1_pressure` instead of friendly name) |
-| JSON keys like `"70,1#t1"` with wrong format | Format is `"bus_id,slot_id"` or `"bus_id,slot_id#comment"` — the `#comment` part doesn't affect parsing, but typos in `bus_id,slot_id` will create unmapped slots |
+| JSON keys like `"70,1#t{n}"` with wrong format | Format is `"bus_id,slot_id"` or `"bus_id,slot_id#comment"` — the `#comment` part doesn't affect parsing, but typos in `bus_id,slot_id` will create unmapped slots |
 
 ---
 
@@ -1006,10 +1006,10 @@ Same keys go into `translations/en.json` under each platform section. See [trans
     "8,2": { "name": "solar_voltage", "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement" },
     "11,1": { "name": "light_interior", "platform": "binary_sensor" },
     "34,1": { "name": "fridge_power", "platform": "switch", "icon": "mdi:fridge" },
-    "70,2#t1": {
+    "70,2#t{n}": {
       "_doc": "Multi-device tyre sensor pressure (auto-slot).",
       "name": "hss_tyre{n}_pressure",
-      "bus_name": "auto:tyre:1",
+      "bus_name": "auto:tyre:{n}",
       "unit": "bar",
       "platform": "sensor",
       "device_class": "pressure",

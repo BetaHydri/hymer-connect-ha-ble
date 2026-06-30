@@ -175,15 +175,15 @@ For lights with color temperature, add a third sub-sensor (suffix `_color_temp`)
    ```jsonc
    "climate": {
      "selects": {
-       "fridge_dometic_freezer": {
+       "fridge_compressor_freezer": {
          "control_bus": 114,
          "options": ["Off", "1", "2", "3"],
-         "read":  { "step_sensor": "fridge_dometic_freezer", "off_value": 0 },
+         "read":  { "step_sensor": "fridge_compressor_freezer", "off_value": 0 },
          "writes": {
            "off":  [{ "sid": 4, "uint": 0 }],
            "step": [{ "sid": 4, "uint": "$option_int" }]
          },
-         "name": "Dometic freezer compartment",
+         "name": "Compressor fridge freezer",
          "icon": "mdi:snowflake"
        }
      }
@@ -192,7 +192,7 @@ For lights with color temperature, add a third sub-sensor (suffix `_color_temp`)
 
 2. **`strings.json`** — **no edit needed**.
 3. **`translations/en.json`** — **no edit needed**.
-4. Reload the integration. The entity `select.fridge_dometic_freezer_ctrl` shows up with the display name *"Dometic freezer compartment"* read from the JSON.
+4. Reload the integration. The entity `select.fridge_compressor_freezer_ctrl` shows up with the display name *"Compressor fridge freezer"* read from the JSON.
 
 > **What about the existing fridge / heater selects** (`fridge_mode_ctrl`, `boiler_mode_ctrl`, `heater_energy_ctrl`)? Those use the **classic** code-driven driver (`HymerFridgeSelect` etc.) and **do** need entries in `entity.select` of both translation files. The stepped-switch driver is the new generic one — only it is translation-free.
 

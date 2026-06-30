@@ -59,8 +59,8 @@ The JSON `"sensors"` entry can declare an optional `"bus_name"` field to disting
 
 ```json
 "70,2": {
-  "name": "hss_tyre1_pressure",
-  "bus_name": "auto:tyre:1",
+  "name": "hss_tyre{n}_pressure",
+  "bus_name": "auto:tyre:{n}",
   "unit": "bar",
   "platform": "sensor"
 }
@@ -76,15 +76,15 @@ When decoding a PIA response on bus 70 slot 2:
 For buses with **N identical devices and portable numbering**, the JSON uses a **template discriminator**:
 
 ```json
-"70,1#t1": { "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", ... },
-"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", ... },
-"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", ... },
-"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", ... },
+"70,1#t{n}": { "name": "hss_tyre{n}_status", "bus_name": "auto:tyre:{n}", ... },
+"70,2#t{n}": { "name": "hss_tyre{n}_pressure", "bus_name": "auto:tyre:{n}", ... },
+"70,3#t{n}": { "name": "hss_tyre{n}_temperature", "bus_name": "auto:tyre:{n}", ... },
+"70,4#t{n}": { "name": "hss_tyre{n}_battery", "bus_name": "auto:tyre:{n}", ... },
 ```
 
 **How it works:**
-- The `"bus_name": "auto:tyre:1"` syntax means: **"auto-assign group 'tyre', device #1"**
-- The `#t1` suffix in the JSON key is just a comment (doesn't affect parsing); it's there for human readability
+- The `"bus_name": "auto:tyre:{n}"` syntax means: **"auto-assign group 'tyre', device #n"**
+- The `#t{n}` suffix in the JSON key is just a comment (doesn't affect parsing); it's there for human readability
 - At **decode time**, the decoder observes distinct hex IDs arriving on bus 70 for the first time, assigns each one a **slot number** in stable first-seen order, and resolves the `auto:…` entries accordingly
 - **Example:** If the decoder sees hex IDs `[0xaabbccdd, 0xaabbccde, 0xaabbccdf, 0xaabbcce0]` in that order, they are assigned slot numbers 1, 2, 3, 4 respectively — **and this assignment persists across restarts** via a JSON file (`_auto_slots.json`)
 - On the second restart, the same 4 IDs will receive the same 4 slot numbers, so "tyre 1" stays on the same physical wheel every time
@@ -94,10 +94,10 @@ For buses with **N identical devices and portable numbering**, the JSON uses a *
 ### Example: HYMER Smart Tyre Sensors (Bus 70)
 
 ```json
-"70,1#t1": { "_doc": "HYMER Smart tyre sensor #1 (auto-numbered).", "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", "platform": "sensor", "icon": "mdi:car-tire-alert" },
-"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
-"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
-"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+"70,1#t{n}": { "_doc": "HYMER Smart tyre sensor #{n} (auto-numbered).", "name": "hss_tyre{n}_status", "bus_name": "auto:tyre:{n}", "platform": "sensor", "icon": "mdi:car-tire-alert" },
+"70,2#t{n}": { "name": "hss_tyre{n}_pressure", "bus_name": "auto:tyre:{n}", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
+"70,3#t{n}": { "name": "hss_tyre{n}_temperature", "bus_name": "auto:tyre:{n}", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+"70,4#t{n}": { "name": "hss_tyre{n}_battery", "bus_name": "auto:tyre:{n}", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
 ```
 
 When the first user's 4 tyre sensors are observed on bus 70, they are assigned slot numbers 1, 2, 3, 4 in stable order.
@@ -111,15 +111,15 @@ This works because the template name `"hss_tyre{n}_pressure"` contains a `{n}` p
 ### Example: Other Multi-Device Buses
 
 - **Bus 74** — HYMER Smart temperature sensors (2-4 devices per vehicle)
-  - `"auto:temp:1"` for the first temperature sensor, `"auto:temp:2"` for the second, etc.
+  - `"auto:temp:{n}"` with `{n}` resolved per discovered device
   - 3 slots per device: temperature, humidity, battery
 
 - **Bus 73** — HYMER Smart contact sensors (door/window sensors; 1-N per vehicle)
-  - `"auto:contact:1"` for the first contact sensor, etc.
+  - `"auto:contact:{n}"` with `{n}` resolved per discovered device
   - 2 slots per device: status, battery
 
 - **Bus 71** — HYMER Smart gas-bottle sensors (1-N per vehicle)
-  - `"auto:gas:1"` for the first gas sensor, etc.
+  - `"auto:gas:{n}"` with `{n}` resolved per discovered device
   - 2 slots per device: gas level percentage, height
 
 ### JSON label maps: value_labels and int_labels (v2.64.0+)
