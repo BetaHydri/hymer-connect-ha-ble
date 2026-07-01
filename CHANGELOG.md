@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.5] - 2026-07-01
+
+### Changed
+
+- **HYMER Smart Sensor overlay back to the `{n}` template syntax** — Now that the `{n}` form is confirmed working end-to-end on real hardware (@mcfly1969, ML-T 570 CrossOver, SCU 1.13.0.0 — all four tyre sensors, contact and gas-level sensors reporting live via cloud after the SCU resumed pushing), the built-in `hymer.json` returns to the cleaner `auto:<group>:{n}` template form (`hss_tyre{n}_*`, …). The v2.64.4 `:1` anchor form was only a precautionary measure while the earlier "no data" report was investigated — that turned out to be a transient SCU standby, not a code issue. Both forms remain fully supported and behave identically; this is a cosmetic/consistency change with no runtime difference.
+
 ## [2.64.4] - 2026-07-01
 
 ### Changed
