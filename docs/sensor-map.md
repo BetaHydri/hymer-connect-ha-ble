@@ -41,7 +41,7 @@ easier to use as a reference:
 - Only keep backward-compatibility or legacy-name notes when they still help
   users understand an existing entity name.
 
-## Multi-device buses and discriminators (v2.64.0+)
+## Pinned sensor mappings and auto-slot templates (v2.64.0+)
 
 ### The Problem: Shared Slots on Multi-Device Buses
 
@@ -53,73 +53,109 @@ The devices are distinguished **only** by their factory-assigned binary ID (PIA 
 - Each sensor has a different hex factory ID (e.g., `0x1a2b3c4d`, `0x1a2b3c4e`, …)
 - Without discrimination, all 4 would map to the same sensor name (`"tyre_pressure"`) — HA would create only 1 entity instead of 4
 
-### Solution 1: `bus_name` discriminator (pin-6, pin-7, hex:…)
+### Solution 1: fixed `bus_name` discriminator (pin-6, pin-7, …)
 
-The JSON `"sensors"` entry can declare an optional `"bus_name"` field to distinguish devices on the same bus:
+When a bus hosts a **small, fixed, known set** of devices that each report a
+**stable, human-readable** instance string (PIA field 10), give each one its own
+entry with an explicit `"bus_name"`. The canonical example is the two water-tank
+levels on bus 76, told apart by `pin-6` / `pin-7`:
 
 ```json
-"70,2": {
-  "name": "hss_tyre1_pressure",
-  "bus_name": "auto:tyre:1",
-  "unit": "bar",
-  "platform": "sensor"
-}
+"76,1#pin-6": { "name": "fresh_water_level", "bus_name": "pin-6", "unit": "%", "platform": "sensor" },
+"76,1#pin-7": { "name": "gray_water_level",  "bus_name": "pin-7", "unit": "%", "platform": "sensor" }
 ```
 
-When decoding a PIA response on bus 70 slot 2:
-1. If the response carries a `connectedComponentInstance` (field 10), the decoder looks up `(bus_id=70, sensor_id=2, bus_name_hex=...)` in **`SENSOR_MAP_PINNED`** (the "pinned" discriminator map)
-2. If found, use that name; otherwise fall back to `SENSOR_MAP[(70, 2)]` (the default)
-3. If no field 10 exists, use the default map
+- The `#pin-6` / `#pin-7` suffix on the JSON **key** is only there so the same
+  `76,1` pair can appear twice in one JSON object (JSON keys must be unique).
+  Everything after `#` is stripped before parsing — the real discriminator is
+  the `"bus_name"` field.
+- When decoding a bus 76 slot 1 frame, the decoder reads field 10, and looks up
+  `(76, 1, "pin-6")` in **`SENSOR_MAP_PINNED`**; if not found it falls back to
+  the plain `SENSOR_MAP[(76, 1)]`.
 
-### Solution 2: Auto-slot templates (auto:group:n)
+Use this when you know the exact instance strings up front and there are only a
+few of them. For **many identical devices with factory-random binary IDs**, use
+Solution 2 instead.
 
-For buses with **N identical devices and portable numbering**, the JSON uses a **template discriminator**:
+### Solution 2: auto-slot templates (`auto:<group>:{n}`)
+
+For a bus with **an unknown number of identical devices** whose instance IDs are
+opaque binary bytes (surfaced as `hex:…`), write **one template entry per slot**
+using the `{n}` placeholder. The decoder auto-numbers each physical device and
+expands `{n}` at runtime — you never list device #2, #3, #4 by hand:
 
 ```json
-"70,1#t1": { "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", ... },
-"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", ... },
-"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", ... },
-"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", ... },
+"70,1#t{n}": { "name": "hss_tyre{n}_status",      "bus_name": "auto:tyre:{n}", ... },
+"70,2#t{n}": { "name": "hss_tyre{n}_pressure",    "bus_name": "auto:tyre:{n}", ... },
+"70,3#t{n}": { "name": "hss_tyre{n}_temperature", "bus_name": "auto:tyre:{n}", ... },
+"70,4#t{n}": { "name": "hss_tyre{n}_battery",     "bus_name": "auto:tyre:{n}", ... }
 ```
 
 **How it works:**
-- The `"bus_name": "auto:tyre:1"` syntax means: **"auto-assign group 'tyre', device #1"**
-- The `#t1` suffix in the JSON key is just a comment (doesn't affect parsing); it's there for human readability
-- At **decode time**, the decoder observes distinct hex IDs arriving on bus 70 for the first time, assigns each one a **slot number** in stable first-seen order, and resolves the `auto:…` entries accordingly
-- **Example:** If the decoder sees hex IDs `[0xaabbccdd, 0xaabbccde, 0xaabbccdf, 0xaabbcce0]` in that order, they are assigned slot numbers 1, 2, 3, 4 respectively — **and this assignment persists across restarts** via a JSON file (`_auto_slots.json`)
-- On the second restart, the same 4 IDs will receive the same 4 slot numbers, so "tyre 1" stays on the same physical wheel every time
+- `"bus_name": "auto:<group>:{n}"` marks the entry as an **auto-slot template**.
+  `<group>` (e.g. `tyre`) ties all slots of one physical device to the **same**
+  number, so device #1's status/pressure/temperature/battery all share `n = 1`.
+- The `{n}` in both `"name"` and `"bus_name"` is a placeholder. It **must** be
+  written literally as `{n}` — the loader recognises it and captures the entry
+  as a template (native support since **v2.64.3**; before that only the legacy
+  `auto:<group>:1` anchor form below worked).
+- The `#t{n}` suffix on the JSON **key** is only there to keep the four `70,x`
+  keys unique and readable; it is stripped before parsing.
+- At **decode time** the decoder sees each distinct `hex:…` instance on bus 70,
+  assigns it the next free number in **stable first-seen order** (1, 2, 3, …),
+  and **persists** the `hex → number` map to `sensor_maps/_auto_slots.json` so
+  the numbering survives restarts — "tyre 1" stays the same wheel every time.
+- Devices are **unbounded**: a 5th tyre sensor simply becomes `n = 5`,
+  materialised on the fly with no JSON edit and no restart.
 
-**Result**: Users never edit hex IDs in JSON. They simply rename the HA entities once in the UI ("Tyre sensor 1" → "Front left tyre") and the persisted mapping keeps them stable.
+> **Numbering is per-install, not global.** Each Home Assistant installation
+> numbers its own devices starting at 1. There is no shared numbering across
+> users — a second owner's four tyre sensors are *their* 1–4, not 5–8.
 
-### Example: HYMER Smart Tyre Sensors (Bus 70)
+**Result**: owners never touch hex IDs. They rename the HA entities once in the
+UI ("Tyre sensor 1" → "Front left tyre") and the persisted map keeps them
+stable. To reset the numbering, delete `sensor_maps/_auto_slots.json` and
+restart.
+
+#### Legacy anchor form (`auto:<group>:1`)
+
+The older form spells device #1 out concretely and lets the decoder derive the
+`{n}` template from it. It is still accepted for backward compatibility:
 
 ```json
-"70,1#t1": { "_doc": "HYMER Smart tyre sensor #1 (auto-numbered).", "name": "hss_tyre1_status", "bus_name": "auto:tyre:1", "platform": "sensor", "icon": "mdi:car-tire-alert" },
-"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
-"70,3#t1": { "name": "hss_tyre1_temperature", "bus_name": "auto:tyre:1", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
-"70,4#t1": { "name": "hss_tyre1_battery", "bus_name": "auto:tyre:1", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+"70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", ... }
 ```
 
-When the first user's 4 tyre sensors are observed on bus 70, they are assigned slot numbers 1, 2, 3, 4 in stable order.
-When a **second user with a different vehicle** adds their 4 tyre sensors, they are automatically assigned to slot numbers 5, 6, 7, 8 (or whatever the next available numbers are).
-Each user's tyre sensors are created in HA as:
-- `sensor.<device>_hss_tyre1_pressure`, `sensor.<device>_hss_tyre2_pressure`, …, `sensor.<device>_hss_tyre4_pressure`
-- And so on for temperature, battery, status
+Prefer the `{n}` form for new overlays — it is self-documenting and cannot be
+mistaken for a concrete device #1 entry.
 
-This works because the template name `"hss_tyre{n}_pressure"` contains a `{n}` placeholder, which is filled in at runtime by the decoder.
+#### Recipe: add your own auto-slot family
+
+1. Find the bus + slots via **Dynamic Slot Discovery** (see below). Enable the
+   `discovered_bus_X_slot_Y` sensors and watch which slots your devices report.
+2. Pick a short `<group>` name (e.g. `awning`, `battery2`).
+3. Add one template entry per slot to your brand overlay's `"sensors"` section:
+   ```json
+   "80,1#a{n}": { "name": "hss_awning{n}_state",    "bus_name": "auto:awning:{n}", "platform": "sensor", "icon": "mdi:awning-outline" },
+   "80,2#a{n}": { "name": "hss_awning{n}_position", "bus_name": "auto:awning:{n}", "unit": "%", "platform": "sensor", "state_class": "measurement" }
+   ```
+   Keep the `{n}` identical across the key suffix, `"name"`, and `"bus_name"`.
+4. Reload the integration. No `strings.json` / translations edit is needed —
+   auto-slot sensors derive a readable display name from their key
+   (`hss_awning1_position` → "HSS Awning1 Position").
 
 ### Example: Other Multi-Device Buses
 
 - **Bus 74** — HYMER Smart temperature sensors (2-4 devices per vehicle)
-  - `"auto:temp:1"` for the first temperature sensor, `"auto:temp:2"` for the second, etc.
+  - `"auto:temp:{n}"` with `{n}` resolved per discovered device
   - 3 slots per device: temperature, humidity, battery
 
 - **Bus 73** — HYMER Smart contact sensors (door/window sensors; 1-N per vehicle)
-  - `"auto:contact:1"` for the first contact sensor, etc.
+  - `"auto:contact:{n}"` with `{n}` resolved per discovered device
   - 2 slots per device: status, battery
 
 - **Bus 71** — HYMER Smart gas-bottle sensors (1-N per vehicle)
-  - `"auto:gas:1"` for the first gas sensor, etc.
+  - `"auto:gas:{n}"` with `{n}` resolved per discovered device
   - 2 slots per device: gas level percentage, height
 
 ### JSON label maps: value_labels and int_labels (v2.64.0+)

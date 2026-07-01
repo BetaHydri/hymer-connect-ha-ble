@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.3] - 2026-07-01
+
+### Fixed
+
+- **HYMER Smart Sensors disappeared / `{n}` ghost entities (v2.64.2 regression)** — After the v2.64.2 sensor-map migration to the `{n}` placeholder syntax, all HYMER Smart Sensors (tyre pressure bus 70, temperature/humidity bus 74, contact bus 73, gas level bus 71) stopped producing data and instead created dead entities with a literal `{n}` in their name (e.g. `HSS Tyre{N} Status` → *unavailable*). Root cause: the sensor-map loader only recognised the legacy `auto:<group>:1` template form and silently rejected the new `auto:<group>:{n}` discriminator (`"{n}".isdigit()` is `False`), so those buses were never registered as auto-slot groups and inbound device frames were never matched. The loader now natively understands the `auto:<group>:{n}` template form (and still accepts the legacy `:1` form), and never registers an unresolved `{n}` placeholder name as an entity. Reported by @mcfly1969 on the ML-T 570 CrossOver (SCU firmware 1.13.0.0).
+
+### Documentation
+
+- **Auto-slot template guide** — Rewrote the *Pinned sensor mappings and auto-slot templates* section of [`docs/sensor-map.md`](docs/sensor-map.md) and the `README.md` brand-overlay walkthrough so users can write their own multi-device sensor JSON: clarified the `auto:<group>:{n}` syntax, corrected the (previously wrong) claim that numbering is shared across users — it is **per-install, starting at 1** — added a "write your own auto-slot family" recipe, and noted that auto-slot sensors need **no** `strings.json` / translations entries.
+
 ## [2.64.2] - 2026-06-29
 
 ### Changed
