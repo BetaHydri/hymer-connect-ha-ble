@@ -228,13 +228,13 @@ If you identify what an unmapped slot does on your brand/model, please open an i
 
 > **Existing entities are unaffected.** Discovered entities only ever cover slots that are *not* in `SENSOR_MAP` — there is no collision possible with the named sensors.
 
-### �️ Diagnostic button: "BLE Field Scan"
+### 🛰️ Diagnostic button: "BLE Field Scan"
 
 The `BLE Field Scan` button under the integration's *Diagnose* section is a developer-only probe and is **not needed for normal use**. It opens a BLE/TLS session to the SCU and brute-forces protobuf field numbers 1–15 inside the `UserRequestTopic` envelope to discover which BLE RPCs the current SCU firmware exposes (e.g. paired-device management). Results are written to the HA log at WARNING level.
 
 Pressing it requires you to physically press the **CONNECTION** button on the SCU touch panel within ~64 seconds (the scan retries bonding up to 8 times). It performs no writes that change vehicle state and is safe to ignore. Leave it alone unless a maintainer asks you to run it while reverse-engineering a new SCU firmware revision.
 
-### �🗺️ Device Tracker
+### 🗺️ Device Tracker
 
 GPS-based device tracker for vehicle location on the HA map.
 
