@@ -120,14 +120,17 @@ restart.
 #### Legacy anchor form (`auto:<group>:1`)
 
 The older form spells device #1 out concretely and lets the decoder derive the
-`{n}` template from it. It is still accepted for backward compatibility:
+`{n}` template from it. **Both forms are fully supported and behave
+identically** at runtime (device #2..N are always materialised on the fly):
 
 ```json
 "70,2#t1": { "name": "hss_tyre1_pressure", "bus_name": "auto:tyre:1", ... }
 ```
 
-Prefer the `{n}` form for new overlays — it is self-documenting and cannot be
-mistaken for a concrete device #1 entry.
+The built-in **HYMER overlay (`hymer.json`) uses this `:1` anchor form** — it is
+the originally hardware-tested reference for the HYMER Smart Sensor family. The
+`{n}` form is equally valid and a bit more self-documenting for brand-new
+overlays; pick whichever you prefer.
 
 #### Recipe: add your own auto-slot family
 

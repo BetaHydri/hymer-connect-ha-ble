@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.4] - 2026-07-01
+
+### Changed
+
+- **HYMER Smart Sensor overlay reverted to the hardware-tested `:1` anchor form** — The `hymer.json` tyre (bus 70), temperature (bus 74), contact (bus 73) and gas-level (bus 71) auto-slot templates now use the `auto:<group>:1` anchor form (`hss_tyre1_*`, …) instead of the `{n}` placeholder introduced in v2.64.2. This is byte-identical to the implementation originally tested end-to-end on the ML-T 570 CrossOver (SCU 1.13.0.0) by @mcfly1969. Both forms remain fully supported by the loader (see v2.64.3) and behave identically at runtime — device #1 is now pre-created at startup, devices #2..N are still materialised on the fly. No entity-name or numbering change versus a working v2.64.0 install.
+
 ## [2.64.3] - 2026-07-01
 
 ### Fixed
