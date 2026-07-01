@@ -631,7 +631,7 @@ For other HYMER users who need to map shared slots dynamically, see
 That section includes copy-paste JSON examples for:
 
 - fixed discriminators (`bus_name: "pin-6"`, `"pin-7"`)
-- dynamic SIU templates (`bus_name: "auto:<group>:1"`)
+- dynamic SIU templates (`bus_name: "auto:<group>:{n}"`; legacy `:1` anchor also accepted)
 - JSON label maps (`value_labels`, `int_labels`)
 
 This path is explicitly relevant for the BMC owner discussion in
@@ -936,10 +936,18 @@ Vehicle has 4 identical HYMER Smart tyre sensors. Each has slots 1–4 (status, 
 - All 4 entries share same `"bus_name": "auto:tyre:{n}"` group pattern → grouped together in auto-slot assignment
 - `#t{n}` suffix in key is a comment (never parsed)
 - Result: `sensor.hymer_hss_tyre1_pressure`, `sensor.hymer_hss_tyre2_pressure`, etc.
+- **No `strings.json` / translations entry needed** — auto-slot sensors derive a
+  readable display name from their key (`hss_tyre1_pressure` → "HSS Tyre1
+  Pressure"). This is also why you *cannot* pre-list them: the device count is
+  unbounded (`{n}` may become 5, 6, …). Only fixed-name sensors use Step 3.
 
 ---
 
 ### Step 3: Update strings.json and translations/en.json
+
+> **Skip this step for auto-slot `{n}` sensors** (Example 4). They already get a
+> friendly name from their key and are numbered at runtime, so there is nothing
+> to pre-translate. This step applies only to sensors with a **fixed** name.
 
 **Only for human-readable entity names** (most entity types). The integration looks up friendly names in:
 

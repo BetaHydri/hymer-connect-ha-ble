@@ -112,13 +112,15 @@ _overlays_loaded: set[str] = set()
 # in the JSON is not portable.
 #
 # Instead, a JSON sensor entry may use a *template* discriminator of the form
-#   "bus_name": "auto:<group>:<n>"
+#   "bus_name": "auto:<group>:{n}"   (preferred, one entry covers all devices)
+#   "bus_name": "auto:<group>:1"    (legacy: concrete device #1 as template)
 # where <group> ties the four slots of one logical device together (so they
-# get the SAME number) and <n> is 1..N.  At decode time, the decoder observes
-# the distinct hex ids appearing on that bus, assigns each one the next free
-# slot number in stable first-seen order, and resolves the "auto:…" entries
-# accordingly.  The hex→number mapping is persisted to a small JSON file so the
-# numbering survives restarts: tyre "sensor 1" stays the same wheel every time.
+# get the SAME number) and {n}/1 marks the entry as an auto-slot template.  At
+# decode time, the decoder observes the distinct hex ids appearing on that bus,
+# assigns each one the next free slot number in stable first-seen order, and
+# resolves the "auto:…" entries accordingly.  The hex→number mapping is
+# persisted to a small JSON file so the numbering survives restarts: tyre
+# "sensor 1" stays the same wheel every time.
 #
 # Owners never edit hex ids.  They simply rename "Tyre sensor 1/2/3/4" in the
 # HA UI to the real wheel positions once, and the persisted map keeps it stable.
@@ -132,15 +134,17 @@ _overlays_loaded: set[str] = set()
 AUTO_SLOT_GROUPS: dict[int, dict[str, Any]] = {}
 
 # AUTO_SLOT_TEMPLATES: bus_id -> { sensor_id(int) -> template_dict }
-#   Captured from the JSON's *first* auto-slot device (the "...:1" entries) so
-#   that any later-numbered device on the same bus can have its name + entity
-#   metadata generated dynamically.  Each template_dict holds:
+#   Captured from the JSON's auto-slot template entry — either the "{n}" form
+#   (name already holds the "{n}" placeholder) or the legacy "…:1" device #1
+#   (name is turned into a "{n}" template) — so that any device number on the
+#   same bus can have its name + entity metadata generated dynamically.  Each
+#   template_dict holds:
 #     "name_tmpl": str with "{n}" placeholder (e.g. "hss_gaslevel{n}_percent")
 #     "group":     str (e.g. "gas")
 #     "unit", "transform", "meta": as parsed from the JSON entry
 #   This is what makes the auto-slot mechanism unbounded: the JSON only needs
-#   to define device #1 as a template; devices #2, #3, … are materialised at
-#   runtime by _materialise_auto_slot() the first time they are observed.
+#   one template entry per (bus, slot); devices #1, #2, #3, … are materialised
+#   at runtime by _materialise_auto_slot() the first time they are observed.
 AUTO_SLOT_TEMPLATES: dict[int, dict[int, dict[str, Any]]] = {}
 
 # AUTO_SLOT_ASSIGN: bus_id -> { hex_id(str without "hex:") -> slot_number(int) }
@@ -359,8 +363,13 @@ def _load_json_overlay(filename: str) -> int:
                         continue
                 if int_map:
                     JSON_INT_LABELS[name] = int_map
-            # Store entity metadata when a platform is declared
-            if "platform" in value:
+            # Store entity metadata when a platform is declared.  Names that
+            # still carry an unresolved "{n}" auto-slot placeholder are
+            # *templates*, not concrete entities — never register them directly
+            # (doing so created literal "…{n}…" ghost entities, the v2.64.2
+            # regression).  Concrete devices #1..N are materialised later by the
+            # decoder via _materialise_auto_slot().
+            if "platform" in value and "{n}" not in name:
                 meta = {k: value[k] for k in _ENTITY_FIELDS if k in value}
                 if unit is not None:
                     meta["unit"] = unit
@@ -374,44 +383,54 @@ def _load_json_overlay(filename: str) -> int:
         # satisfy the un-discriminated lookup.
         disc = value.get("bus_name") if isinstance(value, dict) else None
         if disc:
-            SENSOR_MAP_PINNED[(bus_id, sensor_id, disc)] = (name, unit, transform)
-            # Auto-slot template: "auto:<group>:<n>" registers this bus as an
-            # auto-numbered multi-device bus.  The entry stays in the pinned map
-            # under its literal "auto:…" key; the decoder rewrites an inbound
-            # "hex:…" discriminator to the matching "auto:<group>:<n>" key once
-            # the device has been assigned a stable slot number.
-            if disc.startswith("auto:"):
-                _parts = disc.split(":")
-                if len(_parts) == 3 and _parts[2].isdigit():
-                    _n = int(_parts[2])
-                    _grp = _parts[1]
-                    bucket = AUTO_SLOT_GROUPS.setdefault(
-                        bus_id, {"max": 0, "groups": set()}
-                    )
-                    bucket["groups"].add(_grp)
-                    if _n > bucket["max"]:
-                        bucket["max"] = _n
-                    # Capture a template from device #1 so higher-numbered
-                    # devices can be materialised on the fly.  The name must
-                    # contain the device number so we can swap it for "{n}";
-                    # we look for the literal "1" that follows the group name
-                    # (e.g. "hss_gaslevel1_percent" → "hss_gaslevel{n}_percent").
-                    if _n == 1:
-                        _meta = None
-                        if isinstance(value, dict) and "platform" in value:
-                            _meta = {
-                                k: value[k] for k in _ENTITY_FIELDS if k in value
-                            }
-                            if unit is not None:
-                                _meta["unit"] = unit
-                        _name_tmpl = _make_auto_name_template(name, _grp)
-                        AUTO_SLOT_TEMPLATES.setdefault(bus_id, {})[sensor_id] = {
-                            "name_tmpl": _name_tmpl,
-                            "group": _grp,
-                            "unit": unit,
-                            "transform": transform,
-                            "meta": _meta,
+            # Auto-slot discriminators come in two forms:
+            #   "auto:<group>:{n}"  — ONE template covering devices #1..N
+            #                          (preferred; no per-device JSON entries)
+            #   "auto:<group>:1"    — legacy concrete device #1 that also serves
+            #                          as the template (kept for backward compat)
+            # A literal "{n}" placeholder must NEVER be stored in the pinned map
+            # (no inbound "hex:…" frame can ever match "auto:tyre:{n}"); it only
+            # DEFINES the template.  Every other discriminator (e.g. "pin-6") is
+            # an ordinary pinned entry.
+            _parts = disc.split(":") if disc.startswith("auto:") else []
+            _is_tmpl = len(_parts) == 3 and _parts[2] == "{n}"
+            _is_num = len(_parts) == 3 and _parts[2].isdigit()
+
+            if not _is_tmpl:
+                SENSOR_MAP_PINNED[(bus_id, sensor_id, disc)] = (name, unit, transform)
+
+            if _is_tmpl or _is_num:
+                _grp = _parts[1]
+                _n = 1 if _is_tmpl else int(_parts[2])
+                bucket = AUTO_SLOT_GROUPS.setdefault(
+                    bus_id, {"max": 0, "groups": set()}
+                )
+                bucket["groups"].add(_grp)
+                if _n > bucket["max"]:
+                    bucket["max"] = _n
+                # Capture a template so any device number can be materialised on
+                # the fly.  For the "{n}" form the name already IS the template;
+                # for the legacy ":1" form derive it from the concrete device-#1
+                # name (e.g. "hss_gaslevel1_percent" → "hss_gaslevel{n}_percent").
+                if _is_tmpl or _n == 1:
+                    _meta = None
+                    if isinstance(value, dict) and "platform" in value:
+                        _meta = {
+                            k: value[k] for k in _ENTITY_FIELDS if k in value
                         }
+                        if unit is not None:
+                            _meta["unit"] = unit
+                    _name_tmpl = (
+                        name if _is_tmpl
+                        else _make_auto_name_template(name, _grp)
+                    )
+                    AUTO_SLOT_TEMPLATES.setdefault(bus_id, {})[sensor_id] = {
+                        "name_tmpl": _name_tmpl,
+                        "group": _grp,
+                        "unit": unit,
+                        "transform": transform,
+                        "meta": _meta,
+                    }
         else:
             SENSOR_MAP[(bus_id, sensor_id)] = (name, unit, transform)
         count += 1
