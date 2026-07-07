@@ -522,6 +522,12 @@ Use `--output <path>` to customize the export filename, and `--duration <seconds
 
 #### Option 3: Enable debug logging
 
+> **Note:** This integration has **no** "Enable debug logging" button in the integration's ⋮ menu (Settings → Devices & Services). Enable it via `configuration.yaml` instead:
+>
+> 1. Edit `configuration.yaml` — easiest with the **File editor** or **Studio Code Server** add-on.
+> 2. Add one of the `logger:` blocks below, then **restart Home Assistant** (Settings → System → ⋮ → Restart) or reload the YAML config.
+> 3. Reproduce the issue, then download the log via **Settings → System → Logs → Download full log** (or grab `/config/home-assistant.log`).
+
 ##### Production (recommended)
 
 Keep this in your `configuration.yaml` permanently. It gives enough visibility to spot problems without flooding the log:
