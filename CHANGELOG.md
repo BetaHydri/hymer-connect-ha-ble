@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.6] - 2026-07-07
+
+### Added
+
+- **BMC I 680 (MY2024) individual lights** — Mapped two more single lights confirmed via RAW PIA toggle logs by @FrankHae ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)):
+  - Bus 13 → **Floor ambient** (`light_floor_ambient`) — living-area floor ambient lighting, member of the Wohnen group.
+  - Bus 17 → **Shower ceiling** (`light_shower_ceiling`) — shower ceiling light, member of the Privat group.
+  Both are dimmable (slot 2 = brightness 0–100 %), no colour temperature. JSON-only change, zero risk for S600/S700/ML-T — buses 13 and 17 are not used by those layouts.
+
+### Fixed
+
+- **`distance_to_service` scaling** — Corrected the bus 1 slot 5 transform in `base.json` from `div100` to `div10` (km). *(Still awaiting on-vehicle verification.)*
+- **Translation cleanup (`strings.json` / `en.json`)** — Removed 21 orphaned translation keys left behind by earlier entity renames/removals so they no longer clutter the files: `fridge_dometic_power`/`_power_ctrl`/`_silent`/`_silent_ctrl` (renamed to `fridge_compressor_*` in v2.63.1), `smart_temperature_1`/`smart_humidity_1` (migrated to the `hss_temp{n}_*` auto-slot family), `tire_pressure` (migrated to `hss_tyre{n}_pressure`), `door_sliding`/`door_rear`/`coolant_temp`/`adblue_temp` (renamed in `base.json` to `wiping_water_empty`/`motor_oil_warning`/`coolant_warning`/`adblue_level`), plus `light_bus22_unknown`, `light_led_bar_color_temp`, `light_1_level`, `light_2_level`, `alarm_armed`, `alarm_battery`, `step_retracted`, `water_pump`, `fuel_range` and `total_fuel_used`. None of these keys referenced an existing entity.
+- **Eriba light translations completed** — Added the missing `light_shower_ambient` and `light_bedroom_furniture` name entries (on/off, brightness) that `eriba.json` defines, so they no longer fall back to translation-key-style names. `strings.json` and `en.json` are now fully key-synchronised in every section.
+
 ## [2.64.5] - 2026-07-01
 
 ### Changed

@@ -44,7 +44,7 @@
     "1,5": {
       "name": "distance_to_service",
       "unit": "km",
-      "transform": "div100",
+      "transform": "div10",
       "platform": "sensor",
       "state_class": "measurement",
       "icon": "mdi:wrench-clock"

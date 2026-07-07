@@ -102,9 +102,6 @@
       "adblue_level": {
         "name": "AdBlue level"
       },
-      "coolant_temp": {
-        "name": "Coolant temperature"
-      },
       "lock_status": {
         "name": "Lock status"
       },
@@ -116,9 +113,6 @@
       },
       "door_passenger": {
         "name": "Passenger door"
-      },
-      "door_sliding": {
-        "name": "Sliding door"
       },
       "battery_voltage": {
         "name": "Battery voltage"
@@ -178,16 +172,7 @@
       "engine_hours": {
         "name": "Engine hours"
       },
-      "fuel_range": {
-        "name": "Fuel range"
-      },
-      "total_fuel_used": {
-        "name": "Total fuel used"
-      },
 
-      "adblue_temp": {
-        "name": "AdBlue temperature"
-      },
       "dpf_status": {
         "name": "DPF status"
       },
@@ -196,12 +181,6 @@
       },
       "solar_current": {
         "name": "Solar current"
-      },
-      "light_1_level": {
-        "name": "Light group 1"
-      },
-      "light_2_level": {
-        "name": "Light group 2"
       },
       "light_living_ceiling_brightness": {
         "name": "Living ceiling brightness"
@@ -224,9 +203,6 @@
       "light_led_bar_brightness": {
         "name": "Privat group brightness"
       },
-      "light_led_bar_color_temp": {
-        "name": "Privat group color temp"
-      },
       "light_nightlight_brightness": {
         "name": "Night light brightness"
       },
@@ -242,11 +218,17 @@
       "light_dinette_pendant_brightness": {
         "name": "Dinette pendant brightness"
       },
-      "tire_pressure": {
-        "name": "Tyre pressure"
+      "light_shower_ceiling_brightness": {
+        "name": "Shower ceiling brightness"
       },
-      "alarm_battery": {
-        "name": "Alarm battery"
+      "light_floor_ambient_brightness": {
+        "name": "Floor ambient brightness"
+      },
+      "light_shower_ambient_brightness": {
+        "name": "Shower ambient brightness"
+      },
+      "light_bedroom_furniture_brightness": {
+        "name": "Bedroom furniture brightness"
       },
       "scu_firmware": {
         "name": "SCU firmware"
@@ -386,12 +368,6 @@
       "fridge_compressor_supply_voltage": {
         "name": "Compressor fridge supply voltage"
       },
-      "smart_temperature_1": {
-        "name": "Smart temperature sensor 1"
-      },
-      "smart_humidity_1": {
-        "name": "Smart humidity sensor 1"
-      },
       "distance_to_service": {
         "name": "Distance to service"
       },
@@ -433,6 +409,12 @@
       "light_bathroom_ceiling": {
         "name": "Bathroom ceiling"
       },
+      "light_shower_ceiling": {
+        "name": "Shower ceiling"
+      },
+      "light_floor_ambient": {
+        "name": "Floor ambient"
+      },
       "light_bedroom_overhead": {
         "name": "Bedroom overhead"
       },
@@ -444,9 +426,6 @@
       },
       "light_privat_group": {
         "name": "Privat all lights"
-      },
-      "light_bus22_unknown": {
-        "name": "Bus 22 (unknown)"
       },
       "light_shower_ambient": {
         "name": "Shower ambient"
@@ -480,9 +459,6 @@
       "cruise_control": {
         "name": "Cruise control"
       },
-      "alarm_armed": {
-        "name": "Alarm"
-      },
       "light_living_ceiling": {
         "name": "Living ceiling light"
       },
@@ -510,6 +486,18 @@
       "light_bathroom_ceiling": {
         "name": "Bathroom ceiling light"
       },
+      "light_shower_ceiling": {
+        "name": "Shower ceiling light"
+      },
+      "light_floor_ambient": {
+        "name": "Floor ambient light"
+      },
+      "light_shower_ambient": {
+        "name": "Shower ambient light"
+      },
+      "light_bedroom_furniture": {
+        "name": "Bedroom furniture light"
+      },
       "light_bedroom_overhead": {
         "name": "Bedroom overhead light"
       },
@@ -522,17 +510,11 @@
       "door_passenger": {
         "name": "Passenger door"
       },
-      "door_sliding": {
-        "name": "Sliding door"
-      },
       "lock_status": {
         "name": "Lock"
       },
       "main_switch": {
         "name": "Main switch"
-      },
-      "door_rear": {
-        "name": "Rear door"
       },
       "headlamp": {
         "name": "Headlamp"
@@ -566,12 +548,6 @@
       },
       "heater_shoreline_connected": {
         "name": "Heater shoreline connected"
-      },
-      "step_retracted": {
-        "name": "Entry step"
-      },
-      "water_pump": {
-        "name": "Water pump"
       },
       "fridge_door": {
         "name": "Fridge door"
@@ -611,12 +587,6 @@
       },
       "dometic_fridge_power": {
         "name": "Dometic fridge power"
-      },
-      "fridge_dometic_power": {
-        "name": "Dometic fridge"
-      },
-      "fridge_dometic_silent": {
-        "name": "Dometic fridge silent mode"
       },
       "fridge_compressor_power": {
         "name": "Compressor fridge"
@@ -676,12 +646,6 @@
       },
       "fridge_eco_ctrl": {
         "name": "Fridge ECO"
-      },
-      "fridge_dometic_power_ctrl": {
-        "name": "Dometic fridge power"
-      },
-      "fridge_dometic_silent_ctrl": {
-        "name": "Dometic fridge silent mode"
       },
       "fridge_compressor_power_ctrl": {
         "name": "Compressor fridge power"
