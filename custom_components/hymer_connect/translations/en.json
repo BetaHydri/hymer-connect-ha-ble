@@ -669,6 +669,9 @@
       "alde_heating_active": {
         "name": "Alde currently heating"
       },
+      "alde_error": {
+        "name": "Alde error"
+      },
       "fridge_absorber_power": {
         "name": "Absorber fridge power"
       },

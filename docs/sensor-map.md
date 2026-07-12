@@ -826,6 +826,7 @@ Read-only sensors (mapped in v2.64.7):
 | (5, 3) | `alde_setpoint` | °C | `Zone1TargetTemperature` (float, **rw**). Verified by changing it in the app (8/10/12/30 °C). |
 | (5, 5) | `alde_energy_priority` | — | `PrioElectricityGas` (string, **rw**): `Prio Gas` / `Prio EL`. |
 | (5, 9) | `alde_heating_on` | bool | `PanelOn` (bool, **rw**) — heater master on/off. `binary_sensor` `device_class: power`. |
+| (5, 12) | `alde_error` | bool | `Error` — an error/warning is pending at the Alde panel (e.g. the antibacterial/Legionella boiler-service reminder). `binary_sensor` `device_class: problem`. Added v2.65.0. **Only the boolean is transmitted — the message TEXT is panel-only.** A pending error can block remote on/off from HA and the EHG app until acknowledged with **OK on the panel** (Alde firmware behaviour, not overridable). *Mapping unconfirmed:* observed constant `False` in normal operation; needs a `True` sample during a real error. |
 | (5, 14) | `alde_heating_active` | bool | `pump_running` — circulation pump active (= actively heating). `binary_sensor` `device_class: running`. |
 | (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
@@ -841,7 +842,7 @@ Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidat
 - (5, 2) `Zone2ActualTemperature` / (5, 4) `Zone2TargetTemperature` (rw) — second heating zone; on Frank's single-zone BMC they read constant placeholders (85.0 / 36.0).
 - (5, 6) `HotWaterSetting` (string, rw) — options `Off` / `Normal` / `Boost`.
 - (5, 7) `ElectricitySetting` (int, rw, kW) — range 0–3 (the metadata doc's "string" was wrong).
-- (5, 8) `PanelBusy` (r), (5, 10) `GasSetting` (rw bool), (5, 11) `AccSetting` (rw bool), (5, 12) `Error` (r bool), (5, 13) `ac_installed` (r bool).
+- (5, 8) `PanelBusy` (r), (5, 10) `GasSetting` (rw bool), (5, 11) `AccSetting` (rw bool), (5, 13) `ac_installed` (r bool).
 
 Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.
 

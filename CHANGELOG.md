@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.0] - 2026-07-12
+
+### Added
+
+- **Alde 3030 error/warning sensor (HYMER BMC I 680)** — New read-only `binary_sensor.hymer_alde_error` (bus 5 slot 12 = `error`, `device_class: problem`) for @FrankHae's BMC ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). It flags when the Alde panel has a pending error/warning — such as the antibacterial/Legionella boiler-service reminder that Frank hit, which blocked remote on/off from both Home Assistant and the EHG app until it was acknowledged with **OK on the Alde panel**.
+  - > ℹ️ **Only a boolean flag is transmitted over the SCU** — the actual message text is panel-only and never sent over PIA, so we can surface *that* an Alde error is pending, but not *which* one. The panel-side acknowledge/lockout is Alde firmware behaviour and cannot be overridden remotely (the EHG app is blocked the same way).
+  - > ⚠️ **Mapping still to be confirmed:** @FrankHae observed slot 12 permanently `False` during normal operation; a RAW-PIA line with `5,12 = True` captured during an actual Alde error is still needed to make the mapping watertight.
+
+### Confirmed on-vehicle by @FrankHae (issue #9)
+
+- All the v2.64.8 / v2.64.9 test-build **writes now confirmed working** on the BMC I 680 (SCU accepts HA → cloud writes on buses 5 / 10 / 32): `switch.hymer_alde_heating` (5,9), `select.hymer_alde_energy_priority` (5,5), `select.hymer_absorber_fridge_power_source` (32,2), `select.hymer_absorber_fridge_cooling_step` (32,3, Off/1–5), and `select.hymer_satellite` (10,5). Alde inside temperature (5,1) matches the app; the Alde target temperature written from HA (5,3) reaches the heater. Satellite signal strength reads 255 when idle, then 0–100 % when the dish is active.
+- Still untested (hardware preconditions): fridge `SetPowerMode` 12V / AC modes (need 220 V / engine running) and the Alde boiler (no water in the lines yet).
+
 ## [2.64.9] - 2026-07-12
 
 ### Added
