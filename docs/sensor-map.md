@@ -812,6 +812,12 @@ layouts. Discovered and confirmed on a HYMER BMC I 680 (MY2024) by user @FrankHa
 The full slot model (labels, datatypes, read/write flags, option lists) is confirmed against
 the decompiled EHG app (`Alde3020` component, APK 2.10.14) — see below.
 
+> **`Alde3020` vs. Alde 3030:** The vehicle has an **Alde Compact 3030** (current-generation
+> hydronic heater). EHG models the whole Alde hydronic line under a single SCU component named
+> `Alde3020` (the older-generation name) — the 3030 uses the same SCU interface and exposes the
+> same parameters, which is why one slot map covers both. The 3030's extra fan stages (0/1/2)
+> have no obvious slot in this component and may not be exposed via the SCU.
+
 Read-only sensors (mapped in v2.64.7):
 
 | Slot | Sensor Name | Unit | Notes |
