@@ -322,7 +322,7 @@ You never paste the QR code as the refresh token. Instead the refresh token is
 |---|---|
 | **A — BLE + Cloud** | The integration pairs with the SCU over Bluetooth (press **CONNECTION** on the SCU touch panel) and extracts the refresh token automatically — nothing to copy or paste. |
 | **B — Cloud-only (mitmproxy)** | You capture the refresh token from EHG app traffic with mitmproxy and paste it into the integration. See [`tools/README.md`](tools/README.md). |
-| **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest) performs the BLE pairing on your phone and shows the refresh token to copy/paste. |
+| **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) performs the BLE pairing on your phone and shows the refresh token to copy/paste. |
 
 Once obtained, the refresh token is stored in the Home Assistant config entry and
 **survives HACS updates** — you only lose it if you delete the integration under
