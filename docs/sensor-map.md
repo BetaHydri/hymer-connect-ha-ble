@@ -843,29 +843,56 @@ Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic
 
 EHG component `TenhaaftSatAntenna` (kind: `sat_antenna`). Confirmed on a HYMER BMC I 680 by
 @FrankHae in [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9). Bus 10 is unused
-on S600/S700/ML-T.
+on S600/S700/ML-T. The full slot model is confirmed against the decompiled EHG app.
+
+Read-only sensors (mapped in v2.64.7):
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (10, 5) | `sat_satellite` | — | Currently selected satellite string, e.g. `Astra 1`, `Eutelsat 9`, `Hotbird`. |
-| (10, 6) | `sat_status` | — | Dish status string, e.g. `Searching clockwise`, `Searching up`, `Satellite found`, `Is retracting`, `Is closed`. |
-| (10, 8) | `sat_signal_strength` | % | Signal strength 0–100. Reads `255` while idle/retracted. |
+| (10, 5) | `sat_satellite` | — | `SatellitePosition` (string, **rw**) — currently selected satellite, e.g. `Astra 1`, `Eutelsat 9`, `Hotbird`. |
+| (10, 6) | `sat_status` | — | `state` (string) — dish status, e.g. `Searching clockwise`, `Satellite found`, `Is retracting`, `Is closed`. |
+| (10, 8) | `sat_signal_strength` | % | `unified_signal_quality` (int) — 0–100. Reads `255` while idle/retracted. |
 
-Slot 10,9 (`Satellite found` bool) is not yet conclusively confirmed and remains a disabled
-`Discovered bus 10 slot 9` diagnostic sensor.
+Writable control (added v2.64.9 — **write path UNVERIFIED on bus 10**, test build, revert if dropped):
+
+| Entity | Slot | Notes |
+|--------|------|-------|
+| `select.hymer_satellite` | (10, 5) | Pick the target satellite from the app's 19-entry list (`Amos 2/3`, `Astra 1–5`, `Eutelsat 5W/7/8W/9/10/16`, `Hellas Sat 2`, `Hispasat`, `Hotbird`, `Intelsat 907`, `Telstar 12`, `Thor/Intelsat10`, `Türksat`). |
+
+Confirmed in the decompiled model, not yet exposed:
+
+- (10, 1) `start`, (10, 2) `park`, (10, 3) `stop_movement`, (10, 4) `open_sleep_mode` — bool **write-only** commands (candidates for future `button` entities).
+- (10, 9) `dish_moving_state` (bool, r — **not** "satellite found"), (10, 10) `safe_position_state`, (10, 11) `unsupported_function_state`, (10, 12) `alarm_beeper_state`, (10, 13) `standby_mode_state`, (10, 14) `k15_state` — all bool r. (Slot 7 does not exist.)
+
+### Recommended Home Assistant cards (satellite)
+
+The satellite entities map cleanly onto stock HA cards (no custom/HACS frontend needed):
+
+- **Satellite selection** (`select.hymer_satellite`) → an **Entities card** row or a **Tile card** — both render a `select` as a dropdown. On a Tile card, add the *"select"* feature to get the dropdown inline.
+- **Signal strength** (`sensor.hymer_sat_signal_strength`, %) → a **Gauge card** (`min: 0`, `max: 100`, green severity above ~60) — the most intuitive "am I locked on?" indicator.
+- **Dish status** (`sensor.hymer_sat_status`) → an **Entity card** or a small **Markdown card**; it shows the live search state (`Searching …`, `Satellite found`, `Is closed`).
+- Group all three in a single **Entities card** titled "Satellite", or an **Entity Filter / Conditional card** that only shows signal strength while the dish is deployed.
+- When the write-only commands (start/park/stop/sleep) are exposed later as buttons, a **Horizontal-stack of Button cards** is the natural layout.
 
 ## Bus 32 — Thetford N4142E+ absorber fridge (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 
-EHG component `Thetford N4000` family. Not present on Grand Canyon S 600/S 700 (bus 34/37) or
+EHG component `ThetfordN4000` family. Not present on Grand Canyon S 600/S 700 (bus 34/37) or
 ML-T 570 (bus 114), so bus 32 is free on those layouts. Confirmed on a HYMER BMC I 680 by
 @FrankHae in [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9). Entity names use an
 `_absorber_` prefix to stay distinct from the S600 N4000 (`fridge_*`) on bus 34.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (32, 1) | `fridge_absorber_power` | bool | Power on/off. `binary_sensor` with `device_class: power`. |
-| (32, 3) | `fridge_absorber_cooling_step` | step | Cooling step 1–5. **Writable via `select.fridge_absorber_cooling_step`** (stepped-switch driver, mirrors bus 34/114). ⚠️ Write path added in v2.64.7 but **not yet verified on-vehicle** — pending @FrankHae confirmation. |
-| (32, 5) | `fridge_absorber_door` | bool | Door open/closed (TRUE = open, FALSE = closed). `binary_sensor` with `device_class: door`. |
+| (32, 1) | `fridge_absorber_power` | bool | `fridge_power` (bool, rw). `binary_sensor` with `device_class: power`. |
+| (32, 2) | `fridge_absorber_power_mode` | — | `SetPowerMode` (string, rw) — power source. Read sensor backing the writable select below. |
+| (32, 3) | `fridge_absorber_cooling_step` | step | `fridge_level` (int 1–5, rw). |
+| (32, 5) | `fridge_absorber_door` | bool | `door_open` (bool, r — TRUE = open, FALSE = closed). `binary_sensor` `device_class: door`. |
 
-Slot 32,2 (`Gas mode`) reports a constant `Gas Mode` string and cannot yet be verified as a
-writable power-source selector — left as a disabled `Discovered bus 32 slot 2` diagnostic sensor.
+Writable controls (⚠️ **write paths UNVERIFIED on-vehicle** — test builds, revert if the SCU drops the write):
+
+| Entity | Slot | Added | Notes |
+|--------|------|-------|-------|
+| `select.hymer_absorber_fridge_cooling_step` | (32, 3) | v2.64.7 | Off / 1–5 (stepped-switch driver, mirrors bus 34/114: writes power sid 1 then step sid 3). |
+| `select.hymer_absorber_fridge_power_source` | (32, 2) | v2.64.9 | `Automatic mode` / `Gas mode` / `12V mode` / `AC mode` (string select). The Auto/Gas/12V/230V control. |
+
+Confirmed in the decompiled model, not yet exposed: (32, 8) `error_warning_information` (string, r), (32, 10) `automatic_mode_active` (bool, r).

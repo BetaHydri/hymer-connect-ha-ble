@@ -398,6 +398,9 @@
       },
       "fridge_absorber_cooling_step": {
         "name": "Absorber fridge cooling step"
+      },
+      "fridge_absorber_power_mode": {
+        "name": "Absorber fridge power source"
       }
     },
     "light": {

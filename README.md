@@ -1322,7 +1322,7 @@ graph TB
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
 | 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — read-only (v2.64.7) |
 | 8 | `lin2` | **LIN** | Voltronic MPP260CI | Solar voltage, current, power, charger status, error flags |
-| 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite, dish status, signal strength (v2.64.7) |
+| 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite (writable select, v2.64.9), dish status, signal strength |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
 | 13 | — | PIA | BMC I 680 floor ambient light | On/off, brightness (member of Wohnen group, bus 24) — v2.64.6 |
 | 14 | — | PIA | ML-T 570 bedroom ceiling | On/off, brightness (member of Privat group, bus 27) |
@@ -1332,7 +1332,7 @@ graph TB
 | 25 | — | PIA | Outside LED bar | On/off, brightness |
 | 27 | — | PIA | Privat light group | Hardware group toggle for all private area lights |
 | 30 | — | PIA | SCU telemetry | GPS coordinates, altitude, heading, satellites, LTE, Bluetooth |
-| 32 | — | PIA | Thetford N4142E+ absorber fridge (BMC I 680) | Power, cooling step 1–5 (writable select), door — v2.64.7 |
+| 32 | — | PIA | Thetford N4142E+ absorber fridge (BMC I 680) | Power, cooling step 1–5 + power source (Auto/Gas/12V/AC) writable selects, door |
 | 34 | `heat_ctrl` | PIA | Thetford fridge (control) | Power, ECO, cooling step, setpoint |
 | 37 | `fridge` | PIA | Thetford fridge (status) | Operating mode, door state |
 | 43–44 | — | PIA | Overhead lights | Seating overhead, bedroom overhead |

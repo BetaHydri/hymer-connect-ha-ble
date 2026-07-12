@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.9] - 2026-07-12
+
+### Added
+
+- **Thetford N4142E+ fridge power-source select + TenHaaft satellite select (HYMER BMC I 680, test build)** — Two more writable controls for @FrankHae's BMC ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)), with option lists recovered from the decompiled EHG app (APK 2.10.14) and cross-checked against Frank's on-vehicle readback:
+  - **`select.hymer_absorber_fridge_power_source`** (bus 32 slot 2 `SetPowerMode`) — `Automatic mode` / `Gas mode` / `12V mode` / `AC mode`. This is the fridge energy-source control Frank asked about. A read-only `sensor.hymer_absorber_fridge_power_source` (32,2) was added to back it.
+  - **`select.hymer_satellite`** (bus 10 slot 5 `SatellitePosition`) — pick the target satellite from the app's full 19-entry list (`Astra 1`, `Eutelsat 9`, `Hotbird`, …); reuses the existing `sat_satellite` (10,5) sensor for readback.
+  - > ⚠️ **Write paths on bus 32 slot 2 and bus 10 are not yet verified on a vehicle.** Shipped for @FrankHae to test; readback is confirmed. Revert if the SCU drops the writes.
+
+### Verified via decompilation (issue #9 cross-check)
+
+- Cross-checked **every** BMC I 680 slot Frank reported against `docs/ehg-app-metadata.md` **and** the decompiled EHG app. All of Frank's interpretations hold. Two clarifications: bus 10 slot 5 is a **writable string** `SatellitePosition` (the metadata doc wrongly listed it as `int`), and bus 10 slot 9 is `dish_moving_state` (not “satellite found”). The metadata doc's bus 5 slot 7 (`string`) is corrected to `int` (0–3 kW) per the app.
+- The decompiled `TenhaaftSatAntenna` also exposes write-only commands (slots 1–4: `start` / `park` / `stop_movement` / `open_sleep_mode`) — candidates for future `button` entities.
+
 ## [2.64.8] - 2026-07-12
 
 ### Added

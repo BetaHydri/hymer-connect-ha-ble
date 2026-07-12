@@ -58,6 +58,7 @@
     "27,3": { "_doc": "LightGroup04 NightMode — reduces brightness to night-time level (bool). EHG slot 3 for all light groups.", "name": "light_privat_group_night_mode" },
 
     "32,1": { "_doc": "BMC I 680 (MY2024): Thetford N4142E+ absorber fridge power on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false. Distinct from S600 N4000 (bus 34); bus 32 unused on S600/S700/ML-T.", "name": "fridge_absorber_power", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "32,2": { "_doc": "BMC I 680: Thetford N4142E+ absorber fridge power source (EHG SetPowerMode, string rw). Options from decompiled EHG app (ThetfordN4000): 'Automatic mode'/'Gas mode'/'12V mode'/'AC mode'. Readback confirmed 'Gas mode' by @FrankHae (#9). Read sensor for the writable select below.", "name": "fridge_absorber_power_mode", "platform": "sensor", "icon": "mdi:fridge-industrial" },
     "32,3": { "_doc": "BMC I 680: Thetford N4142E+ absorber fridge cooling step 1-5 (int, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "fridge_absorber_cooling_step", "platform": "sensor", "icon": "mdi:fridge-industrial-outline" },
     "32,5": { "_doc": "BMC I 680: Thetford N4142E+ absorber fridge door open/closed (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): open=true, closed=false.", "name": "fridge_absorber_door", "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
 
@@ -268,6 +269,24 @@
         "control_bus": 5,
         "options": ["Prio Gas", "Prio EL"],
         "read": { "value_sensor": "alde_energy_priority" },
+        "writes": { "option": [{ "sid": 5, "str": "$option" }] }
+      },
+      "fridge_absorber_power_mode": {
+        "_doc": "BMC I 680 (MY2024): Thetford N4142E+ absorber fridge power-source select (bus 32 slot 2 = SetPowerMode, string rw). Options from decompiled EHG app (ThetfordN4000 SetPowerMode stringRange). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 32 — test control (v2.64.9); revert if the SCU drops the write.",
+        "name": "Absorber fridge power source",
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 32,
+        "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
+        "read": { "value_sensor": "fridge_absorber_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "sat_position": {
+        "_doc": "BMC I 680 (MY2024): TenHaaft satellite dish target-satellite select (bus 10 slot 5 = SatellitePosition, string rw). Options from decompiled EHG app (TenhaaftSatAntenna SatellitePosition stringRange, 19 satellites). Readback confirmed by @FrankHae (#9) ('Astra 1'/'Eutelsat 9'/'Hotbird'). WRITE PATH UNVERIFIED on bus 10 — test control (v2.64.9); revert if the SCU drops the write.",
+        "name": "Satellite",
+        "icon": "mdi:satellite-variant",
+        "control_bus": 10,
+        "options": ["Amos 2/3", "Astra 1", "Astra 2", "Astra 3", "Astra 4", "Astra 5", "Eutelsat 5W", "Eutelsat 7", "Eutelsat 9", "Eutelsat 8W", "Eutelsat 10", "Eutelsat 16", "Hellas Sat 2", "Hispasat", "Hotbird", "Intelsat 907", "Telstar 12", "Thor/Intelsat10", "Türksat"],
+        "read": { "value_sensor": "sat_satellite" },
         "writes": { "option": [{ "sid": 5, "str": "$option" }] }
       }
     }
