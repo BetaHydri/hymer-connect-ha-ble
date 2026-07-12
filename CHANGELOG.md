@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.7] - 2026-07-12
+
+### Added
+
+- **BMC I 680 (MY2024) Alde 3030, satellite dish and absorber-fridge sensors** — Mapped the read-only slots confirmed via RAW PIA logs by @FrankHae ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). This is the first **Alde** heater in the repository. JSON-only change; buses 5, 10 and 32 are unused by the S600/S700/ML-T layouts, so there is zero risk for those vehicles.
+  - **Alde 3030 (bus 5)** — `alde_inside_temp` (5,1), `alde_outside_temp` (5,15), `alde_setpoint` (5,3), `alde_energy_priority` (5,5, `Prio Gas`/`Prio EL`), `alde_heating_on` (5,9) and `alde_heating_active` (5,14). Read-only for now; writable climate/select controls will follow once the remaining slots are confirmed.
+  - **TenHaaft satellite dish (bus 10)** — `sat_satellite` (10,5, selected satellite), `sat_status` (10,6, dish status) and `sat_signal_strength` (10,8, 0–100 %).
+  - **Thetford N4142E+ absorber fridge (bus 32)** — `fridge_absorber_power` (32,1), `fridge_absorber_cooling_step` (32,3) and `fridge_absorber_door` (32,5). Named with an `_absorber_` prefix to stay distinct from the S600 N4000 fridge on bus 34.
+  - **Writable absorber-fridge cooling step** — Added a JSON-driven stepped-switch `select.fridge_absorber_cooling_step` (Off / 1–5) for bus 32, mirroring the confirmed S600 N4000 (bus 34) and ML-T Thetford Compressor (bus 114) drivers (writes power sid 1 as bool, then cooling-step sid 3 as uint). ⚠️ Readback is confirmed, but the **write path is not yet verified on @FrankHae's vehicle** — if the SCU does not accept the cloud write, this select will be reverted.
+  - `strings.json` and `translations/en.json` updated in the `sensor` and `binary_sensor` sections and remain fully key-synchronised. (The stepped-switch select takes its display name directly from the JSON, so it needs no translation entry.)
+  - `docs/sensor-map.md` — added reference sections for bus 5 (Alde 3030), bus 10 (TenHaaft satellite) and bus 32 (Thetford N4142E+ absorber fridge).
+
+### Still open (issue #9)
+
+- **Bathroom ambient light** — toggling it produces no distinct discoverable slot in the logs (only bus 19 ceiling and bus 27 Privat group react); needs another at-vehicle capture.
+- **Alde writable controls** — setpoint, energy priority, fan steps and day/night switching still to be built as climate/select entities (first Alde in the repo).
+- **Unmapped Alde slots** (5,2/5,4/5,6–5,13), **fridge gas mode** (32,2, always `Gas Mode`) and **satellite “found” flag** (10,9) remain as discovered diagnostic sensors pending confirmation.
+
 ## [2.64.6] - 2026-07-07
 
 ### Added

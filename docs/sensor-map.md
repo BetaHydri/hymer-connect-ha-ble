@@ -802,3 +802,55 @@ All entities disabled by default.
 | (121, 17) | `victron_input_frequency` | r | Hz | Shore power input frequency |
 | (121, 18) | `victron_device_failure` | r | — | Device failure status |
 | (121, 19) | `victron_firmware` | r | — | Firmware version string |
+
+## Bus 5 — Alde 3030 hydronic heater (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
+
+First **Alde** heater mapped in this repository. Not present on Grand Canyon S 600/S 700 or
+ML-T 570 — those use a Truma diesel heater on bus 58/49 instead, so bus 5 is free on those
+layouts. Discovered and confirmed on a HYMER BMC I 680 (MY2024) by user @FrankHae in
+[#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9) via RAW PIA toggle logs.
+Currently mapped **read-only**; a writable climate/select control set is planned once the
+remaining slots (fan steps, day/night, energy priority) are confirmed.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (5, 1) | `alde_inside_temp` | °C | Interior temperature (float). Matches the Hymer app value. |
+| (5, 3) | `alde_setpoint` | °C | Target/set temperature (float). Verified by changing it in the app (8/10/12/30 °C). Read-only for now. |
+| (5, 5) | `alde_energy_priority` | — | Energy priority string: `Prio Gas` / `Prio EL`. EHG capability `prio_electricity_gas` (rw). Read-only for now. |
+| (5, 9) | `alde_heating_on` | bool | Heater switched on/off. `binary_sensor` with `device_class: power`. |
+| (5, 14) | `alde_heating_active` | bool | Burner/element currently heating. `binary_sensor` with `device_class: running`. |
+| (5, 15) | `alde_outside_temp` | °C | Outside temperature probe (float, under-vehicle). |
+
+Slots 5,2 (constant 85.0), 5,4 (constant 36.0), 5,6–5,13 are not yet interpreted and remain
+available as disabled `Discovered bus 5 slot N` diagnostic sensors.
+
+## Bus 10 — TenHaaft satellite dish (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
+
+EHG component `TenhaaftSatAntenna` (kind: `sat_antenna`). Confirmed on a HYMER BMC I 680 by
+@FrankHae in [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9). Bus 10 is unused
+on S600/S700/ML-T.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (10, 5) | `sat_satellite` | — | Currently selected satellite string, e.g. `Astra 1`, `Eutelsat 9`, `Hotbird`. |
+| (10, 6) | `sat_status` | — | Dish status string, e.g. `Searching clockwise`, `Searching up`, `Satellite found`, `Is retracting`, `Is closed`. |
+| (10, 8) | `sat_signal_strength` | % | Signal strength 0–100. Reads `255` while idle/retracted. |
+
+Slot 10,9 (`Satellite found` bool) is not yet conclusively confirmed and remains a disabled
+`Discovered bus 10 slot 9` diagnostic sensor.
+
+## Bus 32 — Thetford N4142E+ absorber fridge (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
+
+EHG component `Thetford N4000` family. Not present on Grand Canyon S 600/S 700 (bus 34/37) or
+ML-T 570 (bus 114), so bus 32 is free on those layouts. Confirmed on a HYMER BMC I 680 by
+@FrankHae in [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9). Entity names use an
+`_absorber_` prefix to stay distinct from the S600 N4000 (`fridge_*`) on bus 34.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (32, 1) | `fridge_absorber_power` | bool | Power on/off. `binary_sensor` with `device_class: power`. |
+| (32, 3) | `fridge_absorber_cooling_step` | step | Cooling step 1–5. **Writable via `select.fridge_absorber_cooling_step`** (stepped-switch driver, mirrors bus 34/114). ⚠️ Write path added in v2.64.7 but **not yet verified on-vehicle** — pending @FrankHae confirmation. |
+| (32, 5) | `fridge_absorber_door` | bool | Door open/closed (TRUE = open, FALSE = closed). `binary_sensor` with `device_class: door`. |
+
+Slot 32,2 (`Gas mode`) reports a constant `Gas Mode` string and cannot yet be verified as a
+writable power-source selector — left as a disabled `Discovered bus 32 slot 2` diagnostic sensor.

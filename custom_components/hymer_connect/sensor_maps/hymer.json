@@ -14,6 +14,17 @@
     "8,6": { "_doc": "EHG: AESActive — MPPT AES (Automatic Energy Selector) mode active. Legacy code label: vent_3. Promoted in v2.63.8.", "name": "solar_aes_active", "platform": "binary_sensor", "icon": "mdi:solar-power-variant" },
     "8,7": { "_doc": "EHG: SolarPanelPower — raw MPPT power output. Superseded by computed solar_power (V×A). Legacy code label: tire_pressure. Fixed in v2.63.8.", "name": "solar_power_raw" },
 
+    "5,1": { "_doc": "BMC I 680 (MY2024): Alde 3030 hydronic heater inside temperature. First Alde in repo. Confirmed by @FrankHae 2026-07-10 (issue #9) via RAW PIA logs (f6 float, matches Hymer app). Bus 5 unused on S600/S700/ML-T.", "name": "alde_inside_temp", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:home-thermometer" },
+    "5,3": { "_doc": "BMC I 680: Alde 3030 target/set temperature. Confirmed by @FrankHae 2026-07-11 (issue #9) via app-change RAW PIA logs (8/10/12/30 °C, f6 float). Read-only for now; writable climate to follow.", "name": "alde_setpoint", "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "5,5": { "_doc": "BMC I 680: Alde 3030 energy priority (text 'Prio Gas'/'Prio EL', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). EHG: prio_electricity_gas. Read-only for now; writable select to follow.", "name": "alde_energy_priority", "platform": "sensor", "icon": "mdi:gas-burner" },
+    "5,9": { "_doc": "BMC I 680: Alde 3030 heating on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false.", "name": "alde_heating_on", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:radiator" },
+    "5,14": { "_doc": "BMC I 680: Alde 3030 currently heating/burner active (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): heating=true, idle=false.", "name": "alde_heating_active", "platform": "binary_sensor", "device_class": "running", "icon": "mdi:radiator" },
+    "5,15": { "_doc": "BMC I 680: Alde 3030 outside temperature probe (f6 float, under-vehicle). Confirmed by @FrankHae 2026-07-10 (issue #9).", "name": "alde_outside_temp", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+
+    "10,5": { "_doc": "BMC I 680: TenHaaft satellite dish — currently selected satellite (text, e.g. 'Astra 1'/'Eutelsat 9'/'Hotbird', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). Bus 10 unused on S600/S700/ML-T.", "name": "sat_satellite", "platform": "sensor", "icon": "mdi:satellite-variant" },
+    "10,6": { "_doc": "BMC I 680: TenHaaft satellite dish status (text, e.g. 'Searching clockwise', 'Satellite found', 'Is closed', 'Is retracting', f4). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_status", "platform": "sensor", "icon": "mdi:satellite-uplink" },
+    "10,8": { "_doc": "BMC I 680: TenHaaft satellite signal strength (int 0-100; 255 = idle/retracted, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_signal_strength", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:signal" },
+
     "11,1": { "name": "light_living_ceiling", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light" },
     "11,2": { "name": "light_living_ceiling_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light" },
     "12,1": { "name": "light_living_ambient", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:wall-sconce-flat" },
@@ -45,6 +56,10 @@
     "27,1": { "name": "light_privat_group" },
     "27,2": { "name": "light_privat_group_brightness", "unit": "%" },
     "27,3": { "_doc": "LightGroup04 NightMode — reduces brightness to night-time level (bool). EHG slot 3 for all light groups.", "name": "light_privat_group_night_mode" },
+
+    "32,1": { "_doc": "BMC I 680 (MY2024): Thetford N4142E+ absorber fridge power on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false. Distinct from S600 N4000 (bus 34); bus 32 unused on S600/S700/ML-T.", "name": "fridge_absorber_power", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "32,3": { "_doc": "BMC I 680: Thetford N4142E+ absorber fridge cooling step 1-5 (int, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "fridge_absorber_cooling_step", "platform": "sensor", "icon": "mdi:fridge-industrial-outline" },
+    "32,5": { "_doc": "BMC I 680: Thetford N4142E+ absorber fridge door open/closed (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): open=true, closed=false.", "name": "fridge_absorber_door", "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
 
     "34,1": { "name": "fridge_power" },
     "34,2": { "name": "fridge_eco" },
@@ -212,6 +227,27 @@
         "read": {
           "step_sensor": "fridge_compressor_cooling_step",
           "power_sensor": "fridge_compressor_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "fridge_absorber_cooling_step": {
+        "_doc": "BMC I 680 (MY2024): Thetford N4142E+ absorber fridge Off/1-5 cooling-step control (bus 32). Mirrors the S600 N4000 (bus 34) and ML-T compressor (bus 114) drivers: power sid 1 (bool) then cooling-step sid 3 (uint). Readback confirmed by @FrankHae 2026-07-11 (issue #9); WRITE PATH still to be verified on-vehicle. Revert if the SCU does not accept the cloud write.",
+        "name": "Absorber fridge cooling step",
+        "icon": "mdi:fridge-industrial-outline",
+        "control_bus": 32,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_absorber_cooling_step",
+          "power_sensor": "fridge_absorber_power",
           "off_when_power_false": true,
           "off_value": 0
         },

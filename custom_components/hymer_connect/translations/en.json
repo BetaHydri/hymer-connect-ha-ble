@@ -379,6 +379,30 @@
       },
       "scu_internal_time": {
         "name": "SCU internal time"
+      },
+      "alde_inside_temp": {
+        "name": "Alde inside temperature"
+      },
+      "alde_setpoint": {
+        "name": "Alde target temperature"
+      },
+      "alde_energy_priority": {
+        "name": "Alde energy priority"
+      },
+      "alde_outside_temp": {
+        "name": "Alde outside temperature"
+      },
+      "sat_satellite": {
+        "name": "Satellite"
+      },
+      "sat_status": {
+        "name": "Satellite dish status"
+      },
+      "sat_signal_strength": {
+        "name": "Satellite signal strength"
+      },
+      "fridge_absorber_cooling_step": {
+        "name": "Absorber fridge cooling step"
       }
     },
     "light": {
@@ -635,6 +659,18 @@
       },
       "solar_aes_active": {
         "name": "Solar AES active"
+      },
+      "alde_heating_on": {
+        "name": "Alde heating"
+      },
+      "alde_heating_active": {
+        "name": "Alde currently heating"
+      },
+      "fridge_absorber_power": {
+        "name": "Absorber fridge power"
+      },
+      "fridge_absorber_door": {
+        "name": "Absorber fridge door"
       }
     },
     "switch": {
