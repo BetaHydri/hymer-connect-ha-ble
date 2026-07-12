@@ -677,6 +677,9 @@
       "main_switch_ctrl": {
         "name": "12V Main switch"
       },
+      "alde_heating_ctrl": {
+        "name": "Alde heating"
+      },
       "water_pump_ctrl": {
         "name": "Water pump"
       },

@@ -462,6 +462,11 @@ class HymerSteppedSelect(
         writes = defn.get("writes", {}) or {}
         self._writes_off: list[dict[str, Any]] = list(writes.get("off", []))
         self._writes_step: list[dict[str, Any]] = list(writes.get("step", []))
+        # String-valued select mode (e.g. Alde energy priority "Prio Gas"/"Prio EL"):
+        # ``read.value_sensor`` holds the string state; ``writes.option`` is a single
+        # recipe run with ``$option`` substituted by the selected option string.
+        self._value_sensor: str | None = read.get("value_sensor")
+        self._writes_option: list[dict[str, Any]] = list(writes.get("option", []))
         self._optimistic: str | None = None
 
     @property
@@ -471,6 +476,16 @@ class HymerSteppedSelect(
             return self._optimistic
         if self.coordinator.data is None:
             return None
+
+        # String-valued select: reflect the string state sensor directly.
+        if self._value_sensor:
+            raw = _resolve_path(
+                self.coordinator.data, f"signalr_sensors.{self._value_sensor}"
+            )
+            if raw is None:
+                return None
+            s = str(raw)
+            return s if s in self._attr_options else None
 
         if self._off_when_power_false and self._power_sensor:
             power = _resolve_path(
@@ -501,6 +516,51 @@ class HymerSteppedSelect(
 
         if option not in self._attr_options:
             _LOGGER.warning("Unknown option '%s' for stepped select '%s'", option, self._key)
+            return
+
+        # String-valued select: run the single "option" recipe with "$option".
+        if self._writes_option:
+            for step in self._writes_option:
+                if not isinstance(step, dict):
+                    continue
+                if "delay_ms" in step:
+                    try:
+                        delay = max(0, int(step["delay_ms"])) / 1000.0
+                    except (TypeError, ValueError):
+                        continue
+                    if delay:
+                        await asyncio.sleep(delay)
+                    continue
+                sid = int(step.get("sid", 0))
+                if not sid:
+                    _LOGGER.warning(
+                        "String select '%s': write step missing 'sid' — skipping (%s)",
+                        self._key, step,
+                    )
+                    continue
+                if "str" in step:
+                    val = step["str"]
+                    if val == "$option":
+                        val = option
+                    await self.coordinator.async_send_light_command(
+                        self._bus, sid, str_value=str(val)
+                    )
+                elif "bool" in step:
+                    await self.coordinator.async_send_light_command(
+                        self._bus, sid, bool_value=bool(step["bool"])
+                    )
+                elif "uint" in step:
+                    try:
+                        await self.coordinator.async_send_light_command(
+                            self._bus, sid, uint_value=int(step["uint"])
+                        )
+                    except (TypeError, ValueError):
+                        _LOGGER.warning(
+                            "String select '%s': cannot coerce uint value %r",
+                            self._key, step.get("uint"),
+                        )
+            self._optimistic = option
+            self.async_write_ha_state()
             return
 
         is_off = option == "Off"

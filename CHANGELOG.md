@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.8] - 2026-07-12
+
+### Added
+
+- **Alde 3030 writable controls (HYMER BMC I 680, test build)** — First writable controls for the Alde heater ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). The complete Alde slot model (labels, datatypes, read/write flags, option lists) was recovered from the decompiled EHG app (`Alde3020` component, APK 2.10.14) and cross-checked with @FrankHae's on-vehicle readback:
+  - **`select.hymer_alde_energy_priority`** (bus 5 slot 5) — `Prio Gas` / `Prio EL`, from the app's `PrioElectricityGas` `stringRange`.
+  - **`switch.hymer_alde_heating`** (bus 5 slot 9 `PanelOn`) — heater master on/off.
+  - > ⚠️ **The write path on bus 5 is NOT yet verified on a vehicle.** These controls are shipped so @FrankHae can test whether the SCU accepts Alde writes from Home Assistant. If writes are silently dropped (as BLE writes are), they will be reverted. Readback for both controls is already confirmed.
+- **Generic string-valued select support** — The JSON stepped-switch select driver now also supports string-state selects via `read.value_sensor` (reflects a string sensor) and a `writes.option` recipe with `$option` substitution. Reusable for future string enums (AC modes, hot-water settings, etc.). No change to existing integer stepped selects.
+
+### Notes
+
+- Still read-only / not yet exposed pending confirmation that bus-5 writes land: Alde target temperature (5,3, float — needs float-write support), hot-water setting (5,6, `Off`/`Normal`/`Boost`), electricity power (5,7, int 0–3 kW), and the second heating zone (5,2 / 5,4).
+
 ## [2.64.7] - 2026-07-12
 
 ### Added

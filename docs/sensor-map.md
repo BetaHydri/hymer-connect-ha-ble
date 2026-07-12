@@ -809,20 +809,35 @@ First **Alde** heater mapped in this repository. Not present on Grand Canyon S 6
 ML-T 570 — those use a Truma diesel heater on bus 58/49 instead, so bus 5 is free on those
 layouts. Discovered and confirmed on a HYMER BMC I 680 (MY2024) by user @FrankHae in
 [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9) via RAW PIA toggle logs.
-Currently mapped **read-only**; a writable climate/select control set is planned once the
-remaining slots (fan steps, day/night, energy priority) are confirmed.
+The full slot model (labels, datatypes, read/write flags, option lists) is confirmed against
+the decompiled EHG app (`Alde3020` component, APK 2.10.14) — see below.
+
+Read-only sensors (mapped in v2.64.7):
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (5, 1) | `alde_inside_temp` | °C | Interior temperature (float). Matches the Hymer app value. |
-| (5, 3) | `alde_setpoint` | °C | Target/set temperature (float). Verified by changing it in the app (8/10/12/30 °C). Read-only for now. |
-| (5, 5) | `alde_energy_priority` | — | Energy priority string: `Prio Gas` / `Prio EL`. EHG capability `prio_electricity_gas` (rw). Read-only for now. |
-| (5, 9) | `alde_heating_on` | bool | Heater switched on/off. `binary_sensor` with `device_class: power`. |
-| (5, 14) | `alde_heating_active` | bool | Burner/element currently heating. `binary_sensor` with `device_class: running`. |
-| (5, 15) | `alde_outside_temp` | °C | Outside temperature probe (float, under-vehicle). |
+| (5, 1) | `alde_inside_temp` | °C | `Zone1ActualTemperature` (float). Matches the Hymer app value. |
+| (5, 3) | `alde_setpoint` | °C | `Zone1TargetTemperature` (float, **rw**). Verified by changing it in the app (8/10/12/30 °C). |
+| (5, 5) | `alde_energy_priority` | — | `PrioElectricityGas` (string, **rw**): `Prio Gas` / `Prio EL`. |
+| (5, 9) | `alde_heating_on` | bool | `PanelOn` (bool, **rw**) — heater master on/off. `binary_sensor` `device_class: power`. |
+| (5, 14) | `alde_heating_active` | bool | `pump_running` — circulation pump active (= actively heating). `binary_sensor` `device_class: running`. |
+| (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
-Slots 5,2 (constant 85.0), 5,4 (constant 36.0), 5,6–5,13 are not yet interpreted and remain
-available as disabled `Discovered bus 5 slot N` diagnostic sensors.
+Writable controls (added v2.64.8 — **write path UNVERIFIED on bus 5**, test build, revert if the SCU drops the write):
+
+| Entity | Slot | Notes |
+|--------|------|-------|
+| `select.hymer_alde_energy_priority` | (5, 5) | Options `Prio Gas` / `Prio EL` (writes the literal string; app enum keys `PRIO_GAS`/`PRIO_EL` are the fallback if rejected). |
+| `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). |
+
+Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
+
+- (5, 2) `Zone2ActualTemperature` / (5, 4) `Zone2TargetTemperature` (rw) — second heating zone; on Frank's single-zone BMC they read constant placeholders (85.0 / 36.0).
+- (5, 6) `HotWaterSetting` (string, rw) — options `Off` / `Normal` / `Boost`.
+- (5, 7) `ElectricitySetting` (int, rw, kW) — range 0–3 (the metadata doc's "string" was wrong).
+- (5, 8) `PanelBusy` (r), (5, 10) `GasSetting` (rw bool), (5, 11) `AccSetting` (rw bool), (5, 12) `Error` (r bool), (5, 13) `ac_installed` (r bool).
+
+Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.
 
 ## Bus 10 — TenHaaft satellite dish (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 

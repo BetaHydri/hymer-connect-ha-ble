@@ -177,6 +177,7 @@
 
   "switches": {
     "_doc": "Keyed by bus_id,sensor_id. write_type: str|bool|uint. on_value: readback value that means ON. holdoff_off: seconds to hold optimistic OFF state (for SCU bounce-back).",
+    "5,9": { "_doc": "BMC I 680 (MY2024): Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8); revert if the SCU drops the write.", "name": "alde_heating_ctrl", "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
     "34,2": { "name": "fridge_eco_ctrl", "icon": "mdi:leaf", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_eco" },
     "114,1": { "name": "fridge_compressor_power_ctrl", "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
     "114,2": { "name": "fridge_compressor_silent_ctrl", "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" }
@@ -259,6 +260,15 @@
             { "sid": 3, "uint": "$option_int" }
           ]
         }
+      },
+      "alde_energy_priority": {
+        "_doc": "BMC I 680 (MY2024): Alde 3030 energy-priority select (bus 5 slot 5, string rw). Options + rw flag from the decompiled EHG app (Alde3020 PrioElectricityGas, stringRange ['Prio EL','Prio Gas']); readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8). If the SCU rejects the literal option string, the app's enum keys 'PRIO_GAS'/'PRIO_EL' are the fallback. Revert if writes are dropped.",
+        "name": "Alde energy priority",
+        "icon": "mdi:gas-burner",
+        "control_bus": 5,
+        "options": ["Prio Gas", "Prio EL"],
+        "read": { "value_sensor": "alde_energy_priority" },
+        "writes": { "option": [{ "sid": 5, "str": "$option" }] }
       }
     }
   }
