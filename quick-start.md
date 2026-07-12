@@ -15,6 +15,26 @@ You always need:
 
 Then choose **one** setup path.
 
+## Which token is which? (read this first)
+
+Two different tokens are involved, and confusing them is the most common setup
+mistake. **The dealer QR activation token is NOT the EHG refresh token.**
+
+- **Dealer QR activation token** — a code from your **dealer handover paperwork**
+  (a paper document, *not* a sticker on the vehicle). You provide it during BLE
+  pairing (Path A) or the Android app (Path C) to prove physical access to the
+  vehicle. It *is* saved in the config entry (you can view it again later via
+  **Reconfigure**), but it only bootstraps the pairing — it is **not** the token
+  that authenticates the cloud / SignalR connection.
+- **EHG refresh token** — the long-lived token the integration actually stores
+  and uses for cloud / SignalR data. You never paste the QR code as the refresh
+  token; the refresh token is **obtained for you** by BLE pairing (Path A),
+  captured with mitmproxy (Path B), or extracted by the Android app (Path C).
+
+**In short: the QR code helps *obtain* the refresh token — it is not the refresh
+token itself.** For the full explanation, see
+[README → Obtaining the EHG Refresh Token](README.md#obtaining-the-ehg-refresh-token).
+
 ## Pick your setup path
 
 | Path | Choose this when | What you need |

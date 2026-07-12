@@ -122,7 +122,7 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 > 3. **Create or improve your brand's overlay** — add mappings to your brand's JSON file in [`sensor_maps/`](custom_components/hymer_connect/sensor_maps/) (e.g. `eriba.json`, `buerstner.json`). See [How you can help](#how-you-can-help) for step-by-step instructions, including a [converter tool](#-bootstrap-a-brand-overlay-with-the-converter-v2490) that generates a starting overlay from the EHG app metadata.
 > 4. **Open a PR or issue** — share your findings so all users of your brand benefit. Even a raw sensor dump is valuable!
 
-> **⚠️ Shared brand overlays — not all entities apply to every model:** Each brand overlay (e.g. `hymer.json`) contains sensor mappings for **all known models** of that brand. For example, `hymer.json` includes both the Thetford N4112A absorber fridge (bus 34, Grand Canyon S 600/S 700) and the Thetford T2120C compressor fridge (bus 114, ML-T 570). If your vehicle doesn't have a particular component, those entities will show as **"unknown"** or **"unavailable"**. This is normal — simply **disable** any entities that don't apply to your vehicle in **Settings → Entities** (filter by "hymer", then disable the unwanted ones). The integration cannot auto-detect which components your specific vehicle has.
+> **⚠️ Shared brand overlays — not all entities apply to every model:** Each brand overlay (e.g. `hymer.json`) contains sensor mappings for **all known models** of that brand. For example, `hymer.json` includes the Thetford N4112A absorber fridge (bus 34, Grand Canyon S 600/S 700), the Thetford T2120C compressor fridge (bus 114, ML-T 570), and the Thetford N4142E+ absorber fridge (bus 32) plus the Alde 3030 heater (bus 5) and TenHaaft satellite dish (bus 10) of the BMC I 680. If your vehicle doesn't have a particular component, those entities will show as **"unknown"** or **"unavailable"**. This is normal — simply **disable** any entities that don't apply to your vehicle in **Settings → Entities** (filter by "hymer", then disable the unwanted ones). The integration cannot auto-detect which components your specific vehicle has.
 
 ## Features
 
@@ -299,6 +299,36 @@ Use it for:
 - Since v2.62.24, **BLE is read-only for sensor data**. All writes go via cloud / SignalR.
 - If you are a new user, you usually do **not** need the deep BLE / SignalR internals below to get started.
 
+### Obtaining the EHG Refresh Token
+
+> **The dealer QR activation token is NOT the EHG refresh token.** These are two
+> different things, and confusing them is the single most common question from
+> new users:
+>
+> - **Dealer QR activation token** — a code from your **dealer handover
+>   paperwork** (a paper document, *not* a sticker on the vehicle). You provide it
+>   during BLE pairing (Path A) or the Android app (Path C) to prove physical
+>   vehicle access. It *is* stored in the config entry (and can be viewed again
+>   later via **Reconfigure**), but it only bootstraps the pairing — it is **not**
+>   the token that authenticates the cloud / SignalR connection.
+> - **EHG refresh token** — the long-lived OAuth token (`ett=access-refresh`, no
+>   expiry) the integration actually stores and exchanges for short-lived access
+>   tokens. This is what powers cloud / SignalR data.
+
+You never paste the QR code as the refresh token. Instead the refresh token is
+**obtained for you**, depending on your setup path:
+
+| Path | How the refresh token is obtained |
+|---|---|
+| **A — BLE + Cloud** | The integration pairs with the SCU over Bluetooth (press **CONNECTION** on the SCU touch panel) and extracts the refresh token automatically — nothing to copy or paste. |
+| **B — Cloud-only (mitmproxy)** | You capture the refresh token from EHG app traffic with mitmproxy and paste it into the integration. See [`tools/README.md`](tools/README.md). |
+| **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest) performs the BLE pairing on your phone and shows the refresh token to copy/paste. |
+
+Once obtained, the refresh token is stored in the Home Assistant config entry and
+**survives HACS updates** — you only lose it if you delete the integration under
+**Settings → Devices & Services**. Step-by-step instructions for each path are in
+[quick-start.md](quick-start.md#pick-your-setup-path).
+
 ### Advanced setup references
 
 - **Quick start:** [quick-start.md](quick-start.md)
@@ -431,9 +461,11 @@ graph TD
 > on a Mercedes Sprinter base with Truma Combi D6E heater, Thetford N4112A
 > fridge, and Voltronic MPP260CI solar charger.
 >
-> **Also field-validated by community users:** HYMER ML-T 570 and ML-T 580,
-> including external smart sensors (tyre pressure, gas, temperature/humidity)
-> where present.
+> **Also field-validated by community users:** HYMER ML-T 570 and ML-T 580
+> (including external smart sensors — tyre pressure, gas, temperature/humidity —
+> where present) and the HYMER BMC I 680 (MY2024), the first vehicle in the
+> project with an **Alde 3030** hydronic heater, a **TenHaaft** satellite dish,
+> and a **Thetford N4142E+** absorber fridge.
 >
 > Sensor maps are still shared at brand level, so individual bus/slot behavior
 > can differ by model year and installed equipment.
@@ -442,7 +474,7 @@ graph TD
 
 The integration should work on **any EHG vehicle with an SCU**, but with some limitations:
 
-Known working examples include Grand Canyon S 600/S 700 and ML-T 570/580.
+Known working examples include Grand Canyon S 600/S 700, ML-T 570/580, and BMC I 680 (MY2024).
 
 | What | Works? | Details |
 |------|--------|---------|
@@ -452,8 +484,8 @@ Known working examples include Grand Canyon S 600/S 700 and ML-T 570/580.
 | **Habitation sensors** (bus 3 — water, power source, charge phase) | ✅ Likely | LIN bus sensors on bus 3 (lin1) are part of the standard SCU wiring |
 | **CAN bus sensors** (bus 1 — speed, RPM, doors, locks) | ⚠️ Partial | Bus 1 sensor **slots differ between models**. The S600 maps (1,2) as speed; the S700 maps it as fuel level. A mitmproxy capture on your vehicle is needed to verify |
 | **Lights** | ⚠️ Partial | Light bus IDs (11, 12, 15, 16, 19, 21, 24, 43, 44) and their capabilities (brightness; color temp on ambient lights only) are specific to the Grand Canyon S layout. Your vehicle may have different lights on different buses |
-| **Truma heater** (bus 58) | ⚠️ Depends | Only if your vehicle has a Truma heater connected via the SCU. Vehicles with Alde or other heating systems may use different bus IDs |
-| **Fridge** (bus 34) | ⚠️ Depends | Only if your vehicle has a Thetford fridge connected via the SCU |
+| **Heater** (bus 58 Truma / bus 5 Alde) | ⚠️ Depends | Truma Combi heaters report on **bus 58** (Grand Canyon S 600/S 700, ML-T). **Alde 3030** hydronic heaters report on **bus 5** — read-only sensors (inside/outside temp, setpoint, energy priority, heating state) were mapped in v2.64.7 on the BMC I 680; writable Alde climate/select controls are in progress. Other heating systems may use different bus IDs |
+| **Fridge** (bus 34 / 32 / 114 / 60) | ⚠️ Depends | Thetford **N4112A absorber** on **bus 34** (Grand Canyon S 600/S 700). Other mapped variants: **bus 32** Thetford **N4142E+ absorber** (BMC I 680), **bus 114** Thetford **T2120C compressor** (ML-T 570), **bus 60** Dometic compressor (Eriba Car 602) |
 | **Solar** (bus 8) | ⚠️ Depends | Mapped for the Voltronic MPP260CI (S600) / MPP250Duo (S700) MPPT charger. Other solar setups may report on different bus IDs |
 | **Extended CAN** (bus 99) | ⚠️ Depends | On the S600: AdBlue, ambient temp, fuel range, gear. On the S700: lithium BMS (voltage, current, SoC, SoH). Slot meanings vary by vehicle configuration |
 
@@ -1255,7 +1287,7 @@ graph TB
     end
 
     subgraph "PIA-addressed Devices"
-        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>ML-T 570: Bus 14 · 66<br/>On/Off · Brightness · Color temp (ambient only)"]
+        LIGHTS["Lights (8 interior + LED bar)<br/>Bus 11 · 12 · 15 · 16 · 19 · 21 · 43 · 44<br/>ML-T 570: Bus 14 · 66 — BMC I 680: Bus 13 · 17<br/>On/Off · Brightness · Color temp (ambient only)"]
         GROUPS["Light Groups<br/>Bus 24 — Wohnen (all living)<br/>Bus 27 — Privat (all bedroom/bath)"]
         LEDBAR["LED Bar (outside)<br/>Bus 25 (primary) · Bus 22 (duplicate)"]
         FRIDGE["Thetford N4112A Fridge<br/>Bus 34 — Control (power · ECO · step)<br/>Bus 37 — Status (mode · door)"]
@@ -1288,21 +1320,30 @@ graph TB
 |--------|--------------|-------------|--------|-------------|
 | 1 | `can0` | **CAN** | Mercedes Sprinter chassis | Odometer, fuel, doors, ignition, engine, AdBlue, VIN, temperature |
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
+| 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — read-only (v2.64.7) |
 | 8 | `lin2` | **LIN** | Voltronic MPP260CI | Solar voltage, current, power, charger status, error flags |
+| 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite, dish status, signal strength (v2.64.7) |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
+| 13 | — | PIA | BMC I 680 floor ambient light | On/off, brightness (member of Wohnen group, bus 24) — v2.64.6 |
 | 14 | — | PIA | ML-T 570 bedroom ceiling | On/off, brightness (member of Privat group, bus 27) |
+| 17 | — | PIA | BMC I 680 shower ceiling light | On/off, brightness (member of Privat group, bus 27) — v2.64.6 |
 | 22 | — | PIA | LED bar (duplicate) | Mirrors bus 25 — disabled by default |
 | 24 | — | PIA | Wohnen light group | Hardware group toggle for all living area lights |
 | 25 | — | PIA | Outside LED bar | On/off, brightness |
 | 27 | — | PIA | Privat light group | Hardware group toggle for all private area lights |
 | 30 | — | PIA | SCU telemetry | GPS coordinates, altitude, heading, satellites, LTE, Bluetooth |
+| 32 | — | PIA | Thetford N4142E+ absorber fridge (BMC I 680) | Power, cooling step 1–5 (writable select), door — v2.64.7 |
 | 34 | `heat_ctrl` | PIA | Thetford fridge (control) | Power, ECO, cooling step, setpoint |
 | 37 | `fridge` | PIA | Thetford fridge (status) | Operating mode, door state |
 | 43–44 | — | PIA | Overhead lights | Seating overhead, bedroom overhead |
 | 45 | `scu` | PIA | SCU module | Connected flag, firmware version |
 | 49 | `truma` | PIA | Truma LIM module | Connected flag, status, firmware |
 | 58 | `heater` | PIA | Truma Combi D6E | Setpoint, fan speed, fuel type, electric power, operating mode |
+| 60 | — | PIA | Dometic compressor fridge (Eriba Car 602) | Power, cooling, door — mapped by @mvondemhagen (#54) |
 | 66 | — | PIA | ML-T 570 dinette pendant lamp | On/off, brightness (member of Wohnen group, bus 24) |
+| 70 | — | PIA | HYMER Smart tyre sensors (auto-slot) | Status, pressure, temperature, battery per sensor |
+| 71 | — | PIA | HYMER Smart gas-bottle sensors (auto-slot) | Level (%), height, battery, status per bottle |
+| 73 | — | PIA | HYMER Smart contact sensors (auto-slot) | Status, battery per sensor |
 | 74 | — | PIA | ML-T 570 SIU Smart Sensor | Temperature (°C), humidity (%) — first SIU external sensor mapped |
 | 76 | — | PIA | ML-T 570 water tanks | Fresh water level (%), grey water level (%) — distinct from bus 3 EBL |
 | 99 | `can2` | **CAN** | BOS LUX LiFePO4 BMS | Pack V/A/°C, SOC, SoH, capacity, charge detect, device failure |
@@ -1438,6 +1479,7 @@ Big thanks to everyone who contributed sensor mappings, debugging time, or APK m
 - [@dan-simms1](https://github.com/dan-simms1) — corrected Mercedes bus 1 chassis sensor labels on Grand Canyon S700 ([#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) and built the upstream [EHG runtime-metadata extractor](https://github.com/dan-simms1/hymer-connect-ha) that powers the brand-overlay bootstrap.
 - [@mvondemhagen](https://github.com/mvondemhagen) — Dometic compressor fridge mapping (bus 60) on Eriba Car 602 ([#54](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/54)).
 - [@mcfly1969](https://github.com/mcfly1969) — first HYMER ML-T 570 CrossOver mappings (bus 14 bedroom ceiling, bus 66 dinette pendant, **bus 114 Thetford Compressor T2120C fridge** — compressor fridge with freezer compartment, distinct from the Thetford N4112A absorber on S 600/S 700), discovered via the dynamic-discovery diagnostic sensors and confirmed at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8), 2026-06-01/07).
+- [@FrankHae](https://github.com/FrankHae) — first HYMER **BMC I 680 (MY2024)** mappings and the **first Alde heater** in the project: individual lights on **bus 13** (floor ambient) and **bus 17** (shower ceiling) in v2.64.6, plus the **Alde 3030** heater (bus 5), **TenHaaft satellite dish** (bus 10) and **Thetford N4142E+ absorber fridge** (bus 32) read-only sensors in v2.64.7 — all confirmed at the vehicle via RAW PIA toggle logs ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9), 2026-07).
 
 ## License
 
