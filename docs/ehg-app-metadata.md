@@ -520,8 +520,8 @@ devices can create their own brand overlay JSON. Slot numbering matches the PIA
 | 7 | `electricity_setting` | string | rw |
 | 8 | `panel_busy` | bool | r |
 | 9 | `panel_on` | bool | r |
-| 10 | `gas_setting` | string | r |
-| 11 | `acc_setting` | string | r |
+| 10 | `gas_setting` | bool | rw |
+| 11 | `acc_setting` | bool | rw |
 | 12 | `error` | bool | r |
 | 13 | `ac_installed` | bool | r |
 | 14 | `pump_running` | bool | r |

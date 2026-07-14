@@ -21,6 +21,11 @@
     "5,9": { "_doc": "BMC I 680: Alde 3030 heating on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false.", "name": "alde_heating_on", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:radiator" },
     "5,14": { "_doc": "BMC I 680: Alde 3030 currently heating/burner active (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): heating=true, idle=false.", "name": "alde_heating_active", "platform": "binary_sensor", "device_class": "running", "icon": "mdi:radiator" },
     "5,15": { "_doc": "BMC I 680: Alde 3030 outside temperature probe (f6 float, under-vehicle). Confirmed by @FrankHae 2026-07-10 (issue #9).", "name": "alde_outside_temp", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+    "5,6": { "_doc": "BMC I 680: Alde 3030 hot-water boiler mode (EHG HotWaterSetting, string rw). App 'Warmwasser Boiler' + 'Turbo Modus'. Read sensor backing the alde_hot_water select. @FrankHae saw 'Off' (no water in the lines yet). Bus 5 unused on S600/S700/ML-T.", "name": "alde_hot_water_mode", "platform": "sensor", "icon": "mdi:water-boiler" },
+    "5,7": { "_doc": "BMC I 680: Alde 3030 electric booster heater level (EHG ElectricitySetting, int 0-3 kW, rw). App 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). Read sensor backing the alde_electric_boost select.", "name": "alde_electric_setting", "platform": "sensor", "icon": "mdi:heat-wave" },
+    "5,10": { "_doc": "BMC I 680: Alde 3030 gas enable (EHG GasSetting, bool rw). App 'Gas aktivieren'. Confirmed ON by @FrankHae screenshots (#9). Read sensor backing the alde_gas_ctrl switch.", "name": "alde_gas_active", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:gas-burner" },
+    "5,11": { "_doc": "BMC I 680: Alde 3030 accessory setting (EHG AccSetting, bool rw per decompiled Alde3020 id 11). Function unknown — likely an auxiliary output. Exposed READ-ONLY for now; @FrankHae to observe what toggles it (RAW PIA) before we add a writable switch. Not yet reported on-vehicle. Bus 5 unused on S600/S700/ML-T.", "name": "alde_acc_setting", "platform": "binary_sensor", "icon": "mdi:tune" },
+    "5,12": { "_doc": "BMC I 680: Alde 3030 dedicated hard-error flag (EHG Error, bool r per decompiled Alde3020 id 12). Distinct from slot 8 PanelBusy (alde_error), which fires for panel-attention/lockouts. Slot 12 stayed False during @FrankHae's antibacterial-reminder lockout (13–14 Jul 2026), so this is the true fault flag. Disabled by default (diagnostic) until a real fault sample confirms True. Bus 5 unused on S600/S700/ML-T.", "name": "alde_fault", "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-octagon", "enabled": false },
 
     "10,5": { "_doc": "BMC I 680: TenHaaft satellite dish — currently selected satellite (text, e.g. 'Astra 1'/'Eutelsat 9'/'Hotbird', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). Bus 10 unused on S600/S700/ML-T.", "name": "sat_satellite", "platform": "sensor", "icon": "mdi:satellite-variant" },
     "10,6": { "_doc": "BMC I 680: TenHaaft satellite dish status (text, e.g. 'Searching clockwise', 'Satellite found', 'Is closed', 'Is retracting', f4). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_status", "platform": "sensor", "icon": "mdi:satellite-uplink" },
@@ -180,6 +185,7 @@
   "switches": {
     "_doc": "Keyed by bus_id,sensor_id. write_type: str|bool|uint. on_value: readback value that means ON. holdoff_off: seconds to hold optimistic OFF state (for SCU bounce-back).",
     "5,9": { "_doc": "BMC I 680 (MY2024): Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8); revert if the SCU drops the write.", "name": "alde_heating_ctrl", "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
+    "5,10": { "_doc": "BMC I 680 (MY2024): Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH UNVERIFIED on bus 5 slot 10 — test control (v2.65.2); revert if the SCU drops the write.", "name": "alde_gas_ctrl", "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
     "34,2": { "name": "fridge_eco_ctrl", "icon": "mdi:leaf", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_eco" },
     "114,1": { "name": "fridge_compressor_power_ctrl", "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
     "114,2": { "name": "fridge_compressor_silent_ctrl", "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" }
@@ -271,6 +277,27 @@
         "options": ["Prio Gas", "Prio EL"],
         "read": { "value_sensor": "alde_energy_priority" },
         "writes": { "option": [{ "sid": 5, "str": "$option" }] }
+      },
+      "alde_electric_boost": {
+        "_doc": "BMC I 680 (MY2024): Alde 3030 electric booster heater level (bus 5 slot 7 = ElectricitySetting, int 0-3 kW, rw per decompiled EHG app Alde3020). App label 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW); options are kW steps (Off = Aus). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). WRITE PATH UNVERIFIED on bus 5 slot 7 — test control (v2.65.2); revert if the SCU drops the write.",
+        "name": "Alde electric booster",
+        "icon": "mdi:heat-wave",
+        "control_bus": 5,
+        "options": ["Off", "1", "2", "3"],
+        "read": { "step_sensor": "alde_electric_setting", "off_value": 0 },
+        "writes": {
+          "off": [{ "sid": 7, "uint": 0 }],
+          "step": [{ "sid": 7, "uint": "$option_int" }]
+        }
+      },
+      "alde_hot_water": {
+        "_doc": "BMC I 680 (MY2024): Alde 3030 hot-water boiler mode (bus 5 slot 6 = HotWaterSetting, string rw per decompiled EHG app Alde3020). App label 'Warmwasser Boiler' toggle + 'Turbo Modus' (Boost). Options from the decompiled stringRange. WRITE PATH + exact option strings UNVERIFIED — @FrankHae cannot test yet (no water in the lines); revert/adjust once confirmed on-vehicle (v2.65.2).",
+        "name": "Alde hot water",
+        "icon": "mdi:water-boiler",
+        "control_bus": 5,
+        "options": ["Off", "Normal", "Boost"],
+        "read": { "value_sensor": "alde_hot_water_mode" },
+        "writes": { "option": [{ "sid": 6, "str": "$option" }] }
       },
       "fridge_absorber_power_mode": {
         "_doc": "BMC I 680 (MY2024): Thetford N4142E+ absorber fridge power-source select (bus 32 slot 2 = SetPowerMode, string rw). Options from decompiled EHG app (ThetfordN4000 SetPowerMode stringRange). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 32 — test control (v2.64.9); revert if the SCU drops the write.",

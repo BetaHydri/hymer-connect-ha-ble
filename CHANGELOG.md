@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.2] - 2026-07-14
+
+### Added
+
+- **Alde 3030 writable controls — electric booster, gas, hot-water (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). Mapped the remaining Alde `Klima` controls from @FrankHae's EHG-app screenshots + decompiled `Alde3020` slot model:
+  - **`select.hymer_alde_electric_booster`** (bus 5 slot 7 = `ElectricitySetting`, int 0–3 kW) — app „Elektrische Zusatzheizung“/„Max Elektrizität“. Options `Off / 1 / 2 / 3` (kW steps; `Off` = „Aus“). Backed by read sensor `sensor.hymer_alde_electric_booster_level` (5,7).
+  - **`switch.hymer_alde_gas`** (bus 5 slot 10 = `GasSetting`, bool) — app „Gas aktivieren“. Backed by `binary_sensor.hymer_alde_gas_active` (5,10).
+  - **`select.hymer_alde_hot_water`** (bus 5 slot 6 = `HotWaterSetting`, string) — app „Warmwasser Boiler“ + „Turbo Modus“. Options `Off / Normal / Boost`. Backed by `sensor.hymer_alde_hot_water_mode` (5,6).
+  - > ⚠️ **Write paths on bus 5 slots 6/7/10 are not yet verified on a vehicle.** Bus-5 writes (Alde on/off, energy priority) are already confirmed landing on Frank's SCU, so these should work — but the hot-water option strings are unconfirmed (Frank has no water in the lines yet). Revert/adjust if the SCU drops a write.
+
+### Verified via decompilation (issue #9 cross-check)
+
+- Re-checked every bus-5 slot against the decompiled EHG app (`Alde3020` component, `source/androidapp/_hermes_decompiled/index.js`). Ground truth: slot 6 `HotWaterSetting` = `rw string ['Off','Normal','Boost']`, slot 7 `ElectricitySetting` = `rw int` (kW, range 0–3), slot 9 `PanelOn` = `rw bool`, slot 10 `GasSetting` = `rw bool`, slot 11 `AccSetting` = `rw bool`, slot 8 `PanelBusy` = `r bool`, slot 12 `Error` = `r bool`. This confirms the new controls above and **corrects `docs/ehg-app-metadata.md`**, which had slots 10/11 as `string r` (they are `bool rw`).
+- Added two more read-only sensors from that model: `binary_sensor.hymer_alde_accessory_setting` (5,11 `AccSetting` — function unknown, exposed read-only so @FrankHae can observe before we add a writable switch) and a disabled-by-default `binary_sensor.hymer_alde_fault` (5,12 `Error` — the dedicated hard-fault flag, kept separate from the 5,8 panel-busy `alde_error`).
+
 ## [2.65.1] - 2026-07-14
 
 ### Fixed

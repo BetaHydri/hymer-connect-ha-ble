@@ -401,6 +401,12 @@
       },
       "fridge_absorber_power_mode": {
         "name": "Absorber fridge power source"
+      },
+      "alde_electric_setting": {
+        "name": "Alde electric booster level"
+      },
+      "alde_hot_water_mode": {
+        "name": "Alde hot water mode"
       }
     },
     "light": {
@@ -672,6 +678,15 @@
       },
       "fridge_absorber_door": {
         "name": "Absorber fridge door"
+      },
+      "alde_gas_active": {
+        "name": "Alde gas active"
+      },
+      "alde_acc_setting": {
+        "name": "Alde accessory setting"
+      },
+      "alde_fault": {
+        "name": "Alde fault"
       }
     },
     "switch": {
@@ -692,6 +707,9 @@
       },
       "fridge_compressor_silent_ctrl": {
         "name": "Compressor fridge silent mode"
+      },
+      "alde_gas_ctrl": {
+        "name": "Alde gas"
       }
     },
     "climate": {

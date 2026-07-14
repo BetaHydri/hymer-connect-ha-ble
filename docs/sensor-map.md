@@ -825,9 +825,14 @@ Read-only sensors (mapped in v2.64.7):
 | (5, 1) | `alde_inside_temp` | °C | `Zone1ActualTemperature` (float). Matches the Hymer app value. |
 | (5, 3) | `alde_setpoint` | °C | `Zone1TargetTemperature` (float, **rw**). Verified by changing it in the app (8/10/12/30 °C). |
 | (5, 5) | `alde_energy_priority` | — | `PrioElectricityGas` (string, **rw**): `Prio Gas` / `Prio EL`. |
+| (5, 6) | `alde_hot_water_mode` | — | `HotWaterSetting` (string, **rw**): `Off` / `Normal` / `Boost`. Read sensor backing `select.hymer_alde_hot_water`. Added v2.65.2. |
+| (5, 7) | `alde_electric_setting` | kW | `ElectricitySetting` (int, **rw**, 0–3 kW). Read sensor backing `select.hymer_alde_electric_booster`. Added v2.65.2. |
 | (5, 9) | `alde_heating_on` | bool | `PanelOn` (bool, **rw**) — heater master on/off. `binary_sensor` `device_class: power`. |
 | (5, 8) | `alde_error` | bool | `Error` — an error/warning is pending at the Alde panel (e.g. the antibacterial/Legionella boiler-service reminder). `binary_sensor` `device_class: problem`. **Remapped from slot 12 → slot 8 in v2.65.1** on @FrankHae's on-vehicle evidence: during a real Alde error (13–14 Jul 2026) slot 8 was `True` for the whole error window and `False` otherwise, while slot 12 stayed `False`. **Only the boolean is transmitted — the message TEXT is panel-only.** A pending error can block remote on/off from HA and the EHG app until acknowledged with **OK on the panel** (Alde firmware behaviour, not overridable). The decompiled EHG `Alde3020` component labels slot 12 `error`, but that did not match this vehicle/firmware. |
 | (5, 14) | `alde_heating_active` | bool | `pump_running` — circulation pump active (= actively heating). `binary_sensor` `device_class: running`. |
+| (5, 10) | `alde_gas_active` | bool | `GasSetting` (bool, **rw**) — gas enable. Read sensor backing `switch.hymer_alde_gas`. Added v2.65.2. |
+| (5, 11) | `alde_acc_setting` | bool | `AccSetting` (bool, **rw** per decompiled model) — function unknown (likely an auxiliary output). Exposed **read-only** for now until @FrankHae observes what toggles it. Added v2.65.2. |
+| (5, 12) | `alde_fault` | bool | `Error` (bool, r) — dedicated hard-fault flag, distinct from the slot-8 panel-busy `alde_error`. **Disabled by default** (diagnostic) until a real fault sample confirms it. Added v2.65.2. |
 | (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
 Writable controls (added v2.64.8 — **write path UNVERIFIED on bus 5**, test build, revert if the SCU drops the write):
@@ -835,14 +840,16 @@ Writable controls (added v2.64.8 — **write path UNVERIFIED on bus 5**, test bu
 | Entity | Slot | Notes |
 |--------|------|-------|
 | `select.hymer_alde_energy_priority` | (5, 5) | Options `Prio Gas` / `Prio EL` (writes the literal string; app enum keys `PRIO_GAS`/`PRIO_EL` are the fallback if rejected). |
+| `select.hymer_alde_hot_water` | (5, 6) | Options `Off` / `Normal` / `Boost` (`HotWaterSetting`, string). Added v2.65.2. |
+| `select.hymer_alde_electric_booster` | (5, 7) | Options `Off` / `1` / `2` / `3` kW (`ElectricitySetting`, int 0–3). Added v2.65.2. |
 | `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). |
+| `switch.hymer_alde_gas` | (5, 10) | Gas enable (`GasSetting`, bool). Added v2.65.2. |
 
 Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
 
 - (5, 2) `Zone2ActualTemperature` / (5, 4) `Zone2TargetTemperature` (rw) — second heating zone; on Frank's single-zone BMC they read constant placeholders (85.0 / 36.0).
-- (5, 6) `HotWaterSetting` (string, rw) — options `Off` / `Normal` / `Boost`.
-- (5, 7) `ElectricitySetting` (int, rw, kW) — range 0–3 (the metadata doc's "string" was wrong).
-- (5, 8) `PanelBusy` (r), (5, 10) `GasSetting` (rw bool), (5, 11) `AccSetting` (rw bool), (5, 13) `ac_installed` (r bool).
+- (5, 11) `AccSetting` (rw bool) — exposed read-only as `alde_acc_setting` in v2.65.2; a writable switch is deferred until its function is confirmed on-vehicle.
+- (5, 13) `ac_installed` (r bool) — constant False on Frank's vehicle (no AC).
 
 Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.
 
