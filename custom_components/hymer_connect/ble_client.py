@@ -69,6 +69,17 @@ UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 UART_RX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # Phone/Pi → SCU (write)
 UART_TX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # SCU → Phone/Pi (notify)
 
+# Name substrings used to recognise an SCU/SIU in a BLE advertisement.
+# The SCU advertises as "<BRAND> <serial>" (confirmed e.g. "HYMER 00013970"),
+# so every supported EHG brand token is included here alongside the generic
+# SCU/SIU/EHG markers. Kept lowercase for case-insensitive matching.
+SCU_NAME_TOKENS: frozenset[str] = frozenset({
+    "scu", "siu", "ehg",
+    "hymer", "buerstner", "bürstner", "burstner", "dethleffs", "eriba",
+    "lmc", "niesmann", "bischoff", "sunlight", "carado", "laika",
+    "freeontour",
+})
+
 # SCU power management service
 POWER_SERVICE_UUID = "fff40001-13c9-42f3-9d46-e1d1aa2a7232"
 POWER_STATE_UUID = "fff40002-13c9-42f3-9d46-e1d1aa2a7232"
@@ -802,34 +813,54 @@ class ScuBleClient:
     def scu_address(self) -> str:
         return self._scu_address
 
+    @staticmethod
+    def _is_scu_candidate(name: str, uuids: list[str]) -> bool:
+        """Return True when an advertised device looks like an SCU.
+
+        Matches on the Nordic UART Service UUID (primary signal) or on a
+        recognisable name substring. Kept intentionally broad so unusual
+        firmware advertising variants are not filtered out.
+        """
+        lname = (name or "").lower()
+        if UART_SERVICE_UUID.lower() in uuids:
+            return True
+        return any(tag in lname for tag in SCU_NAME_TOKENS)
+
     async def scan_for_scu(
         self,
         timeout: float = DEFAULT_SCAN_TIMEOUT,
         hass: Any | None = None,
+        *,
+        active_fallback: bool = True,
+        retries: int = 2,
     ) -> list[dict]:
         """Scan for nearby SCU devices advertising the NUS service.
 
-        When *hass* is provided (running inside Home Assistant), uses HA's
-        managed Bluetooth scanner (habluetooth) which avoids conflicts with
-        the BlueZ adapter.  Falls back to a raw BleakScanner.discover() for
-        standalone / tool usage.
-        """
-        results: list[dict] = []
+        When *hass* is provided (running inside Home Assistant), first uses
+        HA's managed Bluetooth scanner (habluetooth) which reads the passive
+        advertisement cache without conflicting with the BlueZ adapter. If
+        that cache yields no candidates and *active_fallback* is True, an
+        active ``BleakScanner.discover()`` is run as a second stage — this is
+        important because the passive cache can be empty even when the SCU is
+        pairable (it only advertises intermittently, especially in standby).
 
-        # ── HA-native path ──────────────────────────────────────────────
+        For standalone / tool usage (no *hass*), an active scan is used
+        directly. Up to *retries* extra active scans are performed while no
+        candidate is found, since the SCU advertisement is intermittent.
+        """
+        # ── HA-native passive cache path ────────────────────────────────
         if hass is not None:
             try:
                 from homeassistant.components.bluetooth import async_discovered_service_info
 
-                _LOGGER.debug("BLE scan via HA Bluetooth integration")
+                _LOGGER.debug("BLE scan via HA Bluetooth integration (passive cache)")
+                seen = 0
+                results: list[dict] = []
                 for info in async_discovered_service_info(hass):
+                    seen += 1
                     name = info.name or ""
                     uuids = [str(u).lower() for u in (info.service_uuids or [])]
-                    if (
-                        UART_SERVICE_UUID.lower() in uuids
-                        or "hymer" in name.lower()
-                        or "scu" in name.lower()
-                    ):
+                    if self._is_scu_candidate(name, uuids):
                         results.append({
                             "address": info.address,
                             "name": name,
@@ -838,34 +869,67 @@ class ScuBleClient:
                         })
                 results.sort(key=lambda x: x.get("rssi") or -999, reverse=True)
                 _LOGGER.debug(
-                    "HA BLE scan matched %d SCU candidates: %s",
+                    "HA BLE passive cache: %d devices seen, %d SCU candidates: %s",
+                    seen,
                     len(results),
                     [(r["address"], r["name"], r["rssi"]) for r in results],
                 )
-                return results
+                if results:
+                    return results
+                if not active_fallback:
+                    return results
+                _LOGGER.debug(
+                    "HA passive cache had no SCU candidate — "
+                    "falling back to an active BLE scan"
+                )
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("HA Bluetooth API unavailable, falling back to BleakScanner")
 
-        # ── Standalone fallback (tools / non-HA) ────────────────────────
+        # ── Active scan (standalone tools OR HA passive-cache miss) ──────
+        return await self._active_scan_for_scu(timeout=timeout, retries=retries)
+
+    async def _active_scan_for_scu(
+        self, *, timeout: float, retries: int
+    ) -> list[dict]:
+        """Run one or more active ``BleakScanner.discover()`` passes."""
         if not HAS_BLEAK:
             raise BleTransportError("bleak is not installed")
-        _LOGGER.debug("BLE scan starting (timeout=%.1fs)", timeout)
-        discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
-        _LOGGER.debug("BLE scan found %d total devices", len(discovered))
-        for _, (device, adv) in discovered.items():
-            name = device.name or adv.local_name or ""
-            uuids = [str(u).lower() for u in (adv.service_uuids or [])]
-            if UART_SERVICE_UUID.lower() in uuids or "hymer" in name.lower() or "scu" in name.lower():
-                results.append({
-                    "address": device.address,
-                    "name": name,
-                    "rssi": adv.rssi,
-                    "service_uuids": uuids,
-                })
-        results.sort(key=lambda x: x.get("rssi") or -999, reverse=True)
-        _LOGGER.debug("BLE scan matched %d SCU candidates: %s", len(results),
-                      [(r["address"], r["name"], r["rssi"]) for r in results])
-        return results
+
+        attempts = max(1, retries + 1)
+        for attempt in range(1, attempts + 1):
+            _LOGGER.debug(
+                "Active BLE scan %d/%d starting (timeout=%.1fs)",
+                attempt, attempts, timeout,
+            )
+            try:
+                discovered = await BleakScanner.discover(
+                    timeout=timeout, return_adv=True
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("Active BLE scan %d failed: %s", attempt, err)
+                continue
+
+            results: list[dict] = []
+            for _, (device, adv) in discovered.items():
+                name = device.name or adv.local_name or ""
+                uuids = [str(u).lower() for u in (adv.service_uuids or [])]
+                if self._is_scu_candidate(name, uuids):
+                    results.append({
+                        "address": device.address,
+                        "name": name,
+                        "rssi": adv.rssi,
+                        "service_uuids": uuids,
+                    })
+            results.sort(key=lambda x: x.get("rssi") or -999, reverse=True)
+            _LOGGER.debug(
+                "Active BLE scan %d/%d: %d devices seen, %d SCU candidates: %s",
+                attempt, attempts, len(discovered), len(results),
+                [(r["address"], r["name"], r["rssi"]) for r in results],
+            )
+            if results:
+                return results
+
+        return []
 
     async def _create_connected_client(self) -> BleakClient:
         """Create and connect a BleakClient, preferring HA's retry connector.

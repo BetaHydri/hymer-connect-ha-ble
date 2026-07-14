@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.3] - 2026-07-14
+
+### Changed
+
+- **More robust BLE SCU auto-detection during setup ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).** Two users reported that Path A (BLE) setup could not find the SCU even with the CONNECTION button pressed at the vehicle. The auto-scan used during the config flow (when no BLE MAC address is entered) has been hardened:
+  - **Active-scan fallback.** The scan first reads Home Assistant's passive Bluetooth advertisement cache; if that yields no SCU candidate it now runs an **active `BleakScanner.discover()`** pass as a second stage. Previously an empty passive cache returned immediately with no SCU found — even though the SCU was pairable. The SCU advertises only intermittently (especially in standby), so the passive cache is often empty at the moment of setup.
+  - **Scan retries.** The active scan now runs up to three short passes while no candidate is seen, instead of a single attempt, to catch the SCU's intermittent advertisement.
+  - **Brand-aware name filter.** The SCU advertises as `<BRAND> <serial>` (confirmed e.g. `HYMER 00013970`). The detector previously matched only the `hymer`/`scu` name substrings, so a Bürstner / Carado / Dethleffs / Eriba / LMC / Niesmann+Bischoff / Sunlight / Laika / FreeOnTour SCU could be missed unless it also advertised the Nordic UART Service UUID. The name filter now recognises **every supported EHG brand** (plus the generic `scu` / `siu` / `ehg` markers and the NUS service UUID).
+  - **Clearer diagnostics.** BLE scan debug logging now reports how many devices were seen versus how many matched as SCU candidates, per scan pass — making it obvious whether a failed setup is a discovery problem (SCU never advertised) or a pairing problem (SCU seen but bonding rejected).
+  - > ℹ️ If the SCU never appears in any scan (as on issue [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)), it is an adapter / range / standby issue at the vehicle, not a filter problem — verify with `bluetoothctl scan le` near the vehicle. Cloud-only mode (Path B) remains fully available in the meantime.
+
 ## [2.65.2] - 2026-07-14
 
 ### Added
