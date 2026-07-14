@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.1] - 2026-07-14
+
+### Fixed
+
+- **Alde 3030 error sensor remapped `5,12` → `5,8` (HYMER BMC I 680)** — The `binary_sensor.hymer_alde_error` was reading the wrong slot ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). @FrankHae hit a real Alde panel error again (13–14 Jul 2026) and reported that slot 12 stayed `False` the whole time while **slot 8** read `True` for the exact error window and `False` otherwise. The sensor now reads **bus 5 slot 8**. The decompiled EHG `Alde3020` component labels slot 12 `error`, but that did not match Frank's vehicle/firmware — on-vehicle evidence wins. The old `5,12` reverts to a disabled `Discovered bus 5 slot 12` diagnostic.
+  - > ℹ️ Entity id, name and `device_class: problem` are unchanged — only the underlying bus/slot moved, so no dashboard or automation changes are needed.
+
 ## [2.65.0] - 2026-07-12
 
 ### Added
