@@ -462,6 +462,17 @@ class HymerSteppedSelect(
         writes = defn.get("writes", {}) or {}
         self._writes_off: list[dict[str, Any]] = list(writes.get("off", []))
         self._writes_step: list[dict[str, Any]] = list(writes.get("step", []))
+        # Optional parallel int list letting the display labels differ from the
+        # integer written/read (e.g. options ``["Off","1 kW","2 kW","3 kW"]`` with
+        # ``option_values`` ``[0,1,2,3]``). When absent the label itself must be a
+        # bare int (legacy behaviour), so existing fridge selects are unaffected.
+        self._option_values: list[int] | None = None
+        ov = defn.get("option_values")
+        if isinstance(ov, list) and len(ov) == len(self._attr_options):
+            try:
+                self._option_values = [int(x) for x in ov]
+            except (TypeError, ValueError):
+                self._option_values = None
         # String-valued select mode (e.g. Alde energy priority "Prio Gas"/"Prio EL"):
         # ``read.value_sensor`` holds the string state; ``writes.option`` is a single
         # recipe run with ``$option`` substituted by the selected option string.
@@ -504,6 +515,11 @@ class HymerSteppedSelect(
         try:
             n = int(raw)
         except (TypeError, ValueError):
+            return None
+        if self._option_values is not None:
+            for lbl, val in zip(self._attr_options, self._option_values):
+                if val == n:
+                    return lbl
             return None
         if n == self._off_value:
             return "Off" if "Off" in self._attr_options else None
@@ -572,10 +588,16 @@ class HymerSteppedSelect(
             )
             return
 
-        try:
-            option_int = self._off_value if is_off else int(option)
-        except ValueError:
-            option_int = self._off_value
+        if self._option_values is not None:
+            try:
+                option_int = self._option_values[self._attr_options.index(option)]
+            except (ValueError, IndexError):
+                option_int = self._off_value
+        else:
+            try:
+                option_int = self._off_value if is_off else int(option)
+            except ValueError:
+                option_int = self._off_value
 
         for step in recipe:
             if not isinstance(step, dict):

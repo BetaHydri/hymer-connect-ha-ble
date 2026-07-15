@@ -279,11 +279,12 @@
         "writes": { "option": [{ "sid": 5, "str": "$option" }] }
       },
       "alde_electric_boost": {
-        "_doc": "BMC I 680 (MY2024): Alde 3030 electric booster heater level (bus 5 slot 7 = ElectricitySetting, int 0-3 kW, rw per decompiled EHG app Alde3020). App label 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW); options are kW steps (Off = Aus). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). WRITE PATH UNVERIFIED on bus 5 slot 7 — test control (v2.65.2); revert if the SCU drops the write.",
+        "_doc": "BMC I 680 (MY2024): Alde 3030 electric booster heater level (bus 5 slot 7 = ElectricitySetting, int 0-3 kW, rw per decompiled EHG app Alde3020). App label 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). CONFIRMED WORKING on-vehicle by @FrankHae (#9): write lands, arrives correctly in the EHG app. Display labels show the kW unit via option_values; the integer 0-3 is written/read (Off = 0 = Aus).",
         "name": "Alde electric booster",
         "icon": "mdi:heat-wave",
         "control_bus": 5,
-        "options": ["Off", "1", "2", "3"],
+        "options": ["Off", "1 kW", "2 kW", "3 kW"],
+        "option_values": [0, 1, 2, 3],
         "read": { "step_sensor": "alde_electric_setting", "off_value": 0 },
         "writes": {
           "off": [{ "sid": 7, "uint": 0 }],

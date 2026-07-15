@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.4] - 2026-07-15
+
+### Changed
+
+- **Alde electric booster now shows kW units (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). At @FrankHae's request, `select.hymer_alde_electric_booster` (bus 5 slot 7) now displays the options **`Off` / `1 kW` / `2 kW` / `3 kW`** instead of the bare `Off / 1 / 2 / 3`. The integer step (0–3) is still what gets written to and read from the SCU — a new optional `option_values` mapping in the stepped-select driver lets the friendly label differ from the underlying integer. Fridge cooling-step selects are unaffected (they keep their bare-int labels).
+
+### Verified on-vehicle (issue #9)
+
+- **All Alde 3030 bus-5 write controls confirmed landing on @FrankHae's SCU.** The electric booster (5,7 `ElectricitySetting`), hot water (5,6 `HotWaterSetting`), gas (5,10 `GasSetting`), energy priority (5,5) and heating master switch (5,9) all write successfully and arrive correctly in the EHG app. The docs and mappings no longer mark bus-5 writes as unverified. The Alde **setpoint** (5,3, float) remains read-only for now (float writes are not yet supported by the command path).
+- **Bathroom Ambient light is not exposed by the SCU on the BMC I 680.** @FrankHae has no `Discovered bus 18/20/23` entities (only 5/10/29/32) and toggling the bathroom ambient light at the vehicle produces **no** bus/slot in the PIA log — only the bathroom ceiling (bus 19) and the Privat group (bus 27) react. Like other panel-only functions, it cannot be mapped. The bathroom **ceiling** light (bus 19) is confirmed working.
+
 ## [2.65.3] - 2026-07-14
 
 ### Changed

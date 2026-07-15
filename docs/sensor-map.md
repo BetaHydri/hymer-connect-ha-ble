@@ -835,15 +835,15 @@ Read-only sensors (mapped in v2.64.7):
 | (5, 12) | `alde_fault` | bool | `Error` (bool, r) — dedicated hard-fault flag, distinct from the slot-8 panel-busy `alde_error`. **Disabled by default** (diagnostic) until a real fault sample confirms it. Added v2.65.2. |
 | (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
-Writable controls (added v2.64.8 — **write path UNVERIFIED on bus 5**, test build, revert if the SCU drops the write):
+Writable controls (added v2.64.8 — **bus-5 write path CONFIRMED on-vehicle by @FrankHae, issue [#9]**; only the Alde setpoint 5,3 float write is still deferred):
 
 | Entity | Slot | Notes |
 |--------|------|-------|
-| `select.hymer_alde_energy_priority` | (5, 5) | Options `Prio Gas` / `Prio EL` (writes the literal string; app enum keys `PRIO_GAS`/`PRIO_EL` are the fallback if rejected). |
-| `select.hymer_alde_hot_water` | (5, 6) | Options `Off` / `Normal` / `Boost` (`HotWaterSetting`, string). Added v2.65.2. |
-| `select.hymer_alde_electric_booster` | (5, 7) | Options `Off` / `1` / `2` / `3` kW (`ElectricitySetting`, int 0–3). Added v2.65.2. |
-| `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). |
-| `switch.hymer_alde_gas` | (5, 10) | Gas enable (`GasSetting`, bool). Added v2.65.2. |
+| `select.hymer_alde_energy_priority` | (5, 5) | Options `Prio Gas` / `Prio EL` (writes the literal string). Confirmed working. |
+| `select.hymer_alde_hot_water` | (5, 6) | Options `Off` / `Normal` / `Boost` (`HotWaterSetting`, string). Confirmed working (arrives correctly in the EHG app). Added v2.65.2. |
+| `select.hymer_alde_electric_booster` | (5, 7) | Options `Off` / `1 kW` / `2 kW` / `3 kW` (`ElectricitySetting`, int 0–3; display labels show the kW unit, the integer is written). Confirmed working. kW labels added v2.65.4. |
+| `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). Confirmed working. |
+| `switch.hymer_alde_gas` | (5, 10) | Gas enable (`GasSetting`, bool). Confirmed working. Added v2.65.2. |
 
 Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
 
