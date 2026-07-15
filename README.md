@@ -565,7 +565,9 @@ Home Assistant ships a built-in **"Enable debug logging"** button for this integ
 3. A yellow **"Debug logging enabled"** banner appears. Reproduce the issue.
 4. Open the same ⋮ menu again and choose **"Disable debug logging"** — HA then **automatically downloads** the captured log for you.
 
-![Enable/disable debug logging from the integration's three-dot menu](images/debug-logging-button.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/BetaHydri/hymer-connect-ha-ble/master/images/debug-logging-button.png" alt="Enable/disable debug logging from the integration's three-dot menu" width="90%">
+</p>
 
 > This one-click toggle raises **all** `custom_components.hymer_connect.*` loggers to `debug` for the duration and reverts them afterwards. It's the quickest way to grab a log for a bug report. For **fine-grained control** over individual loggers (e.g. keep `pia_decoder` quiet, or add the low-level `bleak`/BlueZ loggers), use the `configuration.yaml` method below instead.
 
