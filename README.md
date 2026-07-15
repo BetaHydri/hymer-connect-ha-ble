@@ -554,8 +554,23 @@ Use `--output <path>` to customize the export filename, and `--duration <seconds
 
 #### Option 3: Enable debug logging
 
-> **Note:** This integration has **no** "Enable debug logging" button in the integration's ⋮ menu (Settings → Devices & Services). Enable it via `configuration.yaml` instead:
->
+There are **two ways** to turn on debug logging. Pick whichever suits you:
+
+##### 3a. One-click toggle in the integration UI (easiest)
+
+Home Assistant ships a built-in **"Enable debug logging"** button for this integration — no YAML needed:
+
+1. Go to **Settings → Devices & Services → HYMER Connect BLE**.
+2. Open the **⋮ (three-dot) menu** in the top-right and choose **"Enable debug logging"**.
+3. A yellow **"Debug logging enabled"** banner appears. Reproduce the issue.
+4. Open the same ⋮ menu again and choose **"Disable debug logging"** — HA then **automatically downloads** the captured log for you.
+
+![Enable/disable debug logging from the integration's three-dot menu](images/debug-logging-button.png)
+
+> This one-click toggle raises **all** `custom_components.hymer_connect.*` loggers to `debug` for the duration and reverts them afterwards. It's the quickest way to grab a log for a bug report. For **fine-grained control** over individual loggers (e.g. keep `pia_decoder` quiet, or add the low-level `bleak`/BlueZ loggers), use the `configuration.yaml` method below instead.
+
+##### 3b. Via `configuration.yaml` (fine-grained control)
+
 > 1. Edit `configuration.yaml` — easiest with the **File editor** or **Studio Code Server** add-on.
 > 2. Add one of the `logger:` blocks below, then **restart Home Assistant** (Settings → System → ⋮ → Restart) or reload the YAML config.
 > 3. Reproduce the issue, then download the log via **Settings → System → Logs → Download full log** (or grab `/config/home-assistant.log`).
@@ -648,6 +663,54 @@ logger:
 | `Failed to get remote access token: ...` | EHG exchange failed — check preceding `api` logs |
 | `UpdateTokens SUCCESS` | SignalR authenticated — sensors should flow |
 | `UpdateTokens failed: status=...` | SignalR rejected the tokens — check token validity |
+
+##### Reading BLE sensor logs (dual-path decoding)
+
+When BLE is connected, the integration receives the **same PIA sensor data twice**: once locally over BLE (~50 ms) and once via the SignalR cloud path (~0.5–2 s). Both feed the identical decoder. This is expected — it is not duplication or an error.
+
+**Startup handshake** — a healthy BLE session logs this sequence once:
+
+```text
+ble_client   BLE connected to SCU C5:D9:A0:14:C5:37 (MTU=23, chunk=20)
+ble_client   BLE TLS handshake complete: TLSv1.1 ('AES128-SHA', 'SSLv3', 128)
+coordinator  BLE direct path established to SCU C5:D9:A0:14:C5:37 (mode=ble)
+coordinator  Sending 7 PIA subscription requests over BLE
+coordinator  BLE direct path active — running alongside SignalR (both paths: ~130 sensors, BLE ~50ms / SignalR ~500ms–2s)
+signalr_client  UpdateTokens SUCCESS for urn:ehg:vehicle:...
+```
+
+**Per-update BLE chain** — every live BLE sensor value produces **three lines** in order. The MAC (`C5:D9:A0:14:C5:37`) is only the log prefix identifying the SCU — the actual value lives in the `hex=...` payload:
+
+```text
+ble_client   BLE UART RX: 85 bytes                                         ← encrypted frame arrived over BLE
+ble_client   BLE PIA RECV C5:D9:A0:14:C5:37: plaintext=29 B hex=...8841    ← decrypted PIA payload (MAC = sender, not data)
+pia_decoder  RAW PIA bus=8 | sid=2 | ... f6/wt5=17.1 | f10/wt2=...lin2     ← protobuf field decoded from those bytes
+pia_decoder  DISCOVERY mapped (8,2) solar_voltage: 17.2 → 17.1             ← value assigned to an entity
+```
+
+The trailing float in the hex (`cdcc8841` little-endian = `0x4188cccd` = **17.1**) is the real reading — proof that genuine sensor values, not just the MAC, travel over BLE.
+
+**Reading the fields:**
+
+| Token | Meaning |
+|-------|---------|
+| `bus=8 \| sid=3` | `(bus_id, sensor_id)` pair — matches the `sensor_maps/*.json` overlay |
+| `f6/wt5=2.5` | field 6, wiretype 5 (32-bit float) → decoded value `2.5` |
+| `f3/wt0=13000` | field 3, wiretype 0 (varint/int) → raw `13000` (÷1000 → 13.0 V) |
+| `f4/wt2=hex:...("Diesel")` | field 4, wiretype 2 (length-delimited string) |
+| `f10/wt2=hex:...("lin2")` | transport tag (`lin1`/`lin2`/`can0`/`can2`) — which internal SCU bus carried it |
+| `DISCOVERY mapped (8,2) solar_voltage: A → B` | mapped entity changed from `A` to `B` |
+| `RAW PIA ... (no DISCOVERY line)` | value received but unchanged, or `(bus,sid)` not in the sensor map yet |
+
+**Cloud (SignalR) equivalent** — the same value arriving via cloud looks like this; the base64 `arguments[0]` is the identical PIA protobuf:
+
+```text
+signalr_client  SignalR message: type=1 target=PiaResponse ... raw={... "arguments": ["GhsQARi9...", ...]}
+pia_decoder     RAW PIA bus=8 | sid=2 | ... f6/wt5=17.4 | f10/wt2=...lin2
+signalr_client  PiaResponse: 1 fields updated, keys=['solar_voltage']
+```
+
+The large periodic `PiaResponse: 129 fields updated` block is the **full state refresh** the SCU sends every few minutes; the small 1–2 field messages are the live deltas.
 
 #### Open a GitHub issue
 
