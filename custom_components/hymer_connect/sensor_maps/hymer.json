@@ -215,6 +215,22 @@
       "cooling_step_sensor": "fridge_cooling_step",
       "mode_sensor": "fridge_mode"
     },
+    "numbers": {
+      "_doc": "Generic JSON-driven writable float slots (v2.65.5+). Written to the SCU as a 32-bit float via the multi-sensor command path (same as the Truma climate setpoint).",
+      "alde_setpoint": {
+        "_doc": "BMC I 680 (MY2024): Alde 3030 Zone-1 target temperature (bus 5 slot 3 = Zone1TargetTemperature, rw float °C). Confirmed writable in the decompiled EHG app (componentId 5, id 3, mode 'rw', datatype 'float'). Read sensor alde_setpoint (5,3). WRITE PATH UNVERIFIED on bus 5 slot 3 — test control (v2.65.5); revert if the SCU drops the float write.",
+        "name": "Alde setpoint",
+        "icon": "mdi:thermometer",
+        "control_bus": 5,
+        "sid": 3,
+        "min": 5,
+        "max": 30,
+        "step": 0.5,
+        "unit": "°C",
+        "device_class": "temperature",
+        "read": { "value_sensor": "alde_setpoint" }
+      }
+    },
     "selects": {
       "_doc": "Generic JSON-driven stepped-switch selects (v2.63.0+).",
       "fridge_compressor_freezer": {

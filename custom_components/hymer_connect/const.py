@@ -98,4 +98,4 @@ CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
 DEFAULT_TANK_CAPACITY_LITERS = 93
 
 # Platforms
-PLATFORMS = ["sensor", "binary_sensor", "device_tracker", "light", "switch", "climate", "select", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "device_tracker", "light", "switch", "climate", "select", "number", "button"]

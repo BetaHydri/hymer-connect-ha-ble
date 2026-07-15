@@ -96,6 +96,12 @@ CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
 # and ``docs/sensor-map.md`` for the user-facing JSON contract.
 STEPPED_SELECT_DEFS: dict[str, dict[str, Any]] = {}
 
+# Generic float/number control definitions (v2.65.5+) loaded from the
+# ``"climate"."numbers"`` JSON subsection.  Drives appliances exposing a
+# writable numeric slot (e.g. the Alde 3030 target temperature, bus 5 slot
+# 3) — see :class:`number.HymerNumber` for the schema.
+NUMBER_DEFS: dict[str, dict[str, Any]] = {}
+
 # Track whether overlays have already been loaded (prevents re-loading on
 # integration reload, since SENSOR_MAP is module-level and persists).
 _overlays_loaded: set[str] = set()
@@ -471,6 +477,12 @@ def _load_json_overlay(filename: str) -> int:
                 if sel_key.startswith("_") or not isinstance(sel_def, dict):
                     continue
                 STEPPED_SELECT_DEFS[sel_key] = sel_def
+            continue
+        if key == "numbers" and isinstance(climate_def, dict):
+            for num_key, num_def in climate_def.items():
+                if num_key.startswith("_") or not isinstance(num_def, dict):
+                    continue
+                NUMBER_DEFS[num_key] = num_def
             continue
         if isinstance(climate_def, dict):
             CLIMATE_DEFS[key] = climate_def

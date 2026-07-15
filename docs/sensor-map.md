@@ -823,7 +823,7 @@ Read-only sensors (mapped in v2.64.7):
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
 | (5, 1) | `alde_inside_temp` | °C | `Zone1ActualTemperature` (float). Matches the Hymer app value. |
-| (5, 3) | `alde_setpoint` | °C | `Zone1TargetTemperature` (float, **rw**). Verified by changing it in the app (8/10/12/30 °C). |
+| (5, 3) | `alde_setpoint` | °C | `Zone1TargetTemperature` (float, **rw**). Verified by changing it in the app (8/10/12/30 °C). Writable from HA via `number.hymer_alde_setpoint` (v2.65.5).
 | (5, 5) | `alde_energy_priority` | — | `PrioElectricityGas` (string, **rw**): `Prio Gas` / `Prio EL`. |
 | (5, 6) | `alde_hot_water_mode` | — | `HotWaterSetting` (string, **rw**): `Off` / `Normal` / `Boost`. Read sensor backing `select.hymer_alde_hot_water`. Added v2.65.2. |
 | (5, 7) | `alde_electric_setting` | kW | `ElectricitySetting` (int, **rw**, 0–3 kW). Read sensor backing `select.hymer_alde_electric_booster`. Added v2.65.2. |
@@ -844,6 +844,7 @@ Writable controls (added v2.64.8 — **bus-5 write path CONFIRMED on-vehicle by 
 | `select.hymer_alde_electric_booster` | (5, 7) | Options `Off` / `1 kW` / `2 kW` / `3 kW` (`ElectricitySetting`, int 0–3; display labels show the kW unit, the integer is written). Confirmed working. kW labels added v2.65.4. |
 | `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). Confirmed working. |
 | `switch.hymer_alde_gas` | (5, 10) | Gas enable (`GasSetting`, bool). Confirmed working. Added v2.65.2. |
+| `number.hymer_alde_setpoint` | (5, 3) | Zone-1 target temperature (`Zone1TargetTemperature`, **float** °C, range 5–30, step 0.5). Written as a 32-bit float via the multi-sensor command path. **Write UNVERIFIED on bus 5 slot 3** — test control (v2.65.5), revert if the SCU drops the float write. |
 
 Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
 

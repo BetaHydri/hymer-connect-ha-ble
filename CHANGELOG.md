@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.5] - 2026-07-15
+
+### Added
+
+- **Writable Alde 3030 setpoint (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). New `number.hymer_alde_setpoint` entity lets you set the Alde Zone-1 target temperature (bus 5 slot 3 = `Zone1TargetTemperature`) from Home Assistant — range 5–30 °C, step 0.5 °C. The value is written to the SCU as a 32-bit float via the multi-sensor command path (the same path the Truma climate setpoint uses).
+  - **Confirmed writable via decompilation.** The EHG app's own component model marks `Zone1TargetTemperature` (componentId 5, id 3) as `mode: 'rw', datatype: 'float'`, and its protobuf encoder serialises a `floatValue` with the fixed32 `float` writer — matching the encoding this integration already uses.
+  - A new generic, JSON-driven **`number`** platform backs this control (`climate.numbers.<key>` in the brand overlay), so future writable float slots (e.g. floor/air-heater setpoints) are a JSON-only addition.
+  - > ⚠️ **The write to bus 5 slot 3 is not yet verified on a vehicle.** Bus-5 bool/int/string writes are already confirmed landing on Frank's SCU, and the float path is proven on the Truma setpoint, so this should work — but please confirm via a RAW PIA log and revert/adjust if the SCU drops the float write.
+
 ## [2.65.4] - 2026-07-15
 
 ### Changed
