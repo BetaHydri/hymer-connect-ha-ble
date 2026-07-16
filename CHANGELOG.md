@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.6] - 2026-07-16
+
+### Added
+
+- **Habitation battery state of charge (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). New `sensor.hymer_body_battery_soc` maps **bus 29 slot 1** to the leisure/body battery (Aufbaubatterie) charge level in %. Confirmed on-vehicle by @FrankHae: the value matches both the EHG app's battery percentage and his Home Assistant history timing. `device_class: battery`, `state_class: measurement`. Bus 29 is unused on S600/S700/ML-T.
+
+### Changed
+
+- **Alde setpoint is now a slider (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). `number.hymer_alde_setpoint` (bus 5 slot 3) now renders as a **slider** instead of a keyboard-entry box, at @FrankHae's request. The generic `number` platform gained a JSON-configurable `mode` (`slider` / `box` / `auto`), so any future writable float slot can pick its own control style.
+- **Alde warning vs. error split (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). At @FrankHae's request the two Alde status flags now read correctly:
+  - **Bus 5 slot 8** was renamed `alde_error` → **`alde_warning`** (`binary_sensor.hymer_alde_warning`). This slot is a panel-attention/warning flag (e.g. the antibacterial/Legionella boiler-service reminder), not a hard fault.
+  - **Bus 5 slot 12** was renamed `alde_fault` → **`alde_error`** and is now **enabled by default** (`binary_sensor.hymer_alde_error`). This is the true hard-fault flag — it stayed `False` throughout Frank's reminder lockout, confirming it only trips on a real fault.
+  - > ℹ️ **BMC I 680 owners:** the entity that was `binary_sensor.hymer_alde_error` now reads the hard-fault slot (12), and a new `binary_sensor.hymer_alde_warning` (slot 8) carries the panel reminder. Update any dashboards/automations accordingly.
+
+### Verified on-vehicle (issue #9)
+
+- **Alde setpoint float write CONFIRMED on bus 5 slot 3.** @FrankHae's RAW PIA log shows `bus=5 sid=3 f6/wt5=8.0` landing on the SCU (`alde_setpoint 7.5 → 8.0`). The v2.65.5 "write unverified" caveat is removed — the Alde Zone-1 setpoint is now a fully verified writable control.
+
 ## [2.65.5] - 2026-07-15
 
 ### Added

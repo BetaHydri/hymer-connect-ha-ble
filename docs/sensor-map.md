@@ -828,11 +828,11 @@ Read-only sensors (mapped in v2.64.7):
 | (5, 6) | `alde_hot_water_mode` | — | `HotWaterSetting` (string, **rw**): `Off` / `Normal` / `Boost`. Read sensor backing `select.hymer_alde_hot_water`. Added v2.65.2. |
 | (5, 7) | `alde_electric_setting` | kW | `ElectricitySetting` (int, **rw**, 0–3 kW). Read sensor backing `select.hymer_alde_electric_booster`. Added v2.65.2. |
 | (5, 9) | `alde_heating_on` | bool | `PanelOn` (bool, **rw**) — heater master on/off. `binary_sensor` `device_class: power`. |
-| (5, 8) | `alde_error` | bool | `Error` — an error/warning is pending at the Alde panel (e.g. the antibacterial/Legionella boiler-service reminder). `binary_sensor` `device_class: problem`. **Remapped from slot 12 → slot 8 in v2.65.1** on @FrankHae's on-vehicle evidence: during a real Alde error (13–14 Jul 2026) slot 8 was `True` for the whole error window and `False` otherwise, while slot 12 stayed `False`. **Only the boolean is transmitted — the message TEXT is panel-only.** A pending error can block remote on/off from HA and the EHG app until acknowledged with **OK on the panel** (Alde firmware behaviour, not overridable). The decompiled EHG `Alde3020` component labels slot 12 `error`, but that did not match this vehicle/firmware. |
+| (5, 8) | `alde_warning` | bool | `PanelBusy` — a warning/attention is pending at the Alde panel (e.g. the antibacterial/Legionella boiler-service reminder). `binary_sensor` `device_class: problem`. **Renamed `alde_error` → `alde_warning` in v2.65.6** at @FrankHae's request: this slot is a panel-attention/warning flag, not a hard fault. **Remapped from slot 12 → slot 8 in v2.65.1** on @FrankHae's on-vehicle evidence: during a real Alde panel reminder (13–14 Jul 2026) slot 8 was `True` for the whole window and `False` otherwise, while slot 12 stayed `False`. **Only the boolean is transmitted — the message TEXT is panel-only.** A pending warning can block remote on/off from HA and the EHG app until acknowledged with **OK on the panel** (Alde firmware behaviour, not overridable). |
 | (5, 14) | `alde_heating_active` | bool | `pump_running` — circulation pump active (= actively heating). `binary_sensor` `device_class: running`. |
 | (5, 10) | `alde_gas_active` | bool | `GasSetting` (bool, **rw**) — gas enable. Read sensor backing `switch.hymer_alde_gas`. Added v2.65.2. |
 | (5, 11) | `alde_acc_setting` | bool | `AccSetting` (bool, **rw** per decompiled model) — function unknown (likely an auxiliary output). Exposed **read-only** for now until @FrankHae observes what toggles it. Added v2.65.2. |
-| (5, 12) | `alde_fault` | bool | `Error` (bool, r) — dedicated hard-fault flag, distinct from the slot-8 panel-busy `alde_error`. **Disabled by default** (diagnostic) until a real fault sample confirms it. Added v2.65.2. |
+| (5, 12) | `alde_error` | bool | `Error` (bool, r) — dedicated hard-fault flag, distinct from the slot-8 panel-attention `alde_warning`. **Renamed `alde_fault` → `alde_error` and enabled in v2.65.6** at @FrankHae's request: this is the true fault flag. Stayed `False` during his antibacterial-reminder lockout (13–14 Jul 2026), confirming it only trips on a real fault. Added v2.65.2. |
 | (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
 Writable controls (added v2.64.8 — **bus-5 write path CONFIRMED on-vehicle by @FrankHae, issue [#9]**; only the Alde setpoint 5,3 float write is still deferred):
@@ -844,7 +844,7 @@ Writable controls (added v2.64.8 — **bus-5 write path CONFIRMED on-vehicle by 
 | `select.hymer_alde_electric_booster` | (5, 7) | Options `Off` / `1 kW` / `2 kW` / `3 kW` (`ElectricitySetting`, int 0–3; display labels show the kW unit, the integer is written). Confirmed working. kW labels added v2.65.4. |
 | `switch.hymer_alde_heating` | (5, 9) | Master on/off (`PanelOn`, bool). Confirmed working. |
 | `switch.hymer_alde_gas` | (5, 10) | Gas enable (`GasSetting`, bool). Confirmed working. Added v2.65.2. |
-| `number.hymer_alde_setpoint` | (5, 3) | Zone-1 target temperature (`Zone1TargetTemperature`, **float** °C, range 5–30, step 0.5). Written as a 32-bit float via the multi-sensor command path. **Write UNVERIFIED on bus 5 slot 3** — test control (v2.65.5), revert if the SCU drops the float write. |
+| `number.hymer_alde_setpoint` | (5, 3) | Zone-1 target temperature (`Zone1TargetTemperature`, **float** °C, range 5–30, step 0.5). Written as a 32-bit float via the multi-sensor command path. **Write CONFIRMED on-vehicle by @FrankHae 2026-07-16** (issue #9): RAW PIA `bus=5 sid=3 f6/wt5=8.0` → `alde_setpoint 7.5 → 8.0`. Displayed as a **slider** since v2.65.6 (JSON-configurable `mode`). |
 
 Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
 
@@ -888,6 +888,19 @@ The satellite entities map cleanly onto stock HA cards (no custom/HACS frontend 
 - **Dish status** (`sensor.hymer_sat_status`) → an **Entity card** or a small **Markdown card**; it shows the live search state (`Searching …`, `Satellite found`, `Is closed`).
 - Group all three in a single **Entities card** titled "Satellite", or an **Entity Filter / Conditional card** that only shows signal strength while the dish is deployed.
 - When the write-only commands (start/park/stop/sleep) are exposed later as buttons, a **Horizontal-stack of Button cards** is the natural layout.
+
+## Bus 29 — Habitation battery (HYMER BMC I 680 MY2024, confirmed 2026-07-16)
+
+Bus 29 is present on the HYMER BMC I 680 and unused on S600/S700/ML-T. Confirmed on-vehicle by
+@FrankHae in [#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9): slot 1 tracks the
+**habitation / body battery (Aufbaubatterie) state of charge in %** and matches both the EHG app's
+battery percentage and his Home Assistant history timing.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (29, 1) | `body_battery_soc` | % | Habitation/body battery state of charge (`f3` int, 0–100, e.g. 99/100). `sensor` `device_class: battery`, `state_class: measurement`. Added v2.65.6. |
+
+Unmapped slots remain available as disabled `Discovered bus 29 slot N` diagnostic sensors.
 
 ## Bus 32 — Thetford N4142E+ absorber fridge (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 

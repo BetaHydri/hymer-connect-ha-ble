@@ -104,7 +104,17 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
             self._attr_native_unit_of_measurement = defn["unit"]
         if "device_class" in defn:
             self._attr_device_class = defn["device_class"]
-        self._attr_mode = NumberMode.BOX
+        # Display mode: "slider" | "box" | "auto" (JSON-configurable, default
+        # "auto" so HA renders a slider for a reasonable range and a box only
+        # when the range is too large). Falls back to AUTO for unknown values.
+        _mode_map = {
+            "slider": NumberMode.SLIDER,
+            "box": NumberMode.BOX,
+            "auto": NumberMode.AUTO,
+        }
+        self._attr_mode = _mode_map.get(
+            str(defn.get("mode", "auto")).lower(), NumberMode.AUTO
+        )
         read = defn.get("read", {}) or {}
         self._value_sensor: str | None = read.get("value_sensor")
         self._optimistic: float | None = None

@@ -126,6 +126,9 @@
       "battery_soc": {
         "name": "Battery level"
       },
+      "body_battery_soc": {
+        "name": "Body battery level"
+      },
       "battery_type": {
         "name": "Battery type"
       },
@@ -678,6 +681,9 @@
       "alde_error": {
         "name": "Alde error"
       },
+      "alde_warning": {
+        "name": "Alde warning"
+      },
       "fridge_absorber_power": {
         "name": "Absorber fridge power"
       },
@@ -689,9 +695,6 @@
       },
       "alde_acc_setting": {
         "name": "Alde accessory setting"
-      },
-      "alde_fault": {
-        "name": "Alde fault"
       }
     },
     "switch": {
