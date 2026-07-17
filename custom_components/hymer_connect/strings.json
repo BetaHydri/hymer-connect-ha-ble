@@ -222,6 +222,9 @@
       "light_floor_ambient_brightness": {
         "name": "Floor ambient brightness"
       },
+      "light_bathroom_sink_ambient_brightness": {
+        "name": "Bathroom sink ambient brightness"
+      },
       "light_shower_ambient_brightness": {
         "name": "Shower ambient brightness"
       },
@@ -384,6 +387,12 @@
       "alde_setpoint": {
         "name": "Alde target temperature"
       },
+      "alde_zone2_temp": {
+        "name": "Alde Zone 2 inside temperature"
+      },
+      "alde_zone2_setpoint": {
+        "name": "Alde Zone 2 target temperature"
+      },
       "alde_energy_priority": {
         "name": "Alde energy priority"
       },
@@ -445,6 +454,9 @@
       },
       "light_floor_ambient": {
         "name": "Floor ambient"
+      },
+      "light_bathroom_sink_ambient": {
+        "name": "Bathroom sink ambient"
       },
       "light_bedroom_overhead": {
         "name": "Bedroom overhead"
@@ -522,6 +534,9 @@
       },
       "light_floor_ambient": {
         "name": "Floor ambient light"
+      },
+      "light_bathroom_sink_ambient": {
+        "name": "Bathroom sink ambient light"
       },
       "light_shower_ambient": {
         "name": "Shower ambient light"

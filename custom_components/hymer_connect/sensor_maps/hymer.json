@@ -21,6 +21,8 @@
     "5,9": { "_doc": "BMC I 680: Alde 3030 heating on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false.", "name": "alde_heating_on", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:radiator" },
     "5,14": { "_doc": "BMC I 680: Alde 3030 currently heating/burner active (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): heating=true, idle=false.", "name": "alde_heating_active", "platform": "binary_sensor", "device_class": "running", "icon": "mdi:radiator" },
     "5,15": { "_doc": "BMC I 680: Alde 3030 outside temperature probe (f6 float, under-vehicle). Confirmed by @FrankHae 2026-07-10 (issue #9).", "name": "alde_outside_temp", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+    "5,2": { "_doc": "Alde 3030 Zone 2 actual/inside temperature (EHG Alde3020 slot 2 = zone_2_actual_temperature, float °C, r). Mapped read-only per @FrankHae request (issue #9, v2.65.7) for future dual-zone floorplans (e.g. 780/880). BMC I 680 has a single zone, so this idles on that model. UNVERIFIED on a dual-zone vehicle.", "name": "alde_zone2_temp", "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:home-thermometer" },
+    "5,4": { "_doc": "Alde 3030 Zone 2 target/set temperature (EHG Alde3020 slot 4 = zone_2_target_temperature, float °C, rw). Read sensor backing the alde_zone2_setpoint slider. Mapped per @FrankHae request (issue #9, v2.65.7) for future dual-zone floorplans. UNVERIFIED on a dual-zone vehicle.", "name": "alde_zone2_setpoint", "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
     "5,6": { "_doc": "BMC I 680: Alde 3030 hot-water boiler mode (EHG HotWaterSetting, string rw). App 'Warmwasser Boiler' + 'Turbo Modus'. Read sensor backing the alde_hot_water select. @FrankHae saw 'Off' (no water in the lines yet). Bus 5 unused on S600/S700/ML-T.", "name": "alde_hot_water_mode", "platform": "sensor", "icon": "mdi:water-boiler" },
     "5,7": { "_doc": "BMC I 680: Alde 3030 electric booster heater level (EHG ElectricitySetting, int 0-3 kW, rw). App 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). Read sensor backing the alde_electric_boost select.", "name": "alde_electric_setting", "platform": "sensor", "icon": "mdi:heat-wave" },
     "5,10": { "_doc": "BMC I 680: Alde 3030 gas enable (EHG GasSetting, bool rw). App 'Gas aktivieren'. Confirmed ON by @FrankHae screenshots (#9). Read sensor backing the alde_gas_ctrl switch.", "name": "alde_gas_active", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:gas-burner" },
@@ -51,6 +53,8 @@
     "17,2": { "name": "light_shower_ceiling_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light" },
     "19,1": { "name": "light_bathroom_ceiling", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light" },
     "19,2": { "name": "light_bathroom_ceiling_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light" },
+    "20,1": { "_doc": "BMC I 680 (MY2024): bathroom sink ambient light (EHG LightCircuit10 = 'Ambient light sink'). PROVISIONAL (v2.65.7): bus 20 is the EHG catalog slot for the sink ambient light, mapped per @FrankHae (issue #9) as the likely missing bathroom ambient. Discovered bus IDs are assigned per-vehicle, so this is not yet confirmed on-vehicle — @FrankHae to verify via a RAW PIA toggle. Member of bus 27 (Privat) group.", "name": "light_bathroom_sink_ambient", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:wall-sconce-flat" },
+    "20,2": { "name": "light_bathroom_sink_ambient_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:wall-sconce-flat" },
     "21,1": { "name": "light_kitchen", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light" },
     "21,2": { "name": "light_kitchen_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light" },
     "22,1": { "name": "light_led_bar_2" },
@@ -174,6 +178,7 @@
     "16": { "name": "light_nightlight", "icon": "mdi:lightbulb-night", "brightness": true, "color_temp": false },
     "17": { "name": "light_shower_ceiling", "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
     "19": { "name": "light_bathroom_ceiling", "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
+    "20": { "name": "light_bathroom_sink_ambient", "icon": "mdi:wall-sconce-flat", "brightness": true, "color_temp": false },
     "21": { "name": "light_kitchen", "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
     "22": { "name": "light_led_bar_duplicate", "icon": "mdi:led-strip-variant", "brightness": true, "color_temp": false, "enabled": false },
     "24": { "name": "light_wohnen_group", "icon": "mdi:lightbulb-group-outline", "brightness": true, "color_temp": false },
@@ -232,6 +237,20 @@
         "mode": "slider",
         "device_class": "temperature",
         "read": { "value_sensor": "alde_setpoint" }
+      },
+      "alde_zone2_setpoint": {
+        "_doc": "Alde 3030 Zone-2 target temperature (bus 5 slot 4 = zone_2_target_temperature, rw float °C per decompiled EHG app Alde3020). Slider mirroring the Zone-1 setpoint, added per @FrankHae request (issue #9, v2.65.7) for future dual-zone floorplans (780/880). WRITE PATH UNVERIFIED — no dual-zone vehicle available to test; BMC I 680 is single-zone. Read sensor alde_zone2_setpoint (5,4).",
+        "name": "Alde Zone 2 setpoint",
+        "icon": "mdi:thermometer",
+        "control_bus": 5,
+        "sid": 4,
+        "min": 5,
+        "max": 30,
+        "step": 0.5,
+        "unit": "°C",
+        "mode": "slider",
+        "device_class": "temperature",
+        "read": { "value_sensor": "alde_zone2_setpoint" }
       }
     },
     "selects": {

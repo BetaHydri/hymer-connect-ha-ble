@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.7] - 2026-07-17
+
+### Added
+
+- **Alde 3030 second heating zone (Zone 2)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). At @FrankHae's request the Zone-2 slots are now mapped so future dual-zone floorplans (e.g. HYMER 780/880) work out of the box:
+  - `sensor.hymer_alde_zone2_temp` — **bus 5 slot 2** (`zone_2_actual_temperature`, read-only).
+  - `sensor.hymer_alde_zone2_setpoint` — **bus 5 slot 4** (`zone_2_target_temperature`) read-back, plus `number.hymer_alde_zone2_setpoint` as a **slider** (5–30 °C, step 0.5 °C) mirroring the Zone-1 setpoint.
+  - > ℹ️ On single-zone vehicles (e.g. BMC I 680) these entities simply idle. The Zone-2 write path is **unverified** — no dual-zone vehicle was available to test.
+- **Bathroom sink ambient light — provisional (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). New `light.hymer_light_bathroom_sink_ambient` maps **bus 20** (EHG `LightCircuit10` = "Ambient light sink"), the likely missing bathroom ambient light @FrankHae was looking for.
+  - > ⚠️ **Provisional:** discovered bus IDs are assigned per-vehicle, so bus 20 is an educated guess from the EHG catalog and is not yet confirmed on-vehicle. If the new entity doesn't switch the bathroom light, a RAW PIA toggle log will pin the real bus number.
+
 ## [2.65.6] - 2026-07-16
 
 ### Added
