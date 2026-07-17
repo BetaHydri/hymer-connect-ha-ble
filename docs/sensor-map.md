@@ -41,6 +41,91 @@ easier to use as a reference:
 - Only keep backward-compatibility or legacy-name notes when they still help
   users understand an existing entity name.
 
+## Bus coverage by vehicle
+
+> Which buses have been **identified on a real vehicle and are mapped** in the
+> integration today. A bus is listed for a model only when a contributor confirmed
+> it on that specific vehicle (via RAW-PIA logs, the dynamic-discovery sensors, or
+> app-traffic capture). A blank means "not present or not yet confirmed on that
+> model" — **not** "unsupported". Brand overlays (`hymer.json`, `eriba.json`) apply
+> to every vehicle of that brand, so a bus mapped for one model is still offered to
+> the others; it simply stays `unavailable` if that model lacks the device.
+
+| Vehicle | Chassis | Contributor (issue) | Confirmed & mapped buses |
+|---------|---------|---------------------|--------------------------|
+| **Grand Canyon S 600 CrossOver** (2025) | Mercedes Sprinter | @BetaHydri (baseline) | 1, 3, 30, 45 (base); 8 Votronic solar; 11/12/15/16/19/21/22/24/25/27/43/44 lights; 34+37 Thetford N4112A fridge; 49+58 Truma Combi D6E; 99 BOS LUX BMS; 121 Victron *(non-functional)* |
+| **Grand Canyon S 700** (2025) | Mercedes Sprinter | @dan-simms1 ([HA #37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) | 1, 3, 30, 45 (base); 8 Votronic MPP250Duo solar; 11/12/15/16/21/24/27/43/44 lights; 34+37 Thetford fridge; 58 Truma Combi; 99 BOS BMS |
+| **ML-T 570 CrossOver** | Mercedes Sprinter | @mcfly1969 ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)) | 1, 3, 30, 45 (base); 14 bedroom ceiling; 66 dinette pendant; 24/27 light groups; 114 Thetford Compressor T2120C fridge; 74 SIU temp/humidity; 76 fresh/grey water |
+| **BMC I 680** (Modelljahr 2024) | Fiat Ducato (integrated) | @FrankHae ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)) | 3, 30, 45 (base); 5 Alde 3030 heater; 10 ten Haaft satellite; 13 floor ambient; 17 shower ceiling; 19 bathroom ceiling; 27 Privat group; 29 habitation battery; 32 Thetford N4142E+ absorber fridge |
+| **Eriba Car 602** (2025) | VW Crafter | @mvondemhagen ([HA #54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) | 3, 30, 45 (base); 18 shower ambient light; 59 Truma Aventa AC; 60 Dometic Compressor fridge |
+| **Eriba Touring** (SIU / E-Trailer) | — | @daKrueml ([#3](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/3)) | *none — SIU activation token rejected, never onboarded* |
+
+Notes:
+
+- **The chassis bus differs by base vehicle.** Bus 1 (`VehicleSignal`) is confirmed
+  on the Mercedes-Sprinter models (S 600 / S 700 / ML-T 570). The Fiat-Ducato
+  BMC I 680 and VW-Crafter Eriba Car 602 report their chassis on a different,
+  not-yet-mapped component (EHG defines bus 108 `VehicleFiatChassis`), so bus 1 is
+  left blank for them.
+- **Buses 70 (tyre), 71 (gas bottle), 73 (contact), 74 (temperature)** are HYMER
+  Smart System / SIU **wireless accessories** paired per install, not fixed vehicle
+  equipment — see the auto-slot section below. Bus 74 and 76 were confirmed on the
+  ML-T 570.
+- Buses guaranteed on every EHG SCU (1, 3, 30, 45) live in `base.json`; HYMER buses
+  in `hymer.json`; Eriba buses in `eriba.json`.
+
+## Complete bus index (mapped buses)
+
+> Every bus that currently has a mapping in `base.json`, `hymer.json`, or
+> `eriba.json`, with the EHG component it corresponds to and which vehicle confirmed
+> it. For the **full 128-component EHG catalog** — including buses we have *not*
+> mapped yet (e.g. **bus 2 `EBL400`**, bus 9 `DometicSeries10`, bus 100 `TPMS`, …)
+> with every slot definition extracted from the decompiled app — see
+> [`ehg-app-metadata.md`](ehg-app-metadata.md).
+
+| Bus | EHG component | Device / meaning | Overlay | Confirmed on |
+|-----|---------------|------------------|---------|--------------|
+| 1 | `VehicleSignal` | Mercedes Sprinter chassis CAN | base | S 600 / S 700 / ML-T 570 |
+| 3 | `EBL402` | CBE EBL402 habitation electrics | base | all |
+| 5 | `Alde3020` | Alde 3030 hydronic heater | hymer | BMC I 680 |
+| 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | hymer | S 600 / S 700 |
+| 10 | `TenhaaftSatAntenna` | ten Haaft satellite dish | hymer | BMC I 680 |
+| 11 | `LightCircuit01` | Living-room ceiling light | hymer | S 600 / S 700 |
+| 12 | `LightCircuit02` | Living-room ambient light | hymer | S 600 / S 700 |
+| 13 | `LightCircuit03` | Floor ambient light | hymer | BMC I 680 |
+| 14 | `LightCircuit04` | Bedroom ceiling light | hymer | ML-T 570 |
+| 15 | `LightCircuit05` | Bedroom ambient light | hymer | S 600 / S 700 |
+| 16 | `LightCircuit06` | Night light | hymer | S 600 / S 700 |
+| 17 | `LightCircuit07` | Shower ceiling light | hymer | BMC I 680 |
+| 18 | `LightCircuit08` | Shower ambient light | eriba | Eriba Car 602 |
+| 19 | `LightCircuit09` | Bathroom ceiling light | hymer | S 600 / BMC I 680 |
+| 21 | `LightCircuit11` | Kitchen light | hymer | S 600 / S 700 |
+| 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | hymer | S 600 |
+| 24 | `LightGroup01` | "Wohnen" light group | hymer | S 600 / S 700 / ML-T 570 |
+| 25 | `LightGroup02` | Outside LED bar | hymer | S 600 |
+| 27 | `LightGroup04` | "Privat" light group | hymer | S 600 / ML-T 570 / BMC I 680 |
+| 29 | `Component29` | Habitation (body) battery SoC | hymer | BMC I 680 |
+| 30 | `ScuSignals` | SCU telemetry (LTE / BT / GPS) | base | all |
+| 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | hymer | BMC I 680 |
+| 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | hymer | S 600 / S 700 |
+| 37 | `VehicleInformation` | Fridge mode/status readback (PIA) | hymer | S 600 / S 700 |
+| 43 | `LightCircuit19` | Seating overhead light | hymer | S 600 |
+| 44 | `LightCircuit20` | Bedroom overhead light | hymer | S 600 |
+| 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
+| 49 | `LIM404Mod2` | Truma LIM module | hymer | S 600 |
+| 58 | `TrumaCombi_DE` | Truma Combi D6E heater | hymer | S 600 / S 700 |
+| 59 | `TrumaAventaCompact` | Truma Aventa AC | eriba | Eriba Car 602 |
+| 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba | Eriba Car 602 |
+| 66 | `LightCircuit22` | Dinette pendant lamp | hymer | ML-T 570 |
+| 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | hymer | HSS accessory |
+| 71 | `Component71` | HSS gas-bottle sensors (auto-slot) | hymer | HSS accessory |
+| 73 | `Component73` | HSS contact sensors (auto-slot) | hymer | HSS accessory |
+| 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | hymer | ML-T 570 |
+| 76 | `Component76` | Fresh / grey water tank levels | hymer | ML-T 570 |
+| 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | hymer | S 600 / S 700 |
+| 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | hymer | ML-T 570 |
+| 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional)* | hymer | S 600 |
+
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)
 
 ### The Problem: Shared Slots on Multi-Device Buses
@@ -242,6 +327,21 @@ JSON int_labels take precedence over hardcoded `_INT_LABELS` in `pia_decoder.py`
 | (1, 22) | `downhill_assist` | — | — | Downhill assist active (was: high_beam) |
 | (1, 23) | `language` | — | — | Dashboard language code |
 
+## Bus 2 — Schaudt EBL400 (not used by HYMER)
+
+EHG component `EBL400` (kind: habitation, "Habitation Controller 2"), 14 slots
+(`main_switch`, `power_source`, `water_pump`, living/starter batteries, fresh/waste
+water levels, shoreline — full slot table in
+[`ehg-app-metadata.md`](ehg-app-metadata.md)). HYMER vehicles use the **CBE EBL402
+on bus 3** instead, so bus 2 is **not mapped** and has no entities.
+
+Some S 600 units still surface three disabled diagnostic sensors on bus 2 with
+out-of-range slot IDs — `discovered_bus_2_slot_18`, `discovered_bus_2_slot_768`
+(0x0300) and `discovered_bus_2_slot_852` (0x0354). These lie far outside the
+EBL400 1–14 range and are most likely SCU-internal/vendor diagnostics
+(firmware / heartbeat / counters) that the EHG app filters out client-side. Left
+unmapped pending on-vehicle correlation.
+
 ## Bus 3 — CBE EBL402 (habitation electrics)
 
 | Slot | Sensor Name | Unit | Transform | Notes |
@@ -296,6 +396,18 @@ reading the raw slot (8, 7) directly.
 | (12, 2) | `light_living_ambient_brightness` | % | Brightness |
 | (12, 3) | `light_living_ambient_color_temp` | — | Color temperature |
 
+## Bus 13 — Floor ambient light (HYMER BMC I 680 MY2024, confirmed 2026-07-06)
+
+EHG `LightCircuit03` (Floor). Living-area floor ambient strip. Not present on
+Grand Canyon S 600/S 700. Confirmed by @FrankHae in
+[#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9) via RAW-PIA toggle
+logs. Member of the bus 24 *Wohnen* group — toggling the group also drives this light.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (13, 1) | `light_floor_ambient` | — | On/off |
+| (13, 2) | `light_floor_ambient_brightness` | % | Brightness (dimmable; no color temp) |
+
 ## Bus 14 — Bedroom ceiling light (ML-T 570 CrossOver, confirmed 2026-06-01)
 
 Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery diagnostic sensors. Member of the bus 27 *Privat* group — toggling the group also drives this light.
@@ -319,6 +431,18 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 |------|------------|------|-------|
 | (16, 1) | `light_nightlight` | — | On/off |
 | (16, 2) | `light_nightlight_brightness` | % | Brightness |
+
+## Bus 17 — Shower ceiling light (HYMER BMC I 680 MY2024, confirmed 2026-07-06)
+
+EHG `LightCircuit07` (Shower lights). Not present on Grand Canyon S 600/S 700.
+Confirmed by @FrankHae in
+[#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9) via RAW-PIA toggle
+logs. Member of the bus 27 *Privat* group — toggling the group also drives this light.
+
+| Slot | Sensor Name | Unit | Notes |
+|------|------------|------|-------|
+| (17, 1) | `light_shower_ceiling` | — | On/off |
+| (17, 2) | `light_shower_ceiling_brightness` | % | Brightness (dimmable; no color temp) |
 
 ## Bus 19 — Bathroom ceiling light
 
