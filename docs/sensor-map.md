@@ -356,7 +356,7 @@ unmapped pending on-vehicle correlation.
 | (3, 7) | `chassis_battery_voltage` | V | — | Starter battery voltage |
 | (3, 8) | `fresh_water_level_ebl` | % | — | **Fresh water level** from EBL402 tank input (per S700 PR #44). Discovery: `0` with empty tank. |
 | (3, 9) | `grey_water_level_ebl` | % | — | **Grey water level** from EBL402 tank input (per S700 PR #44). Discovery: `0` with empty tank. |
-| (3, 10) | `battery_soc` | % | — | Battery state of charge. Discovery: 95% |
+| (3, 10) | `battery_soc` | % | — | **Decode-only, stale value** — habitation electronics (CBE/EBL) report a fixed **95 %** that does *not* reflect real charge. No entity created (name collides with the static bus-99 `battery_soc`/`lithium_soc` sensor). Real habitation SoC = `(29, 1)` `body_battery_soc`; real Lithium BMS SoC = `(99, 4)` `lithium_soc`. |
 | (3, 11) | `battery_type` | — | — | "AGM/Lithium" |
 | (3, 12–18) | `switch_12v_1..7` | — | — | 12V switch channels |
 | (3, 19) | `solar_voltage_sentinel` | V | — | Always 3276.8 (sentinel). Real solar on bus 8 |
