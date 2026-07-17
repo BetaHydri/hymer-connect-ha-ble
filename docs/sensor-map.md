@@ -56,7 +56,7 @@ easier to use as a reference:
 | **Grand Canyon S 600 CrossOver** (2025) | Mercedes Sprinter | @BetaHydri (baseline) | 1, 3, 30, 45 (base); 8 Votronic solar; 11/12/15/16/19/21/22/24/25/27/43/44 lights; 34+37 Thetford N4112A fridge; 49+58 Truma Combi D6E; 99 BOS LUX BMS; 121 Victron *(non-functional)* |
 | **Grand Canyon S 700** (2025) | Mercedes Sprinter | @dan-simms1 ([HA #37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) | 1, 3, 30, 45 (base); 8 Votronic MPP250Duo solar; 11/12/15/16/21/24/27/43/44 lights; 34+37 Thetford fridge; 58 Truma Combi; 99 BOS BMS |
 | **ML-T 570 CrossOver** | Mercedes Sprinter | @mcfly1969 ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)) | 1, 3, 30, 45 (base); 14 bedroom ceiling; 66 dinette pendant; 24/27 light groups; 114 Thetford Compressor T2120C fridge; 74 SIU temp/humidity; 76 fresh/grey water |
-| **BMC I 680** (Modelljahr 2024) | Fiat Ducato (integrated) | @FrankHae ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)) | 3, 30, 45 (base); 5 Alde 3030 heater; 10 ten Haaft satellite; 13 floor ambient; 17 shower ceiling; 19 bathroom ceiling; 27 Privat group; 29 habitation battery; 32 Thetford N4142E+ absorber fridge |
+| **BMC I 680** (Modelljahr 2024) | Fiat Ducato (integrated) | @FrankHae ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)) | 3, 30, 45 (base); 5 Alde 3030 heater (incl. Zone 2); 10 ten Haaft satellite; 13 floor ambient; 17 shower ceiling; 19 bathroom ceiling; 20 bathroom sink ambient *(provisional)*; 27 Privat group; 29 habitation battery; 32 Thetford N4142E+ absorber fridge |
 | **Eriba Car 602** (2025) | VW Crafter | @mvondemhagen ([HA #54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) | 3, 30, 45 (base); 18 shower ambient light; 59 Truma Aventa AC; 60 Dometic Compressor fridge |
 | **Eriba Touring** (SIU / E-Trailer) | — | @daKrueml ([#3](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/3)) | *none — SIU activation token rejected, never onboarded* |
 
@@ -99,6 +99,7 @@ Notes:
 | 17 | `LightCircuit07` | Shower ceiling light | hymer | BMC I 680 |
 | 18 | `LightCircuit08` | Shower ambient light | eriba | Eriba Car 602 |
 | 19 | `LightCircuit09` | Bathroom ceiling light | hymer | S 600 / BMC I 680 |
+| 20 | `LightCircuit10` | Bathroom sink ambient light *(provisional — bus unconfirmed)* | hymer | BMC I 680 *(pending RAW-PIA confirm)* |
 | 21 | `LightCircuit11` | Kitchen light | hymer | S 600 / S 700 |
 | 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | hymer | S 600 |
 | 24 | `LightGroup01` | "Wohnen" light group | hymer | S 600 / S 700 / ML-T 570 |
