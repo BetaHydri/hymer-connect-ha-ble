@@ -10,7 +10,7 @@ understanding the protocol internals.
 
 | Document | What it covers | Audience |
 | --- | --- | --- |
-| [`sensor-map.md`](sensor-map.md) | The **canonical bus/slot reference** — current meaning of every known `(bus_id, sensor_id)` slot per vehicle, units, transforms, plus the pinned-mapping and auto-slot `{n}` template rules for multi-device buses. | Users looking up a sensor · contributors mapping a new vehicle |
+| [`sensor-map.md`](sensor-map.md) | The **canonical bus/slot reference** — current meaning of every known `(bus_id, sensor_id)` slot per vehicle, units, transforms, plus the pinned-mapping and auto-slot `{n}` template rules for multi-device buses. Includes a **[Bus coverage by vehicle](sensor-map.md#bus-coverage-by-vehicle)** table and a **[Complete bus index](sensor-map.md#complete-bus-index-mapped-buses)** of all mapped buses. | Users looking up a sensor · contributors mapping a new vehicle |
 | [`translations.md`](translations.md) | When (and when not) to edit `strings.json` and `translations/en.json` after adding an entity to a brand overlay — translation-key style vs. the direct-name stepped-switch select driver. | Contributors editing sensor maps / opening PRs |
 
 ## Protocol & connection internals (maintainers)

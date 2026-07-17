@@ -115,7 +115,9 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 | Eriba | | FreeOnTour |
 | LMC | | Niesmann+Bischoff |
 
-> **🚐 Not a Grand Canyon S 600 / S 700?** This integration works on **all EHG vehicles with an SCU**, but sensor mappings were developed on a HYMER Grand Canyon S 600. Other brands and models may have unmapped sensors or different bus layouts. Here's how to help:
+> **� Which buses are mapped for which vehicle?** See the [**Bus coverage by vehicle**](docs/sensor-map.md#bus-coverage-by-vehicle) and [**Complete bus index (mapped buses)**](docs/sensor-map.md#complete-bus-index-mapped-buses) tables in `sensor-map.md`. They list every identified bus per model (Grand Canyon S 600 / S 700, ML-T 570, BMC I 680, Eriba Car 602, Eriba Touring) and the EHG component behind each. For the full 128-component EHG catalog with every slot, see [`docs/ehg-app-metadata.md`](docs/ehg-app-metadata.md).
+
+> **�🚐 Not a Grand Canyon S 600 / S 700?** This integration works on **all EHG vehicles with an SCU**, but sensor mappings were developed on a HYMER Grand Canyon S 600. Other brands and models may have unmapped sensors or different bus layouts. Here's how to help:
 >
 > 1. **Install the integration** — it works out of the box. Sensors shared across all EHG vehicles (battery, water, GPS, doors) are in [`base.json`](custom_components/hymer_connect/sensor_maps/base.json) and work immediately.
 > 2. **Discover your vehicle's sensors** — enable [Dynamic Slot Discovery](#-dynamic-slot-discovery-v2340) or run the [Sensor Discovery Tool](#option-1-run-the-sensor-discovery-tool-recommended) to see which `(bus, slot)` pairs your SCU reports.
