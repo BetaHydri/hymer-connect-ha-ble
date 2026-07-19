@@ -95,14 +95,15 @@ For the detailed capture workflow, see:
 
 Use this if your HA host has no BLE hardware but you do have an Android phone and physical access to the vehicle.
 
-1. Download the token extractor APK from the latest GitHub release
-2. Install it on your Android phone
+1. Download [`ehg-token-extractor.apk`](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) from the latest GitHub release (it is attached automatically to every release)
+2. **Sideload** it on your Android phone — the APK is **not signed** and **not on Google Play**, so allow *"Install unknown apps"* for your browser/file manager when prompted
 3. Enter email, password, and the dealer QR activation token
 4. Press **Start** in the app
 5. Press **CONNECTION** on the SCU touch panel when prompted
 6. Copy the extracted EHG refresh token
 7. Add the integration in Home Assistant and paste the token in the login step
 8. Leave vehicle activation fields empty
+9. You only need the app once — after the token is saved in Home Assistant you can **uninstall it again**
 
 ## Path D — Bootstrap only
 
