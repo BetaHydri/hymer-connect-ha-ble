@@ -33,5 +33,6 @@ understanding the protocol internals.
 - [`../README.md`](../README.md) — full project overview, setup paths, and troubleshooting
 - [`../quick-start.md`](../quick-start.md) — shortest path to a working setup
 - [`../tools/README.md`](../tools/README.md) — token capture, sensor discovery, and contributor tooling
+- [**EHG token-extractor APK**](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) — sideload-only Android helper (unsigned) to read your EHG refresh token for the cloud-only path; uninstall it again once the token is saved. See [`../README.md`](../README.md#obtaining-the-ehg-refresh-token).
 - [`../dashboards/README.md`](../dashboards/README.md) — dashboard import and required helpers
 - [`../CHANGELOG.md`](../CHANGELOG.md) — release history

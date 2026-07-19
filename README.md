@@ -326,6 +326,21 @@ You never paste the QR code as the refresh token. Instead the refresh token is
 | **B — Cloud-only (mitmproxy)** | You capture the refresh token from EHG app traffic with mitmproxy and paste it into the integration. See [`tools/README.md`](tools/README.md). |
 | **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) performs the BLE pairing on your phone and shows the refresh token to copy/paste. |
 
+> **📱 Where is the Android token-extractor APK?** Download it directly from the
+> latest release:
+> **[`ehg-token-extractor.apk`](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk)**
+> (it is attached automatically to every GitHub release).
+>
+> - The APK is **not signed** and is **not on Google Play** — you must **sideload**
+>   it: copy it to your Android phone, then allow *"Install unknown apps"* for your
+>   browser/file manager when prompted, and open the file to install.
+> - You only need it **once**: open it near the vehicle, press **CONNECTION** on the
+>   SCU touch panel, and the app performs the BLE pairing and shows your EHG refresh
+>   token. **Copy/note the token**, paste it into the integration, and you are done.
+> - After you have saved your token you can safely **uninstall the app again** — the
+>   token lives in your Home Assistant config entry from then on, and the phone app
+>   plays no further role.
+
 Once obtained, the refresh token is stored in the Home Assistant config entry and
 **survives HACS updates** — you only lose it if you delete the integration under
 **Settings → Devices & Services**. Step-by-step instructions for each path are in
