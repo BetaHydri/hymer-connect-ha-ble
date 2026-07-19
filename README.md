@@ -317,6 +317,25 @@ Use it for:
 >   expiry) the integration actually stores and exchanges for short-lived access
 >   tokens. This is what powers cloud / SignalR data.
 
+> **🔑 Every BLE pairing mints its own personal EHG refresh token**, bound to the
+> pairing device's BLE identity. The official EHG app on your phone therefore
+> holds a **different** token than the one Home Assistant uses — running both side
+> by side is fine, and pairing a new device never invalidates the others.
+>
+> In the cloud-only paths, Home Assistant does not pair by itself: you pair a
+> **helper device** (the token-extractor APK in Path C, or a mitmproxy capture in
+> Path B) and then **reuse that same token** in Home Assistant. That is expected —
+> the token is portable and can be moved to a new device. **Best practice: do not
+> use one extracted token on more than one device at the same time.** Once Home
+> Assistant has the token, **uninstall the token-extractor APK** so the token is
+> only ever live in one place. (Path A is different: a Home Assistant host in the
+> vehicle with BLE-capable hardware and the Bluetooth integration pairs with the
+> SCU **directly through the HA integration** and mints its **own** dedicated
+> token — no helper device and no token reuse involved. The BLE dual-path has so
+> far only been tested on **Raspberry Pi 4** hardware by the maintainer, using
+> the Pi's **built-in Bluetooth adapter** (no external USB BLE dongle needed);
+> other BLE-capable HA hosts should work but are unverified.)
+
 You never paste the QR code as the refresh token. Instead the refresh token is
 **obtained for you**, depending on your setup path:
 
@@ -340,6 +359,11 @@ You never paste the QR code as the refresh token. Instead the refresh token is
 > - After you have saved your token you can safely **uninstall the app again** — the
 >   token lives in your Home Assistant config entry from then on, and the phone app
 >   plays no further role.
+> - The token the APK mints is **its own personal token** for this vehicle — it is
+>   independent of the official EHG app's token, so pairing the extractor does not
+>   log out or disturb your phone's EHG app. You then **reuse this token in Home
+>   Assistant**; uninstalling the APK afterwards keeps that token live on only one
+>   device at a time.
 
 Once obtained, the refresh token is stored in the Home Assistant config entry and
 **survives HACS updates** — you only lose it if you delete the integration under
@@ -356,7 +380,9 @@ Once obtained, the refresh token is stored in the Home Assistant config entry an
 
 ## How It Works
 
-During manufacturing, each vehicle's SCU is registered in the EHG cloud with a unique URN. When you pair your phone with the SCU via Bluetooth, the cloud issues a long-lived **refresh token** bound to your phone's BLE MAC address, your account, and your vehicle. This proves you have physical access to the vehicle.
+During manufacturing, each vehicle's SCU is registered in the EHG cloud with a unique URN. When you pair a device with the SCU via Bluetooth, the cloud issues a long-lived **refresh token** bound to that **device's BLE MAC address**, your account, and your vehicle. This proves you have physical access to the vehicle.
+
+Because the token is bound to the pairing device's BLE identity, **every BLE pairing mints its own personal refresh token** for the same vehicle. The official EHG app on your phone holds a different token than Home Assistant. In the cloud-only paths you pair a helper device (the token-extractor APK or a mitmproxy capture) and **reuse that same token** in Home Assistant — the token is portable, but you should not run one extracted token on more than one device at the same time (uninstall the APK once HA has the token).
 
 The integration uses this refresh token to automatically obtain short-lived access tokens every 15 minutes, then streams sensor data via SignalR WebSocket.
 

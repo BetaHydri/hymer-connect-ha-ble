@@ -35,6 +35,18 @@ mistake. **The dealer QR activation token is NOT the EHG refresh token.**
 token itself.** For the full explanation, see
 [README → Obtaining the EHG Refresh Token](README.md#obtaining-the-ehg-refresh-token).
 
+> **Every BLE pairing mints its own personal refresh token**, bound to the
+> pairing device's BLE identity, so the EHG app on your phone holds a different
+> token than Home Assistant. In the cloud-only paths you pair a helper device
+> (the token-extractor APK, Path C, or a mitmproxy capture, Path B) and **reuse
+> that same token** in Home Assistant. Best practice: don't run one extracted
+> token on more than one device at once — uninstall the APK once HA has the token.
+> With Path A (a HA host in the vehicle with BLE hardware + the Bluetooth
+> integration), Home Assistant pairs directly and mints its **own** token, so no
+> reuse is involved. The BLE dual-path has only been tested on **Raspberry Pi 4**
+> hardware so far, using the Pi's built-in Bluetooth adapter (no external USB BLE
+> dongle needed); other BLE-capable HA hosts should work but are unverified.
+
 ## Pick your setup path
 
 | Path | Choose this when | What you need |

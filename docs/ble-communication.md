@@ -205,6 +205,17 @@ a cloud API call. Confirmed by string analysis of the Hermes JS bundle
 - `remoteAccessRefreshToken` — protobuf field name
 - `REMOTE_ACCESS_TOKEN_EXPIRED` — token lifecycle
 
+> **Per-device tokens:** The token returned in `PairMobileResponse` is bound to
+> the pairing device's BLE identity (the `mobileDeviceMac` / device name used in
+> `PairMobileRequest`). Each BLE pairing therefore mints its **own** personal
+> refresh token for the same vehicle — the official EHG app holds a different
+> token than Home Assistant, and pairing a new device does not invalidate the
+> tokens already issued to others (subject to the SCU's limited pairing slots
+> below). The token is portable: the token-extractor APK pairs as its own device,
+> and the extracted token is then **reused** in Home Assistant. Best practice is
+> to keep one extracted token live on only one device at a time (uninstall the
+> APK once HA has the token).
+
 ## D-Bus Pairing Agent
 
 HAOS constraints prevent using `bleak.pair()`, `bluetoothctl`, or

@@ -178,6 +178,7 @@ message PairMobileResponse {
 - SCU remembers paired device **names** (not just MAC addresses)
 - Re-sending `PairMobileRequest` with an already-paired name → empty response (no `mobilePair` field) or timeout
 - SCU has limited pairing slots (likely 4–5 devices)
+- Each paired device gets its **own personal refresh token** — pairing a new device (e.g. the token-extractor APK alongside the official EHG app) does not invalidate the tokens of the others. The extracted token is portable and is reused in Home Assistant, but keep one token live on only one device at a time
 - Fix: use unique device name per attempt (`ha-{timestamp}`)
 
 ## EHG App UI — Vehicle Management
