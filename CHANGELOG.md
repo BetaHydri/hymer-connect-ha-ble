@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.8] - 2026-07-19
+
+### Removed
+
+- **Bathroom sink ambient light — reverted (HYMER BMC I 680)** ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)). The provisional `light.hymer_light_bathroom_sink_ambient` mapping on **bus 20** (added in v2.65.7) is removed. @FrankHae confirmed on-vehicle that nothing appears on bus 20, so the entity only ever showed as `unavailable` for BMC owners. Bus 20 was an unconfirmed guess from the EHG catalog; per the confirm-then-map policy it should not have shipped. All confirmed BMC mappings (bus 5 Alde, 10 satellite, 29 battery, 32 fridge, floor/shower/ceiling lights) are retained.
+
 ## [2.65.7] - 2026-07-17
 
 ### Added

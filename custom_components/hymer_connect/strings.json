@@ -222,9 +222,6 @@
       "light_floor_ambient_brightness": {
         "name": "Floor ambient brightness"
       },
-      "light_bathroom_sink_ambient_brightness": {
-        "name": "Bathroom sink ambient brightness"
-      },
       "light_shower_ambient_brightness": {
         "name": "Shower ambient brightness"
       },
@@ -455,9 +452,6 @@
       "light_floor_ambient": {
         "name": "Floor ambient"
       },
-      "light_bathroom_sink_ambient": {
-        "name": "Bathroom sink ambient"
-      },
       "light_bedroom_overhead": {
         "name": "Bedroom overhead"
       },
@@ -534,9 +528,6 @@
       },
       "light_floor_ambient": {
         "name": "Floor ambient light"
-      },
-      "light_bathroom_sink_ambient": {
-        "name": "Bathroom sink ambient light"
       },
       "light_shower_ambient": {
         "name": "Shower ambient light"
