@@ -117,6 +117,13 @@ Use this if your HA host has no BLE hardware but you do have an Android phone an
 8. Leave vehicle activation fields empty
 9. You only need the app once — after the token is saved in Home Assistant you can **uninstall it again**
 
+> **📵 Apple / iOS is not supported for token acquisition.** The token-extractor
+> app is **Android-only**, and the mitmproxy method (Path B) has only ever been
+> validated by capturing traffic from an **Android** device. Neither path has
+> been tested on an iPhone/iPad. If you only own Apple devices, borrow or use a
+> spare **Android phone** to obtain the token once — after it is saved in Home
+> Assistant you no longer need the Android device.
+
 ## Path D — Bootstrap only
 
 Use this if you want to create the entry now and finish pairing later.

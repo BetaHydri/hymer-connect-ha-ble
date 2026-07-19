@@ -364,6 +364,12 @@ You never paste the QR code as the refresh token. Instead the refresh token is
 >   log out or disturb your phone's EHG app. You then **reuse this token in Home
 >   Assistant**; uninstalling the APK afterwards keeps that token live on only one
 >   device at a time.
+> - **Apple / iOS is not supported for token acquisition.** The token-extractor
+>   app is **Android-only**, and the mitmproxy method (Path B) has only ever been
+>   validated by capturing traffic from an **Android** device — neither path has
+>   been tested on an iPhone/iPad. If you only own Apple devices, borrow or use a
+>   spare **Android phone** to obtain the token once; after it is saved in Home
+>   Assistant the Android device is no longer needed.
 
 Once obtained, the refresh token is stored in the Home Assistant config entry and
 **survives HACS updates** — you only lose it if you delete the integration under
