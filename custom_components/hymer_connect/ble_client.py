@@ -1142,8 +1142,16 @@ class ScuBleClient:
             # MTU=245 gives 242-byte chunks = only 6 chunks — eliminates ATT 0x0e.
             mtu = DEFAULT_GATT_MTU
             try:
-                if hasattr(client, "_acquire_mtu"):
-                    await client._acquire_mtu()
+                # HA wraps the real bleak backend in HaBleakClientWrapper.
+                # _acquire_mtu() may live on the wrapper OR only on the
+                # wrapped backend depending on habluetooth/bleak version —
+                # try the wrapper first, then fall back to the backend.
+                acquire = getattr(client, "_acquire_mtu", None)
+                if acquire is None:
+                    backend = getattr(client, "_backend", None)
+                    acquire = getattr(backend, "_acquire_mtu", None)
+                if acquire is not None:
+                    await acquire()
                     _LOGGER.debug("BLE MTU acquired via _acquire_mtu()")
                 else:
                     _LOGGER.debug(
@@ -1157,9 +1165,15 @@ class ScuBleClient:
             mtu = max(mtu, getattr(client, "mtu_size", DEFAULT_GATT_MTU))
             self._write_chunk_size = max(20, min(242, mtu - 3))
             if mtu <= DEFAULT_GATT_MTU:
-                _LOGGER.warning(
-                    "BLE MTU negotiation did not increase MTU (still %d). "
-                    "Pairing writes will use Write-With-Response for reliability.",
+                # Not an error: MTU 23 is a fully-supported fallback. Writes
+                # switch to 20-byte Write-With-Response chunks, which are
+                # reliable (just slightly slower). Logged at INFO so it does
+                # not surface in HA's custom-integration error panel.
+                _LOGGER.info(
+                    "BLE MTU stayed at the %d-byte default; writes will use "
+                    "20-byte Write-With-Response chunks (reliable, slightly "
+                    "slower). This is normal on many Bluetooth adapters and "
+                    "proxies and does not affect functionality.",
                     mtu,
                 )
 

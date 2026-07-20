@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.16] - 2026-07-20
+
+### Changed
+
+- **BLE MTU-default message downgraded from `WARNING` to `INFO` so it no longer appears in Home Assistant's custom-integration error panel.** When the adapter/proxy keeps the 23-byte default MTU, the integration falls back to 20-byte Write-With-Response chunks — a fully supported, reliable path (just slightly slower). This is normal on many Bluetooth adapters and BLE proxies and does not affect functionality, so it should never have been surfaced as an error. The log text was also reworded to make clear it is informational, not a fault.
+- **MTU acquisition now also falls back to the wrapped bleak backend.** Previously `_acquire_mtu()` was only attempted on Home Assistant's `HaBleakClientWrapper`; if the wrapper did not expose it, no negotiation was tried. It now additionally looks up `_acquire_mtu()` on the wrapped `_backend` (depending on habluetooth/bleak version) before falling back to D-Bus negotiation. Fully guarded with `getattr` and wrapped in the existing `try/except`, so the worst case is identical to prior behaviour (MTU 23, 20-byte chunks) — no path leaves BLE in a worse state.
+
 ## [2.65.15] - 2026-07-20
 
 ### Fixed
