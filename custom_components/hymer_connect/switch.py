@@ -47,6 +47,18 @@ class HymerSwitchEntityDescription(SwitchEntityDescription):
     holdoff_off: int = 15          # seconds to hold optimistic OFF
     requires_12v: bool = False     # entity unavailable when 12V off
     is_main_switch: bool = False   # special main_switch optimistic hack
+    # Command-pair ("momentary") switches write ON and OFF to *different*
+    # slots — e.g. a satellite dish where ON=Start(10,1) and OFF=Park(10,2),
+    # each triggered by sending bool true to its own slot.  When these are
+    # None the write target falls back to (bus_id, sensor_id).  bool_on/bool_off
+    # let both directions send the same trigger value (true/true) instead of
+    # the default toggle (true/false).
+    write_on_bus: int | None = None
+    write_on_sid: int | None = None
+    write_off_bus: int | None = None
+    write_off_sid: int | None = None
+    bool_on: bool = True           # bool value sent for ON
+    bool_off: bool = False         # bool value sent for OFF
 
 
 def _build_switch_descriptions() -> list[HymerSwitchEntityDescription]:
@@ -82,6 +94,13 @@ def _build_switch_descriptions() -> list[HymerSwitchEntityDescription]:
             kwargs["write_off"] = meta["write_off"]
         if "holdoff_off" in meta:
             kwargs["holdoff_off"] = meta["holdoff_off"]
+        for _split_key in (
+            "write_on_bus", "write_on_sid",
+            "write_off_bus", "write_off_sid",
+            "bool_on", "bool_off",
+        ):
+            if _split_key in meta:
+                kwargs[_split_key] = meta[_split_key]
         if meta.get("requires_12v"):
             kwargs["requires_12v"] = True
         if meta.get("enabled") is False:
@@ -347,22 +366,24 @@ class HymerConnectSwitch(
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         desc = self.entity_description
+        on_bus = desc.write_on_bus if desc.write_on_bus is not None else desc.bus_id
+        on_sid = desc.write_on_sid if desc.write_on_sid is not None else desc.sensor_id
         _LOGGER.info(
             "Switch %s → ON (bus=%d, sid=%d, type=%s)",
-            desc.key, desc.bus_id, desc.sensor_id, desc.write_type,
+            desc.key, on_bus, on_sid, desc.write_type,
         )
         if desc.write_type == "str":
             on_str = desc.write_on if desc.write_on else str(desc.on_value)
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, str_value=on_str,
+                on_bus, on_sid, str_value=on_str,
             )
         elif desc.write_type == "uint":
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, uint_value=1,
+                on_bus, on_sid, uint_value=1,
             )
         else:
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, bool_value=True,
+                on_bus, on_sid, bool_value=desc.bool_on,
             )
         self._optimistic_on = True
         self._optimistic_set_at = time.monotonic()
@@ -381,22 +402,24 @@ class HymerConnectSwitch(
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         desc = self.entity_description
+        off_bus = desc.write_off_bus if desc.write_off_bus is not None else desc.bus_id
+        off_sid = desc.write_off_sid if desc.write_off_sid is not None else desc.sensor_id
         _LOGGER.info(
             "Switch %s → OFF (bus=%d, sid=%d, type=%s)",
-            desc.key, desc.bus_id, desc.sensor_id, desc.write_type,
+            desc.key, off_bus, off_sid, desc.write_type,
         )
         if desc.write_type == "str":
             off_str = desc.write_off if desc.write_off else "Off"
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, str_value=off_str,
+                off_bus, off_sid, str_value=off_str,
             )
         elif desc.write_type == "uint":
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, uint_value=0,
+                off_bus, off_sid, uint_value=0,
             )
         else:
             await self.coordinator.async_send_light_command(
-                desc.bus_id, desc.sensor_id, bool_value=False,
+                off_bus, off_sid, bool_value=desc.bool_off,
             )
         self._optimistic_on = False
         self._optimistic_set_at = time.monotonic()

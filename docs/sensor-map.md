@@ -992,16 +992,25 @@ Read-only sensors (mapped in v2.64.7):
 | (10, 6) | `sat_status` | — | `state` (string) — dish status, e.g. `Searching clockwise`, `Satellite found`, `Is retracting`, `Is closed`. |
 | (10, 8) | `sat_signal_strength` | % | `unified_signal_quality` (int) — 0–100. Reads `255` while idle/retracted. |
 
-Writable control (added v2.64.9 — **write path UNVERIFIED on bus 10**, test build, revert if dropped):
+State binary sensors (added v2.65.10 — decode confirmed against @FrankHae bus-10 log in [#13](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/13)):
 
-| Entity | Slot | Notes |
+| Slot | Sensor Name | Device class | Notes |
+|------|------------|--------------|-------|
+| (10, 9) | `binary_sensor.hymer_sat_dish_moving` | `moving` | `DishMovingState` (bool) — **on** while the dish is deploying/retracting/searching. F→T at deploy start (19:44:17), T→F when stopped. |
+| (10, 10) | `binary_sensor.hymer_sat_safe_position` | — | `SafePositionState` (bool) — **on** = dish parked/retracted (safe position). Also feeds the `sat_control` switch (inverted). |
+| (10, 13) | `binary_sensor.hymer_sat_standby` | — | `StandbyModeState` (bool) — **on** = antenna in standby. |
+
+Writable control (added v2.64.9/v2.65.10 — **write path UNVERIFIED on bus 10**, test build, revert if dropped):
+
+| Entity | Slot(s) | Notes |
 |--------|------|-------|
-| `select.hymer_satellite` | (10, 5) | Pick the target satellite from the app's 19-entry list (`Amos 2/3`, `Astra 1–5`, `Eutelsat 5W/7/8W/9/10/16`, `Hellas Sat 2`, `Hispasat`, `Hotbird`, `Intelsat 907`, `Telstar 12`, `Thor/Intelsat10`, `Türksat`). |
+| `select.hymer_satellite` | (10, 5) | Pick the target satellite from the app's 19-entry list (`Amos 2/3`, `Astra 1–5`, `Eutelsat 5W/7/8W/9/10/16`, `Hellas Sat 2`, `Hispasat`, `Hotbird`, `Intelsat 907`, `Telstar 12`, `Thor/Intelsat10`, `Türksat`). Only slot confirmed writable so far. |
+| `switch.hymer_satellite_dish` | (10, 1) / (10, 2) | On/Off dish switch (command-pair). **On** = Start (deploy + auto-search, bool `true` → slot 1); **Off** = Park (retract to safe position, bool `true` → slot 2). State derived from `SafePositionState` (10, 10) **inverted** (parked → Off). Writes to slots 1/2 UNVERIFIED — @FrankHae to confirm on-vehicle. |
 
 Confirmed in the decompiled model, not yet exposed:
 
-- (10, 1) `start`, (10, 2) `park`, (10, 3) `stop_movement`, (10, 4) `open_sleep_mode` — bool **write-only** commands (candidates for future `button` entities).
-- (10, 9) `dish_moving_state` (bool, r — **not** "satellite found"), (10, 10) `safe_position_state`, (10, 11) `unsupported_function_state`, (10, 12) `alarm_beeper_state`, (10, 13) `standby_mode_state`, (10, 14) `k15_state` — all bool r. (Slot 7 does not exist.)
+- (10, 3) `stop_movement`, (10, 4) `open_sleep_mode` — bool **write-only** commands (candidates for future `button` entities).
+- (10, 11) `unsupported_function_state`, (10, 12) `alarm_beeper_state`, (10, 14) `k15_state` — all bool r. (Slot 7 does not exist.)
 
 ### Recommended Home Assistant cards (satellite)
 
@@ -1011,7 +1020,9 @@ The satellite entities map cleanly onto stock HA cards (no custom/HACS frontend 
 - **Signal strength** (`sensor.hymer_sat_signal_strength`, %) → a **Gauge card** (`min: 0`, `max: 100`, green severity above ~60) — the most intuitive "am I locked on?" indicator.
 - **Dish status** (`sensor.hymer_sat_status`) → an **Entity card** or a small **Markdown card**; it shows the live search state (`Searching …`, `Satellite found`, `Is closed`).
 - Group all three in a single **Entities card** titled "Satellite", or an **Entity Filter / Conditional card** that only shows signal strength while the dish is deployed.
-- When the write-only commands (start/park/stop/sleep) are exposed later as buttons, a **Horizontal-stack of Button cards** is the natural layout.
+- **Dish On/Off** (`switch.hymer_satellite_dish`) → a **Tile** or **Entities card** toggle — On deploys and auto-searches, Off parks the dish.
+- **Dish moving / parked / standby** (`binary_sensor.hymer_sat_dish_moving`, `…_sat_safe_position`, `…_sat_standby`) → an **Entities card** to see live movement/park/standby state while the dish operates.
+- When the remaining write-only commands (stop/sleep) are exposed later as buttons, a **Horizontal-stack of Button cards** is the natural layout.
 
 ## Bus 29 — Habitation battery (HYMER BMC I 680 MY2024, confirmed 2026-07-16)
 

@@ -278,9 +278,6 @@
       "fresh_water_level_ebl": {
         "name": "Fresh water (EBL)"
       },
-      "fresh_water_level": {
-        "name": "Fresh water level"
-      },
       "grey_water_level_ebl": {
         "name": "Grey water (EBL)"
       },
@@ -477,6 +474,15 @@
       }
     },
     "binary_sensor": {
+      "sat_dish_moving": {
+        "name": "Satellite dish moving"
+      },
+      "sat_safe_position": {
+        "name": "Satellite parked"
+      },
+      "sat_standby": {
+        "name": "Satellite standby"
+      },
       "engine_running": {
         "name": "Engine"
       },
@@ -724,6 +730,9 @@
       },
       "alde_gas_ctrl": {
         "name": "Alde gas"
+      },
+      "sat_control": {
+        "name": "Satellite dish"
       }
     },
     "climate": {

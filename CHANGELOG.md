@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.10] - 2026-07-20
+
+### Added
+
+- **TenHaaft satellite dish On/Off switch (HYMER BMC I 680)** ([#13](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/13)). New `switch.hymer_satellite_dish` ("Satellite dish") behaves like a normal dashboard toggle:
+  - **On** = Start — deploy the dish and auto-search (**bus 10 slot 1**).
+  - **Off** = Park — retract to the safe position (**bus 10 slot 2**).
+  - State is derived from `SafePositionState` (**bus 10 slot 10**) **inverted** — a parked dish shows Off, a deployed dish shows On.
+  - > ⚠️ The write path on bus 10 slots 1/2 is **unverified** — only the satellite `select` (slot 5) has been confirmed writable so far. @FrankHae to confirm on-vehicle. Revert if the SCU drops the writes.
+- **Satellite state binary sensors (HYMER BMC I 680)** ([#13](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/13)). Frank's three previously-unclear bus-10 status slots are now exposed for full insight:
+  - `binary_sensor.hymer_sat_dish_moving` — **bus 10 slot 9** (`DishMovingState`, device class *moving*): on while the dish is deploying/retracting/searching.
+  - `binary_sensor.hymer_sat_safe_position` — **bus 10 slot 10** (`SafePositionState`): on = dish parked (also feeds the switch, inverted).
+  - `binary_sensor.hymer_sat_standby` — **bus 10 slot 13** (`StandbyModeState`): on = antenna in standby.
+- **Reusable command-pair switch pattern.** The JSON switch platform now supports split write slots (`write_on_bus`/`write_on_sid`, `write_off_bus`/`write_off_sid`), momentary trigger values (`bool_on`/`bool_off`), and inverted read (`on_value: false`) — so any future device that starts/stops via two separate momentary commands can be modelled as a single On/Off switch entirely from `sensor_maps/*.json`. Fully backward-compatible: existing switches are unchanged.
+
 ## [2.65.9] - 2026-07-20
 
 ### Fixed
