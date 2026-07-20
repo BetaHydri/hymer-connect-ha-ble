@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.9] - 2026-07-20
+
+### Fixed
+
+- **EHG Token Extractor APK — TLS handshake now works on all Android versions.** The bundled token-extractor app failed at Step 6 ("ERROR: null") on modern phones because it used Android's platform TLS (Conscrypt), which dropped the legacy TLS 1.0/1.1 + `TLS_RSA_WITH_AES_128/256_CBC_SHA` cipher suites the SCU requires. The handshake now runs through BouncyCastle's pure-Java JSSE provider (`bctls-jdk18on`), which speaks legacy TLS on **any** Android version — the same approach the official EHG app uses (it bundles node-forge, a JS TLS stack, which is why it pairs fine even on Android 16). No change to the Home Assistant integration itself; download the updated APK from the release assets.
+
 ## [2.65.8] - 2026-07-19
 
 ### Removed
