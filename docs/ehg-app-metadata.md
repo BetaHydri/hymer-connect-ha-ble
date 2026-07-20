@@ -954,8 +954,8 @@ All-in-one Airstream hub with lights, water pump, fans, and awning control.
 
 | Slot | Label | Datatype | Notes |
 |------|-------|----------|-------|
-| 1 | `start` | bool | w — ✅ mapped as `switch.hymer_satellite_dish` On (Start), write UNVERIFIED |
-| 2 | `park` | bool | w — ✅ mapped as `switch.hymer_satellite_dish` Off (Park), write UNVERIFIED |
+| 1 | `start` | bool | w — ✅ mapped as `switch.hymer_satellite_dish` On (Start), write CONFIRMED on-vehicle (#13) |
+| 2 | `park` | bool | w — ✅ mapped as `switch.hymer_satellite_dish` Off (Park), write CONFIRMED on-vehicle (#13) |
 | 3 | `stop_movement` | bool | w |
 | 4 | `open_sleep_mode` | bool | w |
 | 5 | `satellite_position` | int | rw — ✅ mapped as `select.hymer_satellite` |

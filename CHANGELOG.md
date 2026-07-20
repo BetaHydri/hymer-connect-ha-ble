@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.11] - 2026-07-20
+
+### Changed
+
+- **TenHaaft satellite dish On/Off switch — write path CONFIRMED** ([#13](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/13)). @FrankHae confirmed on-vehicle that `switch.hymer_satellite_dish` (bus 10 slots 1/2, added in v2.65.10) actually deploys and retracts the dish. The v2.65.10 "write unverified" caveat is removed — the satellite On/Off switch is now a fully verified writable control. Docs and mapping `_doc` updated accordingly. JSON/docs-only change; no behavioural change for existing installs.
+
 ## [2.65.10] - 2026-07-20
 
 ### Added

@@ -1000,12 +1000,12 @@ State binary sensors (added v2.65.10 — decode confirmed against @FrankHae bus-
 | (10, 10) | `binary_sensor.hymer_sat_safe_position` | — | `SafePositionState` (bool) — **on** = dish parked/retracted (safe position). Also feeds the `sat_control` switch (inverted). |
 | (10, 13) | `binary_sensor.hymer_sat_standby` | — | `StandbyModeState` (bool) — **on** = antenna in standby. |
 
-Writable control (added v2.64.9/v2.65.10 — **write path UNVERIFIED on bus 10**, test build, revert if dropped):
+Writable control (satellite On/Off switch **write path CONFIRMED on bus 10** by @FrankHae on-vehicle, [#13](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/13), 2026-07-20):
 
 | Entity | Slot(s) | Notes |
 |--------|------|-------|
-| `select.hymer_satellite` | (10, 5) | Pick the target satellite from the app's 19-entry list (`Amos 2/3`, `Astra 1–5`, `Eutelsat 5W/7/8W/9/10/16`, `Hellas Sat 2`, `Hispasat`, `Hotbird`, `Intelsat 907`, `Telstar 12`, `Thor/Intelsat10`, `Türksat`). Only slot confirmed writable so far. |
-| `switch.hymer_satellite_dish` | (10, 1) / (10, 2) | On/Off dish switch (command-pair). **On** = Start (deploy + auto-search, bool `true` → slot 1); **Off** = Park (retract to safe position, bool `true` → slot 2). State derived from `SafePositionState` (10, 10) **inverted** (parked → Off). Writes to slots 1/2 UNVERIFIED — @FrankHae to confirm on-vehicle. |
+| `select.hymer_satellite` | (10, 5) | Pick the target satellite from the app's 19-entry list (`Amos 2/3`, `Astra 1–5`, `Eutelsat 5W/7/8W/9/10/16`, `Hellas Sat 2`, `Hispasat`, `Hotbird`, `Intelsat 907`, `Telstar 12`, `Thor/Intelsat10`, `Türksat`). |
+| `switch.hymer_satellite_dish` | (10, 1) / (10, 2) | On/Off dish switch (command-pair). **On** = Start (deploy + auto-search, bool `true` → slot 1); **Off** = Park (retract to safe position, bool `true` → slot 2). State derived from `SafePositionState` (10, 10) **inverted** (parked → Off). Confirmed on-vehicle by @FrankHae — the switch actually deploys/retracts the dish. |
 
 Confirmed in the decompiled model, not yet exposed:
 
