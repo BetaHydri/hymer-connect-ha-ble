@@ -2,6 +2,14 @@
 
 A ready-to-use, mobile-friendly Lovelace dashboard is shipped with this integration as [`hymer_connect.yaml`](./hymer_connect.yaml). It uses **only stock Home Assistant tile cards** — no HACS frontend cards required.
 
+> **🚐 Different model? Community dashboards:** Alternative layouts contributed by other users for their specific vehicle live alongside the default one. They use only stock cards too and are a good starting point if your vehicle differs from the Grand Canyon S 600 / S 700:
+>
+> | Dashboard | Vehicle | Highlights |
+> |-----------|---------|------------|
+> | [`hymer-bmci-680.yaml`](./hymer-bmci-680.yaml) | **HYMER BMC I 680** (contributed by [@FrankHae](https://github.com/FrankHae)) | 7 views — Basics, Lights, Solar, Heizung/Boiler/Kühlschrank, Fahrzeug, **Satellit** (TenHaaft dish), Karte. Includes the **Alde 3030** heater and the satellite-dish status sensors + On/Off switch. |
+>
+> Entity IDs are brand-agnostic (`sensor.hymer_*`, `light.hymer_*`), so any of these YAML files import the same way as the default — just point a new dashboard at the file. Adapt the tiles to your own vehicle's fitted components.
+
 ## Installation
 
 1. Copy or link [`hymer_connect.yaml`](./hymer_connect.yaml) into your Home Assistant config

@@ -1,0 +1,647 @@
+title: BMCI-680
+views:
+  - type: masonry
+    path: basics
+    title: Basics
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🚐 Fahrzeug'
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: binary_sensor.hymer_main_switch
+                icon: mdi:power
+                color: amber
+                hold_action:
+                  action: none
+                show_entity_picture: false
+                vertical: false
+                hide_state: false
+                name: 12V Hauptschalter
+              - type: tile
+                entity: switch.hymer_water_pump
+                name: Wasserpumpe
+                icon: mdi:water-pump
+                color: cyan
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: binary_sensor.hymer_alde_warning
+                icon: ''
+                color: deep-orange
+                hold_action:
+                  action: none
+                show_entity_picture: false
+                vertical: false
+                hide_state: false
+                name: Alde Warnung
+              - type: tile
+                entity: binary_sensor.hymer_alde_error
+                name: Alde Fehler
+                icon: ''
+                color: red
+          - type: entities
+            entities:
+              - entity: sensor.hymer_odometer
+                name: Kilometerstand
+                secondary_info: last-updated
+              - entity: sensor.hymer_fuel_level_liters
+                name: Tank Füllstand
+                secondary_info: last-updated
+              - entity: sensor.hymer_fuel_level
+                name: Tank Füllstand (%)
+                secondary_info: last-updated
+              - entity: sensor.hymer_fuel_consumption
+                name: Kraftstoffverbrauch
+                secondary_info: last-updated
+              - entity: sensor.hymer_estimated_range
+                name: Reichweite ca.
+                secondary_info: last-updated
+              - entity: sensor.hymer_adblue_level
+                name: AdBlue Füllstand
+                secondary_info: last-updated
+                icon: mdi:car-turbocharger
+              - entity: sensor.hymer_distance_to_service
+                name: Nächster Service
+                secondary_info: last-changed
+            state_color: true
+            show_header_toggle: false
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔒 Fahrzeug Hinweise'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.hymer_lock
+                name: Fahrzeug verriegelt
+                icon: mdi:lock
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_handbrake
+                name: Handbremse
+                secondary_info: last-changed
+              - entity: sensor.hymer_ignition
+                name: Zündung
+                icon: mdi:key
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_engine_running_corrected
+                name: Motor
+                icon: mdi:engine
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_driver_door
+                secondary_info: last-changed
+                name: Fahrertür
+              - entity: binary_sensor.hymer_passenger_door
+                secondary_info: last-changed
+                name: Beifahrertür
+              - entity: binary_sensor.hymer_vehicle_movement
+                name: Fahrzeug in Bewegung
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_washer_fluid_low
+                name: Wischwasser
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_motor_oil_warning
+                secondary_info: last-changed
+                name: Motor Öl
+              - entity: binary_sensor.hymer_coolant_warning
+                secondary_info: last-changed
+                name: Kühlflüssigkeit
+              - entity: sensor.hymer_chassis_battery_voltage
+                secondary_info: last-changed
+                name: Fahrzeug Batterie
+            state_color: true
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ⚡ HYMER Aufbau'
+          - type: entities
+            entities:
+              - entity: sensor.hymer_power_source
+                name: Energiequelle
+                secondary_info: last-updated
+                icon: mdi:power-plug-outline
+              - entity: binary_sensor.hymer_solar_active
+                secondary_info: last-updated
+                name: Solar aktiv
+              - entity: sensor.hymer_solar_voltage
+                name: Solar Spannung
+                secondary_info: last-updated
+              - entity: sensor.hymer_solar_power
+                name: Solar Leistung
+                secondary_info: last-updated
+              - entity: sensor.hymer_solar_current
+                name: Solar Ladestrom
+                secondary_info: last-updated
+              - entity: sensor.hymer_battery_current
+                name: Strombedarf aktuell
+                secondary_info: last-updated
+              - entity: binary_sensor.hymer_solar_reduced_power
+                name: Solarstrom laden reduziert
+                secondary_info: last-changed
+              - entity: sensor.hymer_charge_phase
+                name: Aufbaubatterie Ladephase
+                secondary_info: last-updated
+                icon: mdi:sine-wave
+              - entity: sensor.hymer_solar_charger_status
+                secondary_info: last-updated
+              - entity: sensor.hymer_battery_voltage
+                name: Aufbaubatterie (Lithium)
+                secondary_info: last-updated
+              - entity: sensor.hymer_body_battery_soc
+                name: Aufbaubatterie in %
+            state_color: true
+            show_header_toggle: false
+    icon: mdi:rv-truck
+  - type: masonry
+    path: lights
+    title: Lights
+    icon: mdi:lightbulb-group
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 💡 Lichtszenen'
+          - type: horizontal-stack
+            cards:
+              - type: grid
+                columns: 2
+                square: false
+                cards:
+                  - type: tile
+                    entity: light.hymer_wohnen_all_lights
+                    name: Wohnen Licht
+                    icon: mdi:lightbulb-group
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_privat_all_lights
+                    name: Privat Licht
+                    icon: mdi:lightbulb-group-outline
+                    color: amber
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🛋️ Wohnbereich'
+          - type: horizontal-stack
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: tile
+                    entity: light.hymer_living_ceiling
+                    name: Wohnraum Decke
+                    icon: mdi:ceiling-light
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_kitchen
+                    name: Küche
+                    icon: mdi:countertop
+                    color: amber
+              - type: vertical-stack
+                cards:
+                  - type: tile
+                    entity: light.hymer_living_ambient
+                    name: Wohnraum Ambiente
+                    icon: mdi:wall-sconce-flat
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_floor_ambient
+                    name: Fußboden Ambiente
+                    icon: mdi:led-strip-variant
+                    color: amber
+                    state_content: brightness
+      - type: horizontal-stack
+        cards:
+          - type: vertical-stack
+            cards:
+              - type: markdown
+                content: '## 💡 Außen'
+              - type: grid
+                columns: 1
+                square: false
+                cards:
+                  - type: tile
+                    entity: light.hymer_led_bar
+                    name: Außen Licht
+                    icon: mdi:led-strip-variant
+                    color: amber
+                    show_entity_picture: false
+          - type: vertical-stack
+            cards:
+              - type: markdown
+                content: '## 💡 Nachts'
+              - type: grid
+                columns: 1
+                square: false
+                cards:
+                  - type: tile
+                    entity: light.hymer_night_light
+                    name: Nachtlicht
+                    icon: mdi:weather-night
+                    color: deep-purple
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🛏️ Schlafzimmer 🛁 Bad 🚿 Dusche'
+          - type: horizontal-stack
+            cards:
+              - square: false
+                type: grid
+                columns: 2
+                cards:
+                  - type: tile
+                    entity: light.hymer_bedroom_ceiling
+                    name: Bett Decke
+                    icon: mdi:lamp
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_bedroom_ambient
+                    name: Bett Ambiente
+                    icon: mdi:ceiling-light
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_bathroom_ceiling
+                    name: Bad Decke
+                    icon: mdi:toilet
+                    color: amber
+                  - type: tile
+                    entity: light.hymer_shower_ceiling
+                    name: Dusche
+                    icon: mdi:shower-head
+                    color: light-blue
+                    vertical: false
+                    hide_state: false
+  - type: masonry
+    path: solar
+    title: Solar
+    icon: mdi:solar-power-variant
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ☀️ Solar - Leistung aktuell'
+          - graph: line
+            type: sensor
+            entity: sensor.hymer_solar_power
+            icon: mdi:solar-power
+            hours_to_show: 24
+            detail: 2
+            grid_options:
+              columns: 12
+              rows: 2
+            name: ' '
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ☀️ Solar - Ladestrom aktuell'
+          - graph: line
+            type: sensor
+            entity: sensor.hymer_solar_current
+            icon: mdi:solar-power
+            hours_to_show: 24
+            detail: 2
+            grid_options:
+              columns: 12
+              rows: 2
+            name: ' '
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ☀️ Solar - Strombedarf aktuell'
+          - graph: line
+            type: sensor
+            entity: sensor.hymer_battery_current
+            icon: mdi:solar-power
+            hours_to_show: 24
+            detail: 2
+            grid_options:
+              columns: 12
+              rows: 2
+            name: ' '
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ☀️ Solarleistung (10 Tage)'
+          - chart_type: line
+            period: hour
+            type: statistics-graph
+            entities:
+              - entity: sensor.hymer_solar_energy
+                name: Solar Energy
+              - sensor.hymer_solar_power
+            days_to_show: 10
+            stat_types:
+              - mean
+              - min
+              - max
+            hide_legend: false
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## ☀️ Batteriespannung (10 Tage)'
+          - type: vertical-stack
+            cards:
+              - type: history-graph
+                hours_to_show: 240
+                entities:
+                  - entity: sensor.hymer_battery_voltage
+                    name: Aufbaubatterie
+                  - entity: sensor.hymer_chassis_battery_voltage
+                grid_options:
+                  columns: full
+                  rows: auto
+            grid_options:
+              columns: full
+              rows: auto
+              column_span: 2
+  - type: masonry
+    title: Heizung Boiler Kühlschrank
+    path: heizung-boiler-kuhlschrank
+    icon: mdi:heat-wave
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 ℃ Temperaturen'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hymer_alde_inside_temp
+                secondary_info: last-changed
+                name: Innentemperatur (Alde)
+              - entity: sensor.hymer_alde_outside_temp
+                secondary_info: last-changed
+                name: Außentemperatur (Alde)
+            state_color: true
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        max: 60
+                        severity:
+                          green: 20
+                          yellow: 2
+                          red: 40
+                        entity: sensor.hymer_alde_inside_temp
+                        name: Innen
+                        min: -10
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        severity:
+                          green: 20
+                          yellow: 2
+                          red: 40
+                        name: Außen
+                        entity: sensor.hymer_alde_outside_temp
+                        min: -10
+                        max: 60
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 Heizung / Boiler'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: switch.hymer_alde_heating
+                name: Alde Heizung
+                secondary_info: last-changed
+              - entity: switch.hymer_alde_gas
+                secondary_info: last-changed
+                name: Alde Gas On/Off
+              - entity: number.hymer_alde_setpoint
+                secondary_info: last-changed
+                name: Alde SOLL Temperatur
+              - entity: select.hymer_alde_energy_priority
+                name: Alde Heizung Prio Gas/EL
+                secondary_info: last-changed
+              - entity: select.hymer_alde_electric_booster
+                secondary_info: last-changed
+                name: Alde Elektro Heizung
+              - entity: select.hymer_alde_hot_water
+                secondary_info: last-changed
+                name: Warmwasser Boiler
+            state_color: true
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 Kühlschrank'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.hymer_absorber_fridge_cooling_step
+              - entity: select.hymer_absorber_fridge_power_source
+              - entity: binary_sensor.hymer_absorber_fridge_door
+                secondary_info: last-changed
+                name: Kühlschranktür
+              - entity: sensor.hymer_hss_temp1_temperature
+                name: Kühlschrank Temperatur
+                secondary_info: last-changed
+              - entity: sensor.hymer_hss_temp1_humidity
+                secondary_info: last-changed
+                name: Kühlschrank Luftfeuchtigkeit
+              - entity: sensor.hymer_hss_temp1_battery
+                name: Kühlschrank Batterie Sensor
+                secondary_info: last-changed
+            state_color: true
+  - type: masonry
+    path: fahrzeug
+    title: Fahrzeug
+    icon: mdi:engine
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 System Info'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.hymer_scu_connected
+                name: SCU Verbindung
+                icon: mdi:access-point
+                secondary_info: last-changed
+              - entity: sensor.hymer_scu_firmware
+                name: SCU Firmware
+                icon: mdi:chip
+                secondary_info: last-changed
+              - entity: binary_sensor.hymer_lte_connected
+                name: LTE Verbindung
+                secondary_info: last-changed
+              - entity: sensor.hymer_lte_signal_quality
+                name: LTE Qualität
+                secondary_info: last-changed
+            state_color: true
+          - type: markdown
+            content: '## ⚡ Fahrzeug Infos'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hymer_model
+                name: Modellreihe
+                icon: mdi:rv-truck
+              - entity: sensor.hymer_model_year
+                name: Modelljahr
+                icon: mdi:calendar
+              - entity: sensor.hymer_vin
+                name: VIN
+                icon: mdi:identifier
+            state_color: true
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 Frischwasser / Abwasser'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hymer_fresh_water_ebl
+                secondary_info: last-changed
+                name: Frischwasser
+              - entity: sensor.hymer_grey_water_ebl
+                name: Abwasser
+                secondary_info: last-changed
+            state_color: true
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        max: 100
+                        entity: sensor.hymer_fresh_water_ebl
+                        name: Frischwasser
+                        min: 0
+                        severity:
+                          green: 75
+                          yellow: 50
+                          red: 25
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        severity:
+                          green: 75
+                          yellow: 50
+                          red: 25
+                        name: Abwasser
+                        entity: sensor.hymer_grey_water_ebl
+                        min: 0
+                        max: 100
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 Gasflaschen'
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hymer_hss_gaslevel1_percent
+                name: Gasflasche Links
+                secondary_info: last-changed
+              - entity: sensor.hymer_hss_gaslevel2_percent
+                name: Gasflasche Rechts
+                secondary_info: last-changed
+            state_color: true
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        max: 100
+                        entity: sensor.hymer_hss_gaslevel1_percent
+                        name: Gasflasche Links
+                        min: 0
+                        severity:
+                          green: 30
+                          yellow: 15
+                          red: 0
+                  - type: vertical-stack
+                    cards:
+                      - type: gauge
+                        needle: true
+                        severity:
+                          green: 30
+                          yellow: 15
+                          red: 0
+                        name: Gasflasche Rechts
+                        entity: sensor.hymer_hss_gaslevel2_percent
+                        min: 0
+                        max: 100
+  - type: masonry
+    path: satellit
+    title: Satellit
+    icon: mdi:satellite-uplink
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: '## 🔧 📡 Satellit'
+          - type: horizontal-stack
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: select.hymer_satellite
+                        name: Satellit
+                        icon: mdi:led-strip-variant
+                        color: amber
+                        show_entity_picture: false
+                  - type: gauge
+                    entity: sensor.hymer_sat_signal_strength
+                    needle: true
+                    grid_options:
+                      columns: 6
+                      rows: auto
+              - type: vertical-stack
+                cards:
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: sensor.hymer_sat_status
+                        name: Satellit Status
+                        icon: ''
+                        color: amber
+  - type: sections
+    max_columns: 4
+    title: Karte
+    path: karte
+    icon: mdi:map-outline
+    sections:
+      - type: grid
+        cards:
+          - type: entities
+            entities:
+              - entity: sensor.hymer_gps_coordinates
+                secondary_info: last-changed
+            state_color: true
+            show_header_toggle: false
+            grid_options:
+              columns: 12
+              rows: auto
+        column_span: 4
+      - type: grid
+        cards:
+          - type: map
+            entities:
+              - entity: device_tracker.hymer_location
+            theme_mode: auto
+            geo_location_sources: []
+            grid_options:
+              columns: full
+              rows: 12
+            hours_to_show: 720
+        column_span: 4

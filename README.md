@@ -103,6 +103,8 @@ Monitor your motorhome's complete power flow at a glance — solar production, l
 
 > 📺 [Watch the full video (MP4)](https://github.com/BetaHydri/hymer-connect-ha-ble/raw/master/images/Hymer%20Connect%20Dashboard.mp4)
 
+> **🚐 Community dashboards for other models:** The default dashboard ([`dashboards/hymer_connect.yaml`](dashboards/hymer_connect.yaml)) targets the Grand Canyon S 600 / S 700. User-contributed alternatives live in the [`dashboards/`](dashboards/) folder — e.g. [`hymer-bmci-680.yaml`](dashboards/hymer-bmci-680.yaml) for the **HYMER BMC I 680** (contributed by [@FrankHae](https://github.com/FrankHae)), with a dedicated **Satellit** view for the TenHaaft dish and tiles for the Alde 3030 heater. See the [dashboards README](dashboards/README.md#hymer-connect-s600--s700-dashboard) for the full list. All use stock cards only — no HACS frontend required.
+
 ## Supported Brands
 
 All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
