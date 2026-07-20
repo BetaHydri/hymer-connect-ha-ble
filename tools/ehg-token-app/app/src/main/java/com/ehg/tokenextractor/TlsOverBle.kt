@@ -1,5 +1,7 @@
 package com.ehg.tokenextractor
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -7,8 +9,14 @@ import javax.net.ssl.*
 
 /**
  * TLS 1.0/1.1 handshake over BLE NUS using SSLEngine.
- * The SCU only supports legacy TLS with AES128-SHA / AES256-SHA.
- * SSLEngine provides the same MemoryBIO-style interface as Python's ssl module.
+ *
+ * The SCU only supports legacy TLS with TLS_RSA_WITH_AES_128/256_CBC_SHA. Modern
+ * Android (API 29+, Conscrypt) removed those protocols and cipher suites, so the
+ * platform SSLEngine can no longer talk to the SCU. We therefore drive the
+ * handshake through BouncyCastle's pure-Java JSSE provider, which still speaks
+ * legacy TLS on ANY Android version — the same reason the official EHG app works
+ * even on Android 16 (it bundles node-forge, a JS TLS stack, instead of using the
+ * OS). SSLEngine gives the same MemoryBIO-style interface as Python's ssl module.
  */
 class TlsOverBle {
 
@@ -25,11 +33,11 @@ class TlsOverBle {
     /**
      * Initialize the TLS engine and return the ClientHello bytes.
      *
-     * @param log optional diagnostics sink. The SCU only speaks legacy TLS
-     *   (TLS 1.0/1.1 + AES-CBC-SHA). Android 10+ (API 29, Conscrypt) has
-     *   REMOVED those protocols and ciphers, so on a modern phone the
-     *   handshake cannot succeed. We surface exactly what the device offers
-     *   so the failure is diagnosable instead of a silent "ERROR: null".
+     * @param log optional diagnostics sink. The handshake runs on BouncyCastle's
+     *   pure-Java JSSE provider so the legacy TLS 1.0/1.1 + AES-CBC-SHA the SCU
+     *   requires works regardless of the Android version. We still surface the
+     *   negotiated protocols/ciphers so any failure stays diagnosable instead of
+     *   a silent "ERROR: null".
      */
     fun beginHandshake(log: (String) -> Unit = {}): ByteArray {
         // Trust all certs (SCU uses self-signed)
@@ -39,11 +47,23 @@ class TlsOverBle {
             override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
         })
 
-        // Try TLSv1.1 first, fall back to TLSv1
+        // Use BouncyCastle's software TLS stack — Android's platform TLS
+        // (Conscrypt) dropped legacy TLS 1.0/1.1 + TLS_RSA_WITH_AES_*_CBC_SHA on
+        // API 29+, but the SCU needs exactly those. BC speaks them on any Android
+        // version, mirroring how the official EHG app bundles node-forge.
         val ctx = try {
-            SSLContext.getInstance("TLSv1.1")
-        } catch (_: Exception) {
-            SSLContext.getInstance("TLSv1")
+            val bcJsse = BouncyCastleJsseProvider(BouncyCastleProvider())
+            SSLContext.getInstance("TLS", bcJsse).also {
+                log("  TLS provider: BouncyCastle JSSE (${bcJsse.name})")
+            }
+        } catch (e: Throwable) {
+            log("  \u26a0\ufe0f BouncyCastle JSSE unavailable (${e.javaClass.simpleName}: " +
+                "${e.message ?: "(no message)"}); falling back to platform TLS")
+            try {
+                SSLContext.getInstance("TLSv1.1")
+            } catch (_: Exception) {
+                SSLContext.getInstance("TLSv1")
+            }
         }
         ctx.init(null, trustAllCerts, SecureRandom())
 
@@ -63,8 +83,7 @@ class TlsOverBle {
                 log("  \u26a0\ufe0f Could not enable legacy TLS: ${e.javaClass.simpleName}: ${e.message}")
             }
         } else {
-            log("  \u26a0\ufe0f This device does NOT offer TLS 1.0/1.1 (Android 10+ removed them).")
-            log("     The SCU only speaks legacy TLS \u2014 use an older Android phone or the mitmproxy path.")
+            log("  \u26a0\ufe0f Neither BouncyCastle nor the platform offers TLS 1.0/1.1 \u2014 SCU handshake will fail.")
         }
 
         // Enable legacy ciphers (AES-CBC-SHA).

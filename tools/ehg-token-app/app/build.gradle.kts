@@ -41,4 +41,11 @@ dependencies {
     implementation("no.nordicsemi.android:ble:2.9.0")
     // Google Code Scanner — camera-based QR scanning without camera permission
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    // BouncyCastle software TLS stack. The SCU only speaks legacy TLS 1.0/1.1 +
+    // TLS_RSA_WITH_AES_*_CBC_SHA, which Android's platform TLS (Conscrypt)
+    // removed on API 29+. BC's pure-Java JSSE provider speaks these on ANY
+    // Android version — the same approach the official EHG app takes by
+    // bundling node-forge (a JS TLS stack) instead of relying on the OS.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bctls-jdk18on:1.78.1")
 }
