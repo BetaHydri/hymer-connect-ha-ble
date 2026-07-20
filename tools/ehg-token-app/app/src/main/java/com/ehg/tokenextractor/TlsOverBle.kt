@@ -40,6 +40,23 @@ class TlsOverBle {
      *   a silent "ERROR: null".
      */
     fun beginHandshake(log: (String) -> Unit = {}): ByteArray {
+        // Some Android builds (e.g. Samsung's Android 13/14 on the S20 FE 5G) ship
+        // a java.security config that lists "TLSv1, TLSv1.1" in
+        // jdk.tls.disabledAlgorithms. BouncyCastle's JSSE intersects the ENABLED
+        // protocols with that disabled-algorithms constraint, so even though
+        // setEnabledProtocols(["TLSv1.1","TLSv1"]) succeeds, the handshake later
+        // throws "IllegalStateException: No usable protocols enabled" from
+        // ProvSSLContextSpi.getActiveProtocolVersions(). The SCU ONLY speaks legacy
+        // TLS 1.0/1.1 + AES-CBC-SHA, and we already trust-all its self-signed cert,
+        // so clear the constraint for this throwaway handshake.
+        try {
+            java.security.Security.setProperty("jdk.tls.disabledAlgorithms", "")
+            log("  Cleared jdk.tls.disabledAlgorithms (allow legacy TLS 1.0/1.1)")
+        } catch (e: Throwable) {
+            log("  \u26a0\ufe0f Could not clear jdk.tls.disabledAlgorithms: " +
+                "${e.javaClass.simpleName}: ${e.message ?: "(no message)"}")
+        }
+
         // Trust all certs (SCU uses self-signed)
         val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}

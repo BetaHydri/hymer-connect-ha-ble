@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.12] - 2026-07-20
+
+### Fixed
+
+- **EHG Token Extractor APK — TLS handshake now works on Samsung Galaxy S20 FE 5G (and other phones that disable legacy TLS).** After the v2.65.9 BouncyCastle switch, a tester on a Samsung Galaxy S20 FE 5G still failed at Step 6 with `IllegalStateException: No usable protocols enabled` (thrown from `ProvSSLContextSpi.getActiveProtocolVersions`). That phone's Android build lists `TLSv1, TLSv1.1` in the `jdk.tls.disabledAlgorithms` security property, and BouncyCastle intersects the enabled protocols with that constraint — leaving an empty set even though the app requested TLS 1.0/1.1. The token app now clears `jdk.tls.disabledAlgorithms` before the handshake so the legacy TLS 1.0/1.1 + AES-CBC-SHA path the SCU requires stays usable on every device. Safe: it is a throwaway, trust-all handshake to the self-signed SCU. No change to the Home Assistant integration itself; download the updated APK from the release assets.
+
 ## [2.65.11] - 2026-07-20
 
 ### Changed
