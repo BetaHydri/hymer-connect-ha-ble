@@ -347,6 +347,11 @@ You never paste the QR code as the refresh token. Instead the refresh token is
 | **B — Cloud-only (mitmproxy)** | You capture the refresh token from EHG app traffic with mitmproxy and paste it into the integration. See [`tools/README.md`](tools/README.md). |
 | **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) performs the BLE pairing on your phone and shows the refresh token to copy/paste. |
 
+> **✅ Confirmed working (v2.65.14+):** the Android token-extractor completes the
+> full legacy-TLS-over-BLE handshake and successfully mints the EHG refresh token
+> on-device — verified on a Samsung Galaxy S20 FE 5G, including phones that disable
+> legacy TLS 1.0/1.1 by default. Use the **latest** release APK (v2.65.14 or newer).
+
 > **📱 Where is the Android token-extractor APK?** Download it directly from the
 > latest release:
 > **[`ehg-token-extractor.apk`](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk)**
@@ -1596,7 +1601,7 @@ Big thanks to everyone who contributed sensor mappings, debugging time, or APK m
 - [@mvondemhagen](https://github.com/mvondemhagen) — Dometic compressor fridge mapping (bus 60) on Eriba Car 602 ([#54](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/54)).
 - [@mcfly1969](https://github.com/mcfly1969) — first HYMER ML-T 570 CrossOver mappings (bus 14 bedroom ceiling, bus 66 dinette pendant, **bus 114 Thetford Compressor T2120C fridge** — compressor fridge with freezer compartment, distinct from the Thetford N4112A absorber on S 600/S 700), discovered via the dynamic-discovery diagnostic sensors and confirmed at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8), 2026-06-01/07).
 - [@FrankHae](https://github.com/FrankHae) — first HYMER **BMC I 680 (MY2024)** mappings and the **first Alde heater** in the project: individual lights on **bus 13** (floor ambient) and **bus 17** (shower ceiling) in v2.64.6, plus the **Alde 3030** heater (bus 5), **TenHaaft satellite dish** (bus 10) and **Thetford N4142E+ absorber fridge** (bus 32) read-only sensors in v2.64.7 — all confirmed at the vehicle via RAW PIA toggle logs ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9), 2026-07).
-- **Steve Förster** — extensive on-device testing of the **EHG Token Extractor** helper app on a Samsung Galaxy S20 FE 5G, whose detailed handshake logs drove the legacy-TLS fixes for modern Android (BouncyCastle JSSE switch, clearing `jdk.tls.disabledAlgorithms`, and the `peerNetBuffer` read-mode fix in v2.65.9–v2.65.13).
+- **Steve Förster** — extensive on-device testing of the **EHG Token Extractor** helper app on a Samsung Galaxy S20 FE 5G, whose detailed handshake logs drove the legacy-TLS fixes for modern Android (BouncyCastle JSSE switch, clearing `jdk.tls.disabledAlgorithms`, the `peerNetBuffer` read-mode fix, and the incoming PIA-frame reassembly in v2.65.9–v2.65.14) — and who **verified the working extractor**, confirming the app successfully mints the EHG refresh token on-device with v2.65.14.
 
 ## License
 
