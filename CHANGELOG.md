@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.15] - 2026-07-20
+
+### Fixed
+
+- **BLE frame accumulator no longer drops a magic byte split across notification boundaries.** `_FrameAccumulator.feed()` previously cleared its entire buffer whenever the 2-byte PIA magic (`0xA0CB`) was not yet found. If a BLE notification boundary split the magic between two chunks (first byte `0xA0` at the end of one chunk, `0xCB` at the start of the next), the trailing `0xA0` was discarded and the following frame could be lost. It now retains the last `len(magic) - 1` bytes as a potential partial-magic prefix for the next `feed()` call. Low-probability edge case (a frame almost always arrives whole inside one TLS record), but eliminates a latent reassembly bug.
+- **Removed unreachable dead code** after the `return None` in `ScuBleClient.check_bonding_state()` (a duplicated `stop_notify`/`disconnect` block that could never execute). Cosmetic; no behavioural change.
+
 ## [2.65.14] - 2026-07-20
 
 > **✅ Confirmed working:** verified on-device on a Samsung Galaxy S20 FE 5G — the extractor now completes the full handshake and successfully mints the EHG refresh token. This confirms the entire legacy-TLS-over-BLE fix chain (v2.65.9 → v2.65.14) end-to-end on modern Android.

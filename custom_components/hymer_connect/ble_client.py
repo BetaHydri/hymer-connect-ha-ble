@@ -734,7 +734,13 @@ class _FrameAccumulator:
         while True:
             idx = self._buf.find(BLE_PIA_MAGIC)
             if idx < 0:
-                self._buf.clear()
+                # No complete magic found. A notification boundary can split
+                # the 2-byte magic, so keep the last (len(MAGIC) - 1) bytes as
+                # a potential partial magic prefix for the next feed() call
+                # instead of dropping them.
+                keep = len(BLE_PIA_MAGIC) - 1
+                if keep and len(self._buf) > keep:
+                    del self._buf[:-keep]
                 return frames
             if idx > 0:
                 del self._buf[:idx]
@@ -1592,15 +1598,6 @@ class ScuBleClient:
         except Exception as err:
             _LOGGER.debug("Could not read SCU bonding state: %s", err)
             return None
-            try:
-                await client.stop_notify(UART_TX_UUID)
-            except Exception:
-                pass
-            try:
-                await client.disconnect()
-            except Exception:
-                pass
-        _LOGGER.info("BLE disconnected from SCU %s", self._scu_address)
 
     async def _write_to_scu(self, data: bytes, *, force_response: bool = False) -> None:
         """Write data to SCU via NUS RX characteristic in chunks.
