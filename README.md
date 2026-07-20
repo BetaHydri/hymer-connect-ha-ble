@@ -386,6 +386,7 @@ Once obtained, the refresh token is stored in the Home Assistant config entry an
 ### Advanced setup references
 
 - **Quick start:** [quick-start.md](quick-start.md)
+- **BLE setup & troubleshooting:** [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md) — the BLE-direct path (Path A), adding BLE to a cloud-only setup via **Reconfigure**, what to watch out for on the HA host, and how to enable debug logging
 - **Dashboard helpers and setup:** [`dashboards/README.md`](dashboards/README.md)
 - **Token capture and advanced tools:** [`tools/README.md`](tools/README.md)
 - **Connection internals:** [`docs/signalr-connection.md`](docs/signalr-connection.md)

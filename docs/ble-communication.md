@@ -5,6 +5,11 @@
 
 Technical documentation for the HYMER Connect SCU BLE communication layer.
 
+> **Just setting up or debugging BLE?** See the user-facing
+> [`ble-troubleshooting.md`](ble-troubleshooting.md) — the BLE-direct path (Path A),
+> adding BLE to an existing cloud-only setup via **Reconfigure**, what to watch out
+> for on the HA host, enabling debug logging, and reading the pairing log.
+
 ## Architecture Overview
 
 ```

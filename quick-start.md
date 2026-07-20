@@ -154,7 +154,8 @@ After setup, check these items:
 
 Start here:
 
-- **BLE pairing problems:** [`README.md`](README.md#troubleshooting)
+- **BLE setup & pairing problems (Path A / adding BLE later):** [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md)
+- **Other troubleshooting:** [`README.md`](README.md#troubleshooting)
 - **Dashboard setup:** [`dashboards/README.md`](dashboards/README.md)
 - **Sensor reference:** [`docs/sensor-map.md`](docs/sensor-map.md)
 - **Cloud / BLE internals:** the other files under [`docs/`](docs)

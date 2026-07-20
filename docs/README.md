@@ -17,6 +17,7 @@ understanding the protocol internals.
 
 | Document | What it covers | Audience |
 | --- | --- | --- |
+| [`ble-troubleshooting.md`](ble-troubleshooting.md) | **BLE setup & troubleshooting** for users — the BLE-direct path (Path A), adding BLE to an existing cloud-only setup via **Reconfigure**, what to watch out for on the HA host, enabling debug logging from the integration, reading the pairing log stage-by-stage, and clearing a stale bond. | Users setting up or debugging BLE |
 | [`signalr-connection.md`](signalr-connection.md) | The cloud path: SignalR/Azure connection lifecycle, token refresh strategy, reconnection logic, traffic budgets, and lessons from production issues. | Maintainers · advanced troubleshooters |
 | [`ble-communication.md`](ble-communication.md) | The local path: SCU BLE communication layer — NUS GATT, TLS-over-BLE handshake, bonding, and the PIA read mirror. | Maintainers · reverse-engineering contributors |
 
