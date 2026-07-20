@@ -24,8 +24,14 @@ class TlsOverBle {
 
     /**
      * Initialize the TLS engine and return the ClientHello bytes.
+     *
+     * @param log optional diagnostics sink. The SCU only speaks legacy TLS
+     *   (TLS 1.0/1.1 + AES-CBC-SHA). Android 10+ (API 29, Conscrypt) has
+     *   REMOVED those protocols and ciphers, so on a modern phone the
+     *   handshake cannot succeed. We surface exactly what the device offers
+     *   so the failure is diagnosable instead of a silent "ERROR: null".
      */
-    fun beginHandshake(): ByteArray {
+    fun beginHandshake(log: (String) -> Unit = {}): ByteArray {
         // Trust all certs (SCU uses self-signed)
         val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
@@ -44,12 +50,32 @@ class TlsOverBle {
         engine = ctx.createSSLEngine()
         engine.useClientMode = true
 
-        // Enable legacy ciphers
+        // Explicitly enable the legacy protocols the SCU requires.
+        val wantProtocols = listOf("TLSv1.1", "TLSv1")
+        val availProtocols = engine.supportedProtocols.toSet()
+        val enableProtocols = wantProtocols.filter { it in availProtocols }
+        log("  TLS supported protocols: ${engine.supportedProtocols.joinToString()}")
+        if (enableProtocols.isNotEmpty()) {
+            try {
+                engine.enabledProtocols = enableProtocols.toTypedArray()
+                log("  TLS enabled protocols: ${enableProtocols.joinToString()}")
+            } catch (e: Exception) {
+                log("  \u26a0\ufe0f Could not enable legacy TLS: ${e.javaClass.simpleName}: ${e.message}")
+            }
+        } else {
+            log("  \u26a0\ufe0f This device does NOT offer TLS 1.0/1.1 (Android 10+ removed them).")
+            log("     The SCU only speaks legacy TLS \u2014 use an older Android phone or the mitmproxy path.")
+        }
+
+        // Enable legacy ciphers (AES-CBC-SHA).
         val ciphers = engine.supportedCipherSuites.filter {
             it.contains("AES_128_CBC_SHA") || it.contains("AES_256_CBC_SHA")
         }.toTypedArray()
         if (ciphers.isNotEmpty()) {
             engine.enabledCipherSuites = ciphers
+            log("  TLS enabled ciphers: ${ciphers.joinToString()}")
+        } else {
+            log("  \u26a0\ufe0f No legacy AES-CBC-SHA ciphers on this device \u2014 SCU handshake will fail.")
         }
 
         engine.beginHandshake()

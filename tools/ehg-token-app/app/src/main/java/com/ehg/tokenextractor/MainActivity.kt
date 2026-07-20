@@ -236,7 +236,13 @@ class MainActivity : AppCompatActivity() {
                 // Step 6: TLS handshake
                 log("Step 6: TLS handshake...")
                 val tls = TlsOverBle()
-                val clientHello = tls.beginHandshake()
+                val clientHello = try {
+                    tls.beginHandshake { m -> log(m) }
+                } catch (e: Exception) {
+                    log("❌ TLS init failed [${e.javaClass.simpleName}]: ${e.message ?: "(no message)"}")
+                    e.stackTrace.take(4).forEach { log("    at $it") }
+                    return@launch
+                }
                 writeToScu(clientHello)
 
                 // Complete handshake (read server responses, send our responses)
@@ -314,7 +320,10 @@ class MainActivity : AppCompatActivity() {
                 log("ERROR: Timed out waiting for PairMobileResponse")
 
             } catch (e: Exception) {
-                log("ERROR: ${e.message}")
+                // NOTE: NullPointerException has a null message — always log the
+                // exception class + first stack frames so failures are actionable.
+                log("ERROR [${e.javaClass.simpleName}]: ${e.message ?: "(no message)"}")
+                e.stackTrace.take(5).forEach { log("    at $it") }
                 Log.e(TAG, "Extraction failed", e)
             } finally {
                 bluetoothGatt?.disconnect()
