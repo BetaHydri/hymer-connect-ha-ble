@@ -24,7 +24,13 @@ class TlsOverBle {
     private val appBuffer = ByteBuffer.allocate(16384)
     private val netBuffer = ByteBuffer.allocate(16384)
     private val peerAppBuffer = ByteBuffer.allocate(16384)
-    private val peerNetBuffer = ByteBuffer.allocate(16384)
+    // Start empty in READ mode (position=limit=0). feedEncrypted() calls
+    // compact() before every put(); on a freshly allocated (write-mode) buffer
+    // compact() would treat the entire 16 KB as unread data and leave zero
+    // writable space, so the first put(incoming) threw BufferOverflowException.
+    // Flipping here makes the first compact() a no-op that yields a fully
+    // writable buffer.
+    private val peerNetBuffer = ByteBuffer.allocate(16384).apply { flip() }
 
     val isHandshakeComplete: Boolean
         get() = engine.handshakeStatus == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING ||

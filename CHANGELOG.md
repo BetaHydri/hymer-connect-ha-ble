@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.13] - 2026-07-20
+
+### Fixed
+
+- **EHG Token Extractor APK — TLS handshake now proceeds past ClientHello (`BufferOverflowException` fixed).** With the v2.65.12 protocol fix the handshake finally reached the SCU: the 169-byte ClientHello was sent (`TX 169 bytes -> 1 chunks`), but the very first response chunk crashed with `BufferOverflowException` in `TlsOverBle.feedEncrypted`. Root cause: the persistent `peerNetBuffer` was created with `ByteBuffer.allocate(16384)`, which leaves it in *write* mode; the first `compact()` then treated the entire 16 KB as unread data and left zero writable space, so `put(incoming)` overflowed. This bug was previously unreachable because the handshake always died earlier in `beginHandshake`. The buffer now starts empty in *read* mode (`.apply { flip() }`), so the first `compact()` yields a fully writable buffer and inbound TLS records accumulate correctly. Token-app only; download the updated APK from the release assets.
+
 ## [2.65.12] - 2026-07-20
 
 ### Fixed
