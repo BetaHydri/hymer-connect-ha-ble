@@ -276,19 +276,26 @@ class MainActivity : AppCompatActivity() {
                 log("Step 8: Waiting for PairMobileResponse...")
                 log("  ⚠️ Press ALLOW on SCU touchscreen if prompted!")
                 val responseDeadline = System.currentTimeMillis() + 120000 // 2 min
-                val responseAccumulator = ByteArrayOutputStream()
+                // Incoming data is PIA-framed (magic + length + CRC + payload) and may
+                // arrive split across TLS records or coalesced with periodic status
+                // pushes from the SCU. The accumulator resyncs to each frame's magic
+                // marker and yields header-stripped payloads ready for protobuf
+                // parsing — feeding raw bytes straight to the parser makes it start on
+                // the 0xA0 magic byte and never recognise PairMobileResponse.
+                val frameAccumulator = PiaProtocol.PiaFrameAccumulator()
+                var confirmationPrompted = false
 
                 while (System.currentTimeMillis() < responseDeadline) {
                     val data = waitForData(5000) ?: continue
                     val decrypted = tls.decrypt(data)
-                    if (decrypted.isNotEmpty()) {
-                        responseAccumulator.write(decrypted)
-                        log("  Received ${decrypted.size} bytes decrypted")
+                    if (decrypted.isEmpty()) continue
+                    log("  Received ${decrypted.size} bytes decrypted")
 
-                        // Try to parse
-                        val parsed = PiaProtocol.parsePairMobileResponse(responseAccumulator.toByteArray())
-                        if (parsed?.remoteAccessRefreshToken != null) {
-                            extractedToken = parsed.remoteAccessRefreshToken
+                    for (framePayload in frameAccumulator.feed(decrypted)) {
+                        val parsed = PiaProtocol.parsePairMobileResponse(framePayload) ?: continue
+                        val refreshToken = parsed.remoteAccessRefreshToken
+                        if (!refreshToken.isNullOrEmpty()) {
+                            extractedToken = refreshToken
 
                             // Send PairMobileConfirmation to finalize pairing on SCU
                             log("  Sending PairMobileConfirmation...")
@@ -313,6 +320,10 @@ class MainActivity : AppCompatActivity() {
                                 btnCopy.isEnabled = true
                             }
                             return@launch
+                        }
+                        if (parsed.confirmationRequired == true && !confirmationPrompted) {
+                            confirmationPrompted = true
+                            log("  ⏳ SCU requires confirmation — press ALLOW on the SCU touchscreen now, then keep waiting…")
                         }
                     }
                 }

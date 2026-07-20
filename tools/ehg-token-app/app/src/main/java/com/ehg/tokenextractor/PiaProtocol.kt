@@ -12,6 +12,7 @@ import java.util.zip.CRC32
 object PiaProtocol {
 
     private const val PIA_MAGIC: Short = 0xA0CB.toShort()
+    private const val PIA_HEADER_SIZE = 10 // 2-byte magic + 4-byte length + 4-byte CRC32
 
     // --- Protobuf wire-format helpers ---
 
@@ -173,7 +174,17 @@ object PiaProtocol {
                     if (fieldNumber == targetField) return data.sliceArray(offset until end)
                     offset = end
                 }
-                else -> return null // unsupported wire type
+                1 -> { // fixed64 — skip so parsing doesn't abort before the target field
+                    if (offset + 8 > data.size) return null
+                    if (fieldNumber == targetField) return data.sliceArray(offset until offset + 8)
+                    offset += 8
+                }
+                5 -> { // fixed32 — skip so parsing doesn't abort before the target field
+                    if (offset + 4 > data.size) return null
+                    if (fieldNumber == targetField) return data.sliceArray(offset until offset + 4)
+                    offset += 4
+                }
+                else -> return null // unsupported wire type (3/4 = groups, deprecated)
             }
         }
         return null
@@ -202,5 +213,65 @@ object PiaProtocol {
             if (shift > 63) return null
         }
         return null
+    }
+
+    // --- Incoming PIA frame reassembly ---
+
+    private fun indexOfMagic(data: ByteArray, from: Int): Int {
+        var i = if (from < 0) 0 else from
+        while (i + 1 < data.size) {
+            if (data[i] == 0xA0.toByte() && data[i + 1] == 0xCB.toByte()) return i
+            i++
+        }
+        return -1
+    }
+
+    /**
+     * Accumulates decrypted plaintext bytes and extracts complete BLE PIA frame
+     * PAYLOADS (10-byte header stripped), mirroring the proven Python
+     * `_FrameAccumulator` in the HA integration's ble_client.py.
+     *
+     * Incoming responses are PIA-framed exactly like the outgoing ones:
+     *   2-byte magic 0xA0CB + 4-byte big-endian length + 4-byte CRC32 + payload.
+     * The protobuf body starts only AFTER that header. Feeding the raw
+     * accumulated bytes straight into [parsePairMobileResponse] makes the
+     * protobuf walk start on the magic byte (0xA0) and mis-parse, so
+     * PairMobileResponse is never recognised even though the bytes arrived.
+     * Frames may arrive split across TLS records or coalesced with periodic
+     * status pushes; this class resyncs to each magic marker, waits for a full
+     * frame, then yields the header-stripped payload. A partial trailing frame
+     * stays buffered until the rest arrives.
+     */
+    class PiaFrameAccumulator {
+        private val buf = ByteArrayOutputStream()
+
+        fun feed(data: ByteArray): List<ByteArray> {
+            buf.write(data)
+            val bytes = buf.toByteArray()
+            val payloads = mutableListOf<ByteArray>()
+            var offset = 0
+            while (true) {
+                val idx = indexOfMagic(bytes, offset)
+                if (idx < 0) {
+                    // No magic marker in the remainder — discard it (matches Python).
+                    offset = bytes.size
+                    break
+                }
+                offset = idx
+                if (bytes.size - offset < PIA_HEADER_SIZE) break // header incomplete
+                val len = ByteBuffer.wrap(bytes, offset + 2, 4)
+                    .order(ByteOrder.BIG_ENDIAN).int
+                if (len < 0) { offset += 2; continue } // bogus length — skip past this magic
+                val frameLen = PIA_HEADER_SIZE + len
+                if (bytes.size - offset < frameLen) break // frame incomplete — wait for more
+                payloads.add(bytes.sliceArray(offset + PIA_HEADER_SIZE until offset + frameLen))
+                offset += frameLen
+            }
+            // Retain only the unconsumed tail for the next feed().
+            val tail = bytes.copyOfRange(offset, bytes.size)
+            buf.reset()
+            buf.write(tail)
+            return payloads
+        }
     }
 }
