@@ -29,6 +29,15 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        resources {
+            // BouncyCastle's bctls/bcutil/bcprov jars each ship this OSGi
+            // metadata file, which collides during resource merge. It is not
+            // needed at runtime, so drop the duplicates.
+            excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
 dependencies {
