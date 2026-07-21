@@ -40,17 +40,28 @@ HA integration / EHG app
         │  SCU-internal field buses (never on the PIA wire)
         ├── LIN   (lin1, lin2, …)
         ├── CAN   (can2, …)
-        └── pin/GPIO (pin-6, pin-7, …)
+        ├── pin/GPIO (pin-6, pin-7, …)
+        └── BLE   (HYMER Smart Sensors: tyre, gas-bottle, contact, temp/humidity)
         ▼
-   heater · fridge · lights · satellite antenna · sensors
+   heater · fridge · lights · satellite antenna · sensors · BLE accessories
 ```
 
+Note that **BLE is a dual role** for the SCU: on the *upstream* side its BLE radio
+is a **peripheral** exposing the NUS GATT service to the app/HA (this is the "BLE
+(NUS)" transport above); on the *downstream* side the same radio acts as a **BLE
+central** that pairs with HYMER Smart Sensors (HSS) — the wireless tyre-pressure,
+gas-bottle, contact and temperature/humidity sensors — and aggregates their
+readings into the very same PIA `(bus, slot)` space (buses 70/71/73/74). To us
+these look like any other component; we never see the raw BLE advertisements, only
+the decoded PIA slots.
+
 We only ever speak PIA and address components logically as `(bus_id, slot_id)`.
-The underlying LIN/CAN/pin wiring is never exposed as traffic — it only appears
+The underlying LIN/CAN/pin/BLE wiring is never exposed as traffic — it only appears
 as a **label**: PIA field 10 (`connectedComponentInstance`) carries strings such
 as `lin1`, `lin2`, `can2`, `pin-6`, telling us which field bus a component is
 physically wired to. The decoder even uses this label to tell apart components
-that share the same `(bus, slot)` numbering — see
+that share the same `(bus, slot)` numbering — this is exactly how the multiple HSS
+sensors on one BLE bus are separated into per-device entities; see
 [`sensor-map.md`](sensor-map.md#pinned-sensor-mappings-and-auto-slot-templates-v2640)
 (`connectedComponentInstance`).
 
