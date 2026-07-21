@@ -575,7 +575,7 @@ views:
                         entity: sensor.hymer_hss_gaslevel2_percent
                         min: 0
                         max: 100
-  - type: masonry
+ - type: masonry
     path: satellit
     title: Satellit
     icon: mdi:satellite-uplink
@@ -593,11 +593,28 @@ views:
                     square: false
                     cards:
                       - type: tile
-                        entity: select.hymer_satellite
-                        name: Satellit
-                        icon: mdi:led-strip-variant
+                        entity: switch.hymer_satellite_dish
+                        name: Sat Ein/Aus Schalter
+                        icon: ''
                         color: amber
-                        show_entity_picture: false
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: sensor.satellit_status_de
+                        name: Antenne Status
+                        icon: ''
+                        color: amber
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: binary_sensor.hymer_satellite_parked
+                        name: Antenne in Parkposition
+                        icon: ''
+                        color: amber
                   - type: gauge
                     entity: sensor.hymer_sat_signal_strength
                     needle: true
@@ -611,8 +628,27 @@ views:
                     square: false
                     cards:
                       - type: tile
-                        entity: sensor.hymer_sat_status
-                        name: Satellit Status
+                        entity: select.hymer_satellite
+                        name: Satellit
+                        icon: mdi:led-strip-variant
+                        color: amber
+                        show_entity_picture: false
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: binary_sensor.hymer_satellite_dish_moving
+                        name: Antenne in Bewegung
+                        icon: ''
+                        color: amber
+                  - type: grid
+                    columns: 1
+                    square: false
+                    cards:
+                      - type: tile
+                        entity: binary_sensor.hymer_satellite_standby
+                        name: Antenne in StandBy
                         icon: ''
                         color: amber
   - type: sections
