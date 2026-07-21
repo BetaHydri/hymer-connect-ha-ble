@@ -44,6 +44,11 @@ mistake. **The dealer QR activation token is NOT the EHG refresh token.**
 token itself.** For the full explanation, see
 [README → Obtaining the EHG Refresh Token](README.md#obtaining-the-ehg-refresh-token).
 
+This is why the config flow treats the QR token as **optional**: it is only
+required (and only enforced) when you enable the BLE data path (Path A). Cloud-only
+setups (Paths B and D) supply the refresh token directly, so the flow lets you
+leave the QR field empty and falls back to cloud-only mode.
+
 > **Every BLE pairing mints its own personal refresh token**, bound to the
 > pairing device's BLE identity, so the EHG app on your phone holds a different
 > token than Home Assistant. In the cloud-only paths you pair a helper device
