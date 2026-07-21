@@ -473,13 +473,13 @@ graph TB
 | **Login & SignalR** | ✅ Yes | OAuth2 + SignalR are identical across all EHG brands |
 | **REST API** (model, VIN, year) | ✅ Yes | Brand-agnostic endpoints |
 | **GPS** (bus 30) | ✅ Likely | Slots (30,1)/(30,2) carry coordinates; other bus 30 slots are LTE/SCU/BT telemetry |
-| **Habitation sensors** (bus 3) | ✅ Likely | LIN bus 3 (lin1) is standard SCU wiring |
-| **CAN sensors** (bus 1 — doors, locks) | ⚠️ Partial | Bus 1 slots differ between models — a capture on your vehicle is needed to verify |
-| **Lights** | ⚠️ Partial | Light bus IDs are specific to the Grand Canyon S layout; your vehicle may differ |
-| **Heater** (bus 58 Truma / bus 5 Alde) | ⚠️ Depends | Truma on bus 58; Alde 3030 on bus 5 (read-only mapped v2.64.7, writable in progress) |
-| **Fridge** (bus 34 / 32 / 114 / 60) | ⚠️ Depends | Thetford N4112A (34), N4142E+ (32), T2120C compressor (114), Dometic (60) |
-| **Solar** (bus 8) | ⚠️ Depends | Mapped for Voltronic MPP260CI/MPP250Duo; other chargers may differ |
-| **Extended CAN** (bus 99) | ⚠️ Depends | S600: AdBlue/ambient/range/gear; S700: lithium BMS. Slot meanings vary |
+| **Habitation sensors** (bus 3) | ✅ Yes | CBE EBL402 habitation electrics — in `base.json`, confirmed on every EHG SCU |
+| **Chassis CAN** (bus 1 — odometer, fuel, AdBlue, doors, locks, outside temp) | ⚠️ Partial | Confirmed on Mercedes-Sprinter models (S 600 / S 700 / ML-T 570 / BMC I 680); VW-Crafter Eriba reports its chassis on a different, not-yet-mapped bus |
+| **Lights** | ⚠️ Partial | Light bus IDs are specific to each floorplan; your vehicle may differ |
+| **Heater** (bus 58 Truma / bus 5 Alde / bus 59 Aventa) | ⚠️ Depends | Truma Combi on bus 58; Alde 3030 on bus 5 (read-only mapped, confirmed BMC I 680); Truma Aventa AC on bus 59 (Eriba) |
+| **Fridge** (bus 34 / 32 / 114 / 60) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60) |
+| **Solar** (bus 8) | ⚠️ Depends | Mapped for Votronic MPP260CI/MPP250Duo; other chargers may differ |
+| **Battery / BMS** (bus 99 / 29) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680). Slot meanings vary by model |
 
 **Missing sensors are harmless:** entities for components your vehicle lacks simply show **"Unavailable"** — no
 errors. To add mappings for your brand/model, see [**contributing-overlays.md**](docs/contributing-overlays.md).
