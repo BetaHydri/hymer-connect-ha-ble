@@ -19,6 +19,37 @@
   the HA host must do its **own** pairing to bond and mint its **own** token. See
   [Add BLE to an existing cloud-only setup](#add-ble-to-an-existing-cloud-only-setup).
 
+## Does BLE keep delivering data when the vehicle's LTE is offline?
+
+Short answer: **yes — if the HA host is the in-vehicle BLE host (Path A).** BLE is
+a **direct local link** between the HA host and the SCU (TLS over Nordic UART); it
+does **not** travel over the vehicle's LTE modem or the EHG cloud at all. As long
+as the host is in Bluetooth range and the SCU is awake (**12 V on**), the SCU keeps
+pushing **all subscribed sensor buses over BLE at ~50 ms**, with no internet
+involved. **No client-side buffering is required** — it is a live push, not a poll.
+
+What changes when the vehicle's LTE is down:
+
+| | BLE + Cloud host in the vehicle (Path A) | Cloud-only host (Path B/C) |
+| --- | --- | --- |
+| **Sensor reads** | ✅ Fresh, live over BLE (~130 subscribed sensors) | ❌ Stale — the SCU can't reach Azure, so SignalR receives nothing; entities keep their last-known value |
+| **Commands (writes)** | ❌ Not possible — the only write path is cloud / SignalR, which needs LTE | ❌ Not possible |
+| **Cloud-derived values** | A few (e.g. GPS via *Find-My-RV*) may stop updating | ❌ |
+
+Two clarifications that matter here:
+
+- **LTE offline ≠ SCU offline.** On 12 V the SCU is still fully awake and still
+  pushing its bus data — just not to the cloud. BLE taps that local push directly.
+  (If **12 V is off**, the SCU drops to standby and stops pushing passive sensor
+  data over *any* path, BLE included — that is a power state, not an LTE state.)
+- **The integration does not — and cannot — buffer cloud data on the HA side.**
+  When a cloud-only host loses the SCU's LTE feed, no new data is arriving to
+  buffer; Home Assistant already retains each entity's last-known state until data
+  resumes. Any store-and-forward while offline happens **inside the SCU firmware**,
+  which re-syncs when LTE returns — it is not something this integration adds. The
+  correct answer to "fresh data while LTE is down" is **BLE (Path A)**, not
+  client-side buffering.
+
 ## Where each setting lives: Configure vs Reconfigure
 
 Both menus sit under **Settings → Devices & Services → HYMER Connect BLE**, but
@@ -181,6 +212,54 @@ token**. The message that stops tells you which host dependency to fix:
 
 The GATT-level chatter (MTU negotiation, `ATT error: 0x0e`, write pacing) is
 explained in [`ble-communication.md`](ble-communication.md#gatt-write-pacing-v2610).
+
+## What a healthy BLE session looks like
+
+Once pairing is done, a normal startup on a **BLE + Cloud** host produces the trace
+below (SCU address and vehicle id anonymised). If your log has this shape, BLE is
+working correctly — even if you *also* see unrelated errors from other integrations
+(cameras, ESPHome, Modbus, …) in the same log.
+
+```text
+ble_client]  BLE connected to SCU AA:BB:CC:DD:EE:FF (MTU=247, chunk=242)
+ble_client]  BLE TLS handshake complete: TLSv1.1 ('AES128-SHA', 'SSLv3', 128)
+ble_client]  BLE TLS session established with SCU AA:BB:CC:DD:EE:FF
+coordinator] BLE direct path established to SCU AA:BB:CC:DD:EE:FF (mode=ble)
+coordinator] Sending 7 PIA subscription requests over BLE
+coordinator] BLE PIA subscriptions + refresh sent
+coordinator] BLE direct path active — running alongside SignalR
+             (both paths: ~130 sensors, BLE ~50ms / SignalR ~500ms–2s)
+```
+
+Then, continuously, decoded sensor frames arriving over the local BLE link:
+
+```text
+ble_client]  BLE PIA RECV AA:BB:CC:DD:EE:FF: plaintext=29 B hex=…
+pia_decoder] RAW PIA bus=8 | sid=2 | f10/wt2=hex:6c696e32 ("lin2") | f6/wt5=19.1
+pia_decoder] DISCOVERY mapped (8,2) solar_voltage: 19.1 → 18.1
+coordinator] SignalR push: 130 total sensors
+```
+
+What to check in your own log:
+
+- **`MTU=247, chunk=242`** — the best case. **`MTU=23, chunk=20` is also fine:** it
+  is a fully supported fallback (slower 20-byte Write-With-Response chunks). Since
+  v2.65.16 it is logged at `INFO`, not as a warning, and never surfaces in HA's
+  integration error panel.
+- **`BLE TLS session established`** — the legacy-TLS handshake succeeded.
+- **`Sending 7 PIA subscription requests over BLE`** → **`BLE PIA subscriptions +
+  refresh sent`** — this is what unlocks the full ~130-sensor stream. Without it the
+  SCU only pushes ~28 autonomous sensors.
+- **`BLE direct path active — running alongside SignalR`** — both the fast local
+  read path (BLE) and the cloud write path (SignalR) are up (`mode=dual`).
+- Recurring **`BLE PIA RECV …`** / **`RAW PIA bus=…`** / **`DISCOVERY mapped …`**
+  lines — live sensor values flowing in. This is the read mirror doing its job at
+  ~50 ms latency.
+
+> **Tip:** the `RAW PIA` and `DISCOVERY mapped` lines only appear with
+> `custom_components.hymer_connect.pia_decoder: debug`. They are the ground truth
+> for which bus/slot a value came from — very handy when reporting a mis-mapped
+> sensor.
 
 ## Clear a stale BLE bond
 
