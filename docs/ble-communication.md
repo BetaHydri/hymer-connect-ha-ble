@@ -23,6 +23,37 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
       └───────────►Azure◄──────────────────────┘
 ```
 
+### Protocol layering: PIA vs. the vehicle's field buses
+
+PIA is **not** a vehicle field bus like LIN or CAN — it is an *application-layer*
+protocol (Protobuf framed as `0xA0CB`+len+CRC32, carried over TLS). It sits on
+top; the physical automotive buses sit underneath. The **SCU acts as a gateway**
+that abstracts the messy real field buses behind one uniform PIA API:
+
+```
+HA integration / EHG app
+        │  PIA (Protobuf over TLS) — transport = BLE (NUS) or cloud (SignalR)
+        ▼
+      ┌─────┐
+      │ SCU │  gateway / protocol translator
+      └─────┘
+        │  SCU-internal field buses (never on the PIA wire)
+        ├── LIN   (lin1, lin2, …)
+        ├── CAN   (can2, …)
+        └── pin/GPIO (pin-6, pin-7, …)
+        ▼
+   heater · fridge · lights · satellite antenna · sensors
+```
+
+We only ever speak PIA and address components logically as `(bus_id, slot_id)`.
+The underlying LIN/CAN/pin wiring is never exposed as traffic — it only appears
+as a **label**: PIA field 10 (`connectedComponentInstance`) carries strings such
+as `lin1`, `lin2`, `can2`, `pin-6`, telling us which field bus a component is
+physically wired to. The decoder even uses this label to tell apart components
+that share the same `(bus, slot)` numbering — see
+[`sensor-map.md`](sensor-map.md#pinned-sensor-mappings-and-auto-slot-templates-v2640)
+(`connectedComponentInstance`).
+
 ## BLE Services
 
 ### Discovered Services (without bonding)
