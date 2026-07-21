@@ -13,6 +13,15 @@ You always need:
 - Home Assistant with HACS
 - a vehicle with an SCU / SIU supported by the EHG app
 
+For most users you also need:
+
+- a **dealer QR activation token** — a code you get from **your dealer**
+  (it is part of your vehicle handover paperwork, *not* a sticker on the
+  vehicle). It is required for the two recommended setups that pair against the
+  vehicle: **Path A (BLE)** and **Path C (Android app)**. It is **not** needed
+  for Path B (mitmproxy) or Path D (bootstrap only). See
+  [Which token is which?](#which-token-is-which-read-this-first) below for why.
+
 Then choose **one** setup path.
 
 ## Which token is which? (read this first)
