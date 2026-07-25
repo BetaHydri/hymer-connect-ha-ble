@@ -13,6 +13,7 @@ understanding the protocol internals.
 | [`sensor-map.md`](sensor-map.md) | The **canonical bus/slot reference** — current meaning of every known `(bus_id, sensor_id)` slot per vehicle, units, transforms, plus the pinned-mapping and auto-slot `{n}` template rules for multi-device buses. Includes a **[Bus coverage by vehicle](sensor-map.md#bus-coverage-by-vehicle)** table and a **[Complete bus index](sensor-map.md#complete-bus-index-mapped-buses)** of all mapped buses. | Users looking up a sensor · contributors mapping a new vehicle |
 | [`contributing-overlays.md`](contributing-overlays.md) | **How to map a new vehicle** — discovering your `(bus, slot)` pairs (converter, discovery tool, debug logging, log reading) and authoring a `sensor_maps/<brand>.json` overlay step by step (field reference, decision matrix, worked examples, common mistakes). | Contributors adding a brand/model |
 | [`translations.md`](translations.md) | When (and when not) to edit `strings.json` and `translations/en.json` after adding an entity to a brand overlay — translation-key style vs. the direct-name stepped-switch select driver. | Contributors editing sensor maps / opening PRs |
+| [`climate-temperature-source.md`](climate-temperature-source.md) | How to change which temperature the Truma climate card **displays** (e.g. a HYMER Smart Sensor) via the `climate.truma_heater.temp_sensor` JSON field — and why this is **display-only** and does **not** change how the heater regulates. | Users customising the climate card |
 
 ## Protocol & connection internals (maintainers)
 
