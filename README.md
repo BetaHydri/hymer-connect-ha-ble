@@ -4,7 +4,7 @@
 
 # HYMER Connect BLE for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/default)
 [![GitHub release](https://img.shields.io/github/v/release/BetaHydri/hymer-connect-ha-ble?include_prereleases&label=version)](https://github.com/BetaHydri/hymer-connect-ha-ble/releases)
 [![HA minimum version](https://img.shields.io/badge/HA-%E2%89%A5%202022.11-blue)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -16,6 +16,10 @@ read **~130 sensors**, control lights, heater, fridge, boiler and the 12V main s
 automations, an energy dashboard, notifications and long-term history the official EHG app can't give you.
 
 > **New here?** Jump straight to the **[Quick start](quick-start.md)** for the shortest path to a working setup.
+
+> 🎉 **Now in the HACS default store!** As of [hacs/default #7793](https://github.com/hacs/default/pull/7793)
+> (merged 2026-07-30) HYMER Connect is officially listed in HACS — just search for **"HYMER Connect"**
+> in HACS and click **Download**. No custom repository needed anymore.
 
 ## Dashboard demo
 
@@ -211,7 +215,7 @@ New to Home Assistant or to this integration? Follow these four steps — the wh
 | ✅ Requirement | Why | How to get it |
 |---|---|---|
 | **A running Home Assistant** (≥ 2022.11) | The platform the integration runs on | [Install Home Assistant](https://www.home-assistant.io/installation/) |
-| **HACS installed** *(recommended install method)* | HACS delivers and auto-updates this custom integration | [Install HACS](https://www.hacs.xyz/docs/use/download/download/) — **do this first**, before installing HYMER Connect |
+| **HACS installed** *(recommended install method)* | HACS delivers and auto-updates this integration | [Install HACS](https://www.hacs.xyz/docs/use/download/download/) — **do this first**, before installing HYMER Connect |
 | **An EHG / HYMER Connect account** | Username + password authenticate the cloud connection | Create it in the official **HYMER Connect** mobile app (App Store / Play Store) and confirm the vehicle already shows up there |
 | **Your dealer QR activation token** | One-time proof of physical access, needed to obtain the long-lived refresh token | From your **dealer handover paperwork** (a paper document — *not* the QR sticker on the vehicle). See the [token note](#setup) |
 | **Physical access to the vehicle** *(one-time)* | You press **CONNECTION** on the SCU panel to pair | Only needed once, during initial setup |
@@ -219,18 +223,23 @@ New to Home Assistant or to this integration? Follow these four steps — the wh
 
 ## Installation
 
-> ℹ️ **HACS must be installed first.** HYMER Connect is a *custom* integration — HACS is what downloads it into your
+> ℹ️ **HACS must be installed first.** HACS is what downloads this integration into your
 > `custom_components/` folder and keeps it updated. If you don't have HACS yet, [install it first](https://www.hacs.xyz/docs/use/download/download/), then continue below. (No HACS? Use the [manual method](#manual).)
 
 ### HACS (recommended)
 
+HYMER Connect is in the **HACS default store**, so no custom repository is needed:
+
 1. Open **HACS** in Home Assistant
-2. Click the three-dots menu > **Custom repositories**
-3. Add `https://github.com/BetaHydri/hymer-connect-ha-ble` as category **Integration**
-4. Search for "HYMER Connect" and click **Download**
-5. **Restart Home Assistant**
+2. Search for **"HYMER Connect"**
+3. Click **Download**
+4. **Restart Home Assistant**
 
    *(Or use the one-click button at the top of this README: [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BetaHydri&repository=hymer-connect-ha-ble&category=integration))*
+
+> **Older custom-repository install?** If you added this repo as a HACS *custom repository* before it
+> joined the default store, you can safely remove that custom-repository entry — HACS will keep updating
+> the integration from the default store. Your config entry and refresh token are unaffected.
 
 ### Manual
 

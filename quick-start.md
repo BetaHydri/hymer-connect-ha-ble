@@ -72,11 +72,13 @@ leave the QR field empty and falls back to cloud-only mode.
 
 ## Install via HACS
 
+HYMER Connect is in the **HACS default store** ([hacs/default #7793](https://github.com/hacs/default/pull/7793)),
+so no custom repository is needed:
+
 1. Open **HACS**
-2. Go to **Custom repositories**
-3. Add `https://github.com/BetaHydri/hymer-connect-ha-ble` as **Integration**
-4. Install **HYMER Connect BLE**
-5. Restart Home Assistant
+2. Search for **HYMER Connect**
+3. Click **Download**
+4. Restart Home Assistant
 
 ## Path A — BLE + Cloud setup
 
