@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.17] - 2026-08-11
+
+### Fixed
+
+- **BLE startup can no longer block Home Assistant setup indefinitely** ([#15](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/15)). BLE startup is now capped at 90 seconds and cleanup after a failed startup is separately capped at 5 seconds, so BlueZ/GATT hangs during a new host bond fall back to the cloud/SignalR path instead of leaving Home Assistant stuck at `Waiting for integrations to complete setup`. BLE client cancellation cleanup is also bounded so a stuck disconnect cannot defeat the startup timeout.
+
 ## [2.65.16] - 2026-07-20
 
 ### Changed

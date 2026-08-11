@@ -44,6 +44,8 @@ _RAPID_DROP_THRESHOLD = 30  # seconds — connection shorter than this = rapid d
 _RAPID_DROP_COOLDOWN = 5  # seconds to wait before reconnecting after a rapid drop
 _REST_METADATA_INTERVAL = 600  # 10 minutes between full REST metadata refreshes
 _RESUBSCRIBE_INTERVAL = 600  # 10 minutes — only resubscribe periodically, not every poll
+_BLE_STARTUP_TIMEOUT = 90  # hard cap so BLE/BlueZ cannot block HA startup
+_BLE_CLEANUP_TIMEOUT = 5  # best-effort disconnect cap after failed startup
 
 # Fuel consumption tracking
 _FUEL_REFUEL_THRESHOLD_PCT = 5  # fuel increase > 5% = refueling detected
@@ -630,6 +632,30 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._connection_mode == "ble":
             self._connection_mode = "cloud"
 
+    async def _cleanup_ble_after_start_failure(self) -> None:
+        """Best-effort BLE cleanup that must not block HA setup.
+
+        BlueZ/GATT cleanup can be the very thing that is stuck on unusual
+        host setups (for example HA Container with host D-Bus passed through).
+        Bound this cleanup separately so a failed BLE attempt always falls back
+        to SignalR/cloud instead of holding Home Assistant's config-entry setup.
+        """
+        try:
+            await asyncio.wait_for(self.stop_ble(), timeout=_BLE_CLEANUP_TIMEOUT)
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "BLE cleanup did not finish within %ds — continuing with cloud fallback",
+                _BLE_CLEANUP_TIMEOUT,
+            )
+            self._ble_client = None
+            self._ble_connected = False
+            self._connection_mode = "cloud"
+        except Exception:
+            _LOGGER.debug("BLE cleanup after failed startup failed", exc_info=True)
+            self._ble_client = None
+            self._ble_connected = False
+            self._connection_mode = "cloud"
+
     async def async_ensure_signalr_healthy(self) -> None:
         """Ensure SignalR is connected and healthy, reconnecting if needed.
 
@@ -988,7 +1014,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             else:
                 try:
-                    ble_result = await self.start_ble()
+                    ble_result = await asyncio.wait_for(
+                        self.start_ble(), timeout=_BLE_STARTUP_TIMEOUT
+                    )
                     if ble_result is True:
                         self._ble_consecutive_failures = 0
                         self._ble_next_attempt = 0.0
@@ -1008,6 +1036,16 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             self._ble_consecutive_failures, backoff,
                             " (bonding rejected)" if is_bonding else "",
                         )
+                except asyncio.TimeoutError:
+                    self._ble_consecutive_failures += 1
+                    backoff = self._ble_backoff_seconds()
+                    self._ble_next_attempt = time.monotonic() + backoff
+                    _LOGGER.warning(
+                        "BLE startup exceeded %ds — continuing with cloud fallback "
+                        "and retrying BLE in %ds",
+                        _BLE_STARTUP_TIMEOUT, backoff,
+                    )
+                    await self._cleanup_ble_after_start_failure()
                 except Exception:
                     self._ble_consecutive_failures += 1
                     backoff = self._ble_backoff_seconds()

@@ -100,6 +100,7 @@ DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_TLS_TIMEOUT = 20.0
 DEFAULT_SCAN_TIMEOUT = 8.0
 DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press CONNECTION button on SCU
+DEFAULT_DISCONNECT_TIMEOUT = 5.0  # cleanup must not block HA config-entry setup
 WAKE_UP_COMMAND = bytes((0x0A,))
 DEFAULT_GATT_MTU = 23
 
@@ -983,7 +984,16 @@ class ScuBleClient:
                 )
         # Standalone / fallback: raw BleakClient
         client = BleakClient(self._scu_address, timeout=self._connect_timeout)
-        await client.connect()
+        try:
+            await client.connect()
+        except (Exception, asyncio.CancelledError):
+            try:
+                await asyncio.wait_for(
+                    client.disconnect(), timeout=DEFAULT_DISCONNECT_TIMEOUT
+                )
+            except Exception:
+                pass
+            raise
         return client
 
     async def connect(self) -> None:
@@ -1249,18 +1259,26 @@ class ScuBleClient:
 
             # Start receiving NUS TX notifications
             await client.start_notify(UART_TX_UUID, self._on_uart_notify)
-        except Exception as err:
+        except (Exception, asyncio.CancelledError) as err:
             # Guarantee the raw BleakClient is disconnected on any setup failure
             # so BlueZ releases the GATT session and notify acquisition.
             _LOGGER.debug("BLE setup failed, disconnecting raw client: %s", err)
             try:
-                await client.stop_notify(UART_TX_UUID)
+                await asyncio.wait_for(
+                    client.stop_notify(UART_TX_UUID),
+                    timeout=DEFAULT_DISCONNECT_TIMEOUT,
+                )
             except Exception:
                 pass
             try:
-                await client.disconnect()
+                await asyncio.wait_for(
+                    client.disconnect(), timeout=DEFAULT_DISCONNECT_TIMEOUT
+                )
             except Exception:
                 pass
+
+            if isinstance(err, asyncio.CancelledError):
+                raise
 
             # "Notify acquired" / "NotPermitted" means BlueZ kept a stale
             # notify acquisition from a prior session that didn't clean up.
