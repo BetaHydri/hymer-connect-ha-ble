@@ -101,6 +101,7 @@ DEFAULT_TLS_TIMEOUT = 20.0
 DEFAULT_SCAN_TIMEOUT = 8.0
 DEFAULT_PAIR_TIMEOUT = 60.0  # pairing needs user to press CONNECTION button on SCU
 DEFAULT_DISCONNECT_TIMEOUT = 5.0  # cleanup must not block HA config-entry setup
+DEFAULT_NOTIFY_TIMEOUT = 8.0  # fail fast on a stale notify channel (hang ~= 11s)
 WAKE_UP_COMMAND = bytes((0x0A,))
 DEFAULT_GATT_MTU = 23
 
@@ -138,6 +139,48 @@ async def async_clear_bluez_bond(address: str) -> bool:
         return True
     except Exception as err:
         _LOGGER.debug("Failed to clear BlueZ bond for %s: %s", address, err)
+        return False
+
+
+async def async_dbus_disconnect(address: str) -> bool:
+    """Force a D-Bus Device1.Disconnect() on the given BLE address.
+
+    Unlike BleakClient.disconnect(), a Device1.Disconnect() makes BlueZ drop
+    every AcquireWrite/AcquireNotify file descriptor it still holds for the
+    device. This is the only client-side way (short of restarting the
+    bluetooth service) to release a write/notify channel that stayed acquired
+    after an abrupt session teardown (org.bluez.Error.NotPermitted:
+    "Write acquired" / "Notify acquired"). Keeps the bond intact.
+    Returns True if the Disconnect() call succeeded.
+    """
+    if not address:
+        return False
+    try:
+        from dbus_fast.aio import MessageBus
+        from dbus_fast import BusType, Message, MessageType
+        bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+        try:
+            dev_path = f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+            msg = Message(
+                destination="org.bluez",
+                path=dev_path,
+                interface="org.bluez.Device1",
+                member="Disconnect",
+            )
+            reply = await bus.call(msg)
+            if reply.message_type == MessageType.ERROR:
+                _LOGGER.debug("Device1.Disconnect %s: %s", address, reply.body)
+                return False
+            _LOGGER.info(
+                "Forced D-Bus Device1.Disconnect for %s "
+                "(releases any stale write/notify channel)",
+                address,
+            )
+            return True
+        finally:
+            bus.disconnect()
+    except Exception as err:
+        _LOGGER.debug("D-Bus Device1.Disconnect failed for %s: %s", address, err)
         return False
 
 # ---------------------------------------------------------------------------
@@ -1004,7 +1047,7 @@ class ScuBleClient:
         self._loop = asyncio.get_running_loop()
         await self._connect_inner()
 
-    async def _connect_inner(self, retry: bool = True) -> None:
+    async def _connect_inner(self, retry: bool = True, gatt_attempt: int = 1) -> None:
         """Inner connect logic, handles stale BlueZ notify recovery."""
         # Clear stale BlueZ bonding records BEFORE connecting — but only
         # if the device is NOT already successfully bonded. Calling unpair()
@@ -1045,67 +1088,78 @@ class ScuBleClient:
         try:
             client = await self._create_connected_client()
         except Exception as connect_err:
-            # If bonded but connection fails with "device disconnected", the
-            # bond keys are stale/corrupt. Clear them and retry once.
-            if is_already_bonded and "disconnect" in str(connect_err).lower():
-                if retry:
-                    # First failure — retry with delay. The SCU may need
-                    # time to recover its BLE stack after a prior ATT error.
-                    # Don't destroy the bond yet — it may still be valid.
+            err_low = str(connect_err).lower()
+            # A transient GATT failure (weak signal, or the SCU still booting
+            # after a restart) shows up as "device disconnected" / "failed to
+            # discover services" — NOT as an authentication/encryption error.
+            # These must NOT destroy the bond: a fresh bond needs physical
+            # access to the vehicle plus a CONNECTION button press. Only a real
+            # auth/encryption error means the bond keys are actually stale.
+            is_transient_gatt = (
+                "disconnect" in err_low
+                or "discover services" in err_low
+                or "not connected" in err_low
+                or "not found" in err_low
+            )
+            is_bond_key_error = (
+                "authentication" in err_low
+                or "encrypt" in err_low
+                or "insufficient" in err_low
+            )
+            if is_already_bonded and is_bond_key_error:
+                # Genuine bad bond → clear it via D-Bus RemoveDevice so a fresh
+                # pairing can be established.
+                _LOGGER.warning(
+                    "Bonded device rejected with an authentication/encryption "
+                    "error — clearing stale bond via D-Bus RemoveDevice: %s",
+                    connect_err,
+                )
+                await async_clear_bluez_bond(self._scu_address)
+                _LOGGER.info(
+                    "Stale bond cleared for %s — raising to retry loop "
+                    "(habluetooth will re-discover the device)",
+                    self._scu_address,
+                )
+                raise BleTransportError(
+                    f"Stale bond cleared for {self._scu_address} — retry needed"
+                ) from connect_err
+            if is_already_bonded and is_transient_gatt:
+                # Transient — retry a few times with growing delay, KEEPING the
+                # bond. After that, hand back to the coordinator so it backs off
+                # and retries BLE later; the bond survives untouched.
+                if gatt_attempt < 3:
+                    delay = 2.0 * gatt_attempt
                     _LOGGER.warning(
-                        "Bonded device rejected GATT connect — "
-                        "retrying in 2s (SCU may need recovery time): %s",
-                        connect_err,
+                        "Bonded device not reachable (attempt %d/3 — likely weak "
+                        "signal or the SCU is still booting). Retrying in %.0fs, "
+                        "keeping the bond intact: %s",
+                        gatt_attempt, delay, connect_err,
                     )
                     if client:
                         try:
                             await client.disconnect()
                         except Exception:
                             pass
-                    await asyncio.sleep(2.0)
-                    await self._connect_inner(retry=False)
+                    await asyncio.sleep(delay)
+                    await self._connect_inner(retry=retry, gatt_attempt=gatt_attempt + 1)
                     return
-                else:
-                    # Second failure — bond is likely genuinely stale.
-                    # Clear it via D-Bus RemoveDevice.
-                    _LOGGER.warning(
-                        "Bonded device rejected connection twice — "
-                        "clearing stale bond via D-Bus RemoveDevice: %s",
-                        connect_err,
-                    )
-                    try:
-                        from dbus_fast.aio import MessageBus
-                        from dbus_fast import BusType, Message, MessageType
-                        rm_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-                        try:
-                            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
-                            rm_msg = Message(
-                                destination="org.bluez",
-                                path="/org/bluez/hci0",
-                                interface="org.bluez.Adapter1",
-                                member="RemoveDevice",
-                                signature="o",
-                                body=[dev_path],
-                            )
-                            reply = await rm_bus.call(rm_msg)
-                            if reply.message_type == MessageType.ERROR:
-                                _LOGGER.debug("RemoveDevice failed: %s", reply.body)
-                            else:
-                                _LOGGER.info("Removed stale bond for %s via D-Bus", self._scu_address)
-                        finally:
-                            rm_bus.disconnect()
-                    except Exception as rm_err:
-                        _LOGGER.debug("D-Bus RemoveDevice failed: %s", rm_err)
-                    _LOGGER.info(
-                        "Stale bond cleared for %s — raising to retry loop "
-                        "(habluetooth will re-discover the device)",
-                        self._scu_address,
-                    )
-                    raise BleTransportError(
-                        f"Stale bond cleared for {self._scu_address} — retry needed"
-                    ) from connect_err
+                _LOGGER.warning(
+                    "Bonded device still unreachable after 3 attempts — keeping "
+                    "the bond and falling back to cloud; BLE will be retried "
+                    "later: %s",
+                    connect_err,
+                )
+                raise BleTransportError(
+                    f"SCU {self._scu_address} temporarily unreachable "
+                    "(bond preserved) — will retry"
+                ) from connect_err
             raise
         _LOGGER.debug("BLE GATT connected to %s", self._scu_address)
+
+        # Set when BlueZ reports a leaked write/notify acquisition from a prior
+        # session (NotPermitted "Write/Notify acquired"). Such a session can
+        # only be healed by a full D-Bus Device1.Disconnect + reconnect.
+        stale_acquire_seen = False
 
         try:
             # Get services — handle both plain BleakClient (has get_services())
@@ -1170,7 +1224,26 @@ class ScuBleClient:
                     )
                     mtu = await self._negotiate_mtu_dbus() or DEFAULT_GATT_MTU
             except Exception as mtu_err:
-                _LOGGER.debug("BLE MTU acquisition failed (non-critical): %s", mtu_err)
+                # A leaked write channel from a prior aborted session surfaces
+                # here as NotPermitted "Write acquired". Flag it so the outer
+                # handler forces a full D-Bus Device1.Disconnect + reconnect
+                # instead of silently limping on at MTU 23 (which then fails
+                # later with UNLIKELY_ERROR on start_notify).
+                mtu_err_str = str(mtu_err)
+                if (
+                    "acquired" in mtu_err_str.lower()
+                    or "NotPermitted" in mtu_err_str
+                ):
+                    stale_acquire_seen = True
+                    _LOGGER.warning(
+                        "BLE MTU acquisition hit a stale BlueZ write/notify "
+                        "channel (%s) — will force a fresh GATT session",
+                        mtu_err,
+                    )
+                else:
+                    _LOGGER.debug(
+                        "BLE MTU acquisition failed (non-critical): %s", mtu_err
+                    )
 
             mtu = max(mtu, getattr(client, "mtu_size", DEFAULT_GATT_MTU))
             self._write_chunk_size = max(20, min(242, mtu - 3))
@@ -1253,12 +1326,27 @@ class ScuBleClient:
                     await client.disconnect()
                 except Exception:
                     pass
-                await asyncio.sleep(0.5)  # let BlueZ settle
+                # The SCU's GATT server needs time to re-expose services after
+                # the encryption change. Too short a settle leaves start_notify
+                # hanging for ~11s and then failing with UNLIKELY_ERROR.
+                await asyncio.sleep(1.5)  # let BlueZ + SCU settle
                 client = await self._create_connected_client()
                 _LOGGER.debug("BLE GATT reconnected after bonding")
 
-            # Start receiving NUS TX notifications
-            await client.start_notify(UART_TX_UUID, self._on_uart_notify)
+            # Start receiving NUS TX notifications. Bound this with a timeout:
+            # a stale BlueZ notify acquisition makes start_notify hang for ~11s
+            # before UNLIKELY_ERROR — fail fast so the outer handler can force a
+            # Device1.Disconnect + fresh-session reconnect instead.
+            try:
+                await asyncio.wait_for(
+                    client.start_notify(UART_TX_UUID, self._on_uart_notify),
+                    timeout=DEFAULT_NOTIFY_TIMEOUT,
+                )
+            except (asyncio.TimeoutError, TimeoutError) as notify_timeout:
+                stale_acquire_seen = True
+                raise BleTransportError(
+                    "start_notify timed out — stale BlueZ notify channel"
+                ) from notify_timeout
         except (Exception, asyncio.CancelledError) as err:
             # Guarantee the raw BleakClient is disconnected on any setup failure
             # so BlueZ releases the GATT session and notify acquisition.
@@ -1280,17 +1368,30 @@ class ScuBleClient:
             if isinstance(err, asyncio.CancelledError):
                 raise
 
-            # "Notify acquired" / "NotPermitted" means BlueZ kept a stale
-            # notify acquisition from a prior session that didn't clean up.
-            # The only reliable fix is a full disconnect + reconnect so BlueZ
-            # starts a fresh D-Bus GATT session without the stale state.
+            # "Notify acquired" / "Write acquired" / "NotPermitted" means BlueZ
+            # kept a stale write/notify acquisition from a prior session that
+            # didn't clean up. It also surfaces one step later as an
+            # UNLIKELY_ERROR on start_notify (the MTU acquire already failed and
+            # was flagged in stale_acquire_seen). A plain BleakClient.disconnect
+            # does NOT release the leaked file descriptor — only a D-Bus
+            # Device1.Disconnect (or restarting bluetooth) does. So force one,
+            # then reconnect with a fresh GATT session.
             err_str = str(err)
-            if retry and ("Notify acquired" in err_str or "NotPermitted" in err_str):
+            is_stale_acquire = (
+                stale_acquire_seen
+                or "Notify acquired" in err_str
+                or "Write acquired" in err_str
+                or "NotPermitted" in err_str
+                or "UNLIKELY_ERROR" in err_str
+            )
+            if retry and is_stale_acquire:
                 _LOGGER.warning(
-                    "Stale BlueZ notify acquisition — disconnecting and "
-                    "reconnecting with fresh GATT session: %s", err,
+                    "Stale BlueZ write/notify acquisition — forcing D-Bus "
+                    "Device1.Disconnect and reconnecting with a fresh GATT "
+                    "session: %s", err,
                 )
-                await asyncio.sleep(1.0)  # let BlueZ settle
+                await async_dbus_disconnect(self._scu_address)
+                await asyncio.sleep(1.5)  # let BlueZ release the FDs and settle
                 await self._connect_inner(retry=False)
                 return
 

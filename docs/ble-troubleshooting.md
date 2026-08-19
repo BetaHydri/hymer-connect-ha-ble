@@ -113,9 +113,15 @@ and during pairing:
   JustWorks bond via a `bluetoothctl` agent (bleak's own `pair()` registers no
   agent, so BlueZ would otherwise cancel the pairing). HA OS and most container
   images ship it; a stripped-down host may not.
-- **Press CONNECTION at the right time.** The SCU only accepts the bond while it
-  is in pairing mode — press **CONNECTION** on the SCU touch panel when the
-  pairing dialog appears. The integration retries for up to **~2 minutes**.
+- **Press CONNECTION at the right time — the window can be short.** The SCU only
+  accepts the bond while it is in pairing mode. On some vehicles this window is
+  **~2 minutes**, but on others (e.g. B-MC I 680, SCU 1.13.0.0) it closes after
+  only **~30 seconds** and a second CONNECTION press is ignored until it lapses.
+  The most reliable sequence: **press CONNECTION, then submit the Reconfigure
+  form within ~25 seconds** — the actual `Device1.Pair()` fires a couple of
+  seconds after you submit, which lands it safely inside even a 30-second window.
+  The integration then keeps retrying the bond, but the first attempt right after
+  your press is the one most likely to succeed.
 - **Do not pair while the phone/EHG app is actively connected over BLE** to the
   same SCU — a competing active connection can block the host's bond.
 - **Legacy TLS 1.0/1.1 must be permitted by the host's OpenSSL.** The SCU only
@@ -148,8 +154,10 @@ pairing and mint its **own** Pi-bound token. (For how this differs from the
    - **SCU Bluetooth address** — optional; leave empty to **auto-scan** for the SCU.
    - Leave **EHG Remote Access Refresh Token** empty so a **fresh BLE pairing is
      triggered** (if you paste a token here, pairing is skipped).
-5. Submit. When the **BLE Pairing with SCU** dialog appears, **press CONNECTION**
-   on the SCU touch panel within ~2 minutes. **Do not close the dialog.**
+5. **Press CONNECTION** on the SCU touch panel, then **submit the form within
+   ~25 seconds** and **do not close the dialog**. The pairing window can be as
+   short as ~30 seconds on some SCUs, so submit promptly after the press rather
+   than pressing CONNECTION only once the dialog is already waiting.
 6. On success you see **BLE Pairing Complete** — the host has bonded and stored its
    own refresh token.
 

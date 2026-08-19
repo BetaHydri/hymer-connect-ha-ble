@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.18] - 2026-08-19
+
+> ⚠️ **BLE re-pairing/reconnect robustness — UNVERIFIED on-vehicle.** These fixes target the BLE bond/reconnect recovery path reported in [#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16). They are defensive and guarded (worst case identical to v2.65.17), but the leaked-write-channel and bond-preservation behaviour can only be confirmed on the reporter's hardware. If BLE regresses for you, roll back to v2.65.17.
+
+### Fixed
+
+- **Stale BlueZ write/notify channel after an aborted BLE session is now self-healed** ([#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16), Punkt 1 & 4). When a running BLE session is torn down abruptly (e.g. starting a second pairing while one is active), BlueZ can keep the `AcquireWrite`/`AcquireNotify` file descriptor, so every following attempt failed with `[org.bluez.Error.NotPermitted] Write acquired`, stayed at MTU 23, then died with `UNLIKELY_ERROR: 14` — previously only recoverable via `systemctl restart bluetooth`. The MTU-acquire step now detects this leaked-channel condition, and the setup-failure handler forces a D-Bus `Device1.Disconnect()` (the only client-side call that makes BlueZ release the descriptor) followed by a fresh-session reconnect. The self-heal trigger was broadened to also cover `UNLIKELY_ERROR` and `Write acquired`, and `start_notify` is now bounded by an 8-second timeout so a stale notify channel fails fast into recovery instead of hanging ~11 seconds.
+- **A bonded SCU is no longer un-paired after two transient connection failures** ([#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16), Punkt 2). Weak signal or an SCU that is still booting shows up as `failed to discover services, device disconnected` — a transient condition, not a corrupt bond. The integration previously called `RemoveDevice` after only two failures in ~4 seconds, destroying a perfectly good bond and forcing a physical re-pair at the vehicle. Transient GATT failures now retry up to three times with growing back-off while **keeping the bond intact**, then fall back to cloud and let the coordinator retry BLE later. The bond is now only cleared on a genuine authentication/encryption error.
+- **Longer settle after a fresh bond** ([#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16), Punkt 4). The post-bonding reconnect now waits 1.5 s (was 0.5 s) before re-opening the GATT session, giving the SCU's GATT server time to re-expose its services after the encryption change.
+
+### Documentation
+
+- **Corrected the SCU pairing-window guidance** ([#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16), Punkt 3). Some SCUs (e.g. B-MC I 680 / SCU 1.13.0.0) hold the pairing window for only **~30 seconds**, not ~2 minutes. `docs/ble-troubleshooting.md` now recommends pressing **CONNECTION first, then submitting the Reconfigure form within ~25 seconds** so `Device1.Pair()` fires inside even a short window.
+
 ## [2.65.17] - 2026-08-11
 
 ### Fixed
