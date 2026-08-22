@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.1] - 2026-08-22
+
+### Fixed
+
+- Removed a duplicate `fresh_water_level` translation key in `strings.json` (a second, identical entry). Cosmetic only — no user-facing change; clears the JSON duplicate-key warning.
+
 ## [2.66.0] - 2026-08-22
 
 > ⚠️ **Experimental opt-in BLE write path — UNVERIFIED on our own vehicle.** This re-enables BLE `setValues` writes (removed in v2.62.24) behind a new, **off-by-default** option. It is based on an external finding (credit below) and a byte-level offline test, but has **not yet been confirmed on our S600 SCU**. With the option off, behaviour is identical to v2.65.18 (cloud-only writes). If a BLE write is not acknowledged by the SCU, the integration falls back to the cloud automatically, so worst case is unchanged.
