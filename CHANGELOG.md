@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.2] - 2026-08-22
+
+> ⚠️ **BLE subscription-path correction — UNVERIFIED on our own vehicle.** Companion to the v2.66.0 write-path fix. Applies the same field-1 rewrap to the BLE **subscription/refresh** path so the SCU actually parses our subscriptions as requests. Only affects the BLE read path; if BLE misbehaves, roll back to v2.66.1. Cloud/SignalR read coverage is unchanged either way.
+
+### Fixed
+
+- **BLE subscription/refresh requests are now framed correctly** (companion to the v2.66.0 write-path fix). `ble_client.send_pia_command` — used by the coordinator to subscribe to sensor pushes over BLE — wrapped the PIA `Request` in protobuf field 2 (the cloud DataHub envelope). Over BLE, field 2 is `BleProtocol.response`, so the SCU parsed our subscription requests as *responses* and ignored them, leaving only the ~28 sensors the SCU pushes autonomously. The subscription/refresh path now rewraps as field 1 (`BleProtocol.request`) — via the same `_rewrap_cloud_payload_as_ble_request` helper as the write path — and is sent **write-with-response** so a multi-chunk subscription burst is not truncated at low MTU. This should let the SCU honour our BLE subscriptions and stream the full sensor set over BLE. Offline byte-level regression test extended (`tools/_test_ble_write_frame.py`).
+
+### Credit
+
+- The `send_pia_command` observation (that correcting it also fixes the subscription path) is from **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha), PR #17). Thank you.
+
 ## [2.66.1] - 2026-08-22
 
 ### Fixed

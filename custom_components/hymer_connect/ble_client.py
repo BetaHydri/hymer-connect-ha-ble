@@ -1515,19 +1515,28 @@ class ScuBleClient:
         _LOGGER.info("BLE TLS session established with SCU %s", self._scu_address)
 
     async def send_pia_command(self, b64_payload: str) -> None:
-        """Send a PIA protobuf command (base64-encoded) over BLE TLS."""
+        """Send a PIA subscription/refresh request over BLE TLS.
+
+        The pia_decoder payload is wrapped in field 2 (the cloud DataHub
+        envelope); over BLE field 2 is BleProtocol.response, so it must be
+        rewrapped as BleProtocol.request (field 1) or the SCU parses it as a
+        response and ignores it — the same fix as the write path. Sent
+        write-with-response so a multi-chunk subscription burst is not
+        truncated at low MTU. (Root cause credit: Dan Simms.)
+        """
         import base64
         if not self._tls_established:
             raise BleTransportError("TLS not established")
         raw = base64.b64decode(b64_payload)
-        pia_frame = encode_ble_pia_frame(raw)
+        ble_payload, _request_id = _rewrap_cloud_payload_as_ble_request(raw)
+        pia_frame = encode_ble_pia_frame(ble_payload)
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 "BLE PIA SEND %s: plaintext=%d B framed=%d B hex=%s",
                 self._scu_address, len(raw), len(pia_frame), raw.hex(),
             )
         encrypted = self._tls.encrypt(pia_frame)
-        await self._write_to_scu(encrypted)
+        await self._write_to_scu(encrypted, force_response=True)
 
     def _resolve_pending_write(self, payload: bytes) -> None:
         """Resolve a waiting write-ACK future if this payload is its response."""

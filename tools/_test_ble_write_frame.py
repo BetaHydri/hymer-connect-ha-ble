@@ -136,12 +136,28 @@ def test_frame_roundtrip() -> None:
           "frame decodes back to the field-1 payload")
 
 
+def test_subscription_payloads_rewrap() -> None:
+    """The subscription/refresh path (send_pia_command) uses the same rewrap."""
+    print("\n[subscription payloads — field-2 → field-1]")
+    subs = pia.build_subscription_requests()
+    check(len(subs) > 0, "subscription payloads present")
+    for i, b64 in enumerate(subs):
+        raw = base64.b64decode(b64)
+        check(raw[0] == 0x12, f"subscription #{i} is field-2 wrapped (cloud envelope)")
+        ble_payload, _ = ble._rewrap_cloud_payload_as_ble_request(raw)
+        check(ble_payload[0] == 0x0A, f"subscription #{i} rewraps as BleProtocol.request (field 1)")
+    refresh = base64.b64decode(pia.build_refresh_command())
+    ref_payload, _ = ble._rewrap_cloud_payload_as_ble_request(refresh)
+    check(ref_payload[0] == 0x0A, "refresh command rewraps as BleProtocol.request (field 1)")
+
+
 if __name__ == "__main__":
     test_agreement("bool", bool_value=True)
     test_agreement("uint", uint_value=70)
     test_agreement("str", str_value="On")
     test_response_parser()
     test_frame_roundtrip()
+    test_subscription_payloads_rewrap()
 
     print()
     if _failures:
