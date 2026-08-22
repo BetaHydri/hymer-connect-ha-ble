@@ -92,8 +92,9 @@ flowchart LR
 - **Automatic token capture — no mitmproxy, no patched APK.** Press **CONNECTION** on the SCU touch panel during
   setup; the integration pairs over Bluetooth, completes a TLS handshake, and extracts the EHG refresh token for
   you. (No BLE hardware? A **pure cloud-only** setup works too — see the [quick-start guide](quick-start.md).)
-- **Local low-latency reads over BLE; commands via cloud.** When your HA host is within Bluetooth range, sensors
-  stream over BLE at ~50 ms. **All write commands** go via the cloud / SignalR path (see the note below).
+- **Local low-latency reads over BLE; commands via cloud (BLE-write opt-in available).** When your HA host is within
+  Bluetooth range, sensors stream over BLE at ~50 ms. Write commands go via the cloud / SignalR path by default; an
+  **experimental** BLE-write opt-in (v2.66.0+) can send them locally with automatic cloud fallback (see the note below).
 - **Seamless failover & offline operation.** Both paths run concurrently. Drive out of range → cloud continues;
   park back → BLE reconnects. After the one-time online setup, the BLE read path also works fully offline.
 
@@ -103,13 +104,22 @@ flowchart LR
 | **Range** | ~10 m (inside vehicle) | Worldwide |
 | **12V off** | ✅ SCU BLE stays active | ⚠️ Commands work, passive sensors stop |
 | **Internet** | Not needed after setup | Always required |
-| **Writes (commands)** | ❌ Read-only mirror (v2.62.24+) | ✅ All writes |
+| **Writes (commands)** | ⚠️ Experimental opt-in (v2.66.0+, cloud fallback) | ✅ All writes (default) |
 
-> ℹ️ **Why writes go via cloud (v2.62.24+):** On SCU firmware **1.12.0.0** every BLE `setValues` write is silently
-> dropped by the SCU (proven across fridge/heater/lights with cloud fallback off). Commands had been delivered via
-> cloud anyway — v2.62.24 just makes that explicit and removes the dead BLE-write path. **BLE is now a read-only
-> mirror.** Restoring a BLE-first write leg is a localised change in `coordinator._send_with_retry` if a future
-> firmware re-enables it. Deep dive: [`docs/ble-communication.md`](docs/ble-communication.md).
+> ℹ️ **Writes go via the cloud by default — with an experimental BLE-write opt-in (v2.66.0+).** The earlier v2.62.24
+> conclusion that SCU firmware silently drops BLE `setValues` writes turned out to be a **client-side encoding bug**,
+> not a firmware limit — root cause found by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha)):
+> commands were wrapped in the wrong protobuf field over BLE, so the SCU parsed them as responses and ignored them.
+> **v2.66.0** corrects the encoding and adds an **off-by-default** option — *Settings → Devices & Services →
+> HYMER Connect BLE → **Configure** → "Send commands over BLE (experimental)"*. When enabled, writes are attempted
+> over BLE first and **fall back to the cloud automatically** if the SCU does not acknowledge, so enabling it is
+> low-risk. **v2.66.2** applies the same fix to the BLE subscription path (potentially more sensors streaming over
+> BLE).
+>
+> ⚠️ **This is still experimental and UNVERIFIED on our own Grand Canyon S600 (firmware 1.12.0.0) — under active
+> testing.** If you just installed from HACS and are unsure: **leave this option OFF** (the default) for the proven
+> cloud-write behaviour; turn it on only if you want to help test local BLE control. Deep dive:
+> [`docs/ble-communication.md`](docs/ble-communication.md).
 
 ## Supported Brands
 
