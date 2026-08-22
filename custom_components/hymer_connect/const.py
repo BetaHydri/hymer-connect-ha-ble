@@ -87,6 +87,13 @@ CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
 
+# Experimental opt-in: route WRITE commands over BLE first (field-1
+# BleProtocol.request + write-with-response), falling back to cloud/SignalR on
+# any BLE failure or non-success ACK. Default off keeps cloud-only behaviour.
+CONF_BLE_WRITE_ENABLED = "ble_write_enabled"
+# Seconds to wait for a matching BleProtocol.response ACK before cloud fallback.
+DEFAULT_BLE_WRITE_ACK_TIMEOUT = 3.0
+
 # NOTE: CONF_CLOUD_FALLBACK / CONF_BLE_ACK_TIMEOUT / DEFAULT_/MIN_/MAX_BLE_ACK_TIMEOUT
 # existed up to v2.62.23 and were deprecated in v2.62.24 when the BLE write
 # path was removed (SCU firmware 1.12.0.0 silently drops all BLE setValues).

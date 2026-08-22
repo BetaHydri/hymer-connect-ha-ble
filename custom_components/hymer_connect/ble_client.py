@@ -227,6 +227,14 @@ _PAIR_RESP_ACCESS_TOKEN_FIELD = 1
 _PAIR_RESP_REFRESH_TOKEN_FIELD = 2
 _PAIR_RESP_CONFIRMATION_REQUIRED_FIELD = 3
 
+# ConnectedComponent request topic (Request field 4) — same setValues topic the
+# cloud encoder builds; only the outer BleProtocol wrapper differs on BLE.
+_REQUEST_CONNECTED_COMPONENT_FIELD = 4
+
+# PIA status codes (Response.status). Full enum in docs/ehg-app-ble-protocol.md.
+# 0 NO_STATUS, 1 SUCCESS, 5 ACCESS_DENIED, 15 SCU_IS_NOT_ONLINE, ...
+PIA_STATUS_SUCCESS = 1
+
 
 def _encode_varint(value: int) -> bytes:
     """Encode a non-negative integer as a protobuf varint."""
@@ -411,6 +419,80 @@ def build_delete_mobile_device_frame(
     # Inner payload: mobileDeviceMac = field 1, string
     inner = _encode_string_field(1, mac_address)
     return build_user_request_frame(user_field_number, inner)
+
+
+def _rewrap_cloud_payload_as_ble_request(raw: bytes) -> tuple[bytes, int | None]:
+    """Rewrap a cloud PIA payload for BLE transport.
+
+    The cloud/DataHub encoders (``build_light_command`` etc.) wrap the PIA
+    ``Request`` in top-level field 2 — correct for the cloud envelope, but on
+    BLE field 2 is ``BleProtocol.response``. The SCU then parses the command as
+    a response, finds no matching outstanding request and discards it silently.
+    This unwraps the outer field-2 ``Request`` and rewraps it in field 1
+    (``BleProtocol.request``), the same wrapper the pairing path already uses.
+
+    Returns the field-1-wrapped frame payload plus the Request's request_id
+    (for ACK correlation), or ``None`` id when it cannot be parsed.
+
+    Reference: dan-simms1/hymer-connect-ha FINDINGS-ble-writes.md (2026-08-22).
+    """
+    request_msg: bytes | None = None
+    offset = 0
+    while offset < len(raw):
+        key, offset = _decode_varint(raw, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _BLE_PROTOCOL_RESPONSE_FIELD and wt == _WIRE_LEN:
+            request_msg, offset = _decode_len_delimited(raw, offset)
+        else:
+            offset = _skip_field(raw, offset, wt)
+    if request_msg is None:
+        raise BleTransportError("cloud payload has no field-2 Request to rewrap")
+
+    request_id: int | None = None
+    offset = 0
+    while offset < len(request_msg):
+        key, offset = _decode_varint(request_msg, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _REQUEST_ID_FIELD and wt == _WIRE_VARINT:
+            request_id, offset = _decode_varint(request_msg, offset)
+        else:
+            offset = _skip_field(request_msg, offset, wt)
+
+    return _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg), request_id
+
+
+def _extract_response_id_status(payload: bytes) -> tuple[int | None, int | None]:
+    """Extract (request_id, status) from a BleProtocol.response frame payload.
+
+    Returns (None, None) when the payload is not a response (e.g. a sensor
+    push carried on the same notify pipe).
+    """
+    response_payload: bytes | None = None
+    offset = 0
+    while offset < len(payload):
+        key, offset = _decode_varint(payload, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _BLE_PROTOCOL_RESPONSE_FIELD and wt == _WIRE_LEN:
+            response_payload, offset = _decode_len_delimited(payload, offset)
+        else:
+            offset = _skip_field(payload, offset, wt)
+    if response_payload is None:
+        return None, None
+
+    request_id = status = None
+    offset = 0
+    while offset < len(response_payload):
+        key, offset = _decode_varint(response_payload, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_VARINT:
+            val, offset = _decode_varint(response_payload, offset)
+            if fn == _RESPONSE_ID_FIELD:
+                request_id = val
+            elif fn == _RESPONSE_STATUS_FIELD:
+                status = val
+        else:
+            offset = _skip_field(response_payload, offset, wt)
+    return request_id, status
 
 
 def decode_generic_response(frame: bytes) -> dict:
@@ -849,6 +931,8 @@ class ScuBleClient:
         self._tls_established = False
         self._write_response = True
         self._write_chunk_size = 20
+        # request_id -> Future[int] for BLE write-command ACK correlation.
+        self._pending_writes: dict[int, asyncio.Future] = {}
 
     @property
     def connected(self) -> bool:
@@ -1445,6 +1529,63 @@ class ScuBleClient:
         encrypted = self._tls.encrypt(pia_frame)
         await self._write_to_scu(encrypted)
 
+    def _resolve_pending_write(self, payload: bytes) -> None:
+        """Resolve a waiting write-ACK future if this payload is its response."""
+        request_id, status = _extract_response_id_status(payload)
+        if request_id is None:
+            return
+        future = self._pending_writes.get(request_id)
+        if future is not None and not future.done():
+            future.set_result(status if status is not None else PIA_STATUS_SUCCESS)
+
+    async def send_setvalue_with_ack(
+        self, b64_payload: str, *, timeout: float
+    ) -> int | None:
+        """Send a write command over BLE and wait for its matching ACK.
+
+        Rewraps the cloud PIA payload as a ``BleProtocol.request`` (field 1) and
+        writes it with response (both required for the SCU to parse a BLE write;
+        see dan-simms1/hymer-connect-ha BLE_RUNBOOK.md). Returns the PIA
+        ``status`` from the matching ``BleProtocol.response`` (1 = SUCCESS), or
+        ``None`` on timeout / no request_id to correlate.
+        """
+        import base64
+        if not self._tls_established:
+            raise BleTransportError("TLS not established")
+        raw = base64.b64decode(b64_payload)
+        ble_payload, request_id = _rewrap_cloud_payload_as_ble_request(raw)
+        pia_frame = encode_ble_pia_frame(ble_payload)
+        if request_id is None:
+            # No id to correlate — send fire-and-forget, report no ACK.
+            encrypted = self._tls.encrypt(pia_frame)
+            await self._write_to_scu(encrypted, force_response=True)
+            return None
+
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        self._pending_writes[request_id] = future
+        try:
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                _LOGGER.debug(
+                    "BLE setValues SEND %s: request_id=%d framed=%d B",
+                    self._scu_address, request_id, len(pia_frame),
+                )
+            encrypted = self._tls.encrypt(pia_frame)
+            await self._write_to_scu(encrypted, force_response=True)
+            status = await asyncio.wait_for(future, timeout=timeout)
+            _LOGGER.info(
+                "BLE setValues ACK: request_id=%d status=%s", request_id, status
+            )
+            return status
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "BLE setValues no ACK within %.1fs (request_id=%d) — cloud fallback",
+                timeout, request_id,
+            )
+            return None
+        finally:
+            self._pending_writes.pop(request_id, None)
+
     async def listen(self) -> None:
         """Listen for PIA responses from the SCU and dispatch them."""
         import base64
@@ -1472,6 +1613,8 @@ class ScuBleClient:
                                 "BLE PIA RECV %s: plaintext=%d B hex=%s",
                                 self._scu_address, len(payload), payload.hex(),
                             )
+                        if self._pending_writes:
+                            self._resolve_pending_write(payload)
                         if self._on_pia_response:
                             self._on_pia_response(base64.b64encode(payload).decode())
                     except BleTransportError as err:

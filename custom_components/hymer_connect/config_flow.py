@@ -24,6 +24,7 @@ from .const import (
     CONF_ACCESS_TOKEN,
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
+    CONF_BLE_WRITE_ENABLED,
     CONF_BRAND,
     CONF_EHG_REFRESH_TOKEN,
     CONF_OAUTH_BASIC_AUTH,
@@ -685,6 +686,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
             CONF_BLE_ADDRESS,
             self._config_entry.data.get(CONF_BLE_ADDRESS, ""),
         )
+        current_ble_write_enabled = self._config_entry.options.get(
+            CONF_BLE_WRITE_ENABLED,
+            self._config_entry.data.get(CONF_BLE_WRITE_ENABLED, False),
+        )
 
         return self.async_show_form(
             step_id="init",
@@ -702,6 +707,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
                         CONF_BLE_ADDRESS,
                         default=current_ble_address,
                     ): str,
+                    vol.Optional(
+                        CONF_BLE_WRITE_ENABLED,
+                        default=current_ble_write_enabled,
+                    ): bool,
                     vol.Optional(
                         CONF_OAUTH_BASIC_AUTH,
                         default=self._config_entry.data.get(CONF_OAUTH_BASIC_AUTH, ""),

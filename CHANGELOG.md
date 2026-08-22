@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.0] - 2026-08-22
+
+> ⚠️ **Experimental opt-in BLE write path — UNVERIFIED on our own vehicle.** This re-enables BLE `setValues` writes (removed in v2.62.24) behind a new, **off-by-default** option. It is based on an external finding (credit below) and a byte-level offline test, but has **not yet been confirmed on our S600 SCU**. With the option off, behaviour is identical to v2.65.18 (cloud-only writes). If a BLE write is not acknowledged by the SCU, the integration falls back to the cloud automatically, so worst case is unchanged.
+
+### Added
+
+- **Opt-in "Send commands over BLE (experimental)" option** (Settings → the integration → Configure). When enabled, write commands (lights, switches, heater, fridge, etc.) are attempted over the local BLE link first and fall back to the cloud/SignalR path automatically if the SCU does not acknowledge within ~3 seconds. Off by default — leave it off to keep sending all commands via the cloud.
+
+### Fixed
+
+- **BLE `setValues` writes are now framed correctly** (root cause of the v2.62.24 "SCU silently drops BLE writes" conclusion). Our command encoders wrap the PIA `Request` in top-level protobuf field 2 — correct for the cloud/DataHub envelope, but over BLE field 2 is `BleProtocol.response`, so the SCU parsed every command as a *response*, found no matching outstanding request, and discarded it without any error or ACK. The BLE write path now rewraps the command as field 1 (`BleProtocol.request`) — the same wrapper the pairing path already used — and sends it **write-with-response** (required so multi-chunk writes at MTU 23 are not silently truncated). Command success is now judged only on a real `BleProtocol.response` whose `request_id` matches the request (status 1 = SUCCESS). Read/subscription behaviour is unchanged. Offline byte-level regression test: `tools/_test_ble_write_frame.py`.
+
+### Credit
+
+- Root-cause diagnosis and on-vehicle proof (Grand Canyon S 700, SCU firmware 1.49.7, cloud offline, `status=1 SUCCESS`) by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha)). The field-1-vs-field-2 envelope asymmetry and the write-with-response requirement are his findings; this release implements them as an opt-in path in the upstream integration. Thank you.
+
 ## [2.65.18] - 2026-08-19
 
 > ⚠️ **BLE re-pairing/reconnect robustness — UNVERIFIED on-vehicle.** These fixes target the BLE bond/reconnect recovery path reported in [#16](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/16). They are defensive and guarded (worst case identical to v2.65.17), but the leaked-write-channel and bond-preservation behaviour can only be confirmed on the reporter's hardware. If BLE regresses for you, roll back to v2.65.17.

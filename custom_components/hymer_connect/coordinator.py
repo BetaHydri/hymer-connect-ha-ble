@@ -23,9 +23,11 @@ from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
+    CONF_BLE_WRITE_ENABLED,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
+    DEFAULT_BLE_WRITE_ACK_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -131,6 +133,21 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return (
             self.config_entry.options.get(CONF_BLE_ADDRESS)
             or self.config_entry.data.get(CONF_BLE_ADDRESS, "")
+        )
+
+    @property
+    def ble_write_enabled(self) -> bool:
+        """Return True if the experimental BLE write path is opted in.
+
+        Off by default → writes go cloud-only (unchanged behaviour). When on,
+        writes are attempted over BLE first (field-1 BleProtocol.request +
+        write-with-response) and fall back to cloud on any failure/non-ACK.
+        """
+        return bool(
+            self.config_entry.options.get(
+                CONF_BLE_WRITE_ENABLED,
+                self.config_entry.data.get(CONF_BLE_WRITE_ENABLED, False),
+            )
         )
 
     def _ble_backoff_seconds(self, *, bonding_rejected: bool = False) -> int:
@@ -803,7 +820,12 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         sensor_id: int,
         **kwargs: Any,
     ) -> None:
-        """Send a light/switch command via BLE (preferred) or cloud."""
+        """Send a light/switch command via BLE (opt-in) or cloud."""
+        from .pia_decoder import build_light_command
+
+        payload = build_light_command(bus_id, sensor_id, **kwargs)
+        if await self._try_ble_write(payload):
+            return
         await self._send_with_retry(
             "send_light_command", bus_id, sensor_id, **kwargs
         )
@@ -811,14 +833,52 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_send_multi_sensor_command(
         self, sensors: list[dict]
     ) -> None:
-        """Send a multi-sensor command via BLE (preferred) or cloud."""
+        """Send a multi-sensor command via BLE (opt-in) or cloud."""
+        from .pia_decoder import build_multi_sensor_command
+
+        payload = build_multi_sensor_command(sensors)
+        if await self._try_ble_write(payload):
+            return
         await self._send_with_retry("send_multi_sensor_command", sensors)
 
     async def async_send_pia_request(
         self, payload: str
     ) -> None:
-        """Send a raw PIA request via BLE (preferred) or cloud."""
+        """Send a raw PIA request via BLE (opt-in) or cloud."""
+        if await self._try_ble_write(payload):
+            return
         await self._send_with_retry("send_pia_request", payload)
+
+    async def _try_ble_write(self, b64_payload: str) -> bool:
+        """Attempt a write over the BLE path when the user has opted in.
+
+        Returns True only when BLE delivered the command AND the SCU returned a
+        SUCCESS ACK (matching request_id). Any other outcome — opt-in disabled,
+        BLE not connected, non-success status, timeout, or error — returns False
+        so the caller falls back to the cloud/SignalR path. Worst case is
+        therefore identical to the cloud-only behaviour.
+        """
+        if not self.ble_write_enabled:
+            return False
+        client = self._ble_client
+        if client is None or not self._ble_connected or not client.connected:
+            return False
+        try:
+            status = await client.send_setvalue_with_ack(
+                b64_payload, timeout=DEFAULT_BLE_WRITE_ACK_TIMEOUT
+            )
+        except Exception:
+            _LOGGER.warning(
+                "BLE write attempt raised — falling back to cloud", exc_info=True
+            )
+            return False
+        # status 1 = SUCCESS; 0 = NO_STATUS (treated as success per PIA decoder).
+        if status in (0, 1):
+            return True
+        _LOGGER.info(
+            "BLE write not accepted (status=%s) — falling back to cloud", status
+        )
+        return False
 
     async def async_send_restart_system_command(self) -> None:
         """Send an SCU restart command via PIA."""
