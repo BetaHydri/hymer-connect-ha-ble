@@ -275,6 +275,35 @@ def _encode_bytes_field(field: int, value: bytes) -> bytes:
     return _encode_key(field, _WIRE_LEN) + _encode_varint(len(value)) + value
 
 
+def _unwrap_cloud_envelope(raw: bytes) -> bytes:
+    """Return the bare Request from a pia_decoder command payload.
+
+    ``pia_decoder.build_light_command`` / ``build_multi_sensor_command`` wrap
+    the Request in protobuf field 2 -- the envelope the cloud DataHub expects.
+    Over BLE, field 2 is ``BleProtocol.response``, so a field-2-wrapped command
+    is parsed by the SCU as a *response*, matched against no outstanding
+    request, and silently discarded (the "0/5 dropped, no ACK" symptom). Strip
+    the field-2 wrapper here so the command can be rewrapped as
+    ``BleProtocol.request`` (field 1), exactly as the pairing path already does.
+
+    Payloads that are not field-2-wrapped are returned unchanged, so this is
+    safe for any already-bare Request.
+    """
+    if not raw or raw[0] != 0x12:  # 0x12 = field 2, wire type 2 (length-delimited)
+        return raw
+    idx = 1
+    length = 0
+    shift = 0
+    while idx < len(raw):
+        byte = raw[idx]
+        idx += 1
+        length |= (byte & 0x7F) << shift
+        if not (byte & 0x80):
+            break
+        shift += 7
+    return raw[idx:idx + length]
+
+
 def _decode_len_delimited(data: bytes, offset: int) -> tuple[bytes, int]:
     length, offset = _decode_varint(data, offset)
     end = offset + length
@@ -1436,14 +1465,24 @@ class ScuBleClient:
         if not self._tls_established:
             raise BleTransportError("TLS not established")
         raw = base64.b64decode(b64_payload)
-        pia_frame = encode_ble_pia_frame(raw)
+        # pia_decoder wraps command payloads in field 2 (the cloud DataHub
+        # envelope). Over BLE, field 2 is BleProtocol.response, so a
+        # field-2-wrapped command is parsed by the SCU as a response and
+        # silently dropped. Rewrap as BleProtocol.request (field 1), the same
+        # way the pairing path does.
+        request_msg = _unwrap_cloud_envelope(raw)
+        ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+        pia_frame = encode_ble_pia_frame(ble_protocol)
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 "BLE PIA SEND %s: plaintext=%d B framed=%d B hex=%s",
                 self._scu_address, len(raw), len(pia_frame), raw.hex(),
             )
         encrypted = self._tls.encrypt(pia_frame)
-        await self._write_to_scu(encrypted)
+        # Write-with-response: at low MTU a command spread over many GATT chunks
+        # overruns the SCU NUS RX buffer without ACKs (the same reason the TLS
+        # handshake and PairMobileRequest force it).
+        await self._write_to_scu(encrypted, force_response=True)
 
     async def listen(self) -> None:
         """Listen for PIA responses from the SCU and dispatch them."""
