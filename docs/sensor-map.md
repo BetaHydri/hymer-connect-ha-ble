@@ -50,6 +50,13 @@ easier to use as a reference:
 > model" — **not** "unsupported". Brand overlays (`hymer.json`, `eriba.json`) apply
 > to every vehicle of that brand, so a bus mapped for one model is still offered to
 > the others; it simply stays `unavailable` if that model lacks the device.
+>
+> Because the overlay offers **every** brand-defined control, writable stepped-switch
+> selects and numbers are created for all of them. With **debug logging** enabled you
+> will see one informational line per control at startup — e.g.
+> `Select platform: stepped select '…' on bus …` / `Number platform: '…' on bus … slot …`.
+> These are **DEBUG-level, not errors**; disable the entities your vehicle lacks in
+> **Settings → Entities** to keep the UI tidy.
 
 | Vehicle | Chassis | Contributor (issue) | Confirmed & mapped buses |
 |---------|---------|---------------------|--------------------------|

@@ -204,6 +204,28 @@ logger:
 > [README → Logger reference](../README.md#logger-reference)) once you are done —
 > `ble_client: debug` and the BlueZ logger are very verbose.
 
+## Why do I see log lines (and entities) for hardware my vehicle doesn't have?
+
+Each brand overlay (e.g. `hymer.json`) maps **every known model** of that brand, so
+the integration offers controls for hardware your specific build may lack (Alde
+heater, absorber/compressor fridge, satellite dish, …). This is expected — see
+[README → Shared brand overlays](../README.md).
+
+With **debug logging** enabled you will additionally see one line per brand-defined
+writable control at startup, for example:
+
+```text
+Select platform: stepped select 'fridge_compressor_cooling_step' on bus 114
+Number platform:  'alde_setpoint' on bus 5 slot 3
+```
+
+These are **DEBUG-level, informational — not errors.** The matching entities simply
+stay **`unavailable`** because that bus never reports data on your vehicle. To tidy
+the UI, **disable** the unused entities in **Settings → Entities** (filter by the
+device, tick the ones you don't have, choose *Disable*). Note that disabling cleans
+up the entity list but does **not** silence the DEBUG setup line — it is emitted when
+the entity object is created, before Home Assistant filters out disabled entities.
+
 ## Reading the log — which stage failed?
 
 Pairing runs **bond → TLS → confirmation token → PairMobileRequest → refresh

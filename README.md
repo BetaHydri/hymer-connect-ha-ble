@@ -144,6 +144,9 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 > **⚠️ Shared brand overlays:** Each brand overlay (e.g. `hymer.json`) contains mappings for **all known models** of
 > that brand. Components your vehicle lacks will show as **"unknown"** / **"unavailable"** — simply **disable** them
 > in **Settings → Entities** (filter by "hymer"). This is normal; the integration cannot auto-detect your exact build.
+> With **debug logging** enabled you will also see one informational line per brand-defined control at startup —
+> e.g. `Select platform: stepped select '…' on bus …` and `Number platform: '…' on bus … slot …`. These are
+> **DEBUG-level, not errors**; they simply reflect that the overlay offers that control for the brand.
 
 ## Features
 
@@ -502,7 +505,11 @@ graph TB
 | **Battery / BMS** (bus 99 / 29) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680). Slot meanings vary by model |
 
 **Missing sensors are harmless:** entities for components your vehicle lacks simply show **"Unavailable"** — no
-errors. To add mappings for your brand/model, see [**contributing-overlays.md**](docs/contributing-overlays.md).
+errors. The same applies to writable controls (stepped-switch selects and numbers): the overlay creates one for every
+brand model, and with **debug logging** on each logs a single `Select platform: stepped select '…' on bus …` /
+`Number platform: '…' on bus … slot …` line at startup. These are informational (**DEBUG**), not errors — **disable**
+the unused entities in **Settings → Entities** to tidy the UI. To add mappings for your brand/model, see
+[**contributing-overlays.md**](docs/contributing-overlays.md).
 
 ## Stale CAN Sensor Workarounds
 
