@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.68.0] - 2026-08-23
+
+### Added
+
+- **Dometic compressor fridge control for HYMER-brand vehicles (bus 60).** HYMER motorhomes fitted with a Dometic compressor fridge report it on bus 60 (`DometicCompressorFridge`) — the same bus the Eriba Car 602 uses, but the `eriba.json` overlay does not load for HYMER-brand vehicles, so those owners previously saw only unnamed `bus60_*` discovery entries and had no way to control the fridge. This release adds the bus-60 Dometic read sensors **and** two writable controls to `hymer.json`:
+  - **`select.*_dometic_fridge_cooling_step`** — Off / 1–5. Mirrors the Thetford drivers: writing a level first powers the fridge on (slot 8, bool) then sets the cooling level (slot 2, int 1–5); **Off** switches the fridge off via slot 8. The cooling-level write (bus 60 slot 2) was **confirmed landing on-vehicle** by a HYMER Dometic owner who had patched his own integration to the same slot.
+  - **`select.*_dometic_fridge_mode`** — user mode Performance Cooling / Silent Mode / Turbo Mode (slot 1).
+- The bus/slot model (slot 1 UserMode string, slot 2 Temperature int 1–5, slot 8 PowerOn bool) is the authoritative definition from the decompiled EHG app (`componentId 60`). Zero risk for S600/S700 (Thetford bus 34/37), ML-T 570 (bus 114) and BMC I 680 (bus 32), which do not use bus 60.
+
+### Unverified
+
+- The **Off** branch (bus 60 slot 8 `PowerOn` = false) and the **user-mode** select (slot 1) write paths are not yet confirmed on-vehicle — only the cooling-level write (slot 2) is. If the SCU drops either write, adjust or revert.
+
 ## [2.67.2] - 2026-08-23
 
 ### Added

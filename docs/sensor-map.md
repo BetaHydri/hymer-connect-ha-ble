@@ -122,7 +122,7 @@ Notes:
 | 49 | `LIM404Mod2` | Truma LIM module | hymer | S 600 |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | hymer | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa AC | eriba | Eriba Car 602 |
-| 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba | Eriba Car 602 |
+| 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba, hymer | Eriba Car 602; HYMER (Dometic) |
 | 66 | `LightCircuit22` | Dinette pendant lamp | hymer | ML-T 570 |
 | 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | hymer | HSS accessory |
 | 71 | `Component71` | HSS gas-bottle sensors (auto-slot) | hymer | HSS accessory |
@@ -619,21 +619,28 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
-> **Vehicles:** Eriba Car 602 (2025, VW Crafter). Not present on S600/S700 (which use Thetford on buses 34/37).
-> **Contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54))
+> **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge. Not present on S600/S700 (Thetford bus 34/37), ML-T 570 (bus 114) or BMC I 680 (bus 32).
+> **Read map contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) for the Eriba (`eriba.json`); duplicated into `hymer.json` (v2.68.0) so HYMER-brand Dometic owners get the same sensors plus writable controls.
 
 | Slot | Sensor Name | Unit | Transform | Notes |
 |------|------------|------|-----------|-------|
-| (60, 1) | `dometic_fridge_mode` | — | — | User mode: "Silent Mode" / "Performance Cooling" / "Turbo Mode" (rw) |
-| (60, 2) | `dometic_fridge_level` | — | — | Cooling level 1–5 (rw) |
-| (60, 8) | `dometic_fridge_power` | — | — | Power on/off (rw, bool) |
-| (60, 9) | `dometic_fridge_power_source` | — | — | Power source: "DC12V power" (r) |
+| (60, 1) | `dometic_fridge_mode` | — | — | UserMode: "Performance Cooling" / "Silent Mode" / "Turbo Mode" (string, rw per decompiled EHG app `componentId 60, id 1`). Writable via `select.*_dometic_fridge_mode`. |
+| (60, 2) | `dometic_fridge_level` | — | — | Temperature/cooling level **1–5** (int, unit `step`, rw per decompiled EHG app `componentId 60, id 2`; range min 1/max 5 — **no 0/Off**). Write CONFIRMED landing on-vehicle. |
+| (60, 8) | `dometic_fridge_power` | — | — | PowerOn on/off (bool, rw per decompiled EHG app `componentId 60, id 8`). Off is done here (slot 2 has no 0 value). |
+| (60, 9) | `dometic_fridge_power_source` | — | — | PowerSource: "AC power" / "DC12V power" / "DC24V power" (string, r) |
 | (60, 10) | `dometic_cibus_on` | — | — | CiBus communication active (r, bool) |
 | (60, 11) | `dometic_compressor_on` | — | — | Compressor running (r, bool) |
 | (60, 12) | `dometic_condenser_fan` | — | — | Condenser fan running (r, bool) |
 | (60, 13) | `dometic_fridge_type` | — | — | Compressor type: "Compressor" (r) |
-| (60, 16) | `dometic_fridge_warning` | — | — | Warning/error code 0–127 (r) |
+| (60, 16) | `dometic_fridge_warning` | — | — | WarningErrorInformation code 0–127 (int, r) |
 | (60, 17) | `dometic_fridge_ai_type` | — | — | AI type: "Refrigeration" (r) |
+
+### Writable controls (v2.68.0)
+
+Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`), same as the Thetford fridges:
+
+- **`select.*_dometic_fridge_cooling_step`** — options `Off / 1 / 2 / 3 / 4 / 5`. Selecting a level writes `PowerOn` (slot 8) = `true`, waits 500 ms, then writes the level (slot 2) as an int; **Off** writes `PowerOn` (slot 8) = `false`. Readback reflects `Off` whenever `dometic_fridge_power` is false. The level write (slot 2) is confirmed on-vehicle; the Off branch (slot 8) is not yet confirmed.
+- **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. Write path UNVERIFIED.
 
 > **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
 

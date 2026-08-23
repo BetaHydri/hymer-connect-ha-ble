@@ -469,7 +469,7 @@ graph TB
 | 45 | `scu` | PIA | SCU module | Connected flag, firmware version |
 | 49 | `truma` | PIA | Truma LIM module | Connected flag, status, firmware |
 | 58 | `heater` | PIA | Truma Combi D6E | Setpoint, fan speed, fuel type, electric power, operating mode |
-| 60 | — | PIA | Dometic compressor fridge (Eriba Car 602) | Power, cooling, door — mapped by @mvondemhagen (#54) |
+| 60 | — | PIA | Dometic compressor fridge (Eriba Car 602 + HYMER Dometic) | Power, cooling level (Off/1–5), user mode, door — read + writable controls; original read map by @mvondemhagen (#54) |
 | 66 | — | PIA | ML-T 570 dinette pendant lamp | On/off, brightness (member of Wohnen group, bus 24) |
 | 70 | — | PIA (BLE) | HYMER Smart tyre sensors (auto-slot) | Status, pressure, temperature, battery per sensor |
 | 71 | — | PIA (BLE) | HYMER Smart gas-bottle sensors (auto-slot) | Level (%), height, battery, status per bottle |

@@ -181,6 +181,8 @@ def main() -> int:
         "fridge_compressor_freezer",
         "fridge_compressor_cooling_step",
         "fridge_absorber_cooling_step",
+        "fridge_dometic_cooling_step",
+        "fridge_dometic_mode",
         "alde_energy_priority",
         "alde_electric_boost",
         "alde_hot_water",
@@ -222,6 +224,30 @@ def main() -> int:
     coord.calls.clear()
     _run(ent.async_select_option("Off"))
     check(coord.calls == [(32, 1, False, None, None)], f"absorber_cooling 'Off' -> power off (got {coord.calls})")
+
+    # -- NEW: HYMER Dometic cooling step (bus 60, power sid 8 + level sid 2) ---
+    d = defs["fridge_dometic_cooling_step"]
+    ent, coord = _make("fridge_dometic_cooling_step", d,
+                       {"dometic_fridge_level": 3, "dometic_fridge_power": True})
+    check(ent.current_option == "3", f"dometic_cooling readback 3 -> '3' (got {ent.current_option!r})")
+    ent2, _ = _make("fridge_dometic_cooling_step", d,
+                    {"dometic_fridge_level": 3, "dometic_fridge_power": False})
+    check(ent2.current_option == "Off", f"dometic_cooling power=False -> 'Off' (got {ent2.current_option!r})")
+    coord.calls.clear()
+    _run(ent.async_select_option("5"))
+    check(coord.calls == [(60, 8, True, None, None), (60, 2, None, 5, None)],
+          f"dometic_cooling select '5' -> power on + uint 5 (got {coord.calls})")
+    coord.calls.clear()
+    _run(ent.async_select_option("Off"))
+    check(coord.calls == [(60, 8, False, None, None)], f"dometic_cooling 'Off' -> power off (got {coord.calls})")
+
+    # -- NEW: HYMER Dometic user mode (bus 60 slot 1, string select) ----------
+    d = defs["fridge_dometic_mode"]
+    ent, coord = _make("fridge_dometic_mode", d, {"dometic_fridge_mode": "Silent Mode"})
+    check(ent.current_option == "Silent Mode", f"dometic_mode string readback (got {ent.current_option!r})")
+    coord.calls.clear()
+    _run(ent.async_select_option("Turbo Mode"))
+    check(coord.calls == [(60, 1, None, None, "Turbo Mode")], f"dometic_mode select -> str (got {coord.calls})")
 
     # -- NEW: Alde electric booster (int step WITH option_values) -------------
     d = defs["alde_electric_boost"]
