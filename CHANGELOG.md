@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.68.1] - 2026-08-23
+
+### Added
+
+- **Dometic fridge door-open sensor (`binary_sensor.*_dometic_fridge_door`) for HYMER-brand vehicles (bus 60).** The Dometic compressor fridge has no dedicated door bool slot — the door-open state is encoded as **value 10 in the slot-16 warning enum** (`dometic_fridge_warning`, `WarningErrorInformation`). This release surfaces it as a proper `door` device-class binary sensor while keeping the raw slot-16 code as a diagnostic sensor. Confirmed on-vehicle by HYMER Dometic owner **Jos**.
+
+### Verified
+
+- **Bus 60 slot 8 (`PowerOn`) on/off write confirmed on-vehicle** by Jos — the **Off** branch of `select.*_dometic_fridge_cooling_step` (slot 8 `PowerOn` = false) is no longer unverified. Together with the previously confirmed cooling-level write (slot 2), the full Off/1–5 cooling-step control is now on-vehicle verified. The user-mode select (slot 1) remains unverified.
+
 ## [2.68.0] - 2026-08-23
 
 ### Added

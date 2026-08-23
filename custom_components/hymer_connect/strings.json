@@ -631,6 +631,9 @@
       "dometic_fridge_power": {
         "name": "Dometic fridge power"
       },
+      "dometic_fridge_door": {
+        "name": "Dometic fridge door"
+      },
       "fridge_compressor_power": {
         "name": "Compressor fridge"
       },

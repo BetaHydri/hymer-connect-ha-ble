@@ -56,6 +56,17 @@ STATIC_BINARY_SENSORS: tuple[HymerBinarySensorEntityDescription, ...] = (
         value_path="computed.solar_active",
         icon="mdi:solar-power",
     ),
+    # Dometic compressor fridge (bus 60) has no dedicated door bool slot — the
+    # door-open state is encoded as value 10 in the slot-16 warning enum
+    # (dometic_fridge_warning). Confirmed on-vehicle by a HYMER Dometic owner.
+    HymerBinarySensorEntityDescription(
+        key="dometic_fridge_door",
+        translation_key="dometic_fridge_door",
+        device_class=BinarySensorDeviceClass.DOOR,
+        value_path="signalr_sensors.dometic_fridge_warning",
+        on_value=10,
+        icon="mdi:fridge-outline",
+    ),
 )
 
 # Keys of static descriptions — the dynamic builder skips these.
