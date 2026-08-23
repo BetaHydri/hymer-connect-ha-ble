@@ -352,7 +352,7 @@
         }
       },
       "fridge_dometic_mode": {
-        "_doc": "HYMER Dometic compressor fridge user mode (bus 60 slot 1 = UserMode, string rw per decompiled EHG app componentId 60, id 1). Options from the decompiled stringRange. Read sensor dometic_fridge_mode (60,1). WRITE PATH on bus 60 slot 1 UNVERIFIED — test control; revert if the SCU drops the write.",
+        "_doc": "HYMER Dometic compressor fridge user mode = the EHG app's 'Modus' selector (bus 60 slot 1 = UserMode, string rw per decompiled EHG app componentId 60, id 1). Options are the SCU wire values from the decompiled stringRange ('Performance Cooling'/'Silent Mode'/'Turbo Mode'); the app LOCALIZES these for display (DE: Normal/Leise/Turbo → Performance Cooling=Normal, Silent Mode=Leise, Turbo Mode=Turbo). Options MUST stay as the wire values for readback (sensor dometic_fridge_mode 60,1) and write to match — do NOT relabel to Normal/Leise/Turbo. Seen on Jos's ML-T 580 (orderable with a Dometic bus-60 fridge). WRITE PATH on bus 60 slot 1 UNVERIFIED, and the exact readback string is not yet confirmed from Jos's HA — revert/adjust if the SCU reports or expects a different value.",
         "name": "Dometic fridge mode",
         "icon": "mdi:fridge",
         "control_bus": 60,

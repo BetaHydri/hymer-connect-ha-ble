@@ -619,7 +619,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
-> **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge. Not present on S600/S700 (Thetford bus 34/37), ML-T 570 (bus 114) or BMC I 680 (bus 32).
+> **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge — including the **ML-T 580**, which can be ordered with different fridges (Jos's ML-T 580 has the Dometic bus-60 unit). The fridge type follows the build order, not the model line: the ML-T 570 CrossOver uses the Thetford Compressor T2120C (bus 114), S600/S700 use Thetford absorber (bus 34/37) and BMC I 680 uses Thetford absorber (bus 32) — none of those use bus 60.
 > **Read map contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) for the Eriba (`eriba.json`); duplicated into `hymer.json` (v2.68.0) so HYMER-brand Dometic owners get the same sensors plus writable controls.
 
 | Slot | Sensor Name | Unit | Transform | Notes |
@@ -641,7 +641,7 @@ Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`)
 
 - **`select.*_dometic_fridge_cooling_step`** — options `Off / 1 / 2 / 3 / 4 / 5`. Selecting a level writes `PowerOn` (slot 8) = `true`, waits 500 ms, then writes the level (slot 2) as an int; **Off** writes `PowerOn` (slot 8) = `false`. Readback reflects `Off` whenever `dometic_fridge_power` is false. Both the level write (slot 2) and the on/off write (slot 8, Off branch) are confirmed on-vehicle.
 - **`binary_sensor.*_dometic_fridge_door`** — door-open state derived from the slot-16 warning enum (`dometic_fridge_warning`: 0 = closed, 10 = open; `on_value` 10). `door` device class. Confirmed on-vehicle.
-- **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. Write path UNVERIFIED.
+- **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. These are the SCU wire values; the EHG app's **Modus** selector localizes them for display (DE: **Normal / Leise / Turbo**). Write path UNVERIFIED.
 
 > **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
 
