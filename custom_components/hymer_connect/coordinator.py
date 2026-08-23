@@ -829,7 +829,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         from .pia_decoder import build_light_command
 
         payload = build_light_command(bus_id, sensor_id, **kwargs)
-        if await self._try_ble_write(payload):
+        if await self._try_ble_write(
+            payload, label=f"send_light_command bus={bus_id} sid={sensor_id}"
+        ):
             return
         await self._send_with_retry(
             "send_light_command", bus_id, sensor_id, **kwargs
@@ -842,7 +844,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         from .pia_decoder import build_multi_sensor_command
 
         payload = build_multi_sensor_command(sensors)
-        if await self._try_ble_write(payload):
+        if await self._try_ble_write(
+            payload, label=f"send_multi_sensor_command ({len(sensors)} sensors)"
+        ):
             return
         await self._send_with_retry("send_multi_sensor_command", sensors)
 
@@ -850,11 +854,11 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, payload: str
     ) -> None:
         """Send a raw PIA request via BLE (opt-in) or cloud."""
-        if await self._try_ble_write(payload):
+        if await self._try_ble_write(payload, label="send_pia_request"):
             return
         await self._send_with_retry("send_pia_request", payload)
 
-    async def _try_ble_write(self, b64_payload: str) -> bool:
+    async def _try_ble_write(self, b64_payload: str, *, label: str = "command") -> bool:
         """Attempt a write over the BLE path when the user has opted in.
 
         Returns True only when BLE delivered the command AND the SCU returned a
@@ -879,6 +883,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return False
         # status 1 = SUCCESS; 0 = NO_STATUS (treated as success per PIA decoder).
         if status in (0, 1):
+            _LOGGER.info("Command sent over BLE (%s, status=%s)", label, status)
             return True
         _LOGGER.info(
             "BLE write not accepted (status=%s) — falling back to cloud", status

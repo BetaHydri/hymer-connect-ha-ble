@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.67.2] - 2026-08-23
+
+### Added
+
+- **One concise `INFO` line per command sent over the local BLE path**, e.g. `Command sent over BLE (send_light_command bus=21 sid=1, status=1)`. This mirrors the existing cloud `Cloud command sent (…)` line, so the **normal** log now shows *what* was actioned over BLE — not just the raw `BLE setValues ACK: request_id=… status=1` line, which lacks the entity context. Deliberately low-noise: it fires **only** on a successful BLE command (i.e. per button press), never for incoming sensor traffic. Raw `SEND`/`TX`/`PIA RECV` frames stay at `DEBUG` (they fire many times per second and would flood the log). No behavioural change.
+
 ## [2.67.1] - 2026-08-23
 
 ### Fixed
