@@ -581,7 +581,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (45, 8) | `scu_connected` | SCU connectivity flag. Discovery: `True` |
 | (45, 9) | `scu_sensor_9` | Discovery: `False` (bool) |
 | (45, 10) | `scu_sensor_10` | Discovery: `False` (bool) |
-| (45, 11) | `scu_firmware` | SCU firmware version string. Discovery: `1.12.0.0` |
+| (45, 11) | `scu_firmware` | SCU firmware version string. Discovery: `1.13.0.0` |
 
 ## Bus 49 — Truma / LIM module
 
