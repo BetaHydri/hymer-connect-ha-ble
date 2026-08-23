@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.67.1] - 2026-08-23
+
+### Fixed
+
+- **Transient cloud REST timeouts no longer log a scary `ERROR` traceback.** On instances that run over a mobile/LTE link (e.g. the SCU's own connection in the vehicle), the first cloud REST call at startup can occasionally time out before connectivity settles. `api._request` only wrapped `aiohttp.ClientError`, so a `TimeoutError` escaped unwrapped and surfaced via the coordinator as *"Unexpected error fetching hymer_connect data"* with a full traceback. It now also catches `TimeoutError` and raises the same `HymerConnectApiError`, so a transient timeout is handled on the normal retry path (quiet "will retry") instead of a red error. Purely cosmetic — the integration always recovered on the next update cycle; behaviour is otherwise unchanged.
+
 ## [2.67.0] - 2026-08-23
 
 > ✅ **BLE write path verified on-vehicle and now ON by default.** The v2.66.0 write path and v2.66.2 subscription path were confirmed working on a **Grand Canyon S 600 (SCU firmware 1.13.0.0)** — every `setValues` write returned a real `BLE setValues ACK … status=1`, and the automatic cloud fallback was also observed working when the BLE TLS session dropped. The option is now **on by default** (opt-out). A fully cloud-isolated (LTE-off) confirmation is still pending, but because BLE writes only fire when BLE is connected and any un-ACKed write falls back to the cloud, the worst case remains identical to cloud-only.

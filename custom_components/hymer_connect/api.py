@@ -186,7 +186,7 @@ class HymerConnectApi:
                 if resp.content_type and "json" in resp.content_type:
                     return await resp.json()
                 return {}
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise HymerConnectApiError(f"Connection error: {err}") from err
 
     # --- Authentication ---
