@@ -33,6 +33,7 @@ from .const import (
     CONF_SCU_URN,
     CONF_TANK_CAPACITY,
     CONF_VEHICLE_URN,
+    DEFAULT_BLE_WRITE_ENABLED,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
 )
@@ -688,7 +689,9 @@ class HymerConnectOptionsFlow(OptionsFlow):
         )
         current_ble_write_enabled = self._config_entry.options.get(
             CONF_BLE_WRITE_ENABLED,
-            self._config_entry.data.get(CONF_BLE_WRITE_ENABLED, False),
+            self._config_entry.data.get(
+                CONF_BLE_WRITE_ENABLED, DEFAULT_BLE_WRITE_ENABLED
+            ),
         )
 
         return self.async_show_form(

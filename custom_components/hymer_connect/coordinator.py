@@ -28,6 +28,7 @@ from .const import (
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
     DEFAULT_BLE_WRITE_ACK_TIMEOUT,
+    DEFAULT_BLE_WRITE_ENABLED,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -137,16 +138,20 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @property
     def ble_write_enabled(self) -> bool:
-        """Return True if the experimental BLE write path is opted in.
+        """Return True if the BLE write path is active (default on).
 
-        Off by default → writes go cloud-only (unchanged behaviour). When on,
-        writes are attempted over BLE first (field-1 BleProtocol.request +
-        write-with-response) and fall back to cloud on any failure/non-ACK.
+        When on, writes are attempted over BLE first (field-1
+        BleProtocol.request + write-with-response) and fall back to cloud on any
+        failure/non-ACK. BLE writes only fire when BLE is actually connected, so
+        with BLE down this is a no-op and everything goes cloud-only. Untick the
+        option to force cloud-only even when BLE is connected.
         """
         return bool(
             self.config_entry.options.get(
                 CONF_BLE_WRITE_ENABLED,
-                self.config_entry.data.get(CONF_BLE_WRITE_ENABLED, False),
+                self.config_entry.data.get(
+                    CONF_BLE_WRITE_ENABLED, DEFAULT_BLE_WRITE_ENABLED
+                ),
             )
         )
 

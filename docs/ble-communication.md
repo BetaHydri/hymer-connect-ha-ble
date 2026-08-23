@@ -330,6 +330,21 @@ itself never reached the SCU's command handler.
 
 #### Why removed
 
+> ⚠️ **Superseded by v2.66.0/v2.67.0 — the conclusion below was wrong.** The
+> "SCU silently drops every BLE write" verdict was a **client-side encoding
+> bug**, not a firmware limit: our command encoders wrapped the PIA `Request`
+> in protobuf **field 2** (the cloud/DataHub envelope), but over BLE the frame
+> payload *is* `BleProtocol`, where field 2 = `response`. The SCU therefore
+> parsed every write as a *response*, matched no outstanding request, and
+> discarded it without an ACK. Root cause found by **Dan Simms**. The BLE write
+> path was re-enabled in v2.66.0 (field-1 rewrap + write-with-response +
+> request_id ACK) and **confirmed working on a Grand Canyon S 600, SCU fw
+> 1.12.0.0** — the exact firmware the text below calls impossible. As of
+> v2.67.0 it is on by default with automatic cloud fallback. The
+> "0/5 writes" test below failed because those builds were still emitting the
+> field-2 envelope; the ACK safety net was also reading cloud echoes, not BLE
+> ACKs, which masked the real cause. Kept for historical context only.
+
 Decisive test (2026-05-21, SCU firmware 1.12.0.0, cloud fallback OFF, ACK
 timeout 4 s): **0/5** writes accepted across the fridge (bus 34), Truma
 heater (bus 58) and lights (buses 12/19). The EHG app on LTE confirmed no
@@ -379,6 +394,9 @@ tag with the full BLE write code path was **`v2.62.23`** (commit `e0c0477`).
 | v2.62.23 | 2026-05-21 | `_seed_instance_cache_walk()` populates cache from both cloud and BLE PIA frames. **Last release with a BLE write code path.** |
 | v2.62.24 | 2026-05-21 | **BLE write path removed.** Cloud-only writes. `cloud_fallback` + `ble_ack_timeout` options deprecated (still in `const.py`). |
 | v2.62.25 | 2026-05-21 | Removed deprecated BLE-write constants from `const.py`; cosmetic log cleanup. |
+| v2.66.0  | 2026-08-22 | **BLE write path restored** behind an opt-in option. Root cause was the field-2 (cloud) vs field-1 (BLE) `BleProtocol` envelope — writes now rewrap to `BleProtocol.request` + write-with-response, judged on a real `request_id` ACK. Credit: Dan Simms. |
+| v2.66.2  | 2026-08-22 | Same field-1 rewrap applied to the BLE subscription/refresh path. |
+| v2.67.0  | 2026-08-23 | BLE write path **confirmed on a Grand Canyon S 600 (fw 1.12.0.0)** and turned **on by default** (opt-out), with automatic cloud fallback. |
 
 Configurable BLE write options that existed in v2.62.18 → v2.62.23:
 

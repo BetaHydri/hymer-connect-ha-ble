@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.67.0] - 2026-08-23
+
+> ✅ **BLE write path verified on-vehicle and now ON by default.** The v2.66.0 write path and v2.66.2 subscription path were confirmed working on a **Grand Canyon S 600 (SCU firmware 1.12.0.0)** — every `setValues` write returned a real `BLE setValues ACK … status=1`, and the automatic cloud fallback was also observed working when the BLE TLS session dropped. The option is now **on by default** (opt-out). A fully cloud-isolated (LTE-off) confirmation is still pending, but because BLE writes only fire when BLE is connected and any un-ACKed write falls back to the cloud, the worst case remains identical to cloud-only.
+
+### Changed
+
+- **BLE command path is now enabled by default** (was an off-by-default opt-in in v2.66.0). When BLE is connected, commands (lights, switches, heater, fridge, etc.) go over the local BLE link first — faster and works without internet — and fall back to the cloud automatically if the SCU does not acknowledge within ~3 seconds. If BLE is not connected, everything goes via the cloud as before. The option (Settings → the integration → Configure, now labelled **"Send commands over BLE when connected (recommended)"**) can be **unticked to force cloud-only**. Existing users who explicitly disabled the option keep their setting.
+- Dropped the "experimental / UNVERIFIED" wording from the option and docs now that the path is confirmed on the Grand Canyon S.
+
+### Verified
+
+- On-vehicle confirmation: Grand Canyon S 600, SCU fw 1.12.0.0 — 11/11 BLE writes acknowledged with `status=1`, physical actuation confirmed, and BLE→cloud fallback observed after a mid-session TLS drop.
+
+### Credit
+
+- Root-cause diagnosis and the original on-vehicle proof (Grand Canyon S 700, SCU fw 1.49.7) by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha), PR #17). Thank you.
+
 ## [2.66.2] - 2026-08-22
 
 > ⚠️ **BLE subscription-path correction — UNVERIFIED on our own vehicle.** Companion to the v2.66.0 write-path fix. Applies the same field-1 rewrap to the BLE **subscription/refresh** path so the SCU actually parses our subscriptions as requests. Only affects the BLE read path; if BLE misbehaves, roll back to v2.66.1. Cloud/SignalR read coverage is unchanged either way.

@@ -87,10 +87,14 @@ CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
 
-# Experimental opt-in: route WRITE commands over BLE first (field-1
-# BleProtocol.request + write-with-response), falling back to cloud/SignalR on
-# any BLE failure or non-success ACK. Default off keeps cloud-only behaviour.
+# Route WRITE commands over BLE first (field-1 BleProtocol.request +
+# write-with-response), falling back to cloud/SignalR on any BLE failure or
+# non-success ACK. Default ON: when BLE is connected the local path is used
+# (faster, works offline); if BLE is down or a write is not ACKed it
+# transparently falls back to the cloud, so worst case == cloud-only. Untick to
+# force cloud-only.
 CONF_BLE_WRITE_ENABLED = "ble_write_enabled"
+DEFAULT_BLE_WRITE_ENABLED = True
 # Seconds to wait for a matching BleProtocol.response ACK before cloud fallback.
 DEFAULT_BLE_WRITE_ACK_TIMEOUT = 3.0
 

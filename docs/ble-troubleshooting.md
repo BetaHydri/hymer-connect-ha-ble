@@ -7,9 +7,11 @@
 
 ## What BLE does (and does not) do
 
-- **BLE is a read-only sensor mirror.** Since v2.62.24 the SCU firmware (1.12.0.0)
-  silently drops every BLE write, so **all commands always go via cloud / SignalR**.
-  BLE only gives you **local, low-latency sensor reads**.
+- **BLE gives you local reads *and* writes.** Sensors stream over BLE, and since
+  v2.67.0 commands also go over the local BLE link first (on by default) with
+  automatic cloud fallback. The earlier v2.62.24 belief that the SCU firmware
+  (1.12.0.0) silently drops BLE writes was a client-side encoding bug, fixed in
+  v2.66.0/v2.66.2 and confirmed working on a Grand Canyon S 600 (fw 1.12.0.0).
 - **BLE is optional.** A pure cloud-only setup (Path B/C) is fully functional on
   its own. You never *need* BLE — it is a latency/offline-reads bonus for hosts
   that sit in the vehicle.
@@ -66,7 +68,7 @@ they do **different jobs**. The short rule:
 | --- | --- |
 | **Fresh/grey water tank capacity** (30–200 L) | Tank size used to convert the raw level into a percentage. Pure display — nothing to do with BLE. |
 | **Enable BLE direct path (sensor reads only)** | **On/off switch for the read path only.** It assumes a bond + token already exist. Ticking it on a never-paired host does **nothing useful** — it does **not** pair. Pair first via Reconfigure. |
-| **Send commands over BLE (experimental)** | **Off by default.** When on, write commands (lights, switches, heater, fridge, …) are tried over the local BLE link first and **fall back to the cloud automatically** if the SCU doesn't acknowledge — so enabling it is low-risk. Requires *Enable BLE direct path* + a completed pairing. Added in **v2.66.0** (subscription path also corrected in **v2.66.2**). ⚠️ **Experimental / still being verified on real vehicles** — if you just installed and are unsure, leave it **off** for the proven cloud-write behaviour. |
+| **Send commands over BLE when connected (recommended)** | **On by default (v2.67.0+).** When BLE is connected, write commands (lights, switches, heater, fridge, …) are tried over the local BLE link first and **fall back to the cloud automatically** if the SCU doesn't acknowledge. If BLE is not connected, everything goes via the cloud anyway. Requires *Enable BLE direct path* + a completed pairing to take effect. Fixed in **v2.66.0** (subscription path in **v2.66.2**), confirmed on a Grand Canyon S 600 (fw 1.12.0.0). Untick to **force cloud-only**. |
 | **SCU Bluetooth address** | Optional. Pin the SCU MAC so the host skips the auto-scan. Leave empty to auto-discover. |
 | **OAuth Basic auth header** | Advanced/optional. Override the OAuth client credentials (rarely needed). |
 | **Clear BLE bond (unpair from SCU)** | Removes the BlueZ bond **and** wipes the stored token + BLE address, so the next Reconfigure re-pairs cleanly. See [Clear a stale BLE bond](#clear-a-stale-ble-bond). |
