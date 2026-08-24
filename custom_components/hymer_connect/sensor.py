@@ -170,6 +170,10 @@ def _build_dynamic_sensors() -> list[HymerSensorEntityDescription]:
 
     descriptions: list[HymerSensorEntityDescription] = []
     for name, meta in ENTITY_DEFS.items():
+        # Observation-gated entries are created on demand by
+        # _async_discover_slots() once the vehicle actually reports the slot.
+        if meta.get("require_observed"):
+            continue
         desc = _make_sensor_description(name, meta)
         if desc is not None:
             descriptions.append(desc)

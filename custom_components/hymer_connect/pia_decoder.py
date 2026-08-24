@@ -330,7 +330,7 @@ def _load_json_overlay(filename: str) -> int:
 
     _ENTITY_FIELDS = (
         "platform", "device_class", "state_class", "icon",
-        "on_value", "enabled", "entity_category",
+        "on_value", "enabled", "entity_category", "require_observed",
     )
 
     sensors = data.get("sensors", {})

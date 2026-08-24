@@ -17,7 +17,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -56,32 +56,52 @@ STATIC_BINARY_SENSORS: tuple[HymerBinarySensorEntityDescription, ...] = (
         value_path="computed.solar_active",
         icon="mdi:solar-power",
     ),
-    # Dometic compressor fridge (bus 60) has no dedicated door bool slot — the
-    # door-open state is encoded as value 10 in the slot-16 warning enum
-    # (dometic_fridge_warning). Confirmed on-vehicle by a HYMER Dometic owner.
-    HymerBinarySensorEntityDescription(
-        key="dometic_fridge_door",
-        translation_key="dometic_fridge_door",
-        device_class=BinarySensorDeviceClass.DOOR,
-        value_path="signalr_sensors.dometic_fridge_warning",
-        on_value=10,
-        icon="mdi:fridge-outline",
-    ),
 )
 
 # Keys of static descriptions — the dynamic builder skips these.
 _STATIC_BINARY_KEYS: set[str] = {d.key for d in STATIC_BINARY_SENSORS}
 
+# Observation-gated static binary sensors: created only once the backing
+# sensor name has actually been reported by the vehicle.  Each tuple is
+# (description, observed_sensor_name).  This avoids phantom "unknown"
+# entities on vehicles that lack the component (e.g. the Dometic fridge).
+_OBSERVED_GATED_BINARY: tuple[tuple[HymerBinarySensorEntityDescription, str], ...] = (
+    # Dometic compressor fridge (bus 60) has no dedicated door bool slot — the
+    # door-open state is encoded as value 10 in the slot-16 warning enum
+    # (dometic_fridge_warning). Gated on that slot being observed.
+    (
+        HymerBinarySensorEntityDescription(
+            key="dometic_fridge_door",
+            translation_key="dometic_fridge_door",
+            device_class=BinarySensorDeviceClass.DOOR,
+            value_path="signalr_sensors.dometic_fridge_warning",
+            on_value=10,
+            icon="mdi:fridge-outline",
+        ),
+        "dometic_fridge_warning",
+    ),
+)
 
-def _build_dynamic_binary_sensors() -> list[HymerBinarySensorEntityDescription]:
-    """Build binary sensor entity descriptions from JSON-loaded ENTITY_DEFS."""
+
+def _build_dynamic_binary_sensors() -> tuple[
+    list[HymerBinarySensorEntityDescription],
+    list[tuple[HymerBinarySensorEntityDescription, str]],
+]:
+    """Build binary sensor entity descriptions from JSON-loaded ENTITY_DEFS.
+
+    Returns ``(always, gated)`` where ``gated`` entries carry
+    ``require_observed`` and are created on demand once their slot is
+    reported by the vehicle (keyed by the sensor name to watch).
+    """
     from .pia_decoder import ENTITY_DEFS
 
-    descriptions: list[HymerBinarySensorEntityDescription] = []
+    always: list[HymerBinarySensorEntityDescription] = []
+    gated: list[tuple[HymerBinarySensorEntityDescription, str]] = []
+    _gated_static_keys = {desc.key for desc, _ in _OBSERVED_GATED_BINARY}
     for name, meta in ENTITY_DEFS.items():
         if meta.get("platform") != "binary_sensor":
             continue
-        if name in _STATIC_BINARY_KEYS:
+        if name in _STATIC_BINARY_KEYS or name in _gated_static_keys:
             continue
         kwargs: dict[str, Any] = {
             "key": name,
@@ -96,8 +116,12 @@ def _build_dynamic_binary_sensors() -> list[HymerBinarySensorEntityDescription]:
             kwargs["on_value"] = meta["on_value"]
         if meta.get("enabled") is False:
             kwargs["entity_registry_enabled_default"] = False
-        descriptions.append(HymerBinarySensorEntityDescription(**kwargs))
-    return descriptions
+        desc = HymerBinarySensorEntityDescription(**kwargs)
+        if meta.get("require_observed"):
+            gated.append((desc, name))
+        else:
+            always.append(desc)
+    return always, gated
 
 
 async def async_setup_entry(
@@ -109,12 +133,13 @@ async def async_setup_entry(
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     # Build the full description list: static + JSON-driven dynamic
-    dynamic = _build_dynamic_binary_sensors()
+    dynamic, gated_dynamic = _build_dynamic_binary_sensors()
     all_descriptions = STATIC_BINARY_SENSORS + tuple(dynamic)
     _LOGGER.debug(
-        "Binary sensor platform: %d static + %d dynamic = %d total descriptions",
+        "Binary sensor platform: %d static + %d dynamic (+%d gated) = %d created now",
         len(STATIC_BINARY_SENSORS),
         len(dynamic),
+        len(gated_dynamic) + len(_OBSERVED_GATED_BINARY),
         len(all_descriptions),
     )
 
@@ -122,6 +147,41 @@ async def async_setup_entry(
         HymerConnectBinarySensor(coordinator, desc, entry)
         for desc in all_descriptions
     )
+
+    # Observation-gated binary sensors: create each only once its backing
+    # sensor name is actually reported by the vehicle, so absent components
+    # (e.g. the Dometic fridge) never leave phantom entities behind.
+    gated: list[tuple[HymerBinarySensorEntityDescription, str]] = [
+        *_OBSERVED_GATED_BINARY,
+        *gated_dynamic,
+    ]
+    created_keys: set[str] = {desc.key for desc in all_descriptions}
+
+    @callback
+    def _async_discover_gated() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        new_entities: list[HymerConnectBinarySensor] = []
+        for desc, observed_key in gated:
+            if desc.key in created_keys:
+                continue
+            if observed_key not in sensors:
+                continue
+            created_keys.add(desc.key)
+            new_entities.append(HymerConnectBinarySensor(coordinator, desc, entry))
+            _LOGGER.info(
+                "Observation-gated binary sensor %s materialised (slot %s reported)",
+                desc.key, observed_key,
+            )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    if gated:
+        _async_discover_gated()
+        entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
 
 
 class HymerConnectBinarySensor(

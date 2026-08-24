@@ -67,6 +67,7 @@ _ce.ConfigEntry = type("ConfigEntry", (), {})
 
 _core = _mod("homeassistant.core")
 _core.HomeAssistant = type("HomeAssistant", (), {})
+_core.callback = lambda func: func
 
 _exc = _mod("homeassistant.exceptions")
 _exc.HomeAssistantError = type("HomeAssistantError", (Exception,), {})

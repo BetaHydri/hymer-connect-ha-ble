@@ -13,7 +13,7 @@ from typing import Any
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -57,7 +57,14 @@ async def async_setup_entry(
         _LOGGER.debug("Select platform: boiler+energy on bus %d", heater_def.get("heater_bus", 58))
 
     # Generic JSON-driven stepped-switch selects (v2.63.0+).
+    # Entries flagged ``require_observed`` are deferred until the vehicle
+    # actually reports one of their read sensors, so absent components (e.g.
+    # a Dometic fridge on a non-Dometic vehicle) never leave phantom selects.
+    gated: list[tuple[str, dict[str, Any], tuple[str, ...]]] = []
     for key, defn in STEPPED_SELECT_DEFS.items():
+        if defn.get("require_observed"):
+            gated.append((key, defn, _stepped_read_sensors(defn)))
+            continue
         try:
             entities.append(HymerSteppedSelect(coordinator, entry, key, defn))
             _LOGGER.debug(
@@ -71,6 +78,52 @@ async def async_setup_entry(
         async_add_entities(entities)
     else:
         _LOGGER.debug("Select platform: no fridge, heater, or stepped definitions — skipping")
+
+    if not gated:
+        return
+
+    created_keys: set[str] = set()
+
+    @callback
+    def _async_discover_gated() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        new_entities: list[SelectEntity] = []
+        for key, defn, watch in gated:
+            if key in created_keys:
+                continue
+            if not any(name in sensors for name in watch):
+                continue
+            try:
+                new_entities.append(HymerSteppedSelect(coordinator, entry, key, defn))
+            except Exception:  # noqa: BLE001 — never let one bad JSON entry kill the platform
+                _LOGGER.exception("Failed to create stepped select '%s' — skipping", key)
+                created_keys.add(key)
+                continue
+            created_keys.add(key)
+            _LOGGER.info(
+                "Observation-gated stepped select '%s' materialised (read sensor reported)",
+                key,
+            )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _async_discover_gated()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
+
+
+def _stepped_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
+    """Return the sensor names a stepped select reads its state from."""
+    read = defn.get("read") or {}
+    names = [
+        read.get("step_sensor"),
+        read.get("value_sensor"),
+        read.get("power_sensor"),
+    ]
+    return tuple(name for name in names if isinstance(name, str) and name)
 
 
 class HymerFridgeSelect(

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.0] - 2026-08-24
+
+### Added
+
+- **Observation-gated entities (`require_observed`) — entities materialise only once the vehicle actually reports their slot.** A new opt-in JSON flag `require_observed: true` (honoured by the sensor, binary_sensor and select platforms) defers entity creation until the backing `(bus, slot)` is seen in a PiaResponse frame, instead of creating it unconditionally at setup. This removes phantom "unknown" entities on vehicles that lack a component, and lets a fixed EHG component be mapped **once in `base.json`** and auto-appear on any brand that reports it — no per-brand overlay duplication needed. Entries **without** the flag are unchanged, so existing entities on all vehicles behave exactly as before.
+
+### Changed
+
+- **Dometic compressor fridge (bus 60) moved from `hymer.json` + `eriba.json` into `base.json`, observation-gated.** The `DometicCompressorFridge` is a fixed EHG component always bound to bus 60, so its read sensors, the door binary sensor and the two writable selects (`fridge_dometic_cooling_step`, `fridge_dometic_mode`) now live once in `base.json` with `require_observed`. Any brand that reports bus 60 (HYMER, Eriba, …) gets the full control automatically; vehicles without a Dometic fridge no longer get phantom bus-60 entities. Functionally unchanged for Jos (HYMER) and Eriba owners. Thetford (bus 32/34/114) and Truma controls are intentionally left in the brand overlays for now.
+
 ## [2.68.3] - 2026-08-24
 
 ### Added
