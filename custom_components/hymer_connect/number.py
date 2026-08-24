@@ -172,6 +172,9 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
         )
         read = defn.get("read", {}) or {}
         self._value_sensor: str | None = read.get("value_sensor")
+        # Wire datatype: "float" (default, 32-bit float) or "uint" for integer
+        # slots (e.g. battery capacity Ah, Truma NEO target temperature).
+        self._write_type: str = str(defn.get("write_type", "float")).lower()
         self._optimistic: float | None = None
 
     @property
@@ -192,15 +195,17 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
             return None
 
     async def async_set_native_value(self, value: float) -> None:
-        """Write the new float value to the SCU."""
+        """Write the new value to the SCU (float, or uint for integer slots)."""
         if not self._bus or not self._sid:
             _LOGGER.warning(
                 "Number '%s': missing control_bus/sid — cannot write", self._key
             )
             return
-        await self.coordinator.async_send_multi_sensor_command(
-            [{"bus_id": self._bus, "sensor_id": self._sid, "float_value": float(value)}]
-        )
+        if self._write_type == "uint":
+            payload = {"bus_id": self._bus, "sensor_id": self._sid, "uint_value": int(round(value))}
+        else:
+            payload = {"bus_id": self._bus, "sensor_id": self._sid, "float_value": float(value)}
+        await self.coordinator.async_send_multi_sensor_command([payload])
         self._optimistic = float(value)
         self.async_write_ha_state()
 

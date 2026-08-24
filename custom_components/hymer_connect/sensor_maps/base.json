@@ -548,7 +548,11 @@
     "120,20": { "name": "truma_neo_e_air_room_temperature", "require_observed": true, "platform": "sensor", "unit": "°C", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
     "120,21": { "name": "truma_neo_e_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
 
-    "_ebl400_doc": "Schaudt EBL 400 habitation controller (EHG bus 2, component 'EBL400'). Universal optional component - observation-gated. Named ebl400_* to stay distinct from the EBL 402 on bus 3 (bare canonical names power_source/battery_voltage/... in base.json) and the CBE PL50 on bus 52 - a vehicle has exactly one habitation controller. Read-only telemetry per decompiled EHG app componentId 2: battery V/A + water levels are EHG floats/ints with real units (enabled); sensor-failure/shoreline are bools. Writable slots (main_switch, water_pump, capacity, battery_type) are left for the habitation switch/number surface.",
+    "_ebl400_doc": "Schaudt EBL 400 habitation controller (EHG bus 2, component 'EBL400'). Universal optional component - observation-gated. Named ebl400_* to stay distinct from the EBL 402 on bus 3 (bare canonical names power_source/battery_voltage/... in base.json) and the CBE PL50 on bus 52 - a vehicle has exactly one habitation controller. Read-only telemetry per decompiled EHG app componentId 2: battery V/A + water levels are EHG floats/ints with real units (enabled); sensor-failure/shoreline are bools. Writable slots (main_switch, water_pump, capacity, battery_type) are exposed as observation-gated controls: 12V main switch + water pump (switches, slots 1/3), battery type (select, slot 11), leisure-battery capacity (number Ah uint, slot 10). WRITE PATH UNVERIFIED.",
+    "2,1": { "_doc": "Decode-only readback for the ebl400_main_switch_ctrl switch (slot 1 12VSupply, string 'On'/'Off'/'Changing').", "name": "ebl400_main_switch" },
+    "2,3": { "_doc": "Decode-only readback for the ebl400_pump_ctrl switch (slot 3 SwitchPump, bool).", "name": "ebl400_water_pump" },
+    "2,10": { "_doc": "Decode-only readback for the ebl400_capacity number (slot 10 LivingBatteryCapacity, int Ah).", "name": "ebl400_living_battery_capacity" },
+    "2,11": { "_doc": "Decode-only readback for the ebl400_battery_type select (slot 11 LivingBatteryType, string).", "name": "ebl400_battery_type" },
     "2,2": { "name": "ebl400_power_source", "require_observed": true, "platform": "sensor", "icon": "mdi:transmission-tower" },
     "2,4": { "name": "ebl400_charge_phase", "require_observed": true, "platform": "sensor", "icon": "mdi:battery-charging" },
     "2,5": { "name": "ebl400_living_battery_voltage", "require_observed": true, "platform": "sensor", "unit": "V", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
@@ -709,6 +713,27 @@
       "write_off": "Off",
       "on_value": "On",
       "read_path": "signalr_sensors.cbe_pl50_remote_on_off"
+    },
+    "2,1": {
+      "_doc": "Schaudt EBL400 (bus 2) 12V main supply on/off (slot 1 = 12VSupply, string rw ['On','Off','Changing']; 'Changing' is a transient readback state). Reads ebl400_main_switch. WRITE PATH UNVERIFIED - test control; revert if the SCU drops the write.",
+      "name": "ebl400_main_switch_ctrl",
+      "icon": "mdi:power",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.ebl400_main_switch"
+    },
+    "2,3": {
+      "_doc": "Schaudt EBL400 (bus 2) water pump on/off (slot 3 = SwitchPump, bool rw). Reads ebl400_water_pump. WRITE PATH UNVERIFIED - test control.",
+      "name": "ebl400_pump_ctrl",
+      "icon": "mdi:water-pump",
+      "require_observed": true,
+      "write_type": "bool",
+      "on_value": true,
+      "read_path": "signalr_sensors.ebl400_water_pump",
+      "requires_12v": true
     }
   },
   "climate": {
@@ -791,6 +816,34 @@
         "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
         "read": { "value_sensor": "dometic_s10_power_mode" },
         "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "ebl400_battery_type": {
+        "_doc": "Schaudt EBL400 (bus 2) leisure-battery type select (slot 11 = LivingBatteryType, string rw). Options are the SCU wire values from the decompiled EHG app componentId 2 stringRange. 'Don't change battery type' is a no-op sentinel kept for wire fidelity (selecting it is a harmless no-op). Reads ebl400_battery_type. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 2 is reported.",
+        "name": "Battery type",
+        "icon": "mdi:car-battery",
+        "control_bus": 2,
+        "require_observed": true,
+        "options": ["Don't change battery type", "Lead acid", "Lead gel", "AGM 1", "AGM 2", "Lithium (LiFePO4)", "AGM/Lithium"],
+        "read": { "value_sensor": "ebl400_battery_type" },
+        "writes": { "option": [{ "sid": 11, "str": "$option" }] }
+      }
+    },
+    "numbers": {
+      "_doc": "Generic JSON-driven writable numeric slots. write_type 'uint' writes an integer (default is 32-bit float).",
+      "ebl400_capacity": {
+        "_doc": "Schaudt EBL400 (bus 2) leisure-battery capacity (slot 10 = LivingBatteryCapacity, int Ah rw, range 1-4095 per decompiled EHG app componentId 2). Written as uint. Reads ebl400_living_battery_capacity. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 2 is reported.",
+        "name": "Living battery capacity",
+        "icon": "mdi:battery",
+        "control_bus": 2,
+        "sid": 10,
+        "min": 1,
+        "max": 4095,
+        "step": 1,
+        "unit": "Ah",
+        "mode": "box",
+        "write_type": "uint",
+        "require_observed": true,
+        "read": { "value_sensor": "ebl400_living_battery_capacity" }
       }
     }
   }

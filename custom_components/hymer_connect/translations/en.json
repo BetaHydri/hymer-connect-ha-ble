@@ -784,6 +784,12 @@
       },
       "cbe_pl50_remote_ctrl": {
         "name": "CBE remote on/off"
+      },
+      "ebl400_main_switch_ctrl": {
+        "name": "12V main switch (EBL400)"
+      },
+      "ebl400_pump_ctrl": {
+        "name": "Water pump (EBL400)"
       }
     },
     "climate": {
