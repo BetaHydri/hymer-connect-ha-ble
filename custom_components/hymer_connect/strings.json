@@ -756,6 +756,9 @@
       "alde_gas_ctrl": {
         "name": "Alde gas"
       },
+      "alde_acc_ctrl": {
+        "name": "Air conditioning (Alde ACC)"
+      },
       "sat_control": {
         "name": "Satellite dish"
       },

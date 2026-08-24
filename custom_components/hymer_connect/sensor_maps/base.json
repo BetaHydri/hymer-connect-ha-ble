@@ -434,6 +434,11 @@
     "9,7": { "name": "dometic_s10_power_source", "require_observed": true, "platform": "sensor", "icon": "mdi:power-plug" },
     "9,8": { "name": "dometic_s10_warning", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:fridge-alert" },
 
+    "_aventa_doc": "Truma Aventa Comfort air conditioner (EHG bus 7 = TrumaAventaComfort). Universal optional component - observation-gated so it only materialises on vehicles that actually report bus 7. READ-ONLY: the SCU mirrors the Aventa's state but silently drops writes to bus 7 (confirmed on a HYMER B-ML I 780, PR #18 / @stbcgn, 2026-07-30). Control the unit via its power output instead - on a HYMER Alde vehicle that is the Alde ACC output (switch alde_acc_ctrl, bus 5 slot 11) and the target temperature follows number.alde_setpoint (bus 5 slot 3). Distinct from the Truma Aventa Compact on bus 59 (Eriba).",
+    "7,1": { "_doc": "Truma Aventa setpoint / target temperature (bus 7 slot 1, float degC). Read-only mirror - float writes are dropped by the SCU. On an Alde-ACC vehicle the Aventa adopts the setpoint entered at the Alde panel; change it from HA via number.alde_setpoint (bus 5 slot 3). Confirmed on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-30).", "name": "aventa_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "7,3": { "_doc": "Truma Aventa operating mode (bus 7 slot 3, string): 'Off' / 'Cool' / 'Heat' / 'Fan' / 'Auto'. Read-only - string writes are dropped by the SCU; every switch of the power output (Alde ACC) flips this slot in the same second. Confirmed on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-30).", "name": "aventa_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:air-conditioner" },
+    "7,4": { "_doc": "Truma Aventa fan speed (bus 7 slot 4, string): 'Low' / 'Mid' / 'High' / 'Night' (Night = sleep mode). Read-only - writes are dropped by the SCU (it only mirrors the Aventa). While a timer is being programmed the SCU emits a raw 'Unknown mode: 0x..' string on this slot (produced by the SCU/cloud, not this integration). Confirmed on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-30).", "name": "aventa_fan_speed", "require_observed": true, "platform": "sensor", "icon": "mdi:fan" },
+
     "_tpms_doc": "TPMS (EHG bus 100, component 'TPMS', kind tpms). Universal optional component - observation-gated so it only materialises on vehicles that actually report bus 100. Pressures are int with a declared range 0-9500 'psi'; that range implies a scaled raw unit (e.g. psi*100), so pressures are shipped enabled:false with SCALE UNVERIFIED until a TPMS-equipped vehicle confirms the transform. Temperatures are EHG floats (direct degC per the Alde/Truma convention; -273 = no-data sentinel). Status/firmware are strings (safe decode).",
     "100,1": { "name": "tpms_pressure_fr", "require_observed": true, "platform": "sensor", "device_class": "pressure", "unit": "psi", "state_class": "measurement", "enabled": false, "icon": "mdi:car-tire-alert" },
     "100,2": { "name": "tpms_pressure_fl", "require_observed": true, "platform": "sensor", "device_class": "pressure", "unit": "psi", "state_class": "measurement", "enabled": false, "icon": "mdi:car-tire-alert" },
@@ -734,7 +739,7 @@
       "read_path": "signalr_sensors.cbe_pl50_remote_on_off"
     },
     "2,1": {
-      "_doc": "Schaudt EBL400 (bus 2) 12V main supply on/off (slot 1 = 12VSupply, string rw ['On','Off','Changing']; 'Changing' is a transient readback state). Reads ebl400_main_switch. WRITE PATH UNVERIFIED - test control; revert if the SCU drops the write.",
+      "_doc": "Schaudt EBL400 (bus 2) 12V main supply on/off (slot 1 = 12VSupply, string rw ['On','Off','Changing']; 'Changing' is a transient readback state). Reads ebl400_main_switch. Write path CONFIRMED on a HYMER B-ML I 780 reporting the EBL on bus 2 (PR #18 / @stbcgn, 2026-07-28).",
       "name": "ebl400_main_switch_ctrl",
       "icon": "mdi:power",
       "require_observed": true,
@@ -745,7 +750,7 @@
       "read_path": "signalr_sensors.ebl400_main_switch"
     },
     "2,3": {
-      "_doc": "Schaudt EBL400 (bus 2) water pump on/off (slot 3 = SwitchPump, bool rw). Reads ebl400_water_pump. WRITE PATH UNVERIFIED - test control.",
+      "_doc": "Schaudt EBL400 (bus 2) water pump on/off (slot 3 = SwitchPump, bool rw). Reads ebl400_water_pump. Write path CONFIRMED on a HYMER B-ML I 780 reporting the EBL on bus 2 (PR #18 / @stbcgn, 2026-07-28).",
       "name": "ebl400_pump_ctrl",
       "icon": "mdi:water-pump",
       "require_observed": true,
@@ -825,7 +830,7 @@
         "writes": { "option": [{ "sid": 1, "str": "$option" }] }
       },
       "dometic_s10_cooling_step": {
-        "_doc": "Dometic Series 10 absorber fridge (EHG bus 9 = DometicSeries10) power + cooling level. Ground truth decompiled EHG app componentId 9: AbsorberOn = slot 1 (bool rw), FridgeLevel = slot 3 (int rw, range 1-5). Off routes to AbsorberOn=false; a level turns power on then sets the step (mirrors the Thetford/Dometic-compressor drivers). Reads dometic_s10_power (9,1) + dometic_s10_level (9,3). WRITE PATH UNVERIFIED on bus 9 - test control; revert if the SCU drops the write. require_observed: created only when bus 9 is reported.",
+        "_doc": "Dometic Series 10 absorber fridge (EHG bus 9 = DometicSeries10) power + cooling level. Ground truth decompiled EHG app componentId 9: AbsorberOn = slot 1 (bool rw), FridgeLevel = slot 3 (int rw, range 1-5). Off routes to AbsorberOn=false; a level turns power on then sets the step (mirrors the Thetford/Dometic-compressor drivers). Reads dometic_s10_power (9,1) + dometic_s10_level (9,3). Write path CONFIRMED on a HYMER B-ML I 780 reporting the absorber fridge on bus 9 (PR #18 / @stbcgn, 2026-08-07). require_observed: created only when bus 9 is reported.",
         "name": "Fridge cooling step",
         "icon": "mdi:fridge",
         "control_bus": 9,
@@ -847,7 +852,7 @@
         }
       },
       "dometic_s10_power_mode": {
-        "_doc": "Dometic Series 10 fridge power-source select (bus 9 slot 2 = PowerMode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 9 stringRange (identical to the Thetford bus-32 SetPowerMode array, which is on-vehicle readback-confirmed by @FrankHae). Reads dometic_s10_power_mode (9,2). WRITE PATH UNVERIFIED on bus 9 - test control; revert if the SCU drops the write. require_observed: created only when bus 9 is reported.",
+        "_doc": "Dometic Series 10 fridge power-source select (bus 9 slot 2 = PowerMode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 9 stringRange (identical to the Thetford bus-32 SetPowerMode array, which is on-vehicle readback-confirmed by @FrankHae). Reads dometic_s10_power_mode (9,2). Write path CONFIRMED on a HYMER B-ML I 780 reporting the absorber fridge on bus 9 (PR #18 / @stbcgn, 2026-08-07); the source actually in use follows on slot 9,7 within ~2 s. require_observed: created only when bus 9 is reported.",
         "name": "Fridge power source",
         "icon": "mdi:fridge-industrial",
         "control_bus": 9,
