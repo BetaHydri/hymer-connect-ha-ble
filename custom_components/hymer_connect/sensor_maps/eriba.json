@@ -1,63 +1,8 @@
 {
-  "_comment": "Eriba brand overlay (Car 602, VW Crafter, Dometic fridge, Truma Aventa AC).",
+  "_comment": "Eriba brand overlay (Car 602, VW Crafter).",
   "_contributed_by": "@mvondemhagen (GitHub issue #54)",
   "_vehicles": [
     "Car 602"
   ],
-  "_doc": "Entries here override or extend base.json for Eriba vehicles.",
-  "sensors": {
-    "18,1": {
-      "name": "light_shower_ambient"
-    },
-    "18,2": {
-      "name": "light_shower_ambient_brightness",
-      "unit": "%"
-    },
-    "59,1": {
-      "name": "ac_aventa_slot_1"
-    },
-    "59,2": {
-      "name": "ac_aventa_slot_2"
-    },
-    "59,3": {
-      "name": "ac_aventa_slot_3"
-    },
-    "59,4": {
-      "name": "ac_aventa_slot_4"
-    },
-    "59,5": {
-      "name": "ac_aventa_slot_5"
-    },
-    "59,6": {
-      "name": "ac_aventa_slot_6"
-    },
-    "59,7": {
-      "name": "ac_aventa_slot_7"
-    },
-    "59,8": {
-      "name": "ac_aventa_slot_8"
-    },
-    "93,1": {
-      "name": "light_bedroom_furniture"
-    },
-    "93,2": {
-      "name": "light_bedroom_furniture_brightness",
-      "unit": "%"
-    }
-  },
-  "lights": {
-    "_doc": "Eriba-specific lights. Bus 18 = shower ambient, bus 93 = bedroom furniture. Convention: sid 1=on/off, sid 2=brightness, sid 3=color_temp.",
-    "18": {
-      "name": "light_shower_ambient",
-      "icon": "mdi:shower-head",
-      "brightness": true,
-      "color_temp": false
-    },
-    "93": {
-      "name": "light_bedroom_furniture",
-      "icon": "mdi:wardrobe-outline",
-      "brightness": true,
-      "color_temp": false
-    }
-  }
+  "_doc": "Intentionally empty. All former Eriba components are now brandless in the shared maps: the shower-ambient (bus 18) and bedroom-furniture (bus 93) lights live in lights.json, and the Truma Aventa Compact (bus 59) is decoded in base.json (aventa_compact_*) - all observation-gated. The Eriba brand adds nothing beyond base.json + lights.json; add here again only if a genuinely Eriba-specific (bus- or name-diverging) mapping ever appears."
 }

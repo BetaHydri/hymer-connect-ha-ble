@@ -57,7 +57,11 @@
     "44,1": { "name": "light_bedroom_overhead", "require_observed": true, "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light" },
     "44,2": { "name": "light_bedroom_overhead_brightness", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light" },
     "66,1": { "_doc": "ML-T 570 CrossOver: pendant lamp over dinette table (Pendelleuchte Wohnbereich). Confirmed by user 2026-06-01 (issue #7). Member of bus 24 (Wohnen) group.", "name": "light_dinette_pendant", "require_observed": true, "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light-outline" },
-    "66,2": { "name": "light_dinette_pendant_brightness", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light-outline" }
+    "66,2": { "name": "light_dinette_pendant_brightness", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light-outline" },
+    "18,1": { "_doc": "Eriba Car 602 (VW Crafter): shower ambient light. Contributed by @mvondemhagen (issue #54).", "name": "light_shower_ambient", "require_observed": true, "platform": "binary_sensor", "device_class": "light", "icon": "mdi:shower-head" },
+    "18,2": { "name": "light_shower_ambient_brightness", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:shower-head" },
+    "93,1": { "_doc": "Eriba Car 602 (VW Crafter): bedroom furniture light. Contributed by @mvondemhagen (issue #54).", "name": "light_bedroom_furniture", "require_observed": true, "platform": "binary_sensor", "device_class": "light", "icon": "mdi:wardrobe-outline" },
+    "93,2": { "name": "light_bedroom_furniture_brightness", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:wardrobe-outline" }
   },
   "lights": {
     "_doc": "Keyed by bus_id. Convention: sid 1=on/off (bool), sid 2=brightness (uint 0-100%), sid 3=color_temp (uint 0-100%). require_observed gates creation: the light. entity is only created once its on/off read sensor (sid 1) is reported by the vehicle.",
@@ -76,6 +80,8 @@
     "27": { "name": "light_privat_group", "require_observed": true, "icon": "mdi:lightbulb-group", "brightness": true, "color_temp": false },
     "66": { "name": "light_dinette_pendant", "require_observed": true, "icon": "mdi:ceiling-light-outline", "brightness": true, "color_temp": false },
     "43": { "name": "light_seating_overhead", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
-    "44": { "name": "light_bedroom_overhead", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false }
+    "44": { "name": "light_bedroom_overhead", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
+    "18": { "name": "light_shower_ambient", "require_observed": true, "icon": "mdi:shower-head", "brightness": true, "color_temp": false },
+    "93": { "name": "light_bedroom_furniture", "require_observed": true, "icon": "mdi:wardrobe-outline", "brightness": true, "color_temp": false }
   }
 }

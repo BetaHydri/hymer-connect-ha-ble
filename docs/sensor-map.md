@@ -104,7 +104,7 @@ Notes:
 | 15 | `LightCircuit05` | Bedroom ambient light | hymer | S 600 / S 700 |
 | 16 | `LightCircuit06` | Night light | hymer | S 600 / S 700 |
 | 17 | `LightCircuit07` | Shower ceiling light | hymer | BMC I 680 |
-| 18 | `LightCircuit08` | Shower ambient light | eriba | Eriba Car 602 |
+| 18 | `LightCircuit08` | Shower ambient light | lights | Eriba Car 602 |
 | 19 | `LightCircuit09` | Bathroom ceiling light | hymer | S 600 / BMC I 680 |
 | 21 | `LightCircuit11` | Kitchen light | hymer | S 600 / S 700 |
 | 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | hymer | S 600 |
@@ -122,7 +122,7 @@ Notes:
 | 49 | `LIM404Mod2` | Truma LIM module | base | S 600 |
 | 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | base | S 600 / S 700 |
-| 59 | `TrumaAventaCompact` | Truma Aventa AC | eriba | Eriba Car 602 |
+| 59 | `TrumaAventaCompact` | Truma Aventa Compact AC | base | Eriba Car 602 |
 | 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba, hymer | Eriba Car 602; HYMER (Dometic) |
 | 66 | `LightCircuit22` | Dinette pendant lamp | lights | ML-T 570 |
 | 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | hymer | HSS accessory |
