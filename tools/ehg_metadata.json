@@ -1,0 +1,2268 @@
+{
+  "_source": "docs/ehg-app-metadata.md",
+  "_generated_by": "tools/parse_ehg_metadata.py",
+  "components": {
+    "1": {
+      "component_id": "VehicleSignal",
+      "kind": "chassis",
+      "name": "Chassis Signals",
+      "slot_count": "23",
+      "mapped": "yes (23/23)"
+    },
+    "2": {
+      "component_id": "EBL400",
+      "kind": "habitation",
+      "name": "Habitation Controller 2",
+      "slot_count": "14",
+      "mapped": "**NO**"
+    },
+    "3": {
+      "component_id": "EBL402",
+      "kind": "habitation",
+      "name": "Habitation Controller 3",
+      "slot_count": "22",
+      "mapped": "yes (22/22)"
+    },
+    "4": {
+      "component_id": "LIM403",
+      "kind": "lighting_module",
+      "name": "Lighting Module 4",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "5": {
+      "component_id": "Alde3020",
+      "kind": "heater",
+      "name": "Alde 3020 Hydronic Heater",
+      "slot_count": "15 (+1 setting)",
+      "mapped": "yes (14/15)"
+    },
+    "6": {
+      "component_id": "TrumaCombi_E",
+      "kind": "truma_heater",
+      "name": "Heater Module 6",
+      "slot_count": "11",
+      "mapped": "**NO**"
+    },
+    "7": {
+      "component_id": "TrumaAventaComfort",
+      "kind": "air_conditioner",
+      "name": "Climate Module 7",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "8": {
+      "component_id": "VotronicMPP250Duo",
+      "kind": "solar_charger",
+      "name": "Solar Charger 8",
+      "slot_count": "7",
+      "mapped": "yes (7/7)"
+    },
+    "9": {
+      "component_id": "DometicSeries10",
+      "kind": "fridge",
+      "name": "Fridge Module 9",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "10": {
+      "component_id": "TenhaaftSatAntenna",
+      "kind": "sat_antenna",
+      "name": "Satellite Antenna 10",
+      "slot_count": "13",
+      "mapped": "yes (8/13)"
+    },
+    "11": {
+      "component_id": "LightCircuit01",
+      "kind": "light",
+      "name": "Living room Main",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "12": {
+      "component_id": "LightCircuit02",
+      "kind": "light",
+      "name": "Living room Ambient",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "13": {
+      "component_id": "LightCircuit03",
+      "kind": "light",
+      "name": "Floor",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "14": {
+      "component_id": "LightCircuit04",
+      "kind": "light",
+      "name": "Bedroom Main",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "15": {
+      "component_id": "LightCircuit05",
+      "kind": "light",
+      "name": "Bedroom Ambient",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "16": {
+      "component_id": "LightCircuit06",
+      "kind": "light",
+      "name": "Night light",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "17": {
+      "component_id": "LightCircuit07",
+      "kind": "light",
+      "name": "Shower lights",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "18": {
+      "component_id": "LightCircuit08",
+      "kind": "light",
+      "name": "Ambient Light Shower",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "19": {
+      "component_id": "LightCircuit09",
+      "kind": "light",
+      "name": "Bathroom Main",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "20": {
+      "component_id": "LightCircuit10",
+      "kind": "light",
+      "name": "Ambient light sink",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "21": {
+      "component_id": "LightCircuit11",
+      "kind": "light",
+      "name": "Kitchen Main",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "22": {
+      "component_id": "LightCircuit12",
+      "kind": "light",
+      "name": "Outdoor",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "23": {
+      "component_id": "LightCircuit13",
+      "kind": "light",
+      "name": "Floor Light Front",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "24": {
+      "component_id": "LightGroup01",
+      "kind": "light",
+      "name": "Communal",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "25": {
+      "component_id": "LightGroup02",
+      "kind": "light",
+      "name": "Outside",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "26": {
+      "component_id": "LightGroup03",
+      "kind": "light",
+      "name": "Installation",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "27": {
+      "component_id": "LightGroup04",
+      "kind": "light",
+      "name": "Personal",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "29": {
+      "component_id": "Component29",
+      "kind": "component",
+      "name": "Module 29",
+      "slot_count": "1",
+      "mapped": "yes (1/1)"
+    },
+    "30": {
+      "component_id": "ScuSignals",
+      "kind": "scu_platform",
+      "name": "Connectivity Unit",
+      "slot_count": "14",
+      "mapped": "yes (14/14)"
+    },
+    "31": {
+      "component_id": "TrumaCombi",
+      "kind": "truma_heater",
+      "name": "Heater Module 31",
+      "slot_count": "10",
+      "mapped": "**NO**"
+    },
+    "32": {
+      "component_id": "ThetfordN4000",
+      "kind": "fridge",
+      "name": "Fridge Module 32",
+      "slot_count": "6",
+      "mapped": "yes (4/6)"
+    },
+    "33": {
+      "component_id": "TelecoFlatsat",
+      "kind": "sat_antenna",
+      "name": "Satellite Antenna 33",
+      "slot_count": "7",
+      "mapped": "**NO**"
+    },
+    "34": {
+      "component_id": "ThetfordT2000",
+      "kind": "fridge",
+      "name": "Fridge Module 34",
+      "slot_count": "7",
+      "mapped": "yes (7/7)"
+    },
+    "35": {
+      "component_id": "Philippi_BlackWaterSensor",
+      "kind": "tank_monitor",
+      "name": "Tank Monitor 35",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "36": {
+      "component_id": "TelecoTelairDualClima",
+      "kind": "air_conditioner",
+      "name": "Climate Module 36",
+      "slot_count": "5",
+      "mapped": "**NO**"
+    },
+    "37": {
+      "component_id": "VehicleInformation",
+      "kind": "vehicle_info",
+      "name": "Vehicle Information",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "38": {
+      "component_id": "LightCircuit14",
+      "kind": "light",
+      "name": "Seating group table",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "39": {
+      "component_id": "LightCircuit15",
+      "kind": "light",
+      "name": "Entrance",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "40": {
+      "component_id": "LightCircuit16",
+      "kind": "light",
+      "name": "Seating group wall",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "41": {
+      "component_id": "LightCircuit17",
+      "kind": "light",
+      "name": "Bedroom wall",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "42": {
+      "component_id": "LightCircuit18",
+      "kind": "light",
+      "name": "Bedroom floor",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "43": {
+      "component_id": "LightCircuit19",
+      "kind": "light",
+      "name": "Seating group overhead cabinet",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "44": {
+      "component_id": "LightCircuit20",
+      "kind": "light",
+      "name": "Bedroom overhead cabinet",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "45": {
+      "component_id": "LIM411Mod1",
+      "kind": "lighting_module",
+      "name": "Lighting Module 45",
+      "slot_count": "4",
+      "mapped": "yes (4/4)"
+    },
+    "46": {
+      "component_id": "LIM411Mod2",
+      "kind": "lighting_module",
+      "name": "Lighting Module 46",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "47": {
+      "component_id": "LIM411Mod3",
+      "kind": "lighting_module",
+      "name": "Lighting Module 47",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "48": {
+      "component_id": "LIM404Mod1",
+      "kind": "lighting_module",
+      "name": "Lighting Module 48",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "49": {
+      "component_id": "LIM404Mod2",
+      "kind": "lighting_module",
+      "name": "Lighting Module 49",
+      "slot_count": "3",
+      "mapped": "yes (3/3)"
+    },
+    "50": {
+      "component_id": "LIM404Mod3",
+      "kind": "lighting_module",
+      "name": "Lighting Module 50",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "51": {
+      "component_id": "LIM410",
+      "kind": "lighting_module",
+      "name": "Lighting Module 51",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "52": {
+      "component_id": "CBE_PL50_DISS",
+      "kind": "habitation",
+      "name": "Habitation Controller 52",
+      "slot_count": "17",
+      "mapped": "**NO**"
+    },
+    "53": {
+      "component_id": "CBE_PL50_Water",
+      "kind": "tank_monitor",
+      "name": "Tank Monitor 53",
+      "slot_count": "6 (+1 setting)",
+      "mapped": "**NO**"
+    },
+    "54": {
+      "component_id": "CBE_SensModule",
+      "kind": "component",
+      "name": "Module 54",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "55": {
+      "component_id": "CBE_LeisureBatInfo",
+      "kind": "component",
+      "name": "Module 55",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "56": {
+      "component_id": "ThetfordIndusToilet",
+      "kind": "toilet",
+      "name": "Toilet Module 56",
+      "slot_count": "21",
+      "mapped": "**NO**"
+    },
+    "57": {
+      "component_id": "TrumaCombi_D",
+      "kind": "truma_heater",
+      "name": "Heater Module 57",
+      "slot_count": "10",
+      "mapped": "**NO**"
+    },
+    "58": {
+      "component_id": "TrumaCombi_DE",
+      "kind": "truma_heater",
+      "name": "Heater Module 58",
+      "slot_count": "11",
+      "mapped": "yes (11/11)"
+    },
+    "59": {
+      "component_id": "TrumaAventaCompact",
+      "kind": "air_conditioner",
+      "name": "Climate Module 59",
+      "slot_count": "8",
+      "mapped": "yes (8/8)"
+    },
+    "60": {
+      "component_id": "DometicCompressorFridge",
+      "kind": "fridge",
+      "name": "Fridge Module 60",
+      "slot_count": "21",
+      "mapped": "yes (21/21)"
+    },
+    "61": {
+      "component_id": "ToptronDimmerEL641",
+      "kind": "lighting_module",
+      "name": "Lighting Module 61",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "62": {
+      "component_id": "ToptronDimmerEL711_1",
+      "kind": "lighting_module",
+      "name": "Lighting Module 62",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "63": {
+      "component_id": "ToptronDimmerEL711_2",
+      "kind": "lighting_module",
+      "name": "Lighting Module 63",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "64": {
+      "component_id": "ToptronDimmerEL711_3",
+      "kind": "lighting_module",
+      "name": "Lighting Module 64",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "65": {
+      "component_id": "TrumaAventaComfortDirect",
+      "kind": "air_conditioner",
+      "name": "Climate Module 65",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "66": {
+      "component_id": "LightCircuit22",
+      "kind": "light",
+      "name": "Pendant light",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "67": {
+      "component_id": "LightCircuit23",
+      "kind": "light",
+      "name": "Staircase light",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "68": {
+      "component_id": "Component68",
+      "kind": "component",
+      "name": "Module 68",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "69": {
+      "component_id": "Component69",
+      "kind": "component",
+      "name": "Module 69",
+      "slot_count": "3",
+      "mapped": "**NO**"
+    },
+    "70": {
+      "component_id": "Component70",
+      "kind": "component",
+      "name": "Module 70",
+      "slot_count": "5",
+      "mapped": "yes (4/5)"
+    },
+    "71": {
+      "component_id": "Component71",
+      "kind": "component",
+      "name": "Module 71",
+      "slot_count": "5",
+      "mapped": "yes (4/5)"
+    },
+    "72": {
+      "component_id": "Component72",
+      "kind": "component",
+      "name": "Module 72",
+      "slot_count": "9",
+      "mapped": "**NO**"
+    },
+    "73": {
+      "component_id": "Component73",
+      "kind": "component",
+      "name": "Module 73",
+      "slot_count": "4",
+      "mapped": "yes (2/4)"
+    },
+    "74": {
+      "component_id": "Component74",
+      "kind": "component",
+      "name": "Module 74",
+      "slot_count": "5",
+      "mapped": "yes (3/5)"
+    },
+    "75": {
+      "component_id": "Component75",
+      "kind": "component",
+      "name": "Module 75",
+      "slot_count": "14",
+      "mapped": "**NO**"
+    },
+    "76": {
+      "component_id": "Component76",
+      "kind": "component",
+      "name": "Module 76",
+      "slot_count": "7",
+      "mapped": "yes (1/7)"
+    },
+    "77": {
+      "component_id": "Component77",
+      "kind": "component",
+      "name": "Module 77",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "78": {
+      "component_id": "LightCircuit24",
+      "kind": "light",
+      "name": "Outside light",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "79": {
+      "component_id": "TrumaSaphirCompact",
+      "kind": "air_conditioner",
+      "name": "Climate Module 79",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "80": {
+      "component_id": "LightCircuit25",
+      "kind": "light",
+      "name": "Toilet",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "81": {
+      "component_id": "LightCircuit26",
+      "kind": "light",
+      "name": "Sink",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "82": {
+      "component_id": "LightCircuit27",
+      "kind": "light",
+      "name": "Garage light",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "83": {
+      "component_id": "LightCircuit28",
+      "kind": "light",
+      "name": "Lift Bed",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "84": {
+      "component_id": "LightCircuit29",
+      "kind": "light",
+      "name": "Storage",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "85": {
+      "component_id": "LightCircuit30",
+      "kind": "light",
+      "name": "Wall Lighting",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "86": {
+      "component_id": "LightCircuit31",
+      "kind": "light",
+      "name": "Ambient light toilet",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "87": {
+      "component_id": "CBE_PL50_Water_No_Tank",
+      "kind": "tank_monitor",
+      "name": "Tank Monitor 87",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "88": {
+      "component_id": "InverterRelay",
+      "kind": "inverter",
+      "name": "Power Converter 88",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "89": {
+      "component_id": "TrumaSaphirComfortRC",
+      "kind": "air_conditioner",
+      "name": "Climate Module 89",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "90": {
+      "component_id": "HegotecLightModule",
+      "kind": "lighting_module",
+      "name": "Privacy glass",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "91": {
+      "component_id": "SeeLevel_709_RVC_NLP",
+      "kind": "tank_monitor",
+      "name": "Tank Monitor 91",
+      "slot_count": "11",
+      "mapped": "**NO**"
+    },
+    "92": {
+      "component_id": "PD1600_Inverter",
+      "kind": "inverter",
+      "name": "Power Converter 92",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "93": {
+      "component_id": "LightCircuit32",
+      "kind": "light",
+      "name": "Ambient light bedroom furniture",
+      "slot_count": "2",
+      "mapped": "yes (2/2)"
+    },
+    "94": {
+      "component_id": "LightCircuit33",
+      "kind": "light",
+      "name": "Night light",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "95": {
+      "component_id": "AirxcelACGateway",
+      "kind": "air_conditioner",
+      "name": "Climate Module 95",
+      "slot_count": "33",
+      "mapped": "**NO**"
+    },
+    "96": {
+      "component_id": "BatteryGuard1000",
+      "kind": "inverter",
+      "name": "Power Converter 96",
+      "slot_count": "5",
+      "mapped": "**NO**"
+    },
+    "97": {
+      "component_id": "CerboGX",
+      "kind": "power_system",
+      "name": "Power System 97",
+      "slot_count": "12",
+      "mapped": "**NO**"
+    },
+    "98": {
+      "component_id": "ModulusPowerHub",
+      "kind": "power_system",
+      "name": "Power System 98",
+      "slot_count": "35",
+      "mapped": "**NO**"
+    },
+    "99": {
+      "component_id": "BOSConnect",
+      "kind": "bms",
+      "name": "Battery Monitor 99",
+      "slot_count": "10 (+1 setting)",
+      "mapped": "yes (10/10)"
+    },
+    "100": {
+      "component_id": "TPMS",
+      "kind": "tpms",
+      "name": "Tyre Pressure Monitor",
+      "slot_count": "22",
+      "mapped": "**NO**"
+    },
+    "101": {
+      "component_id": "HymerVVInflatableRoof",
+      "kind": "roof",
+      "name": "Inflatable Roof 101",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "102": {
+      "component_id": "MaxxFan",
+      "kind": "ventilation",
+      "name": "Roof Fan 102",
+      "slot_count": "12",
+      "mapped": "**NO**"
+    },
+    "103": {
+      "component_id": "VitrifrigoFridge",
+      "kind": "fridge",
+      "name": "Fridge Module 103",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "104": {
+      "component_id": "LightCircuit34",
+      "kind": "light",
+      "name": "Garage",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "105": {
+      "component_id": "SmartBatterySensor",
+      "kind": "bms",
+      "name": "Battery Monitor 105",
+      "slot_count": "37",
+      "mapped": "**NO**"
+    },
+    "106": {
+      "component_id": "ThetfordT2095",
+      "kind": "fridge",
+      "name": "Fridge Module 106",
+      "slot_count": "7",
+      "mapped": "**NO**"
+    },
+    "107": {
+      "component_id": "ZipDeePowerAwning",
+      "kind": "awning",
+      "name": "Awning Controller",
+      "slot_count": "10",
+      "mapped": "**NO**"
+    },
+    "108": {
+      "component_id": "VehicleFiatChassis",
+      "kind": "chassis",
+      "name": "Chassis Signals",
+      "slot_count": "24",
+      "mapped": "**NO**"
+    },
+    "109": {
+      "component_id": "SwitchPad",
+      "kind": "switch_pad",
+      "name": "Switch Panel 109",
+      "slot_count": "7",
+      "mapped": "**NO**"
+    },
+    "110": {
+      "component_id": "AD100",
+      "kind": "habitation",
+      "name": "Habitation Controller 110",
+      "slot_count": "14",
+      "mapped": "**NO**"
+    },
+    "111": {
+      "component_id": "BOSBatteryS",
+      "kind": "bms",
+      "name": "Battery Monitor 111",
+      "slot_count": "7 (+5 settings)",
+      "mapped": "**NO**"
+    },
+    "112": {
+      "component_id": "ShoreLine",
+      "kind": "component",
+      "name": "Module 112",
+      "slot_count": "1",
+      "mapped": "**NO**"
+    },
+    "113": {
+      "component_id": "LightCircuit35",
+      "kind": "light",
+      "name": "Light Zone 113",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "114": {
+      "component_id": "ThetfordT2152",
+      "kind": "fridge",
+      "name": "Fridge Module 114",
+      "slot_count": "7",
+      "mapped": "yes (7/7)"
+    },
+    "115": {
+      "component_id": "Component115",
+      "kind": "component",
+      "name": "Module 115",
+      "slot_count": "10",
+      "mapped": "**NO**"
+    },
+    "116": {
+      "component_id": "DellCoolFridge",
+      "kind": "fridge",
+      "name": "Fridge Module 116",
+      "slot_count": "6",
+      "mapped": "**NO**"
+    },
+    "117": {
+      "component_id": "CBESolarCharger",
+      "kind": "solar_charger",
+      "name": "Solar Charger 117",
+      "slot_count": "4",
+      "mapped": "**NO**"
+    },
+    "118": {
+      "component_id": "IndelBFridge",
+      "kind": "fridge",
+      "name": "Fridge Module 118",
+      "slot_count": "6",
+      "mapped": "**NO**"
+    },
+    "119": {
+      "component_id": "TrumaCombiNeo",
+      "kind": "heater_neo",
+      "name": "Heater Module 119",
+      "slot_count": "19",
+      "mapped": "**NO**"
+    },
+    "120": {
+      "component_id": "TrumaCombiNeo_E",
+      "kind": "heater_neo",
+      "name": "Heater Module 120",
+      "slot_count": "21",
+      "mapped": "**NO**"
+    },
+    "121": {
+      "component_id": "VictronMultiplus",
+      "kind": "inverter",
+      "name": "Power Converter 121",
+      "slot_count": "19",
+      "mapped": "yes (19/19)"
+    },
+    "122": {
+      "component_id": "AD100_NoPump",
+      "kind": "habitation",
+      "name": "Habitation Controller 122",
+      "slot_count": "13",
+      "mapped": "**NO**"
+    },
+    "123": {
+      "component_id": "TrumaAventa2G",
+      "kind": "air_conditioner",
+      "name": "Climate Module 123",
+      "slot_count": "8",
+      "mapped": "**NO**"
+    },
+    "124": {
+      "component_id": "TimberlineHeaterCommon",
+      "kind": "heater",
+      "name": "Heater Module 124",
+      "slot_count": "13",
+      "mapped": "**NO**"
+    },
+    "125": {
+      "component_id": "TimberlineHeaterZone",
+      "kind": "heater",
+      "name": "Heater Module 125",
+      "slot_count": "12",
+      "mapped": "**NO**"
+    },
+    "126": {
+      "component_id": "TelecoTEB310D",
+      "kind": "habitation",
+      "name": "Habitation Controller 126",
+      "slot_count": "18",
+      "mapped": "**NO**"
+    },
+    "127": {
+      "component_id": "ThetfordIndusToiletEco",
+      "kind": "toilet",
+      "name": "Toilet Module 127",
+      "slot_count": "2",
+      "mapped": "**NO**"
+    },
+    "128": {
+      "component_id": "HegotecLightModuleNoGlass",
+      "kind": "lighting_module",
+      "name": "Light Module 128",
+      "slot_count": "0",
+      "mapped": "**NO**"
+    }
+  },
+  "slots": {
+    "6": {
+      "4": {
+        "label": "heater_air_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "water_heater_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "6": {
+        "label": "heater_water_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "7": {
+        "label": "panel_busy",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "8": {
+        "label": "target_air_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "30",
+        "mode": "rw"
+      },
+      "9": {
+        "label": "power_limit",
+        "datatype": "int",
+        "unit": "W",
+        "mode": "rw"
+      },
+      "10": {
+        "label": "combi_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "11": {
+        "label": "heater_air_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "response_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "13": {
+        "label": "shoreline_connected",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "14": {
+        "label": "window_switch_closed",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "31": {
+      "4": {
+        "label": "heater_air_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "water_heater_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "6": {
+        "label": "heater_water_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "7": {
+        "label": "panel_busy",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "8": {
+        "label": "target_air_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "30",
+        "mode": "rw"
+      },
+      "10": {
+        "label": "combi_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "11": {
+        "label": "heater_air_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "response_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "13": {
+        "label": "shoreline_connected",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "14": {
+        "label": "window_switch_closed",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "57": {
+      "4": {
+        "label": "heater_air_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "water_heater_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "6": {
+        "label": "heater_water_energy_source",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "7": {
+        "label": "panel_busy",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "8": {
+        "label": "target_air_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "30",
+        "mode": "rw"
+      },
+      "10": {
+        "label": "combi_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "11": {
+        "label": "heater_air_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "response_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "13": {
+        "label": "shoreline_connected",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "14": {
+        "label": "window_switch_closed",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "119": {
+      "1": {
+        "label": "water_heater_water_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "water_heater_energy_selection",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "4": {
+        "label": "water_heater_230_vavailable",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "5": {
+        "label": "water_heater_window_switch_closed",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "6": {
+        "label": "water_heater_manual_mode",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "7": {
+        "label": "water_heater_device_error",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "8": {
+        "label": "water_heater_remaining_time_for_shower",
+        "datatype": "int",
+        "unit": "s",
+        "min": "0",
+        "max": "65535",
+        "mode": "r"
+      },
+      "9": {
+        "label": "water_heater_heat_up_time_for_hot_water",
+        "datatype": "int",
+        "unit": "s",
+        "min": "0",
+        "max": "65535",
+        "mode": "r"
+      },
+      "10": {
+        "label": "air_heater_target_room_temperature",
+        "datatype": "int",
+        "unit": "°C",
+        "min": "5",
+        "max": "30",
+        "mode": "rw"
+      },
+      "11": {
+        "label": "air_heater_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "air_heater_sub_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "13": {
+        "label": "air_heater_fan_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "14": {
+        "label": "air_heater_energy_selection",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "16": {
+        "label": "air_heater_230_vavailable",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "17": {
+        "label": "air_heater_window_switch_closed",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "18": {
+        "label": "air_heater_manual_mode",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "19": {
+        "label": "air_heater_device_error",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "20": {
+        "label": "air_heater_current_room_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "6280",
+        "mode": "r"
+      },
+      "21": {
+        "label": "firmware",
+        "datatype": "string",
+        "mode": "r"
+      }
+    },
+    "120": {
+      "1": {
+        "label": "water_heater_water_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "water_heater_energy_selection",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "water_heater_power_limit",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "4": {
+        "label": "water_heater_230_vavailable",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "5": {
+        "label": "water_heater_window_switch_closed",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "6": {
+        "label": "water_heater_manual_mode",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "7": {
+        "label": "water_heater_device_error",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "8": {
+        "label": "water_heater_remaining_time_for_shower",
+        "datatype": "int",
+        "unit": "s",
+        "min": "0",
+        "max": "65535",
+        "mode": "r"
+      },
+      "9": {
+        "label": "water_heater_heat_up_time_for_hot_water",
+        "datatype": "int",
+        "unit": "s",
+        "min": "0",
+        "max": "65535",
+        "mode": "r"
+      },
+      "10": {
+        "label": "air_heater_target_room_temperature",
+        "datatype": "int",
+        "unit": "°C",
+        "min": "5",
+        "max": "30",
+        "mode": "rw"
+      },
+      "11": {
+        "label": "air_heater_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "air_heater_sub_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "13": {
+        "label": "air_heater_fan_mode",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "14": {
+        "label": "air_heater_energy_selection",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "15": {
+        "label": "air_heater_power_limit",
+        "datatype": "int",
+        "mode": "rw"
+      },
+      "16": {
+        "label": "air_heater_230_vavailable",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "17": {
+        "label": "air_heater_window_switch_closed",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "18": {
+        "label": "air_heater_manual_mode",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "19": {
+        "label": "air_heater_device_error",
+        "datatype": "int",
+        "mode": "r"
+      },
+      "20": {
+        "label": "air_heater_current_room_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "6280",
+        "mode": "r"
+      },
+      "21": {
+        "label": "firmware",
+        "datatype": "string",
+        "mode": "r"
+      }
+    },
+    "9": {
+      "1": {
+        "label": "fridge_power",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "power_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "fridge_level",
+        "datatype": "int",
+        "min": "1",
+        "max": "5",
+        "mode": "rw"
+      },
+      "4": {
+        "label": "fridge_busy",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "5": {
+        "label": "door_open",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "6": {
+        "label": "temperature_state",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "7": {
+        "label": "actual_power_mode",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "8": {
+        "label": "error_warning_information",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "9": {
+        "label": "heartbeat",
+        "datatype": "bool",
+        "mode": "rw"
+      }
+    },
+    "32": {
+      "1": {
+        "label": "fridge_power",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "set_power_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "fridge_level",
+        "datatype": "int",
+        "min": "1",
+        "max": "5",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "door_open",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "8": {
+        "label": "error_warning_information",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "10": {
+        "label": "automatic_mode_active",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "60": {
+      "1": {
+        "label": "user_mode",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "temperature",
+        "datatype": "int",
+        "min": "1",
+        "max": "5",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "new_protocol",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "4": {
+        "label": "page",
+        "datatype": "int",
+        "min": "0",
+        "max": "3",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "lock",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "6": {
+        "label": "sync",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "7": {
+        "label": "cmode",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "8": {
+        "label": "power_on",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "9": {
+        "label": "power_source",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "10": {
+        "label": "cibus_on",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "11": {
+        "label": "compressor_on",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "12": {
+        "label": "condenser_fan_on",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "13": {
+        "label": "ctype",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "14": {
+        "label": "fan_1_available",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "15": {
+        "label": "fan_2_available",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "16": {
+        "label": "warning_error_information",
+        "datatype": "int",
+        "min": "0",
+        "max": "127",
+        "mode": "r"
+      },
+      "17": {
+        "label": "aitype",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "18": {
+        "label": "lstat",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "19": {
+        "label": "rchange",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "20": {
+        "label": "lchange",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "21": {
+        "label": "heartbeat",
+        "datatype": "bool",
+        "mode": "rw"
+      }
+    },
+    "2": {
+      "1": {
+        "label": "main_switch",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "power_source",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "3": {
+        "label": "water_pump",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "4": {
+        "label": "charge_phase",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "5": {
+        "label": "living_battery_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "-327.67",
+        "max": "327.66",
+        "mode": "r"
+      },
+      "6": {
+        "label": "living_battery_current",
+        "datatype": "float",
+        "unit": "A",
+        "min": "-327.67",
+        "max": "327.66",
+        "mode": "r"
+      },
+      "7": {
+        "label": "starter_battery_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "-327.67",
+        "max": "327.66",
+        "mode": "r"
+      },
+      "8": {
+        "label": "fresh_water_level",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "9": {
+        "label": "waste_water_level",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "10": {
+        "label": "living_battery_capacity",
+        "datatype": "int",
+        "unit": "Ah",
+        "min": "1",
+        "max": "4095",
+        "mode": "rw"
+      },
+      "11": {
+        "label": "battery_type",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "12": {
+        "label": "fresh_water_sensor_failure",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "13": {
+        "label": "waste_water_sensor_failure",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "14": {
+        "label": "shoreline_connected",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "52": {
+      "1": {
+        "label": "internal_lights",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "pump",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "eis_ex",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "4": {
+        "label": "multimedia",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "5": {
+        "label": "external_light",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "6": {
+        "label": "switched_lights",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "7": {
+        "label": "230_vsignal",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "8": {
+        "label": "ignition_signal",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "9": {
+        "label": "solar_signal",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "10": {
+        "label": "dplus_simulated",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "11": {
+        "label": "vehicle_battery_low",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "12": {
+        "label": "leisure_battery_reserve",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "13": {
+        "label": "leisure_battery_low",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "14": {
+        "label": "save_battery",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "15": {
+        "label": "remote_on_off",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "16": {
+        "label": "230_vsignal_bool",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "17": {
+        "label": "ignition_signal_bool",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "100": {
+      "1": {
+        "label": "tire_pressure_front_right",
+        "datatype": "int",
+        "unit": "psi",
+        "min": "0",
+        "max": "9500",
+        "mode": "r"
+      },
+      "2": {
+        "label": "tire_pressure_front_left",
+        "datatype": "int",
+        "unit": "psi",
+        "min": "0",
+        "max": "9500",
+        "mode": "r"
+      },
+      "3": {
+        "label": "tire_pressure_back_right",
+        "datatype": "int",
+        "unit": "psi",
+        "min": "0",
+        "max": "9500",
+        "mode": "r"
+      },
+      "4": {
+        "label": "tire_pressure_back_left",
+        "datatype": "int",
+        "unit": "psi",
+        "min": "0",
+        "max": "9500",
+        "mode": "r"
+      },
+      "5": {
+        "label": "pressure_status_front_right",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "6": {
+        "label": "pressure_status_front_left",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "7": {
+        "label": "pressure_status_back_right",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "8": {
+        "label": "pressure_status_back_left",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "9": {
+        "label": "sensor_failure",
+        "datatype": "int",
+        "min": "0",
+        "max": "2",
+        "mode": "r"
+      },
+      "10": {
+        "label": "tire_temperature_front_right",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "1735",
+        "mode": "r"
+      },
+      "11": {
+        "label": "tire_temperature_front_left",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "1735",
+        "mode": "r"
+      },
+      "12": {
+        "label": "tire_temperature_back_right",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "1735",
+        "mode": "r"
+      },
+      "13": {
+        "label": "tire_temperature_back_left",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "1735",
+        "mode": "r"
+      },
+      "14": {
+        "label": "temperature_status_front_right",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "15": {
+        "label": "temperature_status_front_left",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "16": {
+        "label": "temperature_status_back_right",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "17": {
+        "label": "temperature_status_back_left",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "18": {
+        "label": "tire_pressure_spare",
+        "datatype": "int",
+        "unit": "psi",
+        "min": "0",
+        "max": "9500",
+        "mode": "r"
+      },
+      "19": {
+        "label": "pressure_status_spare",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "20": {
+        "label": "tire_temperature_spare",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-273",
+        "max": "1735",
+        "mode": "r"
+      },
+      "21": {
+        "label": "temperature_status_spare",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "22": {
+        "label": "firmware",
+        "datatype": "string",
+        "mode": "r"
+      }
+    },
+    "105": {
+      "1": {
+        "label": "wake_up_status",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "2": {
+        "label": "low_voltage",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "3": {
+        "label": "power_on",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "4": {
+        "label": "engine_start",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "5": {
+        "label": "sulfation",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "6": {
+        "label": "battery_defect",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "7": {
+        "label": "socupper_tolerance",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "255",
+        "mode": "r"
+      },
+      "8": {
+        "label": "soclower_tolerance",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "255",
+        "mode": "r"
+      },
+      "9": {
+        "label": "capacity_loss_top",
+        "datatype": "float",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "10": {
+        "label": "capacity_loss_bottom",
+        "datatype": "float",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "11": {
+        "label": "response_error",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "12": {
+        "label": "battery_current",
+        "datatype": "float",
+        "unit": "A",
+        "min": "-2000",
+        "max": "2000",
+        "mode": "r"
+      },
+      "13": {
+        "label": "battery_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "50",
+        "mode": "r"
+      },
+      "14": {
+        "label": "battery_temperature",
+        "datatype": "float",
+        "unit": "°C",
+        "min": "-40",
+        "max": "125",
+        "mode": "r"
+      },
+      "15": {
+        "label": "current_autorange",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "16": {
+        "label": "ibserror",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "17": {
+        "label": "state_of_charge",
+        "datatype": "float",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "18": {
+        "label": "state_of_health",
+        "datatype": "float",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "19": {
+        "label": "est_volta_drop",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "12.7",
+        "mode": "r"
+      },
+      "20": {
+        "label": "opt_charge_volt",
+        "datatype": "float",
+        "unit": "V",
+        "min": "5",
+        "max": "17.7",
+        "mode": "r"
+      },
+      "21": {
+        "label": "avg_ri",
+        "datatype": "float",
+        "unit": "mOhm",
+        "min": "0",
+        "max": "200",
+        "mode": "r"
+      },
+      "22": {
+        "label": "available_capacity",
+        "datatype": "float",
+        "unit": "Ah",
+        "min": "0",
+        "max": "500",
+        "mode": "r"
+      },
+      "23": {
+        "label": "dischargeable_capacity",
+        "datatype": "float",
+        "unit": "Ah",
+        "min": "0",
+        "max": "500",
+        "mode": "r"
+      },
+      "24": {
+        "label": "nominal_capacity",
+        "datatype": "int",
+        "unit": "Ah",
+        "min": "0",
+        "max": "500",
+        "mode": "r"
+      },
+      "25": {
+        "label": "recalibrated",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "26": {
+        "label": "soclimit",
+        "datatype": "int",
+        "min": "0",
+        "max": "255",
+        "mode": "w"
+      },
+      "27": {
+        "label": "battery_table_state_year",
+        "datatype": "int",
+        "min": "0",
+        "max": "255",
+        "mode": "r"
+      },
+      "28": {
+        "label": "battery_table_state_calender_week",
+        "datatype": "int",
+        "min": "0",
+        "max": "53",
+        "mode": "r"
+      },
+      "29": {
+        "label": "battery_table_state_variant",
+        "datatype": "int",
+        "min": "0",
+        "max": "255",
+        "mode": "r"
+      },
+      "31": {
+        "label": "battery_table_state_table_valid",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "33": {
+        "label": "battery_table_on_off",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "34": {
+        "label": "battery_type",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "35": {
+        "label": "battery_cap",
+        "datatype": "int",
+        "unit": "Ah",
+        "min": "2",
+        "max": "500",
+        "mode": "rw"
+      },
+      "36": {
+        "label": "u_0_min",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "65.535",
+        "mode": "rw"
+      },
+      "37": {
+        "label": "u_0_max",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "65.535",
+        "mode": "rw"
+      },
+      "38": {
+        "label": "battery_tech",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "39": {
+        "label": "battery_time_remaining",
+        "datatype": "int",
+        "unit": "min",
+        "min": "1",
+        "max": "99999999",
+        "mode": "r"
+      }
+    },
+    "107": {
+      "1": {
+        "label": "open",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "2": {
+        "label": "close",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "3": {
+        "label": "tilt_front",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "4": {
+        "label": "tilt_rear",
+        "datatype": "bool",
+        "mode": "w"
+      },
+      "5": {
+        "label": "status",
+        "datatype": "string",
+        "mode": "r"
+      },
+      "6": {
+        "label": "user_lock",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "7": {
+        "label": "move_position",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "rw"
+      },
+      "8": {
+        "label": "direction_movement",
+        "datatype": "string",
+        "mode": "rw"
+      },
+      "9": {
+        "label": "tilt_front_status",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "10": {
+        "label": "tilt_rear_status",
+        "datatype": "bool",
+        "mode": "r"
+      }
+    },
+    "97": {
+      "1": {
+        "label": "lpglevel",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "2": {
+        "label": "second_lpglevel",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "3": {
+        "label": "battery_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "11",
+        "max": "13.5",
+        "mode": "r"
+      },
+      "4": {
+        "label": "battery_current",
+        "datatype": "float",
+        "unit": "A",
+        "min": "-250",
+        "max": "250",
+        "mode": "r"
+      },
+      "5": {
+        "label": "battery_soc",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "100",
+        "mode": "r"
+      },
+      "6": {
+        "label": "battery_time_remaining",
+        "datatype": "int",
+        "unit": "%",
+        "min": "0",
+        "max": "99999999",
+        "mode": "r"
+      },
+      "7": {
+        "label": "solar_panel_power",
+        "datatype": "int",
+        "unit": "W",
+        "min": "0",
+        "max": "33542",
+        "mode": "r"
+      },
+      "8": {
+        "label": "solar_panel_status",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "9": {
+        "label": "solar_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "81.91",
+        "mode": "r"
+      },
+      "10": {
+        "label": "solar_panel_current",
+        "datatype": "float",
+        "unit": "A",
+        "min": "0",
+        "max": "250",
+        "mode": "r"
+      },
+      "11": {
+        "label": "sensor_failure",
+        "datatype": "int",
+        "min": "0",
+        "max": "2",
+        "mode": "r"
+      },
+      "12": {
+        "label": "firmware",
+        "datatype": "string",
+        "mode": "r"
+      }
+    },
+    "96": {
+      "1": {
+        "label": "primary_dcdisconnect",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "2": {
+        "label": "auxiliary_dcdisconnect",
+        "datatype": "bool",
+        "mode": "rw"
+      },
+      "3": {
+        "label": "battery_low_warning",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "4": {
+        "label": "device_failure",
+        "datatype": "int",
+        "min": "0",
+        "max": "2",
+        "mode": "r"
+      },
+      "5": {
+        "label": "firmware",
+        "datatype": "string",
+        "mode": "r"
+      }
+    },
+    "117": {
+      "1": {
+        "label": "solar_active",
+        "datatype": "bool",
+        "mode": "r"
+      },
+      "2": {
+        "label": "solar_voltage",
+        "datatype": "float",
+        "unit": "V",
+        "min": "0",
+        "max": "125",
+        "mode": "r"
+      },
+      "3": {
+        "label": "solar_current",
+        "datatype": "float",
+        "unit": "A",
+        "min": "0",
+        "max": "50",
+        "mode": "r"
+      },
+      "4": {
+        "label": "charging_state",
+        "datatype": "string",
+        "mode": "r"
+      }
+    }
+  }
+}
