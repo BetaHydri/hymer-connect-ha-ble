@@ -109,13 +109,13 @@
     "66,1": { "_doc": "ML-T 570 CrossOver: pendant lamp over dinette table (Pendelleuchte Wohnbereich). Confirmed by user 2026-06-01 (issue #7). Member of bus 24 (Wohnen) group.", "name": "light_dinette_pendant", "platform": "binary_sensor", "device_class": "light", "icon": "mdi:ceiling-light-outline" },
     "66,2": { "name": "light_dinette_pendant_brightness", "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:ceiling-light-outline" },
 
-    "114,1": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge power on/off (bool).", "name": "fridge_compressor_power", "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
-    "114,2": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge silent/night mode (bool).", "name": "fridge_compressor_silent", "platform": "binary_sensor", "icon": "mdi:fridge-alert" },
+    "114,1": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge power on/off (bool).", "name": "fridge_compressor_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "114,2": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge silent/night mode (bool).", "name": "fridge_compressor_silent", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:fridge-alert" },
     "114,3": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge main compartment cooling step 1-5.", "name": "fridge_compressor_cooling_step", "icon": "mdi:fridge-industrial-outline" },
     "114,4": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge freezer compartment level.", "name": "fridge_compressor_freezer", "icon": "mdi:snowflake" },
-    "114,5": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge door open/closed.", "name": "fridge_compressor_door", "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
-    "114,6": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge slot 6.", "name": "fridge_compressor_slot6", "platform": "sensor", "state_class": "measurement", "icon": "mdi:fridge-variant-outline" },
-    "114,7": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge supply voltage in millivolts.", "name": "fridge_compressor_supply_voltage", "unit": "V", "transform": "div1000", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+    "114,5": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge door open/closed.", "name": "fridge_compressor_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+    "114,6": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge slot 6.", "name": "fridge_compressor_slot6", "require_observed": true, "platform": "sensor", "state_class": "measurement", "icon": "mdi:fridge-variant-outline" },
+    "114,7": { "_doc": "ML-T 570 CrossOver: Thetford Compressor T2120C fridge supply voltage in millivolts.", "name": "fridge_compressor_supply_voltage", "require_observed": true, "unit": "V", "transform": "div1000", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
 
     "70,1#t{n}": { "_doc": "HYMER Smart tyre sensor #{n} (auto-numbered). Devices #1..N materialised at runtime. Slot 5 (RSSI) intentionally unmapped.", "name": "hss_tyre{n}_status", "bus_name": "auto:tyre:{n}", "platform": "sensor", "icon": "mdi:car-tire-alert" },
     "70,2#t{n}": { "name": "hss_tyre{n}_pressure", "bus_name": "auto:tyre:{n}", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
@@ -194,8 +194,8 @@
     "5,9": { "_doc": "BMC I 680 (MY2024): Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8); revert if the SCU drops the write.", "name": "alde_heating_ctrl", "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
     "5,10": { "_doc": "BMC I 680 (MY2024): Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH UNVERIFIED on bus 5 slot 10 — test control (v2.65.2); revert if the SCU drops the write.", "name": "alde_gas_ctrl", "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
     "34,2": { "name": "fridge_eco_ctrl", "require_observed": true, "icon": "mdi:leaf", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_eco" },
-    "114,1": { "name": "fridge_compressor_power_ctrl", "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
-    "114,2": { "name": "fridge_compressor_silent_ctrl", "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" },
+    "114,1": { "name": "fridge_compressor_power_ctrl", "require_observed": true, "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
+    "114,2": { "name": "fridge_compressor_silent_ctrl", "require_observed": true, "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" },
     "10,1": { "_doc": "BMC I 680: TenHaaft satellite dish On/Off switch. Command-pair (momentary): ON = Start (deploy + auto-search, bus 10 slot 1, bool true); OFF = Park (retract to safe position, bus 10 slot 2, bool true). State fed from SafePositionState (10,10) INVERTED via on_value=false: parked (safe position=true) shows OFF, deployed shows ON. WRITES CONFIRMED on bus 10 slots 1/2 by @FrankHae on-vehicle (issue #13, 2026-07-20): the switch actually deploys/retracts the dish. holdoff_off 90s covers the retract/deploy travel time.", "name": "sat_control", "icon": "mdi:satellite-uplink", "write_type": "bool", "on_value": false, "read_path": "signalr_sensors.sat_safe_position", "write_off_sid": 2, "bool_on": true, "bool_off": true, "holdoff_off": 90 }
   },
 
@@ -260,6 +260,7 @@
       "_doc": "Generic JSON-driven stepped-switch selects (v2.63.0+).",
       "fridge_compressor_freezer": {
         "name": "Compressor fridge freezer",
+        "require_observed": true,
         "icon": "mdi:snowflake",
         "control_bus": 114,
         "options": ["Off", "1", "2", "3"],
@@ -271,6 +272,7 @@
       },
       "fridge_compressor_cooling_step": {
         "name": "Compressor fridge cooling step",
+        "require_observed": true,
         "icon": "mdi:fridge-industrial-outline",
         "control_bus": 114,
         "options": ["Off", "1", "2", "3", "4", "5"],

@@ -60,4 +60,17 @@ for name in ("fridge_door", "fridge_warning", "fridge_mode", "fridge_status",
 assert "require_observed" not in pd.ENTITY_DEFS.get("outside_temperature", {})
 print("S600 Thetford + Truma dedicated-class gating  OK")
 
+# --- ML-T compressor fridge (bus 114) gating (v2.69.2) ---
+for name in ("fridge_compressor_power", "fridge_compressor_silent",
+             "fridge_compressor_door", "fridge_compressor_slot6",
+             "fridge_compressor_supply_voltage"):
+    assert pd.ENTITY_DEFS[name].get("require_observed") is True, \
+        f"{name} not gated"
+assert pd.SWITCH_DEFS["114,1"].get("require_observed") is True
+assert pd.SWITCH_DEFS["114,2"].get("require_observed") is True
+for key in ("fridge_compressor_freezer", "fridge_compressor_cooling_step"):
+    assert pd.STEPPED_SELECT_DEFS[key].get("require_observed") is True, \
+        f"{key} not gated"
+print("ML-T compressor fridge (bus 114) gating  OK")
+
 print("ALL RUNTIME CHECKS PASSED")

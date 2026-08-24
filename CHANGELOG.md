@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.2] - 2026-08-24
+
+### Changed
+
+- **Observation gating extended to the ML-T compressor fridge (bus 114).** The Thetford Compressor T2120C fridge on bus 114 (read sensors, the power/silent switches and the two stepped selects `fridge_compressor_freezer` / `fridge_compressor_cooling_step`) now honours `require_observed`: it is created only once the vehicle reports a bus-114 slot. On vehicles without it (e.g. an S600 with a Thetford absorber on bus 34/37) these entities are no longer provided, so Home Assistant offers the Delete action to clean up the stale registry entries left over from earlier versions. Vehicles with the ML-T compressor fridge are unchanged.
+
 ## [2.69.1] - 2026-08-24
 
 ### Changed
