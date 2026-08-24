@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.72.0] - 2026-08-24
+
+### Added
+
+- **Intelligent Battery Sensor / IBS (bus 105), observation-gated (`ibs_*`).** The EHG `SmartBatterySensor` battery monitor: voltage, current, temperature, state-of-charge, state-of-health, available capacity and time-remaining ship as enabled measurements; the deep battery-table state and tolerance/capacity-loss fields are `entity_category: diagnostic`. Named `ibs_*` to stay distinct from the BOS BMS on bus 99 (`bms_*`). It materialises only on vehicles that report bus 105.
+- **Truma Combi NEO (bus 119, `truma_neo_*`) and Combi NEO E (bus 120, `truma_neo_e_*`), observation-gated.** The CP Plus NEO combi water+air heater in its two variants, exposed read-only for now: shower/heat-up times and the current room temperature as enabled measurements, the 230 V / window-switch / manual-mode / device-error status flags as diagnostic sensors. The two NEO variants use separate prefixes (they share the same slot layout and a vehicle reports only one); both stay distinct from the legacy Combi on bus 58 (`heater_*`) and the Combi D on bus 57 (`heater_d_*`).
+- **Schaudt EBL 400 (bus 2, `ebl400_*`) and CBE PL50 (bus 52, `cbe_pl50_*`) habitation controllers, observation-gated.** Two more habitation controllers besides the EBL 402 on bus 3 (which uses the bare canonical names in `base.json`). EBL 400: living/starter battery voltage + current, fresh/waste water levels, water-sensor-failure and shoreline. CBE PL50: 230 V / ignition / solar / D+ signals and the leisure/vehicle battery status flags. A vehicle has exactly one habitation controller, so the `ebl400_*` / `cbe_pl50_*` qualifiers avoid any collision with the bus-3 names, and gating means only the present controller materialises.
+
+All new entities are read-only and metadata-derived (decompiled EHG app + `tools/ehg_metadata.json`); the corresponding writable controls (NEO climate/selects, habitation switches) are intentionally deferred. This completes mapping of the documented EHG component set into the shared, brandless `base.json`.
+
 ## [2.71.0] - 2026-08-24
 
 ### Added
