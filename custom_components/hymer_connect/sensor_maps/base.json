@@ -472,7 +472,10 @@
     "97,11": { "name": "cerbo_sensor_failure", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
     "97,12": { "name": "cerbo_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
 
-    "_awning_doc": "ZipDee power awning (EHG bus 107, component 'ZipDeePowerAwning', kind awning). Universal optional component - observation-gated. Read-only status slots per the decompiled EHG app (componentId 107): slot 5 status (string), slot 9/10 tilt front/rear status (bool). The open/close/tilt/move-position controls (slots 1-4,6-8) are writable and left for a future cover/number entity.",
+    "_awning_doc": "ZipDee power awning (EHG bus 107, component 'ZipDeePowerAwning', kind awning). Universal optional component - observation-gated. Read-only status slots per the decompiled EHG app (componentId 107): slot 5 status (string), slot 9/10 tilt front/rear status (bool). The open/close/tilt/move-position controls (slots 1-4,6-8) are exposed as a cover entity (open/close/stop/position) plus a user-lock select (slot 6); tilt front/rear (slots 3/4, momentary) are not mapped. WRITE PATH UNVERIFIED.",
+    "107,6": { "_doc": "Decode-only readback for the awning_lock select (slot 6 UserLock, string Unlock/Lock).", "name": "awning_lock" },
+    "107,7": { "_doc": "Decode-only readback for the awning cover position (slot 7 MovePosition, int %).", "name": "awning_position" },
+    "107,8": { "_doc": "Decode-only readback for the awning cover direction (slot 8 DirectionMovement, string Stop/Extend/Retract).", "name": "awning_direction" },
     "107,5": { "name": "awning_status", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:awning-outline" },
     "107,9": { "name": "awning_tilt_front", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:awning-outline" },
     "107,10": { "name": "awning_tilt_rear", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:awning-outline" },
@@ -752,6 +755,26 @@
       "requires_12v": true
     }
   },
+  "covers": {
+    "_doc": "Generic JSON-driven covers (v2.73.0+). Moving components with momentary open/close, optional stop and 0-100 position slots. See cover.HymerCover.",
+    "awning": {
+      "_doc": "ZipDee power awning (EHG bus 107 = ZipDeePowerAwning). Momentary open/close (slots 1/2, bool write-only), stop via DirectionMovement=Stop (slot 8, string), position 0-100 (slot 7, int %). Reads awning_position (107,7), awning_direction (107,8: Stop/Extend/Retract), awning_status (107,5). Ground truth decompiled EHG app componentId 107. Tilt front/rear (slots 3/4, momentary) are not exposed - they map to no standard HA entity. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 107 is reported.",
+      "name": "Awning",
+      "device_class": "awning",
+      "icon": "mdi:awning-outline",
+      "control_bus": 107,
+      "require_observed": true,
+      "open_sid": 1,
+      "close_sid": 2,
+      "position_sid": 7,
+      "stop": { "sid": 8, "str": "Stop" },
+      "read": {
+        "position_sensor": "awning_position",
+        "direction_sensor": "awning_direction",
+        "status_sensor": "awning_status"
+      }
+    }
+  },
   "climate": {
     "_doc": "Universal writable controls shared across all EHG brands. The Dometic compressor fridge (bus 60 = DometicCompressorFridge) is a fixed EHG component bound to bus 60 on every brand, so its controls live here and are observation-gated (require_observed) — the select entities are created only once the vehicle reports bus 60. On-vehicle confirmed via the HYMER-Group SCU (owner 'Jos').",
     "truma_heater_d": {
@@ -996,6 +1019,16 @@
         "option_values": [0, 1, 2, 3],
         "read": { "step_sensor": "truma_neo_e_air_power_limit", "off_value": 0 },
         "writes": { "off": [{ "sid": 15, "uint": 0 }], "step": [{ "sid": 15, "uint": "$option_int" }] }
+      },
+      "awning_lock": {
+        "_doc": "ZipDee awning user lock (bus 107 slot 6 = UserLock, string rw ['Unlock','Lock'] per decompiled EHG app componentId 107). Reads awning_lock. WRITE PATH UNVERIFIED - test control. require_observed.",
+        "name": "Awning lock",
+        "icon": "mdi:lock",
+        "control_bus": 107,
+        "require_observed": true,
+        "options": ["Unlock", "Lock"],
+        "read": { "value_sensor": "awning_lock" },
+        "writes": { "option": [{ "sid": 6, "str": "$option" }] }
       }
     },
     "numbers": {

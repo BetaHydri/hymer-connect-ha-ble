@@ -109,4 +109,4 @@ DEFAULT_BLE_WRITE_ACK_TIMEOUT = 3.0
 DEFAULT_TANK_CAPACITY_LITERS = 93
 
 # Platforms
-PLATFORMS = ["sensor", "binary_sensor", "device_tracker", "light", "switch", "climate", "select", "number", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "device_tracker", "light", "switch", "climate", "select", "number", "button", "cover"]

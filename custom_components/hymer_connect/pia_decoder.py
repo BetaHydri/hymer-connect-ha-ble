@@ -102,6 +102,12 @@ STEPPED_SELECT_DEFS: dict[str, dict[str, Any]] = {}
 # 3) — see :class:`number.HymerNumber` for the schema.
 NUMBER_DEFS: dict[str, dict[str, Any]] = {}
 
+# Generic cover control definitions loaded from the top-level ``"covers"``
+# JSON section.  Drives moving components (e.g. the ZipDee power awning on
+# bus 107) exposing open/close/stop/position slots — see
+# :class:`cover.HymerCover` for the schema.
+COVER_DEFS: dict[str, dict[str, Any]] = {}
+
 # Track whether overlays have already been loaded (prevents re-loading on
 # integration reload, since SENSOR_MAP is module-level and persists).
 _overlays_loaded: set[str] = set()
@@ -462,6 +468,17 @@ def _load_json_overlay(filename: str) -> int:
         SWITCH_DEFS[key_str] = switch_def
     if switches:
         _LOGGER.debug("Loaded %d switch definitions from %s", len(switches), filename)
+
+    # --- Covers section (v2.73.0+) ---
+    # Keyed by a cover name. Defines open/close/stop/position slots for moving
+    # components (e.g. the ZipDee power awning on bus 107).
+    covers = data.get("covers", {})
+    for key_str, cover_def in covers.items():
+        if key_str.startswith("_") or not isinstance(cover_def, dict):
+            continue
+        COVER_DEFS[key_str] = cover_def
+    if covers:
+        _LOGGER.debug("Loaded %d cover definitions from %s", len(covers), filename)
 
     # --- Climate section (v2.45.0+) ---
     # Defines bus/slot IDs for heater, fridge, and boiler per brand.
