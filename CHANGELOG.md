@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.75.0] - 2026-08-24
+
+### Changed
+
+- **HYMER brand overlay fully emptied — the remaining fixed EHG components moved into the shared, observation-gated `base.json`.** The Votronic solar (bus 8), Thetford absorber / N4000 fridges (buses 32/34/37), Truma LIM + Combi DE heater (buses 49/58), BOS BMS (bus 99), the ML-T compressor fridge (bus 114) and the habitation battery (bus 29) — plus their climate / select / switch controls — now live in `base.json`. `hymer.json` is now an empty overlay; the HYMER brand adds nothing beyond `base.json`. **Entity names/IDs are unchanged**, so existing dashboards keep working — the entities simply materialise from `base.json` now. This completes the brandless-mapping effort begun in v2.69.
+
+### Added
+
+- **The selected EHG brand is now shown in the integration's entry title — e.g. `HYMER Connect BLE (for HYMER)` / `HYMER Connect BLE (for Eriba)`.** New installs get the format automatically; existing installs are upgraded from the old `HYMER Connect (<Brand>)` title on restart — unless you renamed the entry yourself, in which case your name is never overwritten. The device manufacturer stays `Erwin Hymer Group`.
+
+No entity IDs change. As always after a HACS update, **restart** Home Assistant (not just “Reload”).
+
 ## [2.74.0] - 2026-08-24
 
 ### Changed
