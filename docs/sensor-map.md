@@ -95,7 +95,7 @@ Notes:
 | 1 | `VehicleSignal` | Mercedes Sprinter chassis CAN | base | S 600 / S 700 / ML-T 570 |
 | 3 | `EBL402` | CBE EBL402 habitation electrics | base | all |
 | 5 | `Alde3020` | Alde 3030 hydronic heater | base | BMC I 680 |
-| 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | hymer | S 600 / S 700 |
+| 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | base | S 600 / S 700 |
 | 10 | `TenhaaftSatAntenna` | ten Haaft satellite dish | base | BMC I 680 |
 | 11 | `LightCircuit01` | Living-room ceiling light | hymer | S 600 / S 700 |
 | 12 | `LightCircuit02` | Living-room ambient light | hymer | S 600 / S 700 |
@@ -111,27 +111,27 @@ Notes:
 | 24 | `LightGroup01` | "Wohnen" light group | hymer | S 600 / S 700 / ML-T 570 |
 | 25 | `LightGroup02` | Outside LED bar | hymer | S 600 |
 | 27 | `LightGroup04` | "Privat" light group | hymer | S 600 / ML-T 570 / BMC I 680 |
-| 29 | `Component29` | Habitation (body) battery SoC | hymer | BMC I 680 |
+| 29 | `Component29` | Habitation (body) battery SoC | base | BMC I 680 |
 | 30 | `ScuSignals` | SCU telemetry (LTE / BT / GPS) | base | all |
-| 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | hymer | BMC I 680 |
-| 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | hymer | S 600 / S 700 |
-| 37 | `VehicleInformation` | Fridge mode/status readback (PIA) | hymer | S 600 / S 700 |
+| 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | base | BMC I 680 |
+| 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | base | S 600 / S 700 |
+| 37 | `VehicleInformation` | Fridge mode/status readback (PIA) | base | S 600 / S 700 |
 | 43 | `LightCircuit19` | Seating overhead light | hymer | S 600 |
 | 44 | `LightCircuit20` | Bedroom overhead light | hymer | S 600 |
 | 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
-| 49 | `LIM404Mod2` | Truma LIM module | hymer | S 600 |
+| 49 | `LIM404Mod2` | Truma LIM module | base | S 600 |
 | 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
-| 58 | `TrumaCombi_DE` | Truma Combi D6E heater | hymer | S 600 / S 700 |
+| 58 | `TrumaCombi_DE` | Truma Combi D6E heater | base | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa AC | eriba | Eriba Car 602 |
 | 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba, hymer | Eriba Car 602; HYMER (Dometic) |
-| 66 | `LightCircuit22` | Dinette pendant lamp | hymer | ML-T 570 |
+| 66 | `LightCircuit22` | Dinette pendant lamp | lights | ML-T 570 |
 | 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | hymer | HSS accessory |
 | 71 | `Component71` | HSS gas-bottle sensors (auto-slot) | hymer | HSS accessory |
 | 73 | `Component73` | HSS contact sensors (auto-slot) | hymer | HSS accessory |
 | 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | hymer | ML-T 570 |
 | 76 | `Component76` | Fresh / grey water tank levels | hymer | ML-T 570 |
-| 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | hymer | S 600 / S 700 |
-| 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | hymer | ML-T 570 |
+| 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
+| 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |
 | 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional on S600)* | base | S 600 |
 
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)

@@ -683,7 +683,75 @@
     "10,8": { "_doc": "TenHaaft satellite signal strength (int 0-100; 255 = idle/retracted, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_signal_strength", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:signal" },
     "10,9": { "_doc": "TenHaaft DishMovingState (bool, f5, r) per decompiled EHG app. true = dish currently moving (deploying/retracting/searching). Confirmed in @FrankHae bus-10 log (issue #13).", "name": "sat_dish_moving", "require_observed": true, "platform": "binary_sensor", "device_class": "moving", "icon": "mdi:satellite-uplink" },
     "10,10": { "_doc": "TenHaaft SafePositionState (bool, f5, r) per decompiled EHG app. true = dish parked/retracted (safe position); false = deployed. Feeds the sat_control switch (inverted: parked=OFF). Also exposed as a binary_sensor so the raw state is visible.", "name": "sat_safe_position", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:home-import-outline" },
-    "10,13": { "_doc": "TenHaaft StandbyModeState (bool, f5, r) per decompiled EHG app. true = antenna in standby. Confirmed in @FrankHae bus-10 log (issue #13).", "name": "sat_standby", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:power-standby" }
+    "10,13": { "_doc": "TenHaaft StandbyModeState (bool, f5, r) per decompiled EHG app. true = antenna in standby. Confirmed in @FrankHae bus-10 log (issue #13).", "name": "sat_standby", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:power-standby" },
+
+    "_solar_doc": "Votronic MPP260 CI MPPT solar charger (EHG bus 8). Fixed EHG component - observation-gated (solar_*). Voltage/current + status flags; the raw panel power (8,7) is decode-only, superseded by the computed solar_power (V×A). Confirmed on the HYMER Grand Canyon S600/S700.",
+    "8,1": { "name": "gray_water_sensor" },
+    "8,2": { "name": "solar_voltage", "require_observed": true, "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:solar-power-variant" },
+    "8,3": { "name": "solar_current", "require_observed": true, "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:solar-power" },
+    "8,4": { "_doc": "EHG: Error — MPPT error flag. Legacy code label: vent_1. Promoted to binary_sensor in v2.63.8.", "name": "solar_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:solar-power-variant-outline" },
+    "8,5": { "_doc": "EHG: ReducedPower — MPPT operating at reduced power. Legacy code label: vent_2. Promoted in v2.63.8.", "name": "solar_reduced_power", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:solar-power-variant-outline" },
+    "8,6": { "_doc": "EHG: AESActive — MPPT AES (Automatic Energy Selector) mode active. Legacy code label: vent_3. Promoted in v2.63.8.", "name": "solar_aes_active", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:solar-power-variant" },
+    "8,7": { "_doc": "EHG: SolarPanelPower — raw MPPT power output. Superseded by computed solar_power (V×A). Legacy code label: tire_pressure. Fixed in v2.63.8.", "name": "solar_power_raw" },
+
+    "_body_battery_doc": "Habitation/body battery (Aufbaubatterie) SoC (EHG bus 29 = Component29). Observation-gated - only materialises on vehicles that report bus 29 (e.g. HYMER BMC I 680). Confirmed by @FrankHae (issue #9).",
+    "29,1": { "_doc": "Habitation/body battery (Aufbaubatterie) state of charge in %. Confirmed by @FrankHae 2026-07-16 (issue #9): matches the EHG app's battery percentage and his HA history timing (f3 int 0-100, e.g. 99/100). Gated so it only materialises on vehicles that report bus 29 (BMC I 680).", "name": "body_battery_soc", "require_observed": true, "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+
+    "_thetford_absorber_doc": "Thetford N4142E+ absorber fridge (EHG bus 32 = ThetfordN4000). Observation-gated (fridge_absorber_*) - only on vehicles reporting bus 32 (e.g. HYMER BMC I 680). Distinct from the S600 N4000 on bus 34. Confirmed by @FrankHae (issue #9).",
+    "32,1": { "_doc": "Thetford N4142E+ absorber fridge power on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false. Distinct from S600 N4000 (bus 34).", "name": "fridge_absorber_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "32,2": { "_doc": "Thetford N4142E+ absorber fridge power source (EHG SetPowerMode, string rw). Options from decompiled EHG app (ThetfordN4000): 'Automatic mode'/'Gas mode'/'12V mode'/'AC mode'. Readback confirmed 'Gas mode' by @FrankHae (#9). Read sensor for the writable select.", "name": "fridge_absorber_power_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-industrial" },
+    "32,3": { "_doc": "Thetford N4142E+ absorber fridge cooling step 1-5 (int, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "fridge_absorber_cooling_step", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-industrial-outline" },
+    "32,5": { "_doc": "Thetford N4142E+ absorber fridge door open/closed (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): open=true, closed=false.", "name": "fridge_absorber_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+
+    "_thetford_n4000_doc": "Thetford N4000/N4112A absorber fridge (EHG bus 34 read + bus 37 status). Observation-gated (fridge_*) - only on vehicles reporting bus 34 (e.g. HYMER Grand Canyon S600/S700). The writable ECO switch + climate fridge control live in the switches / climate blocks.",
+    "34,1": { "name": "fridge_power" },
+    "34,2": { "name": "fridge_eco" },
+    "34,3": { "name": "fridge_cooling_step" },
+    "34,4": { "_doc": "EHG: FreezerLevel (deprecated in EHG app)", "name": "fridge_freezer_level" },
+    "34,5": { "_doc": "EHG: DoorOpen — fridge door open/closed (bool, read-only)", "name": "fridge_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+    "34,6": { "_doc": "EHG: WarningErrorInformation — Thetford N4000 absorber fridge warning/error code (int, 0-13). EHG app shows generic 'check manual' for all codes. Integration maps to 'Error 0'–'Error 13' via _INT_LABELS. Value 0 = 'Error 0' (not 'no error'). Normal state is typically unavailable (no value pushed when no fault).", "name": "fridge_warning", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-alert" },
+    "34,7": { "_doc": "EHG: DCVoltage — fridge DC supply voltage. Raw value in mV, displayed as V via div1000 transform.", "name": "fridge_dc_voltage", "require_observed": true, "unit": "V", "transform": "div1000", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash-triangle-outline" },
+    "37,1": { "_doc": "EHG: VehicleType — vehicle type enum (int). Note: despite EHG label, PIA data on S600 carries fridge mode readback here.", "name": "fridge_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge" },
+    "37,2": { "_doc": "EHG: VehicleBrand — vehicle brand enum (int). Note: despite EHG label, PIA data on S600 carries fridge status readback here.", "name": "fridge_status", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-outline" },
+
+    "_truma_lim_doc": "Truma LIM module (EHG bus 49). Observation-gated - connectivity/status/firmware for the Truma Combi DE (bus 58). On the HYMER Grand Canyon S600/S700.",
+    "49,8": { "name": "truma_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "connectivity", "icon": "mdi:radiator" },
+    "49,10": { "name": "truma_status", "require_observed": true, "platform": "sensor", "icon": "mdi:radiator" },
+    "49,11": { "name": "truma_firmware", "require_observed": true, "platform": "sensor", "icon": "mdi:chip" },
+
+    "_truma_de_doc": "Truma Combi DE (EHG bus 58 = TrumaCombi_DE), the diesel+electric Combi heater+boiler. Observation-gated (heater_*). The legacy/primary Truma profile; mutually exclusive with the Combi D on bus 57 (heater_d_*). The thermostat + boiler/energy selects live in the climate block. On the HYMER Grand Canyon S600/S700.",
+    "58,4": { "name": "heater_fuel_type", "require_observed": true, "platform": "sensor", "icon": "mdi:gas-burner" },
+    "58,5": { "name": "heater_fan_speed", "require_observed": true, "platform": "sensor", "icon": "mdi:fan", "enabled": false },
+    "58,6": { "name": "heater_fuel_type_2" },
+    "58,7": { "name": "heater_state", "require_observed": true, "platform": "sensor", "icon": "mdi:radiator" },
+    "58,8": { "name": "heater_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "58,9": { "name": "heater_electric_power", "require_observed": true, "unit": "W", "platform": "sensor", "device_class": "power", "state_class": "measurement", "icon": "mdi:radiator" },
+    "58,10": { "name": "heater_combi_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-circle" },
+    "58,11": { "name": "heater_operating_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:radiator" },
+    "58,12": { "name": "heater_response_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert" },
+    "58,13": { "name": "heater_shoreline_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "plug", "icon": "mdi:power-plug" },
+    "58,14": { "name": "heater_diesel_safety", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:shield-check" },
+
+    "_thetford_compressor_doc": "Thetford Compressor T2120C fridge (EHG bus 114 = ThetfordT2152). Observation-gated (fridge_compressor_*) - only on vehicles reporting bus 114 (e.g. HYMER ML-T 570). The writable power/silent switches + cooling/freezer selects live in the switches / climate blocks.",
+    "114,1": { "_doc": "Thetford Compressor T2120C fridge power on/off (bool).", "name": "fridge_compressor_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "114,2": { "_doc": "Thetford Compressor T2120C fridge silent/night mode (bool).", "name": "fridge_compressor_silent", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:fridge-alert" },
+    "114,3": { "_doc": "Thetford Compressor T2120C fridge main compartment cooling step 1-5.", "name": "fridge_compressor_cooling_step", "icon": "mdi:fridge-industrial-outline" },
+    "114,4": { "_doc": "Thetford Compressor T2120C fridge freezer compartment level.", "name": "fridge_compressor_freezer", "icon": "mdi:snowflake" },
+    "114,5": { "_doc": "Thetford Compressor T2120C fridge door open/closed.", "name": "fridge_compressor_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+    "114,6": { "_doc": "Thetford Compressor T2120C fridge slot 6.", "name": "fridge_compressor_slot6", "require_observed": true, "platform": "sensor", "state_class": "measurement", "icon": "mdi:fridge-variant-outline" },
+    "114,7": { "_doc": "Thetford Compressor T2120C fridge supply voltage in millivolts.", "name": "fridge_compressor_supply_voltage", "require_observed": true, "unit": "V", "transform": "div1000", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+
+    "_bos_bms_doc": "BOS LUX LiFePO4 BMS (EHG bus 99 = BOSConnect). Observation-gated (bms_*) - only on vehicles reporting bus 99 (e.g. HYMER Grand Canyon S600/S700). lithium_soc (99,4) feeds the static battery_soc sensor.",
+    "99,1": { "name": "bms_voltage", "require_observed": true, "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:battery-charging" },
+    "99,2": { "name": "bms_current", "require_observed": true, "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-dc" },
+    "99,3": { "name": "bms_temperature", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+    "99,4": { "name": "lithium_soc", "unit": "%" },
+    "99,5": { "name": "bms_time_remaining", "require_observed": true, "unit": "min", "platform": "sensor", "state_class": "measurement", "icon": "mdi:clock-outline" },
+    "99,6": { "name": "bms_state_of_health", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:battery-heart" },
+    "99,7": { "name": "bms_capacity_remaining", "require_observed": true, "unit": "Ah", "platform": "sensor", "state_class": "measurement", "icon": "mdi:battery" },
+    "99,8": { "name": "lithium_soc_2", "unit": "%" },
+    "99,9": { "name": "bms_charge_detected" },
+    "99,10": { "name": "bms_device_failure" }
   },
   "switches": {    "_doc": "Universal switches on bus 3 (habitation electrics). write_type: how the PIA command is sent. on_value: readback value meaning ON. holdoff_off: seconds to hold optimistic OFF (for SCU bounce-back).",
     "3,1": {
@@ -807,7 +875,10 @@
     "5,9": { "_doc": "Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): switching from HA works, alde_heating_on reports back within ~1 s.", "name": "alde_heating_ctrl", "require_observed": true, "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
     "5,10": { "_doc": "Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): works both directions; Alde-panel operation propagates to HA in under 3 s.", "name": "alde_gas_ctrl", "require_observed": true, "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
     "5,11": { "_doc": "Alde 3030 ACC output (bus 5 slot 11 = AccSetting, bool rw per decompiled Alde3020 id 11). On a HYMER B-ML I 780 (PR #18 / @stbcgn) this output switches the AIR CONDITIONING (a Truma Aventa on bus 7), which then regulates to the setpoint entered at the Alde panel; the panel's ACC button toggles exactly this slot. WRITE PATH CONFIRMED on-vehicle 2026-07-30. CAVEAT: switching OFF is only effective while the Aventa is not calling for cooling — if it is, the Alde re-asserts the output ~15 s later and the readback stays 'on'. Switching on is reliable.", "name": "alde_acc_ctrl", "require_observed": true, "icon": "mdi:air-conditioner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_acc_setting" },
-    "10,1": { "_doc": "TenHaaft satellite dish On/Off switch. Command-pair (momentary): ON = Start (deploy + auto-search, bus 10 slot 1, bool true); OFF = Park (retract to safe position, bus 10 slot 2, bool true). State fed from SafePositionState (10,10) INVERTED via on_value=false: parked (safe position=true) shows OFF, deployed shows ON. WRITES CONFIRMED on bus 10 slots 1/2 by @FrankHae on-vehicle (issue #13, 2026-07-20). holdoff_off 90s covers the retract/deploy travel time.", "name": "sat_control", "require_observed": true, "icon": "mdi:satellite-uplink", "write_type": "bool", "on_value": false, "read_path": "signalr_sensors.sat_safe_position", "write_off_sid": 2, "bool_on": true, "bool_off": true, "holdoff_off": 90 }
+    "10,1": { "_doc": "TenHaaft satellite dish On/Off switch. Command-pair (momentary): ON = Start (deploy + auto-search, bus 10 slot 1, bool true); OFF = Park (retract to safe position, bus 10 slot 2, bool true). State fed from SafePositionState (10,10) INVERTED via on_value=false: parked (safe position=true) shows OFF, deployed shows ON. WRITES CONFIRMED on bus 10 slots 1/2 by @FrankHae on-vehicle (issue #13, 2026-07-20). holdoff_off 90s covers the retract/deploy travel time.", "name": "sat_control", "require_observed": true, "icon": "mdi:satellite-uplink", "write_type": "bool", "on_value": false, "read_path": "signalr_sensors.sat_safe_position", "write_off_sid": 2, "bool_on": true, "bool_off": true, "holdoff_off": 90 },
+    "34,2": { "name": "fridge_eco_ctrl", "require_observed": true, "icon": "mdi:leaf", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_eco" },
+    "114,1": { "name": "fridge_compressor_power_ctrl", "require_observed": true, "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
+    "114,2": { "name": "fridge_compressor_silent_ctrl", "require_observed": true, "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" }
   },
   "covers": {
     "_doc": "Generic JSON-driven covers (v2.73.0+). Moving components with momentary open/close, optional stop and 0-100 position slots. See cover.HymerCover.",
@@ -844,6 +915,32 @@
       "setpoint_sensor": "heater_d_setpoint",
       "fuel_type_sensor": "heater_d_fuel_type",
       "boiler_sensor": "heater_d_water_mode"
+    },
+    "truma_heater": {
+      "_doc": "Truma Combi DE (bus 58 = TrumaCombi_DE), the diesel+electric Combi. The legacy/primary Truma profile (HymerHeaterClimate thermostat + HymerBoilerSelect/HymerHeaterEnergySelect). Mutually exclusive with the Combi D on bus 57 (truma_heater_d) - at most one Truma climate materialises per vehicle. Observation-gated. On the HYMER Grand Canyon S600/S700.",
+      "require_observed": true,
+      "heater_bus": 58,
+      "setpoint_sid": 8,
+      "fuel_type_sid": 4,
+      "fuel_type_2_sid": 6,
+      "boiler_sid": 5,
+      "electric_power_sid": 9,
+      "temp_sensor": "outside_temperature",
+      "setpoint_sensor": "heater_setpoint",
+      "fuel_type_sensor": "heater_fuel_type",
+      "boiler_sensor": "heater_fan_speed",
+      "electric_power_sensor": "heater_electric_power"
+    },
+    "fridge": {
+      "_doc": "Thetford N4000/N4112A absorber fridge (bus 34 = ThetfordT2000). HymerFridgeSelect power+cooling-step control. Observation-gated. On the HYMER Grand Canyon S600/S700.",
+      "require_observed": true,
+      "type": "thetford_t2000",
+      "control_bus": 34,
+      "power_sid": 1,
+      "cooling_step_sid": 3,
+      "power_sensor": "fridge_power",
+      "cooling_step_sensor": "fridge_cooling_step",
+      "mode_sensor": "fridge_mode"
     },
     "selects": {
       "fridge_dometic_cooling_step": {
@@ -1127,6 +1224,71 @@
         "options": ["Amos 2/3", "Astra 1", "Astra 2", "Astra 3", "Astra 4", "Astra 5", "Eutelsat 5W", "Eutelsat 7", "Eutelsat 9", "Eutelsat 8W", "Eutelsat 10", "Eutelsat 16", "Hellas Sat 2", "Hispasat", "Hotbird", "Intelsat 907", "Telstar 12", "Thor/Intelsat10", "Türksat"],
         "read": { "value_sensor": "sat_satellite" },
         "writes": { "option": [{ "sid": 5, "str": "$option" }] }
+      },
+      "fridge_compressor_freezer": {
+        "name": "Compressor fridge freezer",
+        "require_observed": true,
+        "icon": "mdi:snowflake",
+        "control_bus": 114,
+        "options": ["Off", "1", "2", "3"],
+        "read": { "step_sensor": "fridge_compressor_freezer", "off_value": 0 },
+        "writes": {
+          "off": [{ "sid": 4, "uint": 0 }],
+          "step": [{ "sid": 4, "uint": "$option_int" }]
+        }
+      },
+      "fridge_compressor_cooling_step": {
+        "name": "Compressor fridge cooling step",
+        "require_observed": true,
+        "icon": "mdi:fridge-industrial-outline",
+        "control_bus": 114,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_compressor_cooling_step",
+          "power_sensor": "fridge_compressor_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "fridge_absorber_cooling_step": {
+        "_doc": "Thetford N4142E+ absorber fridge Off/1-5 cooling-step control (bus 32). Mirrors the S600 N4000 (bus 34) and ML-T compressor (bus 114) drivers: power sid 1 (bool) then cooling-step sid 3 (uint). Readback confirmed by @FrankHae 2026-07-11 (issue #9); WRITE PATH still to be verified on-vehicle. Revert if the SCU does not accept the cloud write.",
+        "name": "Absorber fridge cooling step",
+        "require_observed": true,
+        "icon": "mdi:fridge-industrial-outline",
+        "control_bus": 32,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_absorber_cooling_step",
+          "power_sensor": "fridge_absorber_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "fridge_absorber_power_mode": {
+        "_doc": "Thetford N4142E+ absorber fridge power-source select (bus 32 slot 2 = SetPowerMode, string rw). Options from decompiled EHG app (ThetfordN4000 SetPowerMode stringRange). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 32 — test control (v2.64.9); revert if the SCU drops the write.",
+        "name": "Absorber fridge power source",
+        "require_observed": true,
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 32,
+        "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
+        "read": { "value_sensor": "fridge_absorber_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
       }
     },
     "numbers": {
