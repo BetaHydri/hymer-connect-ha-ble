@@ -30,7 +30,7 @@
     "5,11": { "_doc": "Alde 3030 accessory setting (EHG AccSetting, bool rw per decompiled Alde3020 id 11). Function CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-30): this output switches the AIR CONDITIONING (a Truma Aventa on bus 7), which then regulates to the temperature set at the Alde panel; the Alde panel's ACC button toggles exactly this slot. Read sensor backing the writable alde_acc_ctrl switch. Bus 5 unused on S600/S700/ML-T.", "name": "alde_acc_setting", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:tune" },
     "5,12": { "_doc": "BMC I 680: Alde 3030 dedicated hard-error flag (EHG Error, bool r per decompiled Alde3020 id 12). RENAMED alde_fault → alde_error and ENABLED in v2.65.6 per @FrankHae (issue #9): this is the true fault flag (distinct from slot 8 PanelBusy/alde_warning, which fires for panel-attention/lockouts). Slot 12 stayed False during @FrankHae's antibacterial-reminder lockout (13–14 Jul 2026), confirming it only trips on a real fault. Bus 5 unused on S600/S700/ML-T.", "name": "alde_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-octagon" },
 
-    "29,1": { "_doc": "BMC I 680 (MY2024): habitation/body battery (Aufbaubatterie) state of charge in %. Confirmed by @FrankHae 2026-07-16 (issue #9): matches the EHG app's battery percentage and his HA history timing (f3 int 0-100, e.g. 99/100). Bus 29 unused on S600/S700/ML-T.", "name": "body_battery_soc", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+    "29,1": { "_doc": "BMC I 680 (MY2024): habitation/body battery (Aufbaubatterie) state of charge in %. Confirmed by @FrankHae 2026-07-16 (issue #9): matches the EHG app's battery percentage and his HA history timing (f3 int 0-100, e.g. 99/100). Gated so it only materialises on vehicles that report bus 29 (BMC I 680); S600/S700/ML-T do not report it.", "name": "body_battery_soc", "require_observed": true, "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
 
     "10,5": { "_doc": "BMC I 680: TenHaaft satellite dish — currently selected satellite (text, e.g. 'Astra 1'/'Eutelsat 9'/'Hotbird', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). Bus 10 unused on S600/S700/ML-T.", "name": "sat_satellite", "require_observed": true, "platform": "sensor", "icon": "mdi:satellite-variant" },
     "10,6": { "_doc": "BMC I 680: TenHaaft satellite dish status (text, e.g. 'Searching clockwise', 'Satellite found', 'Is closed', 'Is retracting', f4). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_status", "require_observed": true, "platform": "sensor", "icon": "mdi:satellite-uplink" },
@@ -87,27 +87,7 @@
     "99,7": { "name": "bms_capacity_remaining", "require_observed": true, "unit": "Ah", "platform": "sensor", "state_class": "measurement", "icon": "mdi:battery" },
     "99,8": { "name": "lithium_soc_2", "unit": "%" },
     "99,9": { "name": "bms_charge_detected" },
-    "99,10": { "name": "bms_device_failure" },
-
-    "121,1": { "name": "victron_inverter_on", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:power-plug", "enabled": false },
-    "121,2": { "name": "victron_inverter_state", "require_observed": true, "platform": "sensor", "icon": "mdi:power-plug", "enabled": false },
-    "121,3": { "name": "victron_inverter_l1_voltage", "require_observed": true, "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash", "enabled": false },
-    "121,4": { "name": "victron_inverter_l1_current", "require_observed": true, "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-ac", "enabled": false },
-    "121,5": { "name": "victron_inverter_l1_frequency", "require_observed": true, "unit": "Hz", "platform": "sensor", "device_class": "frequency", "state_class": "measurement", "icon": "mdi:sine-wave", "enabled": false },
-    "121,6": { "name": "victron_inverter_l2_voltage", "unit": "V" },
-    "121,7": { "name": "victron_inverter_l2_current", "unit": "A" },
-    "121,8": { "name": "victron_inverter_l2_frequency", "unit": "Hz" },
-    "121,9": { "name": "victron_charger_on", "require_observed": true, "platform": "binary_sensor", "device_class": "battery_charging", "icon": "mdi:battery-charging", "enabled": false },
-    "121,10": { "name": "victron_charger_state", "require_observed": true, "platform": "sensor", "icon": "mdi:battery-charging", "enabled": false },
-    "121,11": { "name": "victron_charge_voltage", "require_observed": true, "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash", "enabled": false },
-    "121,12": { "name": "victron_charge_current", "require_observed": true, "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-dc", "enabled": false },
-    "121,13": { "name": "victron_max_charge_current", "unit": "A" },
-    "121,14": { "name": "victron_input_current_limit", "unit": "A" },
-    "121,15": { "name": "victron_input_voltage", "require_observed": true, "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:power-plug", "enabled": false },
-    "121,16": { "name": "victron_input_current", "require_observed": true, "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-ac", "enabled": false },
-    "121,17": { "name": "victron_input_frequency", "require_observed": true, "unit": "Hz", "platform": "sensor", "device_class": "frequency", "state_class": "measurement", "icon": "mdi:sine-wave", "enabled": false },
-    "121,18": { "name": "victron_device_failure", "require_observed": true, "platform": "sensor", "icon": "mdi:alert-circle", "enabled": false },
-    "121,19": { "name": "victron_firmware", "require_observed": true, "platform": "sensor", "icon": "mdi:chip", "enabled": false }
+    "99,10": { "name": "bms_device_failure" }
   },
 
   "switches": {

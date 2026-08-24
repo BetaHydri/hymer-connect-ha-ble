@@ -132,7 +132,7 @@ Notes:
 | 76 | `Component76` | Fresh / grey water tank levels | hymer | ML-T 570 |
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | hymer | S 600 / S 700 |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | hymer | ML-T 570 |
-| 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional)* | hymer | S 600 |
+| 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional on S600)* | base | S 600 |
 
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)
 
@@ -907,6 +907,8 @@ changes in real time ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/iss
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 
 From EHG app metadata extraction (Dan, April 2026). SCU component 121 = VictronMultiplus.
+Mapped in the brandless `base.json` (observation-gated `victron_*`, shipped `enabled: false`)
+— any vehicle that reports bus 121 can enable the entities.
 **No data received** on S600 — even with Victron physically switched ON and entities
 entities enabled. The Victron MultiPlus communicates via **VE.Bus** (RS-485), which
 is incompatible with the vehicle CAN bus. A Victron Cerbo GX cannot bridge this
