@@ -659,7 +659,31 @@
     "57,11": { "name": "heater_d_operating_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:radiator" },
     "57,12": { "name": "heater_d_response_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert" },
     "57,13": { "name": "heater_d_shoreline_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "plug", "icon": "mdi:power-plug" },
-    "57,14": { "name": "heater_d_window_switch_closed", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:window-closed-variant" }
+    "57,14": { "name": "heater_d_window_switch_closed", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:window-closed-variant" },
+
+    "_alde_doc": "Alde 3030 hydronic heater (EHG bus 5 = Alde3020, kind alde). Fixed EHG component - observation-gated (alde_*), so it only materialises on vehicles that report bus 5 (e.g. the HYMER BMC I 680 and B-ML I 780). First mapped from @FrankHae's BMC I 680 (issue #9); write paths re-confirmed on a B-ML I 780 (PR #18 / @stbcgn). Zone-2 slots (5,2/5,4) idle on single-zone vehicles. Writable controls live in the switches + climate.numbers/selects blocks below.",
+    "5,1": { "_doc": "Alde 3030 hydronic heater inside temperature. First Alde in repo. Confirmed by @FrankHae 2026-07-10 (issue #9) via RAW PIA logs (f6 float, matches Hymer app).", "name": "alde_inside_temp", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:home-thermometer" },
+    "5,3": { "_doc": "Alde 3030 target/set temperature. Confirmed by @FrankHae 2026-07-11 (issue #9) via app-change RAW PIA logs (8/10/12/30 °C, f6 float). Read sensor backing the alde_setpoint number.", "name": "alde_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "5,5": { "_doc": "Alde 3030 energy priority (text 'Prio Gas'/'Prio EL', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). EHG: prio_electricity_gas. Read sensor backing the alde_energy_priority select.", "name": "alde_energy_priority", "require_observed": true, "platform": "sensor", "icon": "mdi:gas-burner" },
+    "5,8": { "_doc": "Alde 3030 panel warning/attention flag (PanelBusy). RENAMED alde_error → alde_warning in v2.65.6 per @FrankHae (issue #9): this slot fires for panel-attention/lockouts (e.g. the antibacterial/Legionella boiler-service reminder) rather than a hard fault, so it is semantically a WARNING. REMAPPED from slot 12 → slot 8 in v2.65.1 on @FrankHae's on-vehicle evidence. True = an action/warning is pending at the Alde panel that can block remote on/off until acknowledged on the panel with OK. Only the boolean is transmitted; the message TEXT is panel-only. The real hard-fault flag is slot 12 (alde_error).", "name": "alde_warning", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert" },
+    "5,9": { "_doc": "Alde 3030 heating on/off (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): on=true, off=false.", "name": "alde_heating_on", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:radiator" },
+    "5,14": { "_doc": "Alde 3030 currently heating/burner active (bool, f5). Confirmed by @FrankHae 2026-07-11 (issue #9): heating=true, idle=false.", "name": "alde_heating_active", "require_observed": true, "platform": "binary_sensor", "device_class": "running", "icon": "mdi:radiator" },
+    "5,15": { "_doc": "Alde 3030 outside temperature probe (f6 float, under-vehicle). Confirmed by @FrankHae 2026-07-10 (issue #9).", "name": "alde_outside_temp", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:thermometer" },
+    "5,2": { "_doc": "Alde 3030 Zone 2 actual/inside temperature (EHG Alde3020 slot 2 = zone_2_actual_temperature, float °C, r). Read-only for future dual-zone floorplans (e.g. 780/880); idles on single-zone vehicles (BMC I 680). UNVERIFIED on a dual-zone vehicle.", "name": "alde_zone2_temp", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "state_class": "measurement", "icon": "mdi:home-thermometer" },
+    "5,4": { "_doc": "Alde 3030 Zone 2 target/set temperature (EHG Alde3020 slot 4 = zone_2_target_temperature, float °C, rw). Read sensor backing the alde_zone2_setpoint slider. For future dual-zone floorplans. UNVERIFIED on a dual-zone vehicle.", "name": "alde_zone2_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "5,6": { "_doc": "Alde 3030 hot-water boiler mode (EHG HotWaterSetting, string rw). App 'Warmwasser Boiler' + 'Turbo Modus'. Read sensor backing the alde_hot_water select. @FrankHae saw 'Off' (no water in the lines yet).", "name": "alde_hot_water_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:water-boiler" },
+    "5,7": { "_doc": "Alde 3030 electric booster heater level (EHG ElectricitySetting, int 0-3 kW, rw). App 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). Read sensor backing the alde_electric_boost select.", "name": "alde_electric_setting", "require_observed": true, "platform": "sensor", "icon": "mdi:heat-wave" },
+    "5,10": { "_doc": "Alde 3030 gas enable (EHG GasSetting, bool rw). App 'Gas aktivieren'. Confirmed ON by @FrankHae screenshots (#9). Read sensor backing the alde_gas_ctrl switch.", "name": "alde_gas_active", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:gas-burner" },
+    "5,11": { "_doc": "Alde 3030 accessory setting (EHG AccSetting, bool rw per decompiled Alde3020 id 11). Function CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-30): this output switches the AIR CONDITIONING (a Truma Aventa on bus 7), which then regulates to the temperature set at the Alde panel; the Alde panel's ACC button toggles exactly this slot. Read sensor backing the writable alde_acc_ctrl switch.", "name": "alde_acc_setting", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:tune" },
+    "5,12": { "_doc": "Alde 3030 dedicated hard-error flag (EHG Error, bool r per decompiled Alde3020 id 12). RENAMED alde_fault → alde_error and ENABLED in v2.65.6 per @FrankHae (issue #9): this is the true fault flag (distinct from slot 8 PanelBusy/alde_warning). Slot 12 stayed False during @FrankHae's antibacterial-reminder lockout (13–14 Jul 2026), confirming it only trips on a real fault.", "name": "alde_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-octagon" },
+
+    "_tenhaaft_doc": "TenHaaft satellite dish (EHG bus 10 = TenhaaftSatAntenna, kind satellite). Fixed EHG component - observation-gated (sat_*), so it only materialises on vehicles that report bus 10 (e.g. the HYMER BMC I 680). Mapped + confirmed on-vehicle by @FrankHae (issues #9/#13). The dish on/off switch and the satellite-position select live in the switches / climate.selects blocks below.",
+    "10,5": { "_doc": "TenHaaft satellite dish — currently selected satellite (text, e.g. 'Astra 1'/'Eutelsat 9'/'Hotbird', f4). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_satellite", "require_observed": true, "platform": "sensor", "icon": "mdi:satellite-variant" },
+    "10,6": { "_doc": "TenHaaft satellite dish status (text, e.g. 'Searching clockwise', 'Satellite found', 'Is closed', 'Is retracting', f4). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_status", "require_observed": true, "platform": "sensor", "icon": "mdi:satellite-uplink" },
+    "10,8": { "_doc": "TenHaaft satellite signal strength (int 0-100; 255 = idle/retracted, f3). Confirmed by @FrankHae 2026-07-11 (issue #9).", "name": "sat_signal_strength", "require_observed": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:signal" },
+    "10,9": { "_doc": "TenHaaft DishMovingState (bool, f5, r) per decompiled EHG app. true = dish currently moving (deploying/retracting/searching). Confirmed in @FrankHae bus-10 log (issue #13).", "name": "sat_dish_moving", "require_observed": true, "platform": "binary_sensor", "device_class": "moving", "icon": "mdi:satellite-uplink" },
+    "10,10": { "_doc": "TenHaaft SafePositionState (bool, f5, r) per decompiled EHG app. true = dish parked/retracted (safe position); false = deployed. Feeds the sat_control switch (inverted: parked=OFF). Also exposed as a binary_sensor so the raw state is visible.", "name": "sat_safe_position", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:home-import-outline" },
+    "10,13": { "_doc": "TenHaaft StandbyModeState (bool, f5, r) per decompiled EHG app. true = antenna in standby. Confirmed in @FrankHae bus-10 log (issue #13).", "name": "sat_standby", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:power-standby" }
   },
   "switches": {    "_doc": "Universal switches on bus 3 (habitation electrics). write_type: how the PIA command is sent. on_value: readback value meaning ON. holdoff_off: seconds to hold optimistic OFF (for SCU bounce-back).",
     "3,1": {
@@ -779,7 +803,11 @@
       "on_value": true,
       "read_path": "signalr_sensors.ebl400_water_pump",
       "requires_12v": true
-    }
+    },
+    "5,9": { "_doc": "Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): switching from HA works, alde_heating_on reports back within ~1 s.", "name": "alde_heating_ctrl", "require_observed": true, "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
+    "5,10": { "_doc": "Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): works both directions; Alde-panel operation propagates to HA in under 3 s.", "name": "alde_gas_ctrl", "require_observed": true, "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
+    "5,11": { "_doc": "Alde 3030 ACC output (bus 5 slot 11 = AccSetting, bool rw per decompiled Alde3020 id 11). On a HYMER B-ML I 780 (PR #18 / @stbcgn) this output switches the AIR CONDITIONING (a Truma Aventa on bus 7), which then regulates to the setpoint entered at the Alde panel; the panel's ACC button toggles exactly this slot. WRITE PATH CONFIRMED on-vehicle 2026-07-30. CAVEAT: switching OFF is only effective while the Aventa is not calling for cooling — if it is, the Alde re-asserts the output ~15 s later and the readback stays 'on'. Switching on is reliable.", "name": "alde_acc_ctrl", "require_observed": true, "icon": "mdi:air-conditioner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_acc_setting" },
+    "10,1": { "_doc": "TenHaaft satellite dish On/Off switch. Command-pair (momentary): ON = Start (deploy + auto-search, bus 10 slot 1, bool true); OFF = Park (retract to safe position, bus 10 slot 2, bool true). State fed from SafePositionState (10,10) INVERTED via on_value=false: parked (safe position=true) shows OFF, deployed shows ON. WRITES CONFIRMED on bus 10 slots 1/2 by @FrankHae on-vehicle (issue #13, 2026-07-20). holdoff_off 90s covers the retract/deploy travel time.", "name": "sat_control", "require_observed": true, "icon": "mdi:satellite-uplink", "write_type": "bool", "on_value": false, "read_path": "signalr_sensors.sat_safe_position", "write_off_sid": 2, "bool_on": true, "bool_off": true, "holdoff_off": 90 }
   },
   "covers": {
     "_doc": "Generic JSON-driven covers (v2.73.0+). Moving components with momentary open/close, optional stop and 0-100 position slots. See cover.HymerCover.",
@@ -1055,6 +1083,50 @@
         "options": ["Unlock", "Lock"],
         "read": { "value_sensor": "awning_lock" },
         "writes": { "option": [{ "sid": 6, "str": "$option" }] }
+      },
+      "alde_energy_priority": {
+        "_doc": "Alde 3030 energy-priority select (bus 5 slot 5, string rw). Options + rw flag from the decompiled EHG app (Alde3020 PrioElectricityGas, stringRange ['Prio EL','Prio Gas']); readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): the literal option strings 'Prio EL' / 'Prio Gas' are accepted. require_observed.",
+        "name": "Alde energy priority",
+        "require_observed": true,
+        "icon": "mdi:gas-burner",
+        "control_bus": 5,
+        "options": ["Prio Gas", "Prio EL"],
+        "read": { "value_sensor": "alde_energy_priority" },
+        "writes": { "option": [{ "sid": 5, "str": "$option" }] }
+      },
+      "alde_electric_boost": {
+        "_doc": "Alde 3030 electric booster heater level (bus 5 slot 7 = ElectricitySetting, int 0-3 kW, rw per decompiled EHG app Alde3020). App label 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). CONFIRMED WORKING on-vehicle by @FrankHae (#9). Display labels show the kW unit via option_values; the integer 0-3 is written/read (Off = 0 = Aus). require_observed.",
+        "name": "Alde electric booster",
+        "require_observed": true,
+        "icon": "mdi:heat-wave",
+        "control_bus": 5,
+        "options": ["Off", "1 kW", "2 kW", "3 kW"],
+        "option_values": [0, 1, 2, 3],
+        "read": { "step_sensor": "alde_electric_setting", "off_value": 0 },
+        "writes": {
+          "off": [{ "sid": 7, "uint": 0 }],
+          "step": [{ "sid": 7, "uint": "$option_int" }]
+        }
+      },
+      "alde_hot_water": {
+        "_doc": "Alde 3030 hot-water boiler mode (bus 5 slot 6 = HotWaterSetting, string rw per decompiled EHG app Alde3020). App label 'Warmwasser Boiler' toggle + 'Turbo Modus' (Boost). Options from the decompiled stringRange. WRITE PATH + option strings CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): 'Off' / 'Normal' / 'Boost' are all accepted. require_observed.",
+        "name": "Alde hot water",
+        "require_observed": true,
+        "icon": "mdi:water-boiler",
+        "control_bus": 5,
+        "options": ["Off", "Normal", "Boost"],
+        "read": { "value_sensor": "alde_hot_water_mode" },
+        "writes": { "option": [{ "sid": 6, "str": "$option" }] }
+      },
+      "sat_position": {
+        "_doc": "TenHaaft satellite dish target-satellite select (bus 10 slot 5 = SatellitePosition, string rw). Options from decompiled EHG app (TenhaaftSatAntenna SatellitePosition stringRange, 19 satellites). Readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): selecting a satellite is accepted, readback via sat_satellite. require_observed.",
+        "name": "Satellite",
+        "require_observed": true,
+        "icon": "mdi:satellite-variant",
+        "control_bus": 10,
+        "options": ["Amos 2/3", "Astra 1", "Astra 2", "Astra 3", "Astra 4", "Astra 5", "Eutelsat 5W", "Eutelsat 7", "Eutelsat 9", "Eutelsat 8W", "Eutelsat 10", "Eutelsat 16", "Hellas Sat 2", "Hispasat", "Hotbird", "Intelsat 907", "Telstar 12", "Thor/Intelsat10", "Türksat"],
+        "read": { "value_sensor": "sat_satellite" },
+        "writes": { "option": [{ "sid": 5, "str": "$option" }] }
       }
     },
     "numbers": {
@@ -1105,6 +1177,36 @@
         "write_type": "uint",
         "require_observed": true,
         "read": { "value_sensor": "truma_neo_e_air_target_temp" }
+      },
+      "alde_setpoint": {
+        "_doc": "Alde 3030 Zone-1 target temperature (bus 5 slot 3 = Zone1TargetTemperature, rw float °C). Confirmed writable in the decompiled EHG app (componentId 5, id 3, mode 'rw', datatype 'float'). Read sensor alde_setpoint (5,3). WRITE PATH CONFIRMED on a HYMER B-ML I 780 (PR #18 / @stbcgn, 2026-07-28): float writes 20 -> 22 -> 24 °C were all accepted (readback via alde_setpoint, refresh up to 60 s). require_observed.",
+        "name": "Alde setpoint",
+        "require_observed": true,
+        "icon": "mdi:thermometer",
+        "control_bus": 5,
+        "sid": 3,
+        "min": 5,
+        "max": 30,
+        "step": 0.5,
+        "unit": "°C",
+        "mode": "slider",
+        "device_class": "temperature",
+        "read": { "value_sensor": "alde_setpoint" }
+      },
+      "alde_zone2_setpoint": {
+        "_doc": "Alde 3030 Zone-2 target temperature (bus 5 slot 4 = zone_2_target_temperature, rw float °C per decompiled EHG app Alde3020). Slider mirroring the Zone-1 setpoint, for future dual-zone floorplans (780/880). WRITE PATH UNVERIFIED — no dual-zone vehicle available to test; BMC I 680 is single-zone. Read sensor alde_zone2_setpoint (5,4). require_observed.",
+        "name": "Alde Zone 2 setpoint",
+        "require_observed": true,
+        "icon": "mdi:thermometer",
+        "control_bus": 5,
+        "sid": 4,
+        "min": 5,
+        "max": 30,
+        "step": 0.5,
+        "unit": "°C",
+        "mode": "slider",
+        "device_class": "temperature",
+        "read": { "value_sensor": "alde_zone2_setpoint" }
       }
     }
   }

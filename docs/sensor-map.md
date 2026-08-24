@@ -94,9 +94,9 @@ Notes:
 |-----|---------------|------------------|---------|--------------|
 | 1 | `VehicleSignal` | Mercedes Sprinter chassis CAN | base | S 600 / S 700 / ML-T 570 |
 | 3 | `EBL402` | CBE EBL402 habitation electrics | base | all |
-| 5 | `Alde3020` | Alde 3030 hydronic heater | hymer | BMC I 680 |
+| 5 | `Alde3020` | Alde 3030 hydronic heater | base | BMC I 680 |
 | 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | hymer | S 600 / S 700 |
-| 10 | `TenhaaftSatAntenna` | ten Haaft satellite dish | hymer | BMC I 680 |
+| 10 | `TenhaaftSatAntenna` | ten Haaft satellite dish | base | BMC I 680 |
 | 11 | `LightCircuit01` | Living-room ceiling light | hymer | S 600 / S 700 |
 | 12 | `LightCircuit02` | Living-room ambient light | hymer | S 600 / S 700 |
 | 13 | `LightCircuit03` | Floor ambient light | hymer | BMC I 680 |
