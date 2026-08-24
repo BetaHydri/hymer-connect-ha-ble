@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.1] - 2026-08-24
+
+### Fixed
+
+- **12V main switch OFF is reliable again on vehicles whose SCU does not power down with the habitation 12V (e.g. CBE EBL402 on bus 3, Grand Canyon S 600).** On these units 12V-off keeps `scu_connected` reporting `true` and freezes the `main_switch` readback at `"On"` — the SCU simply stops streaming. The switch verify logic mistook the frozen `"On"` for a dead command channel and forced a pointless full re-auth + reconnect, reverting the UI back to On. OFF is now confirmed by data-silence (no fresh frames since the command) regardless of `scu_connected`, so the switch stays Off without a reconnect storm. The 12V-ON path (60 s wake holdoff) is unchanged.
+- **Lights and the water pump are shown unavailable (struck-through) again while 12V is off.** Their availability keyed only on the `main_switch` readback, which on the above vehicles freezes at `"On"` — so they never greyed out. Availability now additionally treats prolonged SCU data-silence as 12V-off. No entity IDs change.
+
+No entity IDs change. As always after a HACS update, **restart** Home Assistant (not just “Reload”).
+
 ## [2.76.0] - 2026-08-24
 
 ### Added

@@ -28,9 +28,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
 from .sensor import _resolve_path
-from .signalr_client import EXTENDED_STANDBY_THRESHOLD
+from .signalr_client import EXTENDED_STANDBY_THRESHOLD, STALE_DATA_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
+
+# Grace window (s) for a trailing echo frame after a 12V-OFF command before
+# treating the SCU stream as silent (= 12V confirmed off).
+_OFF_CONFIRM_GRACE = 5.0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -243,20 +247,32 @@ class HymerConnectSwitch(
             scu_online = False
             if client:
                 scu_online = client._sensor_data.get("scu_connected") is True
-            if not scu_online:
-                # Special case: main switch OFF + SCU offline = command worked.
-                # The SCU goes to standby immediately after processing the 12V
-                # OFF command, so it never gets a chance to echo the new state.
-                # The SCU being offline IS the confirmation.
-                if self.entity_description.is_main_switch and not expected_on:
+
+            # 12V main switch OFF: on some vehicles (e.g. CBE EBL402 on bus 3)
+            # the 12V main relay does NOT power down the SCU, so it keeps
+            # reporting scu_connected=True — but it STOPS streaming sensor data
+            # the instant 12V goes off.  A readback still at "On" with no fresh
+            # frames received since the command IS the confirmation that 12V
+            # switched off, not a dead command channel.  Only treat it as a
+            # failed command when the SCU is genuinely still streaming.
+            if self.entity_description.is_main_switch and not expected_on:
+                last_data = client._last_data_received if client else 0.0
+                no_fresh_data = (
+                    last_data <= self._optimistic_set_at + _OFF_CONFIRM_GRACE
+                )
+                if not scu_online or no_fresh_data:
                     _LOGGER.info(
-                        "Switch %s: 12V OFF confirmed — SCU went to standby "
-                        "(scu_connected=false) as expected",
-                        self.entity_description.key,
+                        "Switch %s: 12V OFF confirmed — SCU stopped streaming "
+                        "(scu_connected=%s, no frames since command) as "
+                        "expected after 12V off",
+                        self.entity_description.key, scu_online,
                     )
-                    # Keep optimistic OFF state — don't revert to stale "On"
+                    # Keep optimistic OFF; don't revert to the stale "On" and
+                    # don't trigger a pointless re-auth/reconnect.
+                    self._retry_count = 0
                     return
 
+            if not scu_online:
                 # Check how long SCU has been in standby.  After extended
                 # standby (hours/days) the OAuth2 session routing is stale
                 # — commands sent through this session are silently dropped
@@ -396,6 +412,11 @@ class HymerConnectSwitch(
                 return False
             main = _resolve_path(self.coordinator.data, "signalr_sensors.main_switch")
             if main is not None and str(main) != "On":
+                return False
+            # CBE EBL402 (bus 3): 12V-off freezes main_switch at "On" while the
+            # SCU stops streaming.  Prolonged data silence = 12V physically off.
+            client = self.coordinator.signalr_client
+            if client is not None and client.data_silence_seconds > STALE_DATA_TIMEOUT:
                 return False
         return super().available
 

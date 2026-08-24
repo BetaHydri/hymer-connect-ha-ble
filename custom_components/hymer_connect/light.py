@@ -29,6 +29,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
 from .sensor import _resolve_path
+from .signalr_client import STALE_DATA_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,6 +189,11 @@ class HymerConnectLight(
             return False
         main = _resolve_path(self.coordinator.data, "signalr_sensors.main_switch")
         if main is not None and str(main) != "On":
+            return False
+        # CBE EBL402 (bus 3): 12V-off freezes main_switch at "On" while the SCU
+        # stops streaming.  Prolonged data silence = 12V physically off.
+        client = self.coordinator.signalr_client
+        if client is not None and client.data_silence_seconds > STALE_DATA_TIMEOUT:
             return False
         return super().available
 

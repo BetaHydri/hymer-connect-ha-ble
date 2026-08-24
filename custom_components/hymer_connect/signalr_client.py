@@ -99,6 +99,19 @@ class HymerSignalRClient:
         return time.monotonic() - self._scu_disconnected_at
 
     @property
+    def data_silence_seconds(self) -> float:
+        """Return seconds since the last SCU data frame (0 before first frame).
+
+        On some vehicles (e.g. CBE EBL402 on bus 3) 12V-off does NOT drop
+        ``scu_connected`` and freezes the ``main_switch`` readback at "On" —
+        the SCU simply stops streaming.  Data silence is then the only
+        reliable "12V is physically off" signal.
+        """
+        if self._last_data_received <= 0:
+            return 0.0
+        return time.monotonic() - self._last_data_received
+
+    @property
     def needs_reconnect(self) -> bool:
         """Return True if the connection should be proactively recycled."""
         if not self._connected:
