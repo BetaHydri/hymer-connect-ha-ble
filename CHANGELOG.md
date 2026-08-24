@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.70.0] - 2026-08-24
+
+### Added
+
+- **Collision lint (`tools/_test_collision_lint.py`) - canonicity guardrail toward brandless auto-mapping.** Asserts (A) the same `bus,slot` is never defined with a different name across map files and (B) no entity name maps to multiple slots within a resolved brand. This protects the growing `base.json` as more components are moved there.
+- **TPMS component (bus 100) added to `base.json`, observation-gated.** The EHG factory TPMS (fixed wheel slots front/back left/right + spare) materialises only on vehicles that report bus 100. Temperatures/status/firmware are enabled (unambiguous decode); tyre pressures ship `enabled: false` with the scale marked UNVERIFIED (the raw `0-9500 psi` range implies a scaled unit) until a TPMS-equipped vehicle confirms the transform. This is distinct from the aftermarket HYMER Smart tyre sensors on bus 70.
+
+### Changed
+
+- **HYMER Smart Sensors (bus 70 tyre / 71 gas / 73 contact / 74 temperature) and the fine wired water levels (bus 76: `fresh_water_level` / `gray_water_level`) moved from `hymer.json` into `base.json`.** These are fixed EHG mechanisms (auto-slot via PIA field 10, and the pin-6/pin-7 discriminators) that are canonical across brands, so any brand with these paired sensors now gets them automatically - a step toward removing brand selection. The HSS auto-slot templates are inherently observation-gated (the `{n}` template is never a concrete entity).
+- **Fixed a latent phantom: the fine water levels on bus 76 are now `require_observed`.** Previously they were created unconditionally, so on vehicles that only have the coarse EBL levels (bus 3, e.g. the Grand Canyon S600) `fresh_water_level` / `gray_water_level` lingered as phantom "unavailable" entities next to the real `*_ebl` values. They are now created only when the vehicle actually reports the bus-76 sensors; on vehicles without them Home Assistant offers the Delete action to clean up the stale entries.
+
 ## [2.69.4] - 2026-08-24
 
 ### Added
