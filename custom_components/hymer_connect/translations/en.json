@@ -763,6 +763,27 @@
       },
       "sat_control": {
         "name": "Satellite dish"
+      },
+      "cbe_pl50_lights_ctrl": {
+        "name": "CBE interior lights"
+      },
+      "cbe_pl50_pump_ctrl": {
+        "name": "CBE water pump"
+      },
+      "cbe_pl50_eis_ex_ctrl": {
+        "name": "CBE EIS/EX output"
+      },
+      "cbe_pl50_multimedia_ctrl": {
+        "name": "CBE multimedia"
+      },
+      "cbe_pl50_external_light_ctrl": {
+        "name": "CBE exterior light"
+      },
+      "cbe_pl50_switched_lights_ctrl": {
+        "name": "CBE switched lights"
+      },
+      "cbe_pl50_remote_ctrl": {
+        "name": "CBE remote on/off"
       }
     },
     "climate": {

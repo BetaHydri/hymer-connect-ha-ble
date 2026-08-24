@@ -560,7 +560,14 @@
     "2,13": { "name": "ebl400_waste_water_sensor_failure", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:water-alert" },
     "2,14": { "name": "ebl400_shoreline_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "plug", "icon": "mdi:power-plug" },
 
-    "_cbe_pl50_doc": "CBE PL50 habitation controller (EHG bus 52, component 'CBE_PL50_DISS'). Universal optional component - observation-gated (cbe_pl50_*). A vehicle has exactly one habitation controller (EBL402 bus 3 / EBL400 bus 2 / CBE PL50 bus 52). Read-only signal/status strings + two bool signals per decompiled EHG app componentId 52. Writable lighting/pump/multimedia/remote controls (slots 1-6,15) are left for a future switch surface.",
+    "_cbe_pl50_doc": "CBE PL50 habitation controller (EHG bus 52, component 'CBE_PL50_DISS'). Universal optional component - observation-gated (cbe_pl50_*). A vehicle has exactly one habitation controller (EBL402 bus 3 / EBL400 bus 2 / CBE PL50 bus 52). Read-only signal/status strings + two bool signals per decompiled EHG app componentId 52. Writable lighting/pump/multimedia/remote controls (slots 1-6,15) are exposed as observation-gated tri-state switches (string ['Off','On','Ignore']; HA writes only Off/On, never Ignore) with decode-only readbacks (52,1-6,15). WRITE PATH UNVERIFIED.",
+    "52,1": { "_doc": "Decode-only readback for the cbe_pl50_lights_ctrl switch (slot 1 InternalLights, string 'Off'/'On').", "name": "cbe_pl50_internal_lights" },
+    "52,2": { "_doc": "Decode-only readback for the cbe_pl50_pump_ctrl switch (slot 2 Pump).", "name": "cbe_pl50_pump" },
+    "52,3": { "_doc": "Decode-only readback for the cbe_pl50_eis_ex_ctrl switch (slot 3 EisEx; CBE output, exact function unconfirmed).", "name": "cbe_pl50_eis_ex" },
+    "52,4": { "_doc": "Decode-only readback for the cbe_pl50_multimedia_ctrl switch (slot 4 Multimedia).", "name": "cbe_pl50_multimedia" },
+    "52,5": { "_doc": "Decode-only readback for the cbe_pl50_external_light_ctrl switch (slot 5 ExternalLight).", "name": "cbe_pl50_external_light" },
+    "52,6": { "_doc": "Decode-only readback for the cbe_pl50_switched_lights_ctrl switch (slot 6 SwitchedLights).", "name": "cbe_pl50_switched_lights" },
+    "52,15": { "_doc": "Decode-only readback for the cbe_pl50_remote_ctrl switch (slot 15 RemoteOnOff).", "name": "cbe_pl50_remote_on_off" },
     "52,7": { "name": "cbe_pl50_230v_signal", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:transmission-tower" },
     "52,8": { "name": "cbe_pl50_ignition_signal", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:key-variant" },
     "52,9": { "name": "cbe_pl50_solar_signal", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:solar-power" },
@@ -624,6 +631,84 @@
       "on_value": true,
       "read_path": "signalr_sensors.water_pump_active",
       "requires_12v": true
+    },
+    "52,1": {
+      "_doc": "CBE PL50 (bus 52) interior lights on/off (slot 1 = InternalLights, string rw ['Off','On','Ignore'] per decompiled EHG app componentId 52; 'Ignore' = leave unchanged, never written by HA). Reads cbe_pl50_internal_lights. WRITE PATH UNVERIFIED - test control; revert if the SCU drops the write.",
+      "name": "cbe_pl50_lights_ctrl",
+      "icon": "mdi:lightbulb-group",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_internal_lights"
+    },
+    "52,2": {
+      "_doc": "CBE PL50 (bus 52) water pump on/off (slot 2 = Pump, string rw ['Off','On','Ignore']). Reads cbe_pl50_pump. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_pump_ctrl",
+      "icon": "mdi:water-pump",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_pump",
+      "requires_12v": true
+    },
+    "52,3": {
+      "_doc": "CBE PL50 (bus 52) EIS/EX output (slot 3 = EisEx, string rw ['Off','On','Ignore']; exact CBE function unconfirmed). Reads cbe_pl50_eis_ex. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_eis_ex_ctrl",
+      "icon": "mdi:toggle-switch",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_eis_ex"
+    },
+    "52,4": {
+      "_doc": "CBE PL50 (bus 52) multimedia output (slot 4 = Multimedia, string rw ['Off','On','Ignore']). Reads cbe_pl50_multimedia. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_multimedia_ctrl",
+      "icon": "mdi:multimedia",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_multimedia"
+    },
+    "52,5": {
+      "_doc": "CBE PL50 (bus 52) exterior light on/off (slot 5 = ExternalLight, string rw ['Off','On','Ignore']). Reads cbe_pl50_external_light. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_external_light_ctrl",
+      "icon": "mdi:outdoor-lamp",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_external_light"
+    },
+    "52,6": {
+      "_doc": "CBE PL50 (bus 52) switched lights on/off (slot 6 = SwitchedLights, string rw ['Off','On','Ignore']). Reads cbe_pl50_switched_lights. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_switched_lights_ctrl",
+      "icon": "mdi:lightbulb-on",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_switched_lights"
+    },
+    "52,15": {
+      "_doc": "CBE PL50 (bus 52) remote on/off (slot 15 = RemoteOnOff, string rw ['Off','On','Ignore']). Reads cbe_pl50_remote_on_off. WRITE PATH UNVERIFIED - test control.",
+      "name": "cbe_pl50_remote_ctrl",
+      "icon": "mdi:remote",
+      "require_observed": true,
+      "write_type": "str",
+      "write_on": "On",
+      "write_off": "Off",
+      "on_value": "On",
+      "read_path": "signalr_sensors.cbe_pl50_remote_on_off"
     }
   },
   "climate": {
