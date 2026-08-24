@@ -292,6 +292,53 @@ What to check in your own log:
 > for which bus/slot a value came from — very handy when reporting a mis-mapped
 > sensor.
 
+## BLE holds only a few minutes, then needs a host reboot
+
+Some users report that BLE "holds the SCU only ~20 minutes", and that the link
+only comes back after a **full host reboot** (for example rebooting the Proxmox
+node), while a plain **Home Assistant restart does *not* fix it**. That symptom is
+almost always a **host-level Bluetooth-adapter / BlueZ lockup**, *not* the
+integration:
+
+- A HA restart only restarts the container/VM process. It does **not** reset the
+  kernel Bluetooth stack or power-cycle a USB Bluetooth dongle passed into the VM.
+- A full host reboot **power-cycles the USB adapter and reloads BlueZ**, which is
+  why "only a Proxmox reboot helps".
+
+**How a *healthy* reconnect looks** (this integration self-heals — no reboot
+needed). The coordinator retries BLE on every poll with a fresh GATT session, so a
+drop is followed within seconds to a few minutes by a new `BLE direct path
+established`:
+
+```text
+coordinator] BLE disconnected — SignalR continues providing sensor data.
+             BLE will be retried on next poll cycle.
+coordinator] BLE direct path established to SCU AA:BB:CC:DD:EE:FF (mode=dual)
+```
+
+On a healthy host, individual BLE sessions typically last **hours**, and the worst
+case after a hiccup (e.g. a one-off `TLS handshake failed`) is a reconnect within
+a **few minutes** — all automatic. If instead you see BLE go down and **stay down**
+until you reboot the host, work through the host-side checklist:
+
+- **Prefer an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html)**
+  placed near the SCU over a USB dongle passed into a VM. It sidesteps USB
+  passthrough and BlueZ-in-a-VM instability entirely and is the most robust option
+  for an in-vehicle host.
+- **Set the adapter to *active* scanning** (not passive-only). A passive-only
+  scanner may fail to re-discover the SCU after a drop; HA logs this as
+  `Scanner hciX … is in passive-only mode but active scans have been requested`.
+- **Reset only the adapter instead of the whole host** to confirm the diagnosis —
+  on the host run `bluetoothctl power off` then `power on`, or restart the
+  `bluetooth` service (`systemctl restart bluetooth`). If that restores BLE, the
+  USB adapter / BlueZ was the cause, not Home Assistant.
+- **Check USB power management** for the dongle (disable autosuspend) and, on
+  Proxmox, pass the **physical USB port** through rather than the device ID so a
+  re-enumeration after a reset still maps into the VM.
+
+If BLE self-heals within minutes in your log (the healthy pattern above), you are
+**not** affected by this — no action needed.
+
 ## Clear a stale BLE bond
 
 If a previous pairing left a stale bond or a token that blocks re-pairing:
