@@ -1,11 +1,20 @@
 {
   "_comment": "HYMER brand overlay (Grand Canyon S600/S700, Mercedes Sprinter).",
-  "_doc": "S600/S700-specific buses: lights (11-27, 43-44), Voltronic solar (8), Thetford fridge (34/37), Truma heater (49/58), BOS BMS (99), Victron (121).",
+  "_doc": "S600/S700-specific buses: lights (11-27, 43-44), Voltronic solar (8), Thetford fridge (34/37), Truma heater (49/58), BOS BMS (99), Victron (121). B-ML I 780: Schaudt EBL on bus 2 (base.json maps the same EBL on bus 3), Truma Aventa on bus 7 (read-only — writes on bus 7 are silently dropped), absorber fridge on bus 9, Alde 3030 on bus 5, TenHaaft on bus 10.",
   "_vehicles": [
     "Grand Canyon S 600 CrossOver",
-    "Grand Canyon S 700"
+    "Grand Canyon S 700",
+    "B-ML I 780 (MY2021)"
   ],
   "sensors": {
+    "2,1": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): Schaudt EBL 12 V main switch (bus 2 slot 1, string 'On'/'Off'). base.json maps the same EBL on bus 3; this vehicle reports it on bus 2. Renamed from 'main_switch' to avoid a unique_id clash with the bus-3 entry. Read sensor backing the writable switch 2,1. Confirmed on-vehicle 2026-07-28.", "name": "main_switch_schaudt", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "on_value": "On", "icon": "mdi:power" },
+    "2,3": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): Schaudt EBL water-pump state (bus 2 slot 3, bool). Renamed from 'water_pump_active' to avoid a unique_id clash with the bus-3 entry in base.json. Read sensor backing the writable switch 2,3. Confirmed on-vehicle 2026-07-28.", "name": "water_pump_active_schaudt", "require_observed": true, "platform": "binary_sensor", "device_class": "running", "icon": "mdi:water-pump" },
+    "2,8": { "_doc": "HYMER B-ML I 780: Schaudt EBL 400 fresh-water level in percent, coarse 25% steps. Confirmed on-vehicle 2026-07-30 against the vehicle's own panel: panel showed fresh 25% / grey 50%, matching slots 2,8 = 25 and 2,9 = 50. NOTE: the Victron Cerbo tank inputs read the same tanks with finer resolution and showed 51% at the same moment — the EBL sender is a separate, coarser sender, do not expect the two to agree. Slot 2,8 also drops to 0 for about 60 s at a time during periods when the EBL mains detection chatters; cause unresolved.", "name": "water_fresh_schaudt", "require_observed": true, "unit": "%", "platform": "sensor", "icon": "mdi:water" },
+    "2,9": { "_doc": "HYMER B-ML I 780: Schaudt EBL 400 grey-water level in percent, coarse 25% steps. Confirmed on-vehicle 2026-07-30 against the vehicle's own panel (grey 50%, slot reads 50). Victron Cerbo tank input read 53% at the same moment. Constant at 50 for the whole 10.7-day recording window.", "name": "water_grey_schaudt", "require_observed": true, "unit": "%", "platform": "sensor", "icon": "mdi:water-off" },
+
+    "7,1": { "_doc": "EXPERIMENT 2026-07-30 (B-ML I 780): Truma Aventa target temperature (bus 7 slot 1, float). Confirmed on-vehicle: changing the setpoint at the Aventa moved this slot to 23.0 at 14:00:12 while the Alde setpoint stayed at 24.0 — it is NOT an Alde mirror (87 comparison points: 23 equal, 64 different) and NOT a measurement (0.5 K resolution vs 0.1 K on 7/2; jumped 21.0 -> 26.0 in 2 s on 2026-07-29 15:25:16; drifts away from 7/2 in quiet windows). READ-ONLY: float writes to this slot were tested on 2026-07-30 (paired multi-sensor frame, exactly as the Truma Combi does it) and had no effect. LIKELY EXPLANATION per the Alde manual (owner, 2026-07-30): the ACC output activates the Aventa, which then adopts the setpoint configured at the Alde panel. That would make this slot a slave of the Alde setpoint rather than an independently writable target — and it explains the observed 0.5 K / 20 min drift as the Aventa converging on the Alde value. Caveat: the Aventa's own panel can still set it directly (observed 14:00:12, slot moved to 23.0 while the Alde setpoint stayed at 24.0). To change the temperature from HA, write number.hymer_alde_setpoint (bus 5 slot 3, confirmed writable) instead.", "name": "ac_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "7,3": { "_doc": "EXPERIMENT 2026-07-30 (B-ML I 780): Truma Aventa operating mode (bus 7 slot 3, string). Values reported by the SCU: 'Off' / 'Cool' / 'Heat' / 'Fan' / 'Auto'. Confirmed by the owner 2026-07-30; every switch of the ACC output (switches 5,11) flips this slot in the same second. READ-ONLY: string writes to this slot had no effect (2026-07-30), neither alone nor as the second field of a paired multi-sensor frame. Switch the unit on/off via the ACC output instead (switch.hymer_alde_acc, bus 5 slot 11, confirmed writable).", "name": "ac_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:air-conditioner" },
+    "7,4": { "_doc": "HYMER B-ML I 780 (MY2021): Truma Aventa air-conditioner fan speed (bus 7 slot 4, string). Bus 7 carries the Aventa on this vehicle, confirmed on-vehicle 2026-07-30: the owner identified mode on 7/3 and fan speed on 7/4, and every switch of the ACC output (switches 5,11) flips both slots in the same second. Values reported by the SCU: 'Low' / 'Mid' / 'High' / 'Night' ('Night' = sleep mode, observed 2026-07-30 13:51:48). While a timer is being programmed the SCU emits an undecodable raw string on this slot ('Unknown mode: 0x70' / 'Unknown mode: 0x76'); that text is produced by the SCU/cloud itself, NOT by this integration — the labels and the phrase 'Unknown mode' appear nowhere in the integration source. READ-ONLY. Write attempts on 2026-07-30 all failed: literal string via send_light_command (six attempts), integer via the alde_electric_boost pattern, and a paired multi-sensor frame. Addressing, bus instance (f10='lin1', identical to the working buses 2 and 5) and transport were all verified correct in the debug log — the SCU accepts the command and the device ignores it. Working hypothesis: the SCU only mirrors the Aventa. Bus 7 unused on S600/S700/ML-T.", "name": "ac_fan_speed", "require_observed": true, "platform": "sensor", "icon": "mdi:fan" },
     "8,1": { "name": "gray_water_sensor" },
     "8,2": { "name": "solar_voltage", "unit": "V", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:solar-power-variant" },
     "8,3": { "name": "solar_current", "unit": "A", "platform": "sensor", "device_class": "current", "state_class": "measurement", "icon": "mdi:solar-power" },
@@ -26,9 +35,15 @@
     "5,6": { "_doc": "BMC I 680: Alde 3030 hot-water boiler mode (EHG HotWaterSetting, string rw). App 'Warmwasser Boiler' + 'Turbo Modus'. Read sensor backing the alde_hot_water select. @FrankHae saw 'Off' (no water in the lines yet). Bus 5 unused on S600/S700/ML-T.", "name": "alde_hot_water_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:water-boiler" },
     "5,7": { "_doc": "BMC I 680: Alde 3030 electric booster heater level (EHG ElectricitySetting, int 0-3 kW, rw). App 'Elektrische Zusatzheizung'/'Max Elektrizität' (Aus/1/2/3 kW). Confirmed by @FrankHae screenshots + readback 0='Aus' (#9). Read sensor backing the alde_electric_boost select.", "name": "alde_electric_setting", "require_observed": true, "platform": "sensor", "icon": "mdi:heat-wave" },
     "5,10": { "_doc": "BMC I 680: Alde 3030 gas enable (EHG GasSetting, bool rw). App 'Gas aktivieren'. Confirmed ON by @FrankHae screenshots (#9). Read sensor backing the alde_gas_ctrl switch.", "name": "alde_gas_active", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:gas-burner" },
-    "5,11": { "_doc": "BMC I 680: Alde 3030 accessory setting (EHG AccSetting, bool rw per decompiled Alde3020 id 11). Function unknown — likely an auxiliary output. Exposed READ-ONLY for now; @FrankHae to observe what toggles it (RAW PIA) before we add a writable switch. Not yet reported on-vehicle. Bus 5 unused on S600/S700/ML-T.", "name": "alde_acc_setting", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:tune" },
+    "5,11": { "_doc": "BMC I 680: Alde 3030 accessory setting (EHG AccSetting, bool rw per decompiled Alde3020 id 11). Function CONFIRMED on a B-ML I 780 (2026-07-28/30): this output switches the air conditioning, which then regulates to the temperature set at the Alde control panel. The ACC button on the Alde panel toggles exactly this slot (clean event edges, e.g. 15:31:38 off -> 15:31:42 on). Read sensor backing the writable alde_acc_ctrl switch (switches 5,11) — write path confirmed on-vehicle 2026-07-30. Bus 5 unused on S600/S700/ML-T.", "name": "alde_acc_setting", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:tune" },
     "5,12": { "_doc": "BMC I 680: Alde 3030 dedicated hard-error flag (EHG Error, bool r per decompiled Alde3020 id 12). RENAMED alde_fault → alde_error and ENABLED in v2.65.6 per @FrankHae (issue #9): this is the true fault flag (distinct from slot 8 PanelBusy/alde_warning, which fires for panel-attention/lockouts). Slot 12 stayed False during @FrankHae's antibacterial-reminder lockout (13–14 Jul 2026), confirming it only trips on a real fault. Bus 5 unused on S600/S700/ML-T.", "name": "alde_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-octagon" },
 
+    "9,1": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge power on/off (bus 9 slot 1, bool). This vehicle reports its absorber fridge on bus 9, not on bus 32 (BMC I 680) or 34 (S600). Prefixed 'bml' because bus 32 already occupies the fridge_absorber_* names in this overlay. Confirmed on-vehicle 2026-07-30.", "name": "fridge_absorber_bml_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "9,2": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge CONFIGURED power source (bus 9 slot 2, string rw): 'Automatic mode' / 'Gas mode' / '12V mode' / 'AC mode'. NOTE: slot 2 is the configured mode, slot 7 reports the source ACTUALLY in use — mistaking one for the other looks exactly like a dropped write. Write path confirmed on-vehicle 2026-08-07 in both directions, with slot 7 following within ~2 s.", "name": "fridge_absorber_bml_power_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-industrial" },
+    "9,3": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge cooling step 1-5 (bus 9 slot 3, int). Follows the vehicle panel; write path confirmed on-vehicle 2026-07-30.", "name": "fridge_absorber_bml_cooling_step", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-industrial-outline" },
+    "9,5": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge door open/closed (bus 9 slot 5, bool). The most reliable slot on this bus — clean event edges, no refresh delay.", "name": "fridge_absorber_bml_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+    "9,6": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge cooling hysteresis / cut-in band (bus 9 slot 6, string passthrough), e.g. 'Optimal', 'Cut in temperature +1-2'. Read-only.", "name": "fridge_absorber_bml_hysteresis", "require_observed": true, "platform": "sensor", "icon": "mdi:thermometer-lines" },
+    "9,8": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge error/warning status (bus 9 slot 8, string passthrough, e.g. 'No Error'). Read-only.", "name": "fridge_absorber_bml_warning", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-alert" },
     "29,1": { "_doc": "BMC I 680 (MY2024): habitation/body battery (Aufbaubatterie) state of charge in %. Confirmed by @FrankHae 2026-07-16 (issue #9): matches the EHG app's battery percentage and his HA history timing (f3 int 0-100, e.g. 99/100). Bus 29 unused on S600/S700/ML-T.", "name": "body_battery_soc", "unit": "%", "platform": "sensor", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
 
     "10,5": { "_doc": "BMC I 680: TenHaaft satellite dish — currently selected satellite (text, e.g. 'Astra 1'/'Eutelsat 9'/'Hotbird', f4). Confirmed by @FrankHae 2026-07-11 (issue #9). Bus 10 unused on S600/S700/ML-T.", "name": "sat_satellite", "require_observed": true, "platform": "sensor", "icon": "mdi:satellite-variant" },
@@ -191,8 +206,11 @@
 
   "switches": {
     "_doc": "Keyed by bus_id,sensor_id. write_type: str|bool|uint. on_value: readback value that means ON. holdoff_off: seconds to hold optimistic OFF state (for SCU bounce-back).",
-    "5,9": { "_doc": "BMC I 680 (MY2024): Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8); revert if the SCU drops the write.", "name": "alde_heating_ctrl", "require_observed": true, "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
-    "5,10": { "_doc": "BMC I 680 (MY2024): Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH UNVERIFIED on bus 5 slot 10 — test control (v2.65.2); revert if the SCU drops the write.", "name": "alde_gas_ctrl", "require_observed": true, "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
+    "2,1": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): Schaudt EBL 12 V main switch (bus 2 slot 1, string 'On'/'Off'). Declared directly on bus 2 instead of redirecting the base.json bus-3 switch, so vehicles with the EBL on bus 3 are unaffected. Write path confirmed on-vehicle 2026-07-28; readback via sensors 2,1.", "name": "main_switch_schaudt_ctrl", "require_observed": true, "icon": "mdi:power", "write_type": "str", "write_on": "On", "write_off": "Off", "on_value": "On", "read_path": "signalr_sensors.main_switch_schaudt", "holdoff_off": 60 },
+    "2,3": { "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): Schaudt EBL water pump (bus 2 slot 3, bool). Declared directly on bus 2 instead of redirecting the base.json bus-3 switch. Write path confirmed on-vehicle 2026-07-28; readback via sensors 2,3.", "name": "water_pump_schaudt_ctrl", "require_observed": true, "icon": "mdi:water-pump", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.water_pump_active_schaudt", "requires_12v": true },
+    "5,9": { "_doc": "BMC I 680 (MY2024): Alde 3030 master on/off (bus 5 slot 9 = PanelOn, bool rw per decompiled EHG app Alde3020). Readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): switching from HA works, the binary_sensor alde_heating_on reports back within about 1 s.", "name": "alde_heating_ctrl", "require_observed": true, "icon": "mdi:radiator", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_heating_on" },
+    "5,10": { "_doc": "BMC I 680 (MY2024): Alde 3030 gas enable (bus 5 slot 10 = GasSetting, bool rw per decompiled EHG app Alde3020). App 'Gas aktivieren' (confirmed ON by @FrankHae screenshots, #9). WRITE PATH CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): switching works in both directions; operating the Alde panel propagates to HA in under 3 s.", "name": "alde_gas_ctrl", "require_observed": true, "icon": "mdi:gas-burner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_gas_active" },
+    "5,11": { "_doc": "Alde 3030 ACC output (bus 5 slot 11, bool rw per decompiled Alde3020 id 11). On the HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209) this output switches the AIR CONDITIONING, which then regulates to the setpoint entered at the Alde panel; the ACC button on that panel toggles exactly this slot (clean event edges, 15:31:38 off -> 15:31:42 on). Write path confirmed on-vehicle 2026-07-30. CAVEAT: switching OFF is only effective while the Truma Aventa thermostat is not calling for cooling — if it is, the Alde re-asserts the output about 15 s later and the readback never leaves 'on'. Switching on is reliable.", "name": "alde_acc_ctrl", "require_observed": true, "icon": "mdi:air-conditioner", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.alde_acc_setting" },
     "34,2": { "name": "fridge_eco_ctrl", "require_observed": true, "icon": "mdi:leaf", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_eco" },
     "114,1": { "name": "fridge_compressor_power_ctrl", "require_observed": true, "icon": "mdi:fridge", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_power" },
     "114,2": { "name": "fridge_compressor_silent_ctrl", "require_observed": true, "icon": "mdi:weather-night", "write_type": "bool", "on_value": true, "read_path": "signalr_sensors.fridge_compressor_silent" },
@@ -228,7 +246,7 @@
     "numbers": {
       "_doc": "Generic JSON-driven writable float slots (v2.65.5+). Written to the SCU as a 32-bit float via the multi-sensor command path (same as the Truma climate setpoint).",
       "alde_setpoint": {
-        "_doc": "BMC I 680 (MY2024): Alde 3030 Zone-1 target temperature (bus 5 slot 3 = Zone1TargetTemperature, rw float °C). Confirmed writable in the decompiled EHG app (componentId 5, id 3, mode 'rw', datatype 'float'). Read sensor alde_setpoint (5,3). WRITE PATH UNVERIFIED on bus 5 slot 3 — test control (v2.65.5); revert if the SCU drops the float write.",
+        "_doc": "BMC I 680 (MY2024): Alde 3030 Zone-1 target temperature (bus 5 slot 3 = Zone1TargetTemperature, rw float °C). Confirmed writable in the decompiled EHG app (componentId 5, id 3, mode 'rw', datatype 'float'). Read sensor alde_setpoint (5,3). WRITE PATH CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): float writes 20 -> 22 -> 24 °C were all accepted, readback via sensor alde_setpoint (refresh value, up to 60 s).",
         "name": "Alde setpoint",
         "require_observed": true,
         "icon": "mdi:thermometer",
@@ -316,7 +334,7 @@
         }
       },
       "alde_energy_priority": {
-        "_doc": "BMC I 680 (MY2024): Alde 3030 energy-priority select (bus 5 slot 5, string rw). Options + rw flag from the decompiled EHG app (Alde3020 PrioElectricityGas, stringRange ['Prio EL','Prio Gas']); readback confirmed by @FrankHae (#9). WRITE PATH UNVERIFIED on bus 5 — test control (v2.64.8). If the SCU rejects the literal option string, the app's enum keys 'PRIO_GAS'/'PRIO_EL' are the fallback. Revert if writes are dropped.",
+        "_doc": "BMC I 680 (MY2024): Alde 3030 energy-priority select (bus 5 slot 5, string rw). Options + rw flag from the decompiled EHG app (Alde3020 PrioElectricityGas, stringRange ['Prio EL','Prio Gas']); readback confirmed by @FrankHae (#9). WRITE PATH CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): the literal option strings 'Prio EL' / 'Prio Gas' are accepted, so the 'PRIO_GAS'/'PRIO_EL' enum-key fallback is not needed.",
         "name": "Alde energy priority",
         "require_observed": true,
         "icon": "mdi:gas-burner",
@@ -340,7 +358,7 @@
         }
       },
       "alde_hot_water": {
-        "_doc": "BMC I 680 (MY2024): Alde 3030 hot-water boiler mode (bus 5 slot 6 = HotWaterSetting, string rw per decompiled EHG app Alde3020). App label 'Warmwasser Boiler' toggle + 'Turbo Modus' (Boost). Options from the decompiled stringRange. WRITE PATH + exact option strings UNVERIFIED — @FrankHae cannot test yet (no water in the lines); revert/adjust once confirmed on-vehicle (v2.65.2).",
+        "_doc": "BMC I 680 (MY2024): Alde 3030 hot-water boiler mode (bus 5 slot 6 = HotWaterSetting, string rw per decompiled EHG app Alde3020). App label 'Warmwasser Boiler' toggle + 'Turbo Modus' (Boost). Options from the decompiled stringRange. WRITE PATH + option strings CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): 'Off' / 'Normal' / 'Boost' are all accepted.",
         "name": "Alde hot water",
         "require_observed": true,
         "icon": "mdi:water-boiler",
@@ -359,8 +377,40 @@
         "read": { "value_sensor": "fridge_absorber_power_mode" },
         "writes": { "option": [{ "sid": 2, "str": "$option" }] }
       },
+      "fridge_absorber_bml_cooling_step": {
+        "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge Off/1-5 cooling step on bus 9. Separate entry from the bus-32 control, which is left untouched. Mirrors the established pattern: power sid 1 (bool), then cooling step sid 3 (uint). Write path confirmed on-vehicle 2026-08-07.",
+        "name": "Absorber fridge (bus 9) cooling step",
+        "require_observed": true,
+        "icon": "mdi:fridge-industrial-outline",
+        "control_bus": 9,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_absorber_bml_cooling_step",
+          "power_sensor": "fridge_absorber_bml_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "fridge_absorber_bml_power_mode": {
+        "_doc": "HYMER B-ML I 780 (MY2021, retrofitted Connect kit, SCU 00000209): absorber fridge power-source select on bus 9 slot 2. Separate entry from the bus-32 control, which is left untouched. Write path confirmed on-vehicle 2026-08-07 in both directions; the source actually in use is reported back on slot 9,7 within ~2 s.",
+        "name": "Absorber fridge (bus 9) power source",
+        "require_observed": true,
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 9,
+        "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
+        "read": { "value_sensor": "fridge_absorber_bml_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
       "sat_position": {
-        "_doc": "BMC I 680 (MY2024): TenHaaft satellite dish target-satellite select (bus 10 slot 5 = SatellitePosition, string rw). Options from decompiled EHG app (TenhaaftSatAntenna SatellitePosition stringRange, 19 satellites). Readback confirmed by @FrankHae (#9) ('Astra 1'/'Eutelsat 9'/'Hotbird'). WRITE PATH UNVERIFIED on bus 10 — test control (v2.64.9); revert if the SCU drops the write.",
+        "_doc": "BMC I 680 (MY2024): TenHaaft satellite dish target-satellite select (bus 10 slot 5 = SatellitePosition, string rw). Options from decompiled EHG app (TenhaaftSatAntenna SatellitePosition stringRange, 19 satellites). Readback confirmed by @FrankHae (#9) ('Astra 1'/'Eutelsat 9'/'Hotbird'). WRITE PATH CONFIRMED on-vehicle on a HYMER B-ML I 780 (2026-07-28): selecting a satellite is accepted, readback 'Astra 1' via sensor sat_satellite (refresh value). Together with the confirmed dish control this places the TenHaaft unit on bus 10 for this vehicle.",
         "name": "Satellite",
         "require_observed": true,
         "icon": "mdi:satellite-variant",
