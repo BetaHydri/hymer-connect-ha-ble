@@ -9,6 +9,7 @@ tools/pia_field_scan_results.json
 tools/captured_ehg_token.txt
 tools/sensor_discovery_*.json
 tools/__pycache__/
+tools/_generated_base_candidates.json
 tools/ehg-token-app/.gradle/
 tools/ehg-token-app/bin/
 tools/ehg-token-app/build/
