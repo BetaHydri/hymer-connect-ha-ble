@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.74.0] - 2026-08-24
+
+### Changed
+
+- **Brandless `base.json` migration completed — the Alde 3030 (bus 5), TenHaaft satellite (bus 10) and Victron MultiPlus (bus 121) components moved out of the HYMER overlay into the shared, observation-gated `base.json`.** All three are fixed EHG components, so any brand that reports their bus now gets them automatically — a further step toward removing brand selection entirely. Entity names are unchanged (`alde_*`, `sat_*`, `victron_*`), so vehicles that already had them (the BMC I 680's Alde 3030 + TenHaaft dish, the S600's Victron) are byte-for-byte unaffected; the entities simply materialise from `base.json` now instead of `hymer.json`. What remains brand-tied in `hymer.json` is only the Votronic solar (bus 8), the Thetford / Truma Combi DE fridge+heater stack (buses 34/37/49/58/114/32) and the BOS BMS (bus 99).
+- **Gated the habitation/body-battery state-of-charge (`body_battery_soc`, bus 29).** It was the last un-gated entity in the overlay and left a phantom “unavailable” entity on vehicles without a bus-29 battery (S600/S700/ML-T). It now honours `require_observed`; the BMC I 680 (which reports bus 29) is unchanged — on the other models Home Assistant offers the Delete action to clean up the stale entry.
+
+No entity IDs change and no user action is required.
+
 ## [2.73.0] - 2026-08-24
 
 ### Added
