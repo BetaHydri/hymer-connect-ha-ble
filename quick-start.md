@@ -94,9 +94,21 @@ This is the recommended setup when your HA host is inside the vehicle or otherwi
    - dealer QR activation token
    - optional SCU Bluetooth address
    - keep BLE enabled
-5. Submit and wait for the BLE pairing step
-6. Press **CONNECTION** on the SCU touch panel within 2 minutes
-7. Wait for pairing and token exchange to finish
+5. Submit and wait for the **BLE pairing step** to appear
+6. **Close the EHG app on your phone first** — do not pair while the phone is
+   actively connected over BLE to the same SCU, as a competing connection can
+   block the host's bond
+7. **Press CONNECTION** on the SCU touch panel, then **submit the pairing step
+   within ~25 seconds** and **do not close the dialog**. The pairing window can be
+   as short as **~30 seconds** on some SCUs (e.g. B-MC I 680, SCU 1.13.0.0) — so
+   press CONNECTION and submit promptly, rather than pressing CONNECTION only once
+   the dialog is already waiting. The integration keeps retrying, but the attempt
+   right after your press is the one most likely to succeed.
+8. Wait for pairing and token exchange to finish
+
+> For the full pairing-sequence best practices, host requirements (`bluetoothctl`,
+> legacy TLS), and recovery steps, see
+> [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md).
 
 After that:
 
