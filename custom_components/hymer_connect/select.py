@@ -8,6 +8,7 @@ the corresponding select entity is not created.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,25 +46,53 @@ async def async_setup_entry(
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SelectEntity] = []
 
+    # Observation-gated select factories: created only once the vehicle reports
+    # one of their read sensors, so absent components (e.g. a Dometic fridge on
+    # a non-Dometic vehicle, or the Thetford fridge on a compressor-fridge
+    # vehicle) never leave phantom selects.  Entries WITHOUT require_observed
+    # are created immediately, exactly as before.
+    gated: list[tuple[str, Callable[[], SelectEntity], tuple[str, ...]]] = []
+
     fridge_def = CLIMATE_DEFS.get("fridge")
     heater_def = CLIMATE_DEFS.get("truma_heater")
 
     if fridge_def:
-        entities.append(HymerFridgeSelect(coordinator, entry, fridge_def))
+        watch = _climate_read_sensors("fridge", fridge_def)
+        if fridge_def.get("require_observed") and watch:
+            gated.append((
+                "fridge",
+                lambda d=fridge_def: HymerFridgeSelect(coordinator, entry, d),
+                watch,
+            ))
+        else:
+            entities.append(HymerFridgeSelect(coordinator, entry, fridge_def))
         _LOGGER.debug("Select platform: fridge on bus %d", fridge_def.get("control_bus", 34))
     if heater_def:
-        entities.append(HymerBoilerSelect(coordinator, entry, heater_def))
-        entities.append(HymerHeaterEnergySelect(coordinator, entry, heater_def))
+        watch = _climate_read_sensors("truma_heater", heater_def)
+        if heater_def.get("require_observed") and watch:
+            gated.append((
+                "truma_boiler",
+                lambda d=heater_def: HymerBoilerSelect(coordinator, entry, d),
+                watch,
+            ))
+            gated.append((
+                "truma_energy",
+                lambda d=heater_def: HymerHeaterEnergySelect(coordinator, entry, d),
+                watch,
+            ))
+        else:
+            entities.append(HymerBoilerSelect(coordinator, entry, heater_def))
+            entities.append(HymerHeaterEnergySelect(coordinator, entry, heater_def))
         _LOGGER.debug("Select platform: boiler+energy on bus %d", heater_def.get("heater_bus", 58))
 
     # Generic JSON-driven stepped-switch selects (v2.63.0+).
-    # Entries flagged ``require_observed`` are deferred until the vehicle
-    # actually reports one of their read sensors, so absent components (e.g.
-    # a Dometic fridge on a non-Dometic vehicle) never leave phantom selects.
-    gated: list[tuple[str, dict[str, Any], tuple[str, ...]]] = []
     for key, defn in STEPPED_SELECT_DEFS.items():
         if defn.get("require_observed"):
-            gated.append((key, defn, _stepped_read_sensors(defn)))
+            gated.append((
+                key,
+                lambda k=key, d=defn: HymerSteppedSelect(coordinator, entry, k, d),
+                _stepped_read_sensors(defn),
+            ))
             continue
         try:
             entities.append(HymerSteppedSelect(coordinator, entry, key, defn))
@@ -77,7 +106,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("Select platform: no fridge, heater, or stepped definitions — skipping")
+        _LOGGER.debug("Select platform: no immediate fridge, heater, or stepped definitions")
 
     if not gated:
         return
@@ -92,20 +121,20 @@ async def async_setup_entry(
         if not isinstance(sensors, dict):
             return
         new_entities: list[SelectEntity] = []
-        for key, defn, watch in gated:
+        for key, factory, watch in gated:
             if key in created_keys:
                 continue
             if not any(name in sensors for name in watch):
                 continue
             try:
-                new_entities.append(HymerSteppedSelect(coordinator, entry, key, defn))
+                new_entities.append(factory())
             except Exception:  # noqa: BLE001 — never let one bad JSON entry kill the platform
-                _LOGGER.exception("Failed to create stepped select '%s' — skipping", key)
+                _LOGGER.exception("Failed to create gated select '%s' — skipping", key)
                 created_keys.add(key)
                 continue
             created_keys.add(key)
             _LOGGER.info(
-                "Observation-gated stepped select '%s' materialised (read sensor reported)",
+                "Observation-gated select '%s' materialised (read sensor reported)",
                 key,
             )
         if new_entities:
@@ -113,6 +142,30 @@ async def async_setup_entry(
 
     _async_discover_gated()
     entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
+
+
+def _climate_read_sensors(kind: str, defn: dict[str, Any]) -> tuple[str, ...]:
+    """Return the component-specific sensor names a climate select reads.
+
+    Excludes generic chassis sensors (e.g. ``outside_temperature``) so the
+    observation gate only fires on a sensor unique to the component.
+    """
+    if kind == "fridge":
+        names = [
+            defn.get("power_sensor", "fridge_power"),
+            defn.get("cooling_step_sensor", "fridge_cooling_step"),
+            defn.get("mode_sensor", "fridge_mode"),
+        ]
+    elif kind == "truma_heater":
+        names = [
+            defn.get("setpoint_sensor", "heater_setpoint"),
+            defn.get("fuel_type_sensor", "heater_fuel_type"),
+            defn.get("boiler_sensor", "heater_fan_speed"),
+            defn.get("electric_power_sensor", "heater_electric_power"),
+        ]
+    else:
+        names = []
+    return tuple(n for n in names if isinstance(n, str) and n)
 
 
 def _stepped_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:

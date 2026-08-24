@@ -18,7 +18,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -52,7 +52,43 @@ async def async_setup_entry(
         _LOGGER.debug("Climate platform: no truma_heater definition in JSON — skipping")
         return
     _LOGGER.debug("Climate platform: truma_heater on bus %d", heater_def.get("heater_bus", 58))
-    async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
+
+    # Component-specific read sensors used to gate creation (exclude the
+    # generic outside_temperature so the gate only fires on a Truma slot).
+    watch = tuple(
+        n for n in (
+            heater_def.get("setpoint_sensor", "heater_setpoint"),
+            heater_def.get("fuel_type_sensor", "heater_fuel_type"),
+            heater_def.get("boiler_sensor", "heater_fan_speed"),
+            heater_def.get("electric_power_sensor", "heater_electric_power"),
+        )
+        if isinstance(n, str) and n
+    )
+
+    if not (heater_def.get("require_observed") and watch):
+        async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
+        return
+
+    # Observation-gated: create the thermostat only once the vehicle reports a
+    # Truma heater slot, so vehicles without a Truma Combi get no phantom entity.
+    created = False
+
+    @callback
+    def _async_discover_gated() -> None:
+        nonlocal created
+        if created or not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        if not any(name in sensors for name in watch):
+            return
+        created = True
+        async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
+        _LOGGER.info("Observation-gated Truma climate materialised (heater slot reported)")
+
+    _async_discover_gated()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
 
 
 class HymerHeaterClimate(

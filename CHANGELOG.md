@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.1] - 2026-08-24
+
+### Changed
+
+- **Observation gating extended to the dedicated Thetford fridge + Truma Combi classes and the `switch` / `climate` platforms (in-place, still in `hymer.json`).** The S600/S700 Thetford fridge (`HymerFridgeSelect`, bus 34/37) and the Truma Combi heater (`HymerBoilerSelect` / `HymerHeaterEnergySelect` / the `HymerHeaterClimate` thermostat, bus 58) plus the `fridge_eco` switch now honour `require_observed`: they are created only once the vehicle actually reports a component-specific read sensor (e.g. `fridge_power`, `heater_setpoint`), instead of unconditionally at setup. The gate watches only component-unique sensors (the generic `outside_temperature` is excluded). The Thetford (bus 34/37) and Truma (bus 49/58) read sensors + the two `CLIMATE_DEFS` blocks are marked `require_observed` in `hymer.json`. Vehicles with the component (e.g. an S600 with Thetford + Truma Combi 6E) are unchanged; vehicles without it no longer get phantom fridge/heater entities. Definitions stay in `hymer.json` (no `base.json` move yet).
+
 ## [2.69.0] - 2026-08-24
 
 ### Added

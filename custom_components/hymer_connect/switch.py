@@ -20,7 +20,7 @@ from homeassistant.components.switch import (
     SwitchEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -61,11 +61,20 @@ class HymerSwitchEntityDescription(SwitchEntityDescription):
     bool_off: bool = False         # bool value sent for OFF
 
 
-def _build_switch_descriptions() -> list[HymerSwitchEntityDescription]:
-    """Build switch entity descriptions from JSON-loaded SWITCH_DEFS."""
+def _build_switch_descriptions() -> tuple[
+    list[HymerSwitchEntityDescription],
+    list[tuple[HymerSwitchEntityDescription, str]],
+]:
+    """Build switch entity descriptions from JSON-loaded SWITCH_DEFS.
+
+    Returns ``(always, gated)`` where ``gated`` entries carry
+    ``require_observed`` and are created on demand once their read sensor is
+    reported by the vehicle (keyed by the sensor name to watch).
+    """
     from .pia_decoder import SWITCH_DEFS
 
-    descriptions: list[HymerSwitchEntityDescription] = []
+    always: list[HymerSwitchEntityDescription] = []
+    gated: list[tuple[HymerSwitchEntityDescription, str]] = []
     for key_str, meta in SWITCH_DEFS.items():
         if not isinstance(meta, dict) or "name" not in meta:
             continue
@@ -74,13 +83,14 @@ def _build_switch_descriptions() -> list[HymerSwitchEntityDescription]:
             continue
         bus_id, sensor_id = int(parts[0].strip()), int(parts[1].strip())
         name = meta["name"]
+        read_path = meta.get("read_path", f"signalr_sensors.{name}")
         kwargs: dict[str, Any] = {
             "key": name,
             "translation_key": name,
             "device_class": SwitchDeviceClass.SWITCH,
             "bus_id": bus_id,
             "sensor_id": sensor_id,
-            "value_path": meta.get("read_path", f"signalr_sensors.{name}"),
+            "value_path": read_path,
         }
         if "on_value" in meta:
             kwargs["on_value"] = meta["on_value"]
@@ -108,8 +118,13 @@ def _build_switch_descriptions() -> list[HymerSwitchEntityDescription]:
         # Detect main switch for optimistic sensor_data hack
         if name == "main_switch_ctrl":
             kwargs["is_main_switch"] = True
-        descriptions.append(HymerSwitchEntityDescription(**kwargs))
-    return descriptions
+        desc = HymerSwitchEntityDescription(**kwargs)
+        if meta.get("require_observed"):
+            watch = read_path.split(".", 1)[-1] if "." in read_path else name
+            gated.append((desc, watch))
+        else:
+            always.append(desc)
+    return always, gated
 
 
 async def async_setup_entry(
@@ -119,12 +134,47 @@ async def async_setup_entry(
 ) -> None:
     """Set up HYMER Connect switches from a config entry."""
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
-    descriptions = _build_switch_descriptions()
-    _LOGGER.debug("Switch platform: %d switch entities from JSON", len(descriptions))
+    descriptions, gated = _build_switch_descriptions()
+    _LOGGER.debug(
+        "Switch platform: %d switch entities from JSON (+%d gated)",
+        len(descriptions), len(gated),
+    )
     async_add_entities(
         HymerConnectSwitch(coordinator, desc, entry)
         for desc in descriptions
     )
+
+    if not gated:
+        return
+
+    # Observation-gated switches: create each only once its read sensor is
+    # actually reported, so absent components leave no phantom switch.
+    created_keys: set[str] = set()
+
+    @callback
+    def _async_discover_gated() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        new_entities: list[HymerConnectSwitch] = []
+        for desc, watch in gated:
+            if desc.key in created_keys:
+                continue
+            if watch not in sensors:
+                continue
+            created_keys.add(desc.key)
+            new_entities.append(HymerConnectSwitch(coordinator, desc, entry))
+            _LOGGER.info(
+                "Observation-gated switch %s materialised (%s reported)",
+                desc.key, watch,
+            )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _async_discover_gated()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
 
 
 class HymerConnectSwitch(
