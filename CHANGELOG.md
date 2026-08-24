@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.73.0] - 2026-08-24
+
+### Added
+
+- **Writable controls for the v2.71/v2.72 brandless `base.json` components — all observation-gated (created only once the vehicle reports the bus).** The read-only components mapped over the last two releases gained their writable controls:
+  - **Truma Combi NEO / NEO E (bus 119/120)** — water/air mode, energy-source and air target-temperature selects + number (`truma_neo_*` / `truma_neo_e_*`).
+  - **Schaudt EBL 400 (bus 2)** — 12 V main switch, water-pump switch, battery-type select and leisure-battery-capacity number (`ebl400_*`).
+  - **CBE PL50 (bus 52)** — seven tri-state output switches: interior/exterior/switched lights, water pump, EIS/EX, multimedia and remote on/off (`cbe_pl50_*`).
+  - **Dometic Series 10 absorber fridge (bus 9)** — power+cooling-step and power-source selects (`dometic_s10_*`).
+- **ZipDee power awning (bus 107) as a `cover` entity (`awning`), observation-gated.** A new JSON-driven `cover` platform: momentary open/close, stop, 0–100 position and a user-lock select. The tilt slots are intentionally not exposed (they map to no standard Home Assistant entity).
+- **Truma Aventa Comfort air-conditioner read sensors (bus 7 = `TrumaAventaComfort`), observation-gated (`aventa_*`).** Setpoint, operating mode and fan speed, read-only — the SCU mirrors the Aventa and silently drops writes to bus 7. Distinct from the Truma Aventa Compact on bus 59 (Eriba). Contributed via [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18) (@stbcgn, HYMER B-ML I 780).
+- **Alde 3030 ACC output as a writable A/C switch (`alde_acc_ctrl`, bus 5 slot 11).** On a HYMER B-ML I 780 this output switches the air conditioning (the bus-7 Aventa), which then regulates to the setpoint entered at the Alde panel; the slot was previously mapped read-only with an unknown function. Contributed via [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18) (@stbcgn).
+
+### Changed
+
+- **Several write paths confirmed on a second vehicle (HYMER B-ML I 780, @stbcgn / [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) — the `WRITE PATH UNVERIFIED` caveat was dropped.** The Alde 3030 (bus 5) heating/gas switches, the target-temperature number, and the energy-priority and hot-water selects; the TenHaaft satellite-position select (bus 10); and the `base.json` EBL 400 12 V/pump switches (bus 2) and Dometic Series 10 fridge selects (bus 9) are now confirmed on-vehicle.
+
+> The remaining new writable controls without an on-vehicle confirmation (Truma NEO, CBE PL50, the EBL 400 battery-type/capacity, and the awning) stay marked `WRITE PATH UNVERIFIED` — they are risk-free because each is observation-gated and only materialises on a vehicle that reports the bus.
+
 ## [2.72.0] - 2026-08-24
 
 ### Added
