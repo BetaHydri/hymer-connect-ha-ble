@@ -674,6 +674,38 @@
         "options": ["Performance Cooling", "Silent Mode", "Turbo Mode"],
         "read": { "value_sensor": "dometic_fridge_mode" },
         "writes": { "option": [{ "sid": 1, "str": "$option" }] }
+      },
+      "dometic_s10_cooling_step": {
+        "_doc": "Dometic Series 10 absorber fridge (EHG bus 9 = DometicSeries10) power + cooling level. Ground truth decompiled EHG app componentId 9: AbsorberOn = slot 1 (bool rw), FridgeLevel = slot 3 (int rw, range 1-5). Off routes to AbsorberOn=false; a level turns power on then sets the step (mirrors the Thetford/Dometic-compressor drivers). Reads dometic_s10_power (9,1) + dometic_s10_level (9,3). WRITE PATH UNVERIFIED on bus 9 - test control; revert if the SCU drops the write. require_observed: created only when bus 9 is reported.",
+        "name": "Fridge cooling step",
+        "icon": "mdi:fridge",
+        "control_bus": 9,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "dometic_s10_level",
+          "power_sensor": "dometic_s10_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "dometic_s10_power_mode": {
+        "_doc": "Dometic Series 10 fridge power-source select (bus 9 slot 2 = PowerMode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 9 stringRange (identical to the Thetford bus-32 SetPowerMode array, which is on-vehicle readback-confirmed by @FrankHae). Reads dometic_s10_power_mode (9,2). WRITE PATH UNVERIFIED on bus 9 - test control; revert if the SCU drops the write. require_observed: created only when bus 9 is reported.",
+        "name": "Fridge power source",
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 9,
+        "require_observed": true,
+        "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
+        "read": { "value_sensor": "dometic_s10_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
       }
     }
   }
