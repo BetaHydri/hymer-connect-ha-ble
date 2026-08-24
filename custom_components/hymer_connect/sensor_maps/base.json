@@ -462,6 +462,22 @@
     "97,11": { "name": "cerbo_sensor_failure", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
     "97,12": { "name": "cerbo_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
 
+    "_awning_doc": "ZipDee power awning (EHG bus 107, component 'ZipDeePowerAwning', kind awning). Universal optional component - observation-gated. Read-only status slots per the decompiled EHG app (componentId 107): slot 5 status (string), slot 9/10 tilt front/rear status (bool). The open/close/tilt/move-position controls (slots 1-4,6-8) are writable and left for a future cover/number entity.",
+    "107,5": { "name": "awning_status", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:awning-outline" },
+    "107,9": { "name": "awning_tilt_front", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:awning-outline" },
+    "107,10": { "name": "awning_tilt_rear", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:awning-outline" },
+
+    "_solar_cbe_doc": "CBE solar charger (EHG bus 117, component 'CBESolarCharger', kind solar_charger). Universal optional component - observation-gated. Named solar_cbe_* to stay distinct from the Voltronic MPPT solar_* on bus 8. Voltage/current are EHG floats with plausible ranges (0-125 V / 0-50 A) so they ship enabled.",
+    "117,1": { "name": "solar_cbe_active", "require_observed": true, "platform": "binary_sensor", "device_class": "running", "icon": "mdi:solar-power" },
+    "117,2": { "name": "solar_cbe_voltage", "require_observed": true, "platform": "sensor", "unit": "V", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+    "117,3": { "name": "solar_cbe_current", "require_observed": true, "platform": "sensor", "unit": "A", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-dc" },
+    "117,4": { "name": "solar_cbe_charging_state", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:solar-power" },
+
+    "_battery_guard_doc": "BatteryGuard 1000 DC power guard (EHG bus 96, component 'BatteryGuard1000'). Universal optional component - observation-gated. Read-only fault/firmware slots per the decompiled EHG app (componentId 96): slot 3 battery_low_warning (bool), slot 4 device_failure (int 0-2), slot 5 firmware (string). The primary/auxiliary DC-disconnect controls (slots 1-2) are writable and left for a future switch entity.",
+    "96,3": { "name": "battery_guard_low_warning", "require_observed": true, "platform": "binary_sensor", "device_class": "battery", "icon": "mdi:battery-alert" },
+    "96,4": { "name": "battery_guard_device_failure", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
+    "96,5": { "name": "battery_guard_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
     "_hss_doc": "HYMER Smart Sensors (aftermarket BLE sensors paired to the SCU) + the fine wired water levels. Moved here from hymer.json so any brand with these components gets them automatically. The HSS tyre/temp/contact/gas sensors use the auto-slot mechanism (bus_name 'auto:<group>:{n}', distinguished by PIA field 10 device id) - they are inherently observation-gated because the '{n}' template is never registered as a concrete entity (devices #1..N are materialised at runtime). The fine water levels on bus 76 use FIXED pin-6 (fresh) / pin-7 (grey) discriminators; unlike the auto-slot templates they WOULD be created unconditionally, so they carry require_observed to avoid phantom entities on vehicles that only have the coarse EBL levels on bus 3 (fresh_water_level_ebl / grey_water_level_ebl).",
     "70,1#t{n}": { "_doc": "HYMER Smart tyre sensor #{n} (auto-numbered). Devices #1..N materialised at runtime. Slot 5 (RSSI) intentionally unmapped.", "name": "hss_tyre{n}_status", "bus_name": "auto:tyre:{n}", "platform": "sensor", "icon": "mdi:car-tire-alert" },
     "70,2#t{n}": { "name": "hss_tyre{n}_pressure", "bus_name": "auto:tyre:{n}", "unit": "bar", "platform": "sensor", "device_class": "pressure", "state_class": "measurement", "icon": "mdi:gauge" },
