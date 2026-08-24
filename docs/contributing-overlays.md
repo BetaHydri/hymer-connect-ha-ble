@@ -160,7 +160,7 @@ logger:
 | **Integration loggers** | | |
 | `hymer_connect` | `warning` | General integration warnings and errors |
 | `api` | `debug` | OAuth2 token refresh status, EHG refresh→access token exchange (vehicle URN, token lengths, response keys on failure) |
-| `coordinator` | `info` | Command routing (cloud / SignalR with reconnect-retry), REST polling, SignalR reconnect scheduling. BLE is read-only since v2.62.24 — no BLE write decisions are logged. |
+| `coordinator` | `info` | Command routing (BLE-first with cloud/SignalR fallback since v2.67.0, reconnect-retry on the cloud leg), REST polling, SignalR reconnect scheduling. A BLE write the SCU ACKs logs `Command sent over BLE`; otherwise the command falls back to the cloud. |
 | `coordinator` | `debug` | BLE subscription events (sensor pushes only), path skip reasons (BLE not connected), connection mode changes |
 | `signalr_client` | `info` | Connection lifecycle, reconnects, UpdateTokens status, SCU reconnect events |
 | `signalr_client` | `debug` | Every SignalR message (very verbose) |
@@ -172,10 +172,12 @@ logger:
 | `bleak` | `warning` | Suppress bleak's default INFO-level GATT read/write chatter that clutters the log |
 | `bleak.backends.bluezdbus.client` | `info` | Low-level BlueZ D-Bus method calls, MTU negotiation results, adapter-level errors. Only needed when `ble_client: debug` doesn't show enough detail (e.g. GATT handle errors, BlueZ service resolution failures) |
 
-**What to look for when troubleshooting commands (v2.62.24+ — all writes go via cloud):**
+**What to look for when troubleshooting commands (v2.67.0+ — BLE-first with automatic cloud fallback):**
 
 | Log message | Meaning |
 |-------------|---------|
+| `Command sent over BLE (..., status=1)` | Write delivered over the local BLE link and ACKed by the SCU (no cloud needed) |
+| `BLE write not accepted (status=...) — falling back to cloud` | SCU did not ACK the BLE write; the command is re-sent via SignalR |
 | `Cloud command sent (attempt 1/2, ...)` | Normal successful command via SignalR |
 | `Cloud command failed (attempt 1/2) — forcing reconnect` | SignalR send returned False; coordinator marks the connection unhealthy and retries once |
 | `Command failed after reconnect+retry` | Both SignalR attempts failed — raised as HomeAssistantError to the caller |

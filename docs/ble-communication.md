@@ -296,14 +296,15 @@ BLE can operate fully offline — sensor streaming and control commands work
 without any cloud connectivity.  A fresh installation always requires internet
 for the OAuth2 handshake and `confirmationToken` API call during BLE pairing.
 
-### Write Commands (REMOVED in v2.62.24)
+### Write Commands (removed in v2.62.24, restored in v2.66.0/v2.67.0)
 
-> ⚠️ **Historical only.** As of v2.62.24 the integration **does not send any
-> writes over BLE**. All commands (lights, switches, heater, fridge, boiler)
-> are routed via the cloud / SignalR path with a single reconnect-retry on
-> failure. The text below describes how the BLE write path was *intended* to
-> work in v2.62.16 → v2.62.23 and is kept for archival / future-firmware
-> reference. See the **Why removed** subsection at the end.
+> ⚠️ **Historical only — superseded by v2.66.0/v2.67.0.** BLE writes were
+> removed in v2.62.24 (cloud-only), then **restored in v2.66.0 and turned on by
+> default in v2.67.0** once the real root cause (a client-side field-2 vs
+> field-1 `BleProtocol` envelope bug, found by Dan Simms) was fixed — see the
+> **Why removed** subsection below. The text in this section describes the
+> v2.62.16 → v2.62.23 BLE write path and the (incorrect) v2.62.24 removal
+> rationale, kept for archival reference.
 
 The coordinator's `_send_with_retry()` built the PIA protobuf payload locally
 (same `build_light_command()` / `build_multi_sensor_command()` used for SignalR)

@@ -92,28 +92,31 @@ Notes:
 > Every bus that currently has a mapping in `base.json` or `lights.json`, with the
 > EHG component it corresponds to and which vehicle confirmed
 > it. For the **full 128-component EHG catalog** — including buses we have *not*
-> mapped yet (e.g. **bus 2 `EBL400`**, bus 9 `DometicSeries10`, bus 100 `TPMS`, …)
+> mapped yet (e.g. **bus 65 `TrumaAventaComfortDirect`**, bus 108 `VehicleFiatChassis`, bus 116 `DellCoolFridge`, …)
 > with every slot definition extracted from the decompiled app — see
 > [`ehg-app-metadata.md`](ehg-app-metadata.md).
 
 | Bus | EHG component | Device / meaning | Overlay | Confirmed on |
 |-----|---------------|------------------|---------|--------------|
 | 1 | `VehicleSignal` | Mercedes Sprinter chassis CAN | base | S 600 / S 700 / ML-T 570 |
+| 2 | `EBL400` | Schaudt EBL 400 habitation controller | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
 | 3 | `EBL402` | CBE EBL402 habitation electrics | base | all |
 | 5 | `Alde3020` | Alde 3030 hydronic heater | base | BMC I 680 |
+| 7 | `TrumaAventaComfort` | Truma Aventa Comfort air conditioner | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
 | 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | base | S 600 / S 700 |
+| 9 | `DometicSeries10` | Dometic Series 10 absorber fridge | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
 | 10 | `TenhaaftSatAntenna` | ten Haaft satellite dish | base | BMC I 680 |
-| 11 | `LightCircuit01` | Living-room ceiling light | hymer | S 600 / S 700 |
-| 12 | `LightCircuit02` | Living-room ambient light | hymer | S 600 / S 700 |
-| 13 | `LightCircuit03` | Floor ambient light | hymer | BMC I 680 |
-| 14 | `LightCircuit04` | Bedroom ceiling light | hymer | ML-T 570 |
-| 15 | `LightCircuit05` | Bedroom ambient light | hymer | S 600 / S 700 |
-| 16 | `LightCircuit06` | Night light | hymer | S 600 / S 700 |
-| 17 | `LightCircuit07` | Shower ceiling light | hymer | BMC I 680 |
+| 11 | `LightCircuit01` | Living-room ceiling light | lights | S 600 / S 700 |
+| 12 | `LightCircuit02` | Living-room ambient light | lights | S 600 / S 700 |
+| 13 | `LightCircuit03` | Floor ambient light | lights | BMC I 680 |
+| 14 | `LightCircuit04` | Bedroom ceiling light | lights | ML-T 570 |
+| 15 | `LightCircuit05` | Bedroom ambient light | lights | S 600 / S 700 |
+| 16 | `LightCircuit06` | Night light | lights | S 600 / S 700 |
+| 17 | `LightCircuit07` | Shower ceiling light | lights | BMC I 680 |
 | 18 | `LightCircuit08` | Shower ambient light | lights | Eriba Car 602 |
-| 19 | `LightCircuit09` | Bathroom ceiling light | hymer | S 600 / BMC I 680 |
-| 21 | `LightCircuit11` | Kitchen light | hymer | S 600 / S 700 |
-| 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | hymer | S 600 |
+| 19 | `LightCircuit09` | Bathroom ceiling light | lights | S 600 / BMC I 680 |
+| 21 | `LightCircuit11` | Kitchen light | lights | S 600 / S 700 |
+| 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | lights | S 600 |
 | 24 | `LightGroup01` | "Wohnen" light group | lights | S 600 / S 700 / ML-T 570 |
 | 25 | `LightGroup02` | Outside LED bar | lights | S 600 |
 | 27 | `LightGroup04` | "Privat" light group | lights | S 600 / ML-T 570 / BMC I 680 |
@@ -126,6 +129,7 @@ Notes:
 | 44 | `LightCircuit20` | Bedroom overhead light | lights | S 600 |
 | 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
 | 49 | `LIM404Mod2` | Truma LIM module | base | S 600 |
+| 52 | `CBE_PL50_DISS` | CBE PL50 habitation controller | base | metadata (unverified) |
 | 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | base | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa Compact AC | base | Eriba Car 602 |
@@ -136,8 +140,17 @@ Notes:
 | 73 | `Component73` | HSS contact sensors (auto-slot) | base | HSS accessory |
 | 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | base | ML-T 570 |
 | 76 | `Component76` | Fresh / grey water tank levels | base | ML-T 570 |
+| 93 | `LightCircuit32` | Eriba bedroom-furniture light | lights | Eriba Car 602 |
+| 96 | `BatteryGuard1000` | BatteryGuard 1000 DC power guard | base | metadata (unverified) |
+| 97 | `CerboGX` | Victron Cerbo GX | base | metadata (unverified) |
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
+| 100 | `TPMS` | EHG factory TPMS | base | metadata (unverified) |
+| 105 | `SmartBatterySensor` | Intelligent Battery Sensor (IBS) | base | metadata (unverified) |
+| 107 | `ZipDeePowerAwning` | ZipDee power awning (cover) | base | metadata (unverified) |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |
+| 117 | `CBESolarCharger` | CBE solar charger | base | metadata (unverified) |
+| 119 | `TrumaCombiNeo` | Truma Combi NEO heater | base | metadata (unverified) |
+| 120 | `TrumaCombiNeo_E` | Truma Combi NEO E heater | base | metadata (unverified) |
 | 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional on S600)* | base | S 600 |
 
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)
@@ -979,7 +992,7 @@ Read-only sensors (mapped in v2.64.7):
 | (5, 8) | `alde_warning` | bool | `PanelBusy` — a warning/attention is pending at the Alde panel (e.g. the antibacterial/Legionella boiler-service reminder). `binary_sensor` `device_class: problem`. **Renamed `alde_error` → `alde_warning` in v2.65.6** at @FrankHae's request: this slot is a panel-attention/warning flag, not a hard fault. **Remapped from slot 12 → slot 8 in v2.65.1** on @FrankHae's on-vehicle evidence: during a real Alde panel reminder (13–14 Jul 2026) slot 8 was `True` for the whole window and `False` otherwise, while slot 12 stayed `False`. **Only the boolean is transmitted — the message TEXT is panel-only.** A pending warning can block remote on/off from HA and the EHG app until acknowledged with **OK on the panel** (Alde firmware behaviour, not overridable). |
 | (5, 14) | `alde_heating_active` | bool | `pump_running` — circulation pump active (= actively heating). `binary_sensor` `device_class: running`. |
 | (5, 10) | `alde_gas_active` | bool | `GasSetting` (bool, **rw**) — gas enable. Read sensor backing `switch.hymer_alde_gas`. Added v2.65.2. |
-| (5, 11) | `alde_acc_setting` | bool | `AccSetting` (bool, **rw** per decompiled model) — function unknown (likely an auxiliary output). Exposed **read-only** for now until @FrankHae observes what toggles it. Added v2.65.2. |
+| (5, 11) | `alde_acc_setting` | bool | `AccSetting` (bool, **rw**). On a HYMER B-ML I 780 this output switches the **air conditioning** (the bus-7 Truma Aventa), which then regulates to the setpoint entered at the Alde panel. Now also exposed as a writable **A/C switch** (`alde_acc_ctrl`, v2.73.0, confirmed by @stbcgn on a B-ML I 780, [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)). Read sensor added v2.65.2. |
 | (5, 12) | `alde_error` | bool | `Error` (bool, r) — dedicated hard-fault flag, distinct from the slot-8 panel-attention `alde_warning`. **Renamed `alde_fault` → `alde_error` and enabled in v2.65.6** at @FrankHae's request: this is the true fault flag. Stayed `False` during his antibacterial-reminder lockout (13–14 Jul 2026), confirming it only trips on a real fault. Added v2.65.2. |
 | (5, 15) | `alde_outside_temp` | °C | `outdoor_actual_temperature` (float). Under-vehicle probe. |
 
@@ -997,7 +1010,7 @@ Writable controls (added v2.64.8 — **bus-5 write path CONFIRMED on-vehicle by 
 Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidates for a future release once bus-5 writes are proven):
 
 - (5, 2) `Zone2ActualTemperature` / (5, 4) `Zone2TargetTemperature` (rw) — second heating zone; on Frank's single-zone BMC they read constant placeholders (85.0 / 36.0).
-- (5, 11) `AccSetting` (rw bool) — exposed read-only as `alde_acc_setting` in v2.65.2; a writable switch is deferred until its function is confirmed on-vehicle.
+- (5, 11) `AccSetting` (rw bool) — read sensor `alde_acc_setting` (v2.65.2); now also a writable **A/C switch** (`alde_acc_ctrl`, v2.73.0). On a B-ML I 780 it switches the bus-7 Truma Aventa A/C (@stbcgn, [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)).
 - (5, 13) `ac_installed` (r bool) — constant False on Frank's vehicle (no AC).
 
 Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.

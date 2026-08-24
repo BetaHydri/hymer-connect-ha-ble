@@ -23,9 +23,9 @@ learned from production issues.
 ```
 Home Assistant
     └── coordinator.py (DataUpdateCoordinator, polls every 60s)
-            ├── ble_client.py (BLE direct path — sensor reads only since v2.62.24)
+            ├── ble_client.py (BLE direct path — sensor reads + BLE-first writes since v2.67.0)
             │       └── SCU in vehicle (via BLE GATT / TLS / PIA)
-            └── signalr_client.py (always active — full sensor coverage + all writes)
+            └── signalr_client.py (always active — full sensor coverage + write fallback)
                     └── Azure SignalR Service (ehg-prod-signalr.service.signalr.net)
                             └── SCU in vehicle (via LTE)
 ```

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.2] - 2026-08-24
+
+### Changed
+
+- **Documentation + in-app help refreshed for the current (v2.70–v2.76) state — no code-logic changes.** The in-app description of the *Enable BLE direct path* option now spells out its three concrete benefits (faster ~50 ms updates, works with no internet/LTE, and — the key one — live sensors even while 12 V is OFF, since the SCU's BLE radio stays active in standby while the cloud stops pushing). `README.md` and the `docs/` set were brought up to date: the sensor-map bus index now lists all newly-mapped observation-gated buses (2/7/9/52/93/96/97/100/105/107/117/119/120) and marks interior lights as living in `lights.json`; the Alde ACC output is documented as a writable A/C switch; the stale "BLE is read-only / all writes via cloud (v2.62.24)" notes were corrected to BLE-first-with-cloud-fallback (v2.67.0+); a "cloud-only → add BLE for the full dual-path" guide and a "how the two BLE checkboxes interact (and what pairing sets)" section were added; and @stbcgn's B-ML I 780 contributions were credited.
+
+No entity IDs change and no configuration migration is required.
+
 ## [2.76.1] - 2026-08-24
 
 ### Fixed

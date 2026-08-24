@@ -159,9 +159,10 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 
 | Domain | Entities | Notes |
 |---|---|---|
-| **Switches** | 12V main, water pump, fridge ECO (Leise) | With 12V off, lights + pump become **unavailable** (guard); fridge/boiler/heater stay controllable |
+| **Switches** | 12V main, water pump, fridge ECO (Leise) | With 12V off, lights + pump go **unavailable** (guard keys on `main_switch` off *or* prolonged SCU data-silence, v2.76.1); fridge/boiler/heater stay controllable |
 | **Lights** | 8 interior + outside LED bar + 2 group toggles (Wohnen / Privat) | On/Off, brightness; **color temp on ambient lights only** (Wohnen bus 12, Privat bus 15) |
-| **Climate** | Truma heater (target temp, Heat/Off), heater energy source, boiler mode, fridge cooling step | Alde 3030 (bus 5, BMC I 680) read-only + writable controls in progress |
+| **Climate** | Truma Combi heater (target temp, Heat/Off), heater energy source, Off/ECO/Hot boiler, Alde 3030 (heating + A/C switch, target temp, energy priority, hot water), Truma Aventa A/C, fridge cooling step | Truma Combi on bus 58 (DE) / 57 (D, diesel-only) / 119·120 (NEO); Alde 3030 (bus 5) now **read + writable** — confirmed BMC I 680 + B-ML I 780 |
+| **Cover** | ZipDee power awning — open / close / stop, 0–100 % position, user-lock | Observation-gated (bus 107, v2.73.0); tilt slots not exposed |
 | **Fuel (computed)** | tank liters, consumption (L/100km), estimated range | Derived from CAN odometer + fuel %; tank capacity configurable (default 93 L) |
 | **Device tracker** | GPS location on the HA map | Requires **"Find-My-RV"** enabled in the EHG app (Mehr → Services und Abonnements) |
 
@@ -295,6 +296,34 @@ cloud-only setup, and first checks — lives in **[quick-start.md](quick-start.m
 | **C — Cloud-only (Android app)** | The [token-extractor APK](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) pairs on your phone and shows the token to copy/paste (**Android-only**; sideload, use once, then uninstall) |
 
 Once obtained, the refresh token is stored in the config entry and **survives HACS updates**.
+
+### Already cloud-only? Add BLE for the full dual-path
+
+If you set up cloud-only (Path B/C) and later move the HA host into the vehicle, you can add the local BLE
+path **without re-adding the integration** — you just pair the host to the SCU once. This gives you the real
+**dual-path** setup (BLE ~50 ms local + cloud worldwide, running concurrently with automatic failover; BLE also
+keeps working in 12V standby and fully offline).
+
+**What you need**
+
+- A **BLE adapter** on the HA host (a **Raspberry Pi 4**'s built-in Bluetooth is the verified setup) and the
+  Home Assistant **Bluetooth** integration enabled.
+- The host **in Bluetooth range** of the SCU with the vehicle's **12 V on**.
+- Your **dealer QR activation token** (handover paperwork). The host mints its **own** BLE-bound refresh token
+  during pairing — the phone/APK token does **not** work for the host's BLE path.
+
+**Steps** (full detail: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup))
+
+1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Reconfigure**.
+2. Paste the **QR activation token**; leave **SCU Bluetooth address** empty (auto-scan) and leave **EHG Remote
+   Access Refresh Token** empty so a **fresh pairing is triggered** (pasting a token here skips pairing).
+3. **Press CONNECTION** on the SCU panel, then **submit the form within ~25 s** (the pairing window can be as
+   short as ~30 s) and don't close the dialog.
+4. On **BLE Pairing Complete** the host is bonded and has stored its own token — sensors now stream over BLE.
+
+Writes go **BLE-first with automatic cloud fallback** by default (v2.67.0+); toggle it under **⚙️ Configure →
+"Send commands over BLE when connected"**. Which knob lives where (Configure vs Reconfigure) and every option is
+explained in [Configure vs Reconfigure](docs/ble-troubleshooting.md#where-each-setting-lives-configure-vs-reconfigure).
 
 **More setup references:** [BLE setup & troubleshooting](docs/ble-troubleshooting.md) · [Dashboard helpers](dashboards/README.md) · [Token capture & tools](tools/README.md) · [SignalR internals](docs/signalr-connection.md) · [BLE internals](docs/ble-communication.md)
 
@@ -485,6 +514,13 @@ graph TB
 | 114 | — | PIA | ML-T 570 Thetford Compressor T2120C fridge | Power, silent/night mode, cooling step 1–5, freezer level 0–3, door, warning |
 | 121 | — | PIA | Victron MultiPlus | Inverter/charger state, V/A/Hz, shore input (disabled — **non-functional**, VE.Bus incompatible with vehicle CAN) |
 
+> **Additional observation-gated components now in `base.json` (v2.70–v2.76)** — created only when your vehicle
+> reports the bus: bus 2 Schaudt EBL 400 · bus 7 Truma Aventa Comfort A/C · bus 9 Dometic Series 10 fridge ·
+> bus 52 CBE PL50 · bus 57 Truma Combi D (diesel-only) · bus 59 Truma Aventa Compact A/C · bus 96 BatteryGuard 1000 ·
+> bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 105 Intelligent Battery Sensor · bus 107 ZipDee power awning ·
+> bus 117 CBE solar charger · bus 119/120 Truma Combi NEO / NEO E. Full list:
+> [`docs/sensor-map.md`](docs/sensor-map.md#complete-bus-index-mapped-buses).
+
 > **Note:** "PIA-addressed devices" are not necessarily on a separate physical bus — PIA is a logical addressing
 > layer; the SCU may route them over LIN, SPI, BLE or proprietary wiring. What matters for the integration is the
 > `(bus_id, sensor_id)` address. Full slot-by-slot reference: [`docs/sensor-map.md`](docs/sensor-map.md).
@@ -493,7 +529,8 @@ graph TB
 
 > **Primary development vehicle:** HYMER Grand Canyon S 600 CrossOver (2025, Mercedes Sprinter, Truma Combi D6E,
 > Thetford N4112A fridge, Voltronic MPP260CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
-> smart sensors) and HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge). All
+> smart sensors), HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge) and HYMER
+> B-ML I 780 (first Truma Aventa Comfort + Alde ACC A/C switch, write paths confirmed via [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)). All
 > mappings are shared across brands in the observation-gated `base.json` / `lights.json`, so bus/slot behavior can
 > differ by model year and installed equipment — but an entity only materialises once your vehicle reports that bus.
 
@@ -505,10 +542,10 @@ graph TB
 | **Habitation sensors** (bus 3) | ✅ Yes | CBE EBL402 habitation electrics — in `base.json`, confirmed on every EHG SCU |
 | **Chassis CAN** (bus 1 — odometer, fuel, AdBlue, doors, locks, outside temp) | ⚠️ Partial | Confirmed on Mercedes-Sprinter models (S 600 / S 700 / ML-T 570 / BMC I 680); VW-Crafter Eriba reports its chassis on a different, not-yet-mapped bus |
 | **Lights** | ⚠️ Partial | Light bus IDs are specific to each floorplan; your vehicle may differ |
-| **Heater** (bus 58 Truma / bus 5 Alde / bus 59 Aventa) | ⚠️ Depends | Truma Combi on bus 58; Alde 3030 on bus 5 (read-only mapped, confirmed BMC I 680); Truma Aventa AC on bus 59 (Eriba) |
-| **Fridge** (bus 34 / 32 / 114 / 60) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60) |
-| **Solar** (bus 8) | ⚠️ Depends | Mapped for Votronic MPP260CI/MPP250Duo; other chargers may differ |
-| **Battery / BMS** (bus 99 / 29) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680). Slot meanings vary by model |
+| **Heater** (Truma Combi bus 58/57/119/120 · Alde bus 5 · Aventa bus 7/59) | ⚠️ Depends | Truma Combi **DE** on bus 58 (diesel+electric) and diesel-only Combi **D** on bus 57; Combi **NEO / NEO E** on bus 119/120; Alde 3030 on bus 5 (**read + writable**, confirmed BMC I 680 + B-ML I 780); Truma Aventa Comfort on bus 7 and Aventa Compact on bus 59 (read-only) |
+| **Fridge** (bus 34 / 32 / 114 / 60 / 9) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60), Dometic Series 10 absorber (9) |
+| **Solar** (bus 8 / 117) | ⚠️ Depends | Votronic MPP260CI/MPP250Duo on bus 8; CBE solar charger on bus 117; other chargers may differ |
+| **Battery / BMS** (bus 99 / 29 / 105 / 97 / 96) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680); EHG Intelligent Battery Sensor on bus 105; Victron Cerbo GX on bus 97; BatteryGuard 1000 on bus 96. Slot meanings vary by model |
 
 **Missing sensors are harmless:** the shared `base.json` / `lights.json` are **observation-gated**, so entities (and
 their writable stepped-switch selects and numbers) are created **only for buses your vehicle actually reports** — no
@@ -681,6 +718,7 @@ Big thanks to everyone who contributed sensor mappings, debugging time, or APK m
 - [@mvondemhagen](https://github.com/mvondemhagen) — Dometic compressor fridge mapping (bus 60) on Eriba Car 602 ([#54](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/54)).
 - [@mcfly1969](https://github.com/mcfly1969) — first HYMER ML-T 570 CrossOver mappings (bus 14 bedroom ceiling, bus 66 dinette pendant, **bus 114 Thetford Compressor T2120C fridge**), discovered via the dynamic-discovery diagnostic sensors and confirmed at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
 - [@FrankHae](https://github.com/FrankHae) — first HYMER **BMC I 680 (MY2024)** mappings and the **first Alde heater** in the project: bus 13 (floor ambient) and bus 17 (shower ceiling) lights, plus the **Alde 3030** heater (bus 5), **TenHaaft satellite dish** (bus 10) and **Thetford N4142E+ fridge** (bus 32) ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)).
+- [@stbcgn](https://github.com/stbcgn) — HYMER **B-ML I 780** contributions ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)): the **Truma Aventa Comfort** A/C read sensors (bus 7), the **Alde 3030 ACC** output as a writable **A/C switch** (bus 5 slot 11), and on-vehicle confirmation of the Alde, TenHaaft-satellite, EBL 400 and Dometic Series 10 write paths.
 - **Steve Förster** — extensive on-device testing of the **EHG Token Extractor** on a Samsung Galaxy S20 FE 5G, whose detailed handshake logs drove the legacy-TLS fixes for modern Android (BouncyCastle JSSE switch, `peerNetBuffer` read-mode fix, incoming PIA-frame reassembly in v2.65.9–v2.65.14) — and who verified the working extractor on-device with v2.65.14.
 
 ## Key Terminology

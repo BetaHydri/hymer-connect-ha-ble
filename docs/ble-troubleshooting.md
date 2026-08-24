@@ -67,7 +67,7 @@ they do **different jobs**. The short rule:
 | Field | What it does |
 | --- | --- |
 | **Fresh/grey water tank capacity** (30–200 L) | Tank size used to convert the raw level into a percentage. Pure display — nothing to do with BLE. |
-| **Enable BLE direct path (sensor reads only)** | **On/off switch for the read path only.** It assumes a bond + token already exist. Ticking it on a never-paired host does **nothing useful** — it does **not** pair. Pair first via Reconfigure. |
+| **Enable BLE direct path (sensor reads only)** | **On/off switch for the local sensor-read stream.** Turn it on for three benefits the cloud can't give: **(1)** faster updates — sensor pushes arrive in **~50 ms** vs **500 ms–2 s** over cloud; **(2)** **live sensors with no internet/LTE** — after the one-time online setup this read stream is **fully offline** (dead SIM, underground garage, HA offline still work); **(3)** **live sensors while 12 V is OFF** — in SCU standby the cloud stops pushing passive updates (doors/temps/water/battery), but the SCU's BLE radio stays active, so this is the **only** way to keep reading them in standby. It is also the **prerequisite** for the write option below. It assumes a bond + token already exist — ticking it on a never-paired host does **nothing useful** (it does **not** pair; pair first via Reconfigure). |
 | **Send commands over BLE when connected (recommended)** | **On by default (v2.67.0+).** When BLE is connected, write commands (lights, switches, heater, fridge, …) are tried over the local BLE link first and **fall back to the cloud automatically** if the SCU doesn't acknowledge. If BLE is not connected, everything goes via the cloud anyway. Requires *Enable BLE direct path* + a completed pairing to take effect. Fixed in **v2.66.0** (subscription path in **v2.66.2**), confirmed on a Grand Canyon S 600 (fw 1.13.0.0). Untick to **force cloud-only**. Since **v2.67.2** each successful BLE command logs one `INFO` line — `Command sent over BLE (…, status=1)` — visible in the normal log without debug enabled. |
 | **SCU Bluetooth address** | Optional. Pin the SCU MAC so the host skips the auto-scan. Leave empty to auto-discover. |
 | **OAuth Basic auth header** | Advanced/optional. Override the OAuth client credentials (rarely needed). |
@@ -91,6 +91,42 @@ they do **different jobs**. The short rule:
 > **Reconfigure** with the **QR token** and leave the EHG token empty. Use
 > **⚙️ Configure** afterwards only to turn that read path off/on, pin the MAC, or
 > clear the bond.
+
+### How the two BLE options interact (and what pairing sets)
+
+The two BLE checkboxes are **layered**, not independent:
+
+- **Enable BLE direct path** is the **master switch** — it brings up the BLE connection (the read
+  stream). No BLE link exists unless this is on.
+- **Send commands over BLE** rides *on top* of that link. It only has any effect while BLE is
+  actually connected; on its own it does nothing.
+
+So for a **BLE write** to actually fire, **both** must be on:
+
+| Enable BLE direct path (read) | Send commands over BLE (write) | Result |
+|---|---|---|
+| ✅ on | ✅ on | Sensors **and** writes over BLE (writes fall back to cloud if un-ACKed) |
+| ✅ on | ❌ off | Sensors over BLE, **writes via cloud** |
+| ❌ off | ✅ on | **Nothing local** — no BLE link, so writes go via cloud (identical to pure cloud) |
+| ❌ off | ❌ off | Pure cloud |
+
+The dependency is enforced in code: `coordinator._connect_ble` returns immediately if the read flag
+is off (so no BLE client is created), and `coordinator._try_ble_write` returns `False` — i.e. cloud
+fallback — unless the write flag is on **and** the BLE client is connected.
+
+**After a successful pairing, both are effectively ON:**
+
+- The **read** flag is set to `True` explicitly by the pairing flow — the initial setup form defaults
+  the box on, and Reconfigure hard-sets it when a QR token / SCU address is supplied.
+- The **write** flag is `True` by **default** (`DEFAULT_BLE_WRITE_ENABLED = True`, v2.67.0+) and the
+  pairing flow never disables it.
+
+So a freshly paired host immediately does **BLE-first reads and writes** with automatic cloud
+fallback — no extra checkbox flip needed.
+
+> **Edge case:** because pairing only touches the *read* flag, if you had previously **unticked**
+> *Send commands over BLE* (storing write = off), re-pairing will **not** re-enable it — your
+> cloud-only-writes choice is preserved. Re-tick it under **⚙️ Configure** to get BLE writes back.
 
 ## Verified hardware
 
