@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.68.3] - 2026-08-24
+
+### Added
+
+- **Dometic compressor fridge control for the Eriba Car 602 (bus 60).** Eriba-brand vehicles load only `base.json` + `eriba.json` (never `hymer.json`), so the v2.68.0–v2.68.2 Dometic controls did not reach them. This release mirrors the two writable selects into `eriba.json`: `select.*_dometic_fridge_cooling_step` (Off / 1–5 via PowerOn slot 8 + Temperature slot 2) and `select.*_dometic_fridge_mode` (Performance Cooling / Silent Mode / Turbo Mode, slot 1). The read sensors already existed in `eriba.json` (contributed by @mvondemhagen, #54). Eriba is a HYMER Group brand running the **identical EHG SCU** and the **same `DometicCompressorFridge` component**, and the write paths were on-vehicle confirmed on a HYMER-brand vehicle, so these controls are treated as working (not marked unverified).
+
 ## [2.68.2] - 2026-08-24
 
 ### Verified

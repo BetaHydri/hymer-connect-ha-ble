@@ -637,7 +637,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 
 ### Writable controls (v2.68.0)
 
-Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`), same as the Thetford fridges:
+Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`), same as the Thetford fridges. They live in **both `hymer.json`** (HYMER-brand vehicles) **and `eriba.json`** (Eriba Car 602, mirrored in v2.68.3) — each brand loads only its own overlay, so the controls must be duplicated. Same `DometicCompressorFridge` component + EHG SCU, so behaviour is identical:
 
 - **`select.*_dometic_fridge_cooling_step`** — options `Off / 1 / 2 / 3 / 4 / 5`. Selecting a level writes `PowerOn` (slot 8) = `true`, waits 500 ms, then writes the level (slot 2) as an int; **Off** writes `PowerOn` (slot 8) = `false`. Readback reflects `Off` whenever `dometic_fridge_power` is false. Both the level write (slot 2) and the on/off write (slot 8, Off branch) are confirmed on-vehicle.
 - **`binary_sensor.*_dometic_fridge_door`** — door-open state derived from the slot-16 warning enum (`dometic_fridge_warning`: 0 = closed, 10 = open; `on_value` 10). `door` device class. Confirmed on-vehicle.
