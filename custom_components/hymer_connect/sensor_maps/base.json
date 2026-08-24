@@ -11,6 +11,22 @@
     "No platform = decode-only (value stored but no HA entity created).",
     "Array format [name, unit, transform] still supported for backward compat."
   ],
+  "_naming": [
+    "ENTITY NAMING CONVENTION (v2.70.1+). 'name' is the stable object_id suffix HA uses to",
+    "build the entity_id. It is FROZEN once shipped - NEVER rename an existing entity, that",
+    "breaks user dashboards & automations. A correction is done by adding a NEW alias, never",
+    "by renaming. Scheme: <group>[_<qualifier>]_<function>, lower_snake_case.",
+    "  <group>     = what the user thinks in: a function domain (fridge, heater, water, solar,",
+    "                battery/bms, tank, sat, tpms, awning, light, habitation) OR a brand/product",
+    "                when the brand IS the identity (dometic, truma, alde, victron, cerbo).",
+    "  <qualifier> = short disambiguator, ONLY when two devices share a group on overlapping",
+    "                vehicles (fridge_absorber vs fridge_compressor; heater vs truma vs alde).",
+    "  <function>  = the measured/controlled quantity (voltage, current, soc, door, power, mode,",
+    "                error, firmware, ...).",
+    "Never encode the EHG componentId or the bus number in the name (e.g. 'dometicseries10_*'",
+    "or 'bus9_*' are internal-only, not user-facing). Every appliance entity carries",
+    "require_observed so it materialises only when the vehicle actually reports its bus."
+  ],
   "sensors": {
     "1,1": {
       "name": "odometer",
@@ -431,6 +447,20 @@
     "100,20": { "name": "tpms_temp_spare", "require_observed": true, "platform": "sensor", "device_class": "temperature", "unit": "°C", "state_class": "measurement", "icon": "mdi:thermometer" },
     "100,21": { "name": "tpms_temp_status_spare", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:thermometer-alert" },
     "100,22": { "name": "tpms_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
+    "_cerbo_doc": "Victron Cerbo GX energy monitor (EHG bus 97, component 'CerboGX', kind power_system). Universal optional component - observation-gated so it only materialises on vehicles that actually report bus 97. Distinct from the Victron inverter/charger on bus 121 (victron_*), hence the cerbo_* prefix. Semantics from the decompiled EHG app (componentId 97): LPG levels + battery V/A/SoC are direct floats/ints (safe). Two fields are shipped enabled:false with SCALE UNVERIFIED until a Cerbo-equipped vehicle confirms: slot 6 time_remaining (EHG unit is a bogus '%', raw max 99999999 => likely seconds/minutes) and slot 7 solar_panel_power (raw max 33542 'W' is implausibly high for a camper array => likely a scaled raw int).",
+    "97,1": { "name": "cerbo_lpg_level", "require_observed": true, "platform": "sensor", "unit": "%", "state_class": "measurement", "icon": "mdi:propane-tank" },
+    "97,2": { "name": "cerbo_lpg_level_2", "require_observed": true, "platform": "sensor", "unit": "%", "state_class": "measurement", "icon": "mdi:propane-tank" },
+    "97,3": { "name": "cerbo_battery_voltage", "require_observed": true, "platform": "sensor", "unit": "V", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+    "97,4": { "name": "cerbo_battery_current", "require_observed": true, "platform": "sensor", "unit": "A", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-dc" },
+    "97,5": { "name": "cerbo_battery_soc", "require_observed": true, "platform": "sensor", "unit": "%", "device_class": "battery", "state_class": "measurement", "icon": "mdi:battery" },
+    "97,6": { "_doc": "Cerbo GX battery time-remaining. EHG unit is a bogus '%' and raw max is 99999999 (likely seconds or minutes) - SCALE/UNIT UNVERIFIED, shipped enabled:false without a unit until a Cerbo vehicle confirms.", "name": "cerbo_battery_time_remaining", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "enabled": false, "icon": "mdi:clock-outline" },
+    "97,7": { "_doc": "Cerbo GX solar array power. Raw int with an implausible max of 33542 'W' for a camper array => likely a scaled raw unit - SCALE UNVERIFIED, shipped enabled:false until a Cerbo vehicle confirms the transform.", "name": "cerbo_solar_power", "require_observed": true, "platform": "sensor", "unit": "W", "device_class": "power", "state_class": "measurement", "enabled": false, "icon": "mdi:solar-power" },
+    "97,8": { "name": "cerbo_solar_active", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:solar-power" },
+    "97,9": { "name": "cerbo_solar_voltage", "require_observed": true, "platform": "sensor", "unit": "V", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+    "97,10": { "name": "cerbo_solar_current", "require_observed": true, "platform": "sensor", "unit": "A", "device_class": "current", "state_class": "measurement", "icon": "mdi:current-dc" },
+    "97,11": { "name": "cerbo_sensor_failure", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
+    "97,12": { "name": "cerbo_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
 
     "_hss_doc": "HYMER Smart Sensors (aftermarket BLE sensors paired to the SCU) + the fine wired water levels. Moved here from hymer.json so any brand with these components gets them automatically. The HSS tyre/temp/contact/gas sensors use the auto-slot mechanism (bus_name 'auto:<group>:{n}', distinguished by PIA field 10 device id) - they are inherently observation-gated because the '{n}' template is never registered as a concrete entity (devices #1..N are materialised at runtime). The fine water levels on bus 76 use FIXED pin-6 (fresh) / pin-7 (grey) discriminators; unlike the auto-slot templates they WOULD be created unconditionally, so they carry require_observed to avoid phantom entities on vehicles that only have the coarse EBL levels on bus 3 (fresh_water_level_ebl / grey_water_level_ebl).",
     "70,1#t{n}": { "_doc": "HYMER Smart tyre sensor #{n} (auto-numbered). Devices #1..N materialised at runtime. Slot 5 (RSSI) intentionally unmapped.", "name": "hss_tyre{n}_status", "bus_name": "auto:tyre:{n}", "platform": "sensor", "icon": "mdi:car-tire-alert" },
