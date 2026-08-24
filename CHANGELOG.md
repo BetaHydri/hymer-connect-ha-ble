@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.0] - 2026-08-24
+
+### Added
+
+- **Truma Aventa Compact air conditioner (bus 59, `aventa_compact_*`), observation-gated.** The previously-undecoded Eriba bus-59 placeholders (`ac_aventa_slot_1..8`, which created no entities) are now a proper read-only decode in `base.json`: target/room temperature, mode, fan speed, and the on-unit light + error / manual / automatic status flags. Ground truth: decompiled EHG app `componentId 59`. Distinct from the Truma Aventa Comfort on bus 7 (`aventa_*`); now available on any brand that reports bus 59.
+
+### Changed
+
+- **Eriba brand overlay emptied — its components migrated into the shared, brandless maps.** The shower-ambient (bus 18) and bedroom-furniture (bus 93) lights moved into the gated `lights.json` (the `light.*` entity IDs are unchanged and stay gated, so no phantoms appear on other brands; each also gains a gated status `binary_sensor` like every other mapped light). `eriba.json` is now an empty overlay. With both the HYMER and Eriba overlays empty, the sensor mapping is effectively fully brandless — every fixed EHG component lives in `base.json` / `lights.json`, observation-gated.
+
+No entity IDs change. As always after a HACS update, **restart** Home Assistant (not just “Reload”).
+
 ## [2.75.0] - 2026-08-24
 
 ### Changed
