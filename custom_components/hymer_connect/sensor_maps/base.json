@@ -424,6 +424,16 @@
     "60,20": { "name": "dometic_lchange" },
     "60,21": { "name": "dometic_heartbeat" },
 
+    "_dometic_s10_doc": "Dometic Series 10 absorber fridge (EHG bus 9 = DometicSeries10, e.g. RMD 10.5). A DIFFERENT product from the Dometic COMPRESSOR fridge on bus 60 (dometic_*, confirmed on-vehicle by owner 'Jos'), hence the dometic_s10_* prefix. Universal optional component - observation-gated so it only materialises on vehicles that actually report bus 9. Read sensors per the decompiled EHG app (componentId 9); the power/mode/level slots (1-3) are rw and are exposed here as read sensors - a writable select/switch can follow once a Series-10 owner confirms the write path on-vehicle. UNVERIFIED: no Series-10 owner has confirmed yet, semantics taken from the EHG metadata.",
+    "9,1": { "name": "dometic_s10_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "9,2": { "name": "dometic_s10_power_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-industrial" },
+    "9,3": { "name": "dometic_s10_level", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge" },
+    "9,4": { "name": "dometic_s10_busy", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:fridge" },
+    "9,5": { "name": "dometic_s10_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
+    "9,6": { "name": "dometic_s10_temperature_state", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:thermometer" },
+    "9,7": { "name": "dometic_s10_power_source", "require_observed": true, "platform": "sensor", "icon": "mdi:power-plug" },
+    "9,8": { "name": "dometic_s10_warning", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:fridge-alert" },
+
     "_tpms_doc": "TPMS (EHG bus 100, component 'TPMS', kind tpms). Universal optional component - observation-gated so it only materialises on vehicles that actually report bus 100. Pressures are int with a declared range 0-9500 'psi'; that range implies a scaled raw unit (e.g. psi*100), so pressures are shipped enabled:false with SCALE UNVERIFIED until a TPMS-equipped vehicle confirms the transform. Temperatures are EHG floats (direct degC per the Alde/Truma convention; -273 = no-data sentinel). Status/firmware are strings (safe decode).",
     "100,1": { "name": "tpms_pressure_fr", "require_observed": true, "platform": "sensor", "device_class": "pressure", "unit": "psi", "state_class": "measurement", "enabled": false, "icon": "mdi:car-tire-alert" },
     "100,2": { "name": "tpms_pressure_fl", "require_observed": true, "platform": "sensor", "device_class": "pressure", "unit": "psi", "state_class": "measurement", "enabled": false, "icon": "mdi:car-tire-alert" },
