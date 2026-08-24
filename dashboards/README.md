@@ -214,4 +214,4 @@ If you already created the older helper, edit it and:
 
 The integration auto-creates a generic, **disabled-by-default** diagnostic sensor (`Discovered bus N slot M`) for every PIA `(bus, slot)` pair the SCU reports that is not already in the named-sensor map.
 
-Useful especially for **non-HYMER EHG brands** (Eriba, Bürstner, Dethleffs, LMC, Niesmann+Bischoff, Sunlight, Carado, Laika, FreeOnTour) where the slot map may have gaps. See the main [README](../README.md#-dynamic-slot-discovery-v2340) for details and how to contribute mappings back upstream.
+Useful especially for **non-HYMER EHG brands** (Eriba, Bürstner, Dethleffs, LMC, Niesmann+Bischoff, Sunlight, Carado, Laika, FreeOnTour) where the slot map may have gaps. See the main [README](../README.md#dynamic-slot-discovery-v2340) for details and how to contribute mappings back upstream.
