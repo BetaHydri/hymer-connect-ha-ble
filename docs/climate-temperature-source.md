@@ -7,8 +7,8 @@
 ## TL;DR — read this first
 
 You **can** change which temperature the Truma climate entity **shows** as its
-*current temperature*, purely by editing one field in the brand-overlay JSON
-(`sensor_maps/<brand>.json` → `climate.truma_heater.temp_sensor`).
+*current temperature*, purely by editing one field in the shared sensor map
+(`sensor_maps/base.json` → `climate.truma_heater.temp_sensor`).
 
 > [!IMPORTANT]
 > **This does NOT change how the Truma heater behaves.** It only changes the
@@ -31,7 +31,7 @@ below.
 
 ## What the `temp_sensor` field controls
 
-The Truma climate entity is defined in the brand overlay under
+The Truma climate entity is defined in the shared `base.json` under
 `climate.truma_heater` (see [`sensor-map.md`](sensor-map.md)):
 
 ```jsonc
@@ -69,11 +69,11 @@ hss_temp1_temperature
 ```
 
 (The second is `hss_temp2_temperature`, and so on. See the `74,1#tp{n}` auto-slot
-template in `hymer.json` and the auto-slot rules in
+template in `base.json` and the auto-slot rules in
 [`sensor-map.md`](sensor-map.md).)
 
 To make the Truma climate card display that HSS reading instead of the default,
-change **one line** in your brand overlay (e.g. `sensor_maps/hymer.json`):
+change **one line** in `sensor_maps/base.json`:
 
 ```jsonc
 "climate": {

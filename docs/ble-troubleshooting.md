@@ -206,13 +206,11 @@ logger:
 
 ## Why do I see log lines (and entities) for hardware my vehicle doesn't have?
 
-Each brand overlay (e.g. `hymer.json`) maps **every known model** of that brand, so
-the integration offers controls for hardware your specific build may lack (Alde
-heater, absorber/compressor fridge, satellite dish, …). This is expected — see
-[README → Shared brand overlays](../README.md).
-
-With **debug logging** enabled you will additionally see one line per brand-defined
-writable control at startup, for example:
+All mappings live in the shared, **observation-gated** `base.json` / `lights.json`,
+so an entity is created **only once your vehicle reports that bus** — you should
+*not* get phantom entities for hardware you lack (Alde heater, absorber/compressor
+fridge, satellite dish, …). With **debug logging** enabled you may still see one
+line per mapped writable control at startup, for example:
 
 ```text
 Select platform: stepped select 'fridge_compressor_cooling_step' on bus 114

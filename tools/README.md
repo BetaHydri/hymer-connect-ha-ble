@@ -35,7 +35,10 @@ by [@dan-simms1](https://github.com/dan-simms1) — into a
 overlay file. This is intended for users whose vehicle is **not** a HYMER
 Grand Canyon S 600 / S 700 (sub-brands such as Bürstner, Carado, Dethleffs,
 Eriba variants, LMC, Laika, Niesmann+Bischoff, Sunlight, Freeontour, …) where
-`hymer.json` does not match.
+the shared, observation-gated `base.json` does not yet cover a component the
+vehicle reports. In almost all cases a confirmed mapping is then folded into
+`base.json` / `lights.json` (fixed EHG components) rather than shipped as a
+per-brand overlay.
 
 ### Provenance rules
 
@@ -74,7 +77,7 @@ metadata:
 | `known_writable` + `control_catalog` entry | `switches` section |
 | `inferred` | skipped (or emitted with `enabled: false` if `--include-inferred`) |
 | `suppressed` | always skipped |
-| `kind` in {fridge, heater, boiler, ac} | **not** auto-emitted; a `_climate_templates_required` marker is written instead — hand-port from `sensor_maps/hymer.json` |
+| `kind` in {fridge, heater, boiler, ac} | **not** auto-emitted; a `_climate_templates_required` marker is written instead — hand-port from the climate templates in `sensor_maps/base.json` |
 
 ### Usage
 
@@ -99,8 +102,9 @@ maintainer can review and promote individual entries.
 The generated file is a **starting point**, not a final overlay:
 
 * Re-name auto-generated entity ids to match the conventions in
-  [`base.json`](../custom_components/hymer_connect/sensor_maps/base.json) and
-  [`hymer.json`](../custom_components/hymer_connect/sensor_maps/hymer.json).
+  [`base.json`](../custom_components/hymer_connect/sensor_maps/base.json) (and
+  [`lights.json`](../custom_components/hymer_connect/sensor_maps/lights.json) for
+  lights).
 * Refine `device_class` / `icon` choices — the converter only applies the few
   unambiguous unit-to-class mappings.
 * Fill in any `_climate_templates_required` entries by hand using the

@@ -5,7 +5,7 @@
 
 > **TL;DR**
 >
-> Whenever you add a new entity to a brand overlay (`custom_components/hymer_connect/sensor_maps/<brand>.json`), Home Assistant needs to know how to display its name. There are **two ways** the integration provides that name:
+> Whenever you add a new entity to a sensor map (the shared `custom_components/hymer_connect/sensor_maps/base.json` or `lights.json`, or — rarely — a brand-specific `sensor_maps/<brand>.json`), Home Assistant needs to know how to display its name. There are **two ways** the integration provides that name:
 >
 > 1. **Translation-key style** (the default) — the JSON `name` is just an identifier, and the real display name lives in **both** `custom_components/hymer_connect/strings.json` **and** `custom_components/hymer_connect/translations/en.json`. **You must edit both files for the entity to show a nice label in HA.**
 > 2. **Direct-name style** (only the v2.63.0+ stepped-switch select driver) — the JSON `name` is shown verbatim, and the translation files are **skipped entirely**.
@@ -33,7 +33,7 @@ Both files have the same `entity.<platform>` structure. The platforms used by th
 |---|---|
 | `entity.sensor` | All `platform: sensor` entries — *plus* sub-sensors of lights (brightness, color temp) and selects (readback step), because each underlying value is also a sensor entity. |
 | `entity.binary_sensor` | All `platform: binary_sensor` entries. |
-| `entity.light` | The `lights` block in the brand overlay (one entry per light entity). |
+| `entity.light` | The `lights` block in `lights.json` (one entry per light entity). |
 | `entity.switch` | All `platform: switch` entries — plus controller entities ending in `_ctrl` for sensor-mirror switches. |
 | `entity.climate` | The `climate.truma_heater` / `climate.fridge` blocks. |
 | `entity.select` | The select entities created by `HymerFridgeSelect`, `HymerBoilerSelect`, `HymerHeaterEnergySelect`. **Not** used by the v2.63.0+ stepped-switch driver. |
@@ -45,13 +45,13 @@ The key inside each section is the **same identifier you used in the brand overl
 
 ## Step-by-step playbook (per entity type)
 
-The brand-overlay edits below use **HYMER** as an example (`sensor_maps/hymer.json`). Substitute your own brand file if you're working on Bürstner, Carado, Dethleffs, etc.
+The sensor-map edits below use `sensor_maps/base.json` as the example (a light entity goes in `sensor_maps/lights.json` instead). The steps are identical if you ever edit a brand-specific overlay such as `sensor_maps/hymer.json`.
 
 ### 1. Adding a `sensor` (read-only)
 
 **Example**: a new tank pressure sensor on bus 50, slot 9.
 
-1. **Brand overlay** — `sensor_maps/hymer.json`:
+1. **Sensor map** — `sensor_maps/base.json`:
 
    ```jsonc
    "signalr_sensors": {
@@ -82,7 +82,7 @@ The brand-overlay edits below use **HYMER** as an example (`sensor_maps/hymer.js
 
 **Example**: a window-open sensor on bus 50, slot 12.
 
-1. **Brand overlay**:
+1. **Sensor map** (`base.json`):
 
    ```jsonc
    "50,12": {
@@ -107,7 +107,7 @@ This is the **only entity type that needs entries in two sections** of the trans
 
 **Example**: a dimmable ceiling light on bus 70 (on/off at slot 1, brightness at slot 2).
 
-1. **Brand overlay** — add the *sub-sensors* in `signalr_sensors` and the *light entity* in `lights`:
+1. **Sensor map** (`lights.json`) — add the *sub-sensors* in `signalr_sensors` and the *light entity* in `lights`:
 
    ```jsonc
    "signalr_sensors": {
@@ -170,7 +170,7 @@ For lights with color temperature, add a third sub-sensor (suffix `_color_temp`)
 
 **Example**: a freezer compartment select on bus 114, slot 4 (the real-world v2.63.0 ML-T 570 case).
 
-1. **Brand overlay** — only `hymer.json`:
+1. **Sensor map** — `base.json` only (no translation files):
 
    ```jsonc
    "climate": {
@@ -210,15 +210,15 @@ Buttons are hardcoded in `button.py`. If you add a new one, also add a key to `e
 
 ## Cheat sheet
 
-| Adding a … | Brand overlay file | Section in `strings.json` + `translations/en.json` (BOTH FILES) |
+| Adding a … | Sensor map file | Section in `strings.json` + `translations/en.json` (BOTH FILES) |
 |---|---|---|
-| Sensor | `sensor_maps/<brand>.json` | `entity.sensor` |
-| Binary sensor | `sensor_maps/<brand>.json` | `entity.binary_sensor` |
-| Light | `sensor_maps/<brand>.json` | `entity.sensor` (for each sub-sensor) **and** `entity.light` (for the light) |
-| Switch | `sensor_maps/<brand>.json` | `entity.switch` |
-| Classic fridge / heater select (`*_ctrl` from `HymerFridgeSelect` / `HymerBoilerSelect` / `HymerHeaterEnergySelect`) | `sensor_maps/<brand>.json` | `entity.select` |
-| **Stepped-switch select** (`climate.selects.<key>`, v2.63.0+) | `sensor_maps/<brand>.json` | **None — name comes from JSON** |
-| Climate device rename | `sensor_maps/<brand>.json` | `entity.climate` |
+| Sensor | `sensor_maps/base.json` | `entity.sensor` |
+| Binary sensor | `sensor_maps/base.json` | `entity.binary_sensor` |
+| Light | `sensor_maps/lights.json` | `entity.sensor` (for each sub-sensor) **and** `entity.light` (for the light) |
+| Switch | `sensor_maps/base.json` | `entity.switch` |
+| Classic fridge / heater select (`*_ctrl` from `HymerFridgeSelect` / `HymerBoilerSelect` / `HymerHeaterEnergySelect`) | `sensor_maps/base.json` | `entity.select` |
+| **Stepped-switch select** (`climate.selects.<key>`, v2.63.0+) | `sensor_maps/base.json` | **None — name comes from JSON** |
+| Climate device rename | `sensor_maps/base.json` | `entity.climate` |
 | Button | Code (`button.py`) | `entity.button` |
 
 **Rule of thumb**: any entity whose Python code sets `_attr_translation_key` needs the dual-file translation entry. The stepped-switch driver intentionally uses `_attr_name` from JSON instead, which is what makes it translation-free.
@@ -230,7 +230,7 @@ Buttons are hardcoded in `button.py`. If you add a new one, also add a key to `e
 - ❌ Forgetting to update `translations/en.json` after `strings.json`. **Always edit both at the same time.**
 - ❌ Adding a light without translation keys for its sub-sensors (only for the light itself). You will see ugly `sensor.light_xxx_brightness` names in the UI even though the light itself is named correctly.
 - ❌ Adding a translation key to the wrong section (e.g. putting a `switch` entry under `entity.sensor`). HA silently ignores it.
-- ❌ Writing the matching brand-overlay key with a different spelling than the translation key. Compare them character-by-character.
+- ❌ Writing the matching sensor-map key with a different spelling than the translation key. Compare them character-by-character.
 - ❌ Forgetting to **reload the integration** (or restart HA) after editing — translation files are only read on startup / reload.
 
 ---

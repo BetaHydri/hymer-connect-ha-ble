@@ -1,9 +1,10 @@
 # Contributing sensor mappings & brand overlays
 
 This guide is for contributors who want to **map a new EHG vehicle** or improve an
-existing brand overlay. It covers discovering your vehicle's `(bus, slot)` pairs,
-enabling debug logging, reading BLE/SignalR logs, and authoring a
-`sensor_maps/<brand>.json` overlay from scratch.
+existing mapping. It covers discovering your vehicle's `(bus, slot)` pairs,
+enabling debug logging, reading BLE/SignalR logs, and adding entries to the shared
+`base.json` / `lights.json` (or, rarely, a brand-specific `sensor_maps/<brand>.json`
+overlay).
 
 > Most users never need this file — the integration works out of the box. Start
 > with the [main README](../README.md) and the [quick-start guide](../quick-start.md).
@@ -18,7 +19,7 @@ enabling debug logging, reading BLE/SignalR logs, and authoring a
   - [Option 3: Enable debug logging](#option-3-enable-debug-logging)
   - [Reading BLE sensor logs](#reading-ble-sensor-logs-dual-path-decoding)
   - [Open a GitHub issue](#open-a-github-issue)
-- [Step-by-step: Creating a brand overlay JSON](#step-by-step-creating-a-brand-overlay-json)
+- [Step-by-step: Adding a mapping](#step-by-step-adding-a-mapping)
   - [Field reference](#field-reference--all-available-fields-per-entity-type)
   - [Decision matrix](#decision-matrix--when-do-you-need-which-fields)
   - [Steps 1–4](#step-1-identify-your-vehicles-busslot-pairs)
@@ -37,7 +38,7 @@ If you have a different EHG vehicle and want to help expand compatibility:
 If your brand isn't a HYMER Grand Canyon S 600/S 700, you can **generate a starting `sensor_maps/<brand>.json`** instead of writing it by hand. This repo ships [`../tools/convert_dan_metadata.py`](../tools/convert_dan_metadata.py) ([docs](../tools/README.md)). It is a **two-step pipeline** — the converter only consumes input, it does not extract from an APK itself:
 
 1. **First run the upstream extractor** to produce a *local* runtime-metadata directory. The extractor is part of [**HYMER Connect Metadata Edition**](https://github.com/dan-simms1/hymer-connect-ha) by [@dan-simms1](https://github.com/dan-simms1) (see its `scripts/prepare_runtime_metadata.py`). You supply your own EHG APK; nothing APK-derived is committed.
-2. **Then convert it** with `convert_dan_metadata.py convert --input ... --output sensor_maps/<brand>.json --brand <brand>`. The output is a **starting point**: read-only sensors and clearly-defined switches/lights are auto-emitted; climate/fridge/boiler/heater are *not* (a `_climate_templates_required` marker is written for hand-porting from `hymer.json`). Review, rename to match `base.json` conventions, test, then open a PR.
+2. **Then convert it** with `convert_dan_metadata.py convert --input ... --output sensor_maps/<brand>.json --brand <brand>`. The output is a **starting point**: read-only sensors and clearly-defined switches/lights are auto-emitted; climate/fridge/boiler/heater are *not* (a `_climate_templates_required` marker is written for hand-porting from the shared `base.json`). Review, and if the mapping is a fixed EHG component (the common case) fold it into `base.json` / `lights.json` following those conventions; test, then open a PR.
 
 ### Option 1: Run the Sensor Discovery Tool (recommended)
 
@@ -261,20 +262,34 @@ This helps map sensor IDs for different vehicle configurations and benefits all 
 
 ---
 
-## Step-by-step: Creating a brand overlay JSON
+## Step-by-step: Adding a mapping
 
-### Why a brand overlay?
+### Where mappings live now
 
-Each EHG brand may have different components on different bus/slot pairs. The integration ships with:
+Almost every EHG component sits on a **fixed component id** (the same bus/slot on
+every brand), so the integration keeps all mappings in two shared, **observation-gated**
+files:
 
-- **`base.json`** — universal buses shared across all vehicles (battery, water, GPS, Mercedes CAN, etc.)
-- **`hymer.json`**, **`eriba.json`**, etc. — brand-specific overlays that **override** or **add to** base.json
+- **`base.json`** — **all fixed EHG components**: chassis, habitation, heaters,
+  fridges, batteries, solar, water, HSS accessories, etc.
+- **`lights.json`** — **all interior lights**.
 
-When you define a sensor on bus 70 slot 1 in `hymer.json` and the same bus/slot exists in `base.json`, your brand mapping wins. This means you can:
+Because both files are observation-gated, an entity is created only once a vehicle
+actually reports that bus — so adding a mapping here never produces phantom
+entities on vehicles that lack the device.
 
-- Rename entities for your brand
-- Override device_class or unit
-- Add new components not in the base
+- **`hymer.json`**, **`eriba.json`**, etc. — the per-brand files are now **empty
+  stubs** that carry only the brand's vehicle list. You add to a brand file **only**
+  if you find a genuinely brand-specific mapping — the same EHG component sitting on
+  a *different* bus, or needing a *different* name, than it does elsewhere. That is
+  rare; in almost all cases your new mapping belongs in `base.json` (or `lights.json`
+  for a light).
+
+When a brand file *does* define a `bus,slot` that also exists in `base.json`, the
+brand mapping wins for that brand. This lets you:
+
+- Override a name, `device_class` or unit for one brand
+- Add a component that genuinely lives on a different bus for that brand
 - Support multi-device buses with auto-slot templates
 
 ### JSON structure overview

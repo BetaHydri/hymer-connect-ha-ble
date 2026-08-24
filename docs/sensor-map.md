@@ -17,9 +17,15 @@ the full discovery history.
 
 ## Scope and conventions
 
-- `base.json` contains universal EHG buses shared across vehicles.
-- Brand overlays such as `hymer.json` and `eriba.json` add or override
-  vehicle-specific mappings.
+- `base.json` contains **all fixed EHG components** — every heater, fridge,
+  battery, water, habitation and chassis bus that sits on a fixed EHG component
+  id — **observation-gated** so an entity is only created once the vehicle
+  actually reports that bus.
+- `lights.json` contains **all shared interior lights**, likewise
+  observation-gated.
+- Brand overlays (`hymer.json`, `eriba.json`, …) are now **empty stubs** that
+  carry only the brand's vehicle list. A brand file gains a mapping again only if
+  a genuinely brand-specific (bus- or name-diverging) component ever appears.
 - Some buses below are confirmed on S600/S700, some were added from other EHG
   vehicles such as the ML-T 570 or Eriba Car 602.
 - If your vehicle exposes additional unmapped slots, enable debug logging and
@@ -47,16 +53,14 @@ easier to use as a reference:
 > integration today. A bus is listed for a model only when a contributor confirmed
 > it on that specific vehicle (via RAW-PIA logs, the dynamic-discovery sensors, or
 > app-traffic capture). A blank means "not present or not yet confirmed on that
-> model" — **not** "unsupported". Brand overlays (`hymer.json`, `eriba.json`) apply
-> to every vehicle of that brand, so a bus mapped for one model is still offered to
-> the others; it simply stays `unavailable` if that model lacks the device.
->
-> Because the overlay offers **every** brand-defined control, writable stepped-switch
-> selects and numbers are created for all of them. With **debug logging** enabled you
-> will see one informational line per control at startup — e.g.
+> model" — **not** "unsupported". All mappings now live in the shared
+> `base.json` / `lights.json` and are **observation-gated**: an entity (and its
+> writable stepped-switch select or number) is created **only once your vehicle
+> reports that bus**, so you no longer get phantom `unavailable` entities for
+> hardware you don't have. With **debug logging** enabled you may still see one
+> informational line per mapped control at startup — e.g.
 > `Select platform: stepped select '…' on bus …` / `Number platform: '…' on bus … slot …`.
-> These are **DEBUG-level, not errors**; disable the entities your vehicle lacks in
-> **Settings → Entities** to keep the UI tidy.
+> These are **DEBUG-level, not errors**.
 
 | Vehicle | Chassis | Contributor (issue) | Confirmed & mapped buses |
 |---------|---------|---------------------|--------------------------|
@@ -78,13 +82,15 @@ Notes:
   Smart System / SIU **wireless accessories** paired per install, not fixed vehicle
   equipment — see the auto-slot section below. Bus 74 and 76 were confirmed on the
   ML-T 570.
-- Buses guaranteed on every EHG SCU (1, 3, 30, 45) live in `base.json`; HYMER buses
-  in `hymer.json`; Eriba buses in `eriba.json`.
+- All buses now live in the shared maps: interior lights in `lights.json`, every
+  other component (chassis, habitation, heaters, fridges, batteries, water, HSS
+  accessories, …) in `base.json`. The per-brand files (`hymer.json`, `eriba.json`)
+  are empty.
 
 ## Complete bus index (mapped buses)
 
-> Every bus that currently has a mapping in `base.json`, `hymer.json`, or
-> `eriba.json`, with the EHG component it corresponds to and which vehicle confirmed
+> Every bus that currently has a mapping in `base.json` or `lights.json`, with the
+> EHG component it corresponds to and which vehicle confirmed
 > it. For the **full 128-component EHG catalog** — including buses we have *not*
 > mapped yet (e.g. **bus 2 `EBL400`**, bus 9 `DometicSeries10`, bus 100 `TPMS`, …)
 > with every slot definition extracted from the decompiled app — see
@@ -108,28 +114,28 @@ Notes:
 | 19 | `LightCircuit09` | Bathroom ceiling light | hymer | S 600 / BMC I 680 |
 | 21 | `LightCircuit11` | Kitchen light | hymer | S 600 / S 700 |
 | 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | hymer | S 600 |
-| 24 | `LightGroup01` | "Wohnen" light group | hymer | S 600 / S 700 / ML-T 570 |
-| 25 | `LightGroup02` | Outside LED bar | hymer | S 600 |
-| 27 | `LightGroup04` | "Privat" light group | hymer | S 600 / ML-T 570 / BMC I 680 |
+| 24 | `LightGroup01` | "Wohnen" light group | lights | S 600 / S 700 / ML-T 570 |
+| 25 | `LightGroup02` | Outside LED bar | lights | S 600 |
+| 27 | `LightGroup04` | "Privat" light group | lights | S 600 / ML-T 570 / BMC I 680 |
 | 29 | `Component29` | Habitation (body) battery SoC | base | BMC I 680 |
 | 30 | `ScuSignals` | SCU telemetry (LTE / BT / GPS) | base | all |
 | 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | base | BMC I 680 |
 | 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | base | S 600 / S 700 |
 | 37 | `VehicleInformation` | Fridge mode/status readback (PIA) | base | S 600 / S 700 |
-| 43 | `LightCircuit19` | Seating overhead light | hymer | S 600 |
-| 44 | `LightCircuit20` | Bedroom overhead light | hymer | S 600 |
+| 43 | `LightCircuit19` | Seating overhead light | lights | S 600 |
+| 44 | `LightCircuit20` | Bedroom overhead light | lights | S 600 |
 | 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
 | 49 | `LIM404Mod2` | Truma LIM module | base | S 600 |
 | 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | base | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa Compact AC | base | Eriba Car 602 |
-| 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba, hymer | Eriba Car 602; HYMER (Dometic) |
+| 60 | `DometicCompressorFridge` | Dometic compressor fridge | base | Eriba Car 602; HYMER (Dometic) |
 | 66 | `LightCircuit22` | Dinette pendant lamp | lights | ML-T 570 |
-| 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | hymer | HSS accessory |
-| 71 | `Component71` | HSS gas-bottle sensors (auto-slot) | hymer | HSS accessory |
-| 73 | `Component73` | HSS contact sensors (auto-slot) | hymer | HSS accessory |
-| 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | hymer | ML-T 570 |
-| 76 | `Component76` | Fresh / grey water tank levels | hymer | ML-T 570 |
+| 70 | `Component70` | HSS tyre-pressure sensors (auto-slot) | base | HSS accessory |
+| 71 | `Component71` | HSS gas-bottle sensors (auto-slot) | base | HSS accessory |
+| 73 | `Component73` | HSS contact sensors (auto-slot) | base | HSS accessory |
+| 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | base | ML-T 570 |
+| 76 | `Component76` | Fresh / grey water tank levels | base | ML-T 570 |
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |
 | 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional on S600)* | base | S 600 |
@@ -227,7 +233,7 @@ mistaken for a concrete device #1 entry.
 1. Find the bus + slots via **Dynamic Slot Discovery** (see below). Enable the
    `discovered_bus_X_slot_Y` sensors and watch which slots your devices report.
 2. Pick a short `<group>` name (e.g. `awning`, `battery2`).
-3. Add one template entry per slot to your brand overlay's `"sensors"` section:
+3. Add one template entry per slot to the shared `base.json` `"sensors"` section:
    ```json
    "80,1#a{n}": { "name": "hss_awning{n}_state",    "bus_name": "auto:awning:{n}", "platform": "sensor", "icon": "mdi:awning-outline" },
    "80,2#a{n}": { "name": "hss_awning{n}_position", "bus_name": "auto:awning:{n}", "unit": "%", "platform": "sensor", "state_class": "measurement" }
@@ -621,7 +627,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
 > **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge — including the **ML-T 580**, which can be ordered with different fridges (Jos's ML-T 580 has the Dometic bus-60 unit). The fridge type follows the build order, not the model line: the ML-T 570 CrossOver uses the Thetford Compressor T2120C (bus 114), S600/S700 use Thetford absorber (bus 34/37) and BMC I 680 uses Thetford absorber (bus 32) — none of those use bus 60.
-> **Read map contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) for the Eriba (`eriba.json`); duplicated into `hymer.json` (v2.68.0) so HYMER-brand Dometic owners get the same sensors plus writable controls.
+> **Read map contributed by:** @mvondemhagen ([#54](https://github.com/BetaHydri/hymer-connect-ha/issues/54)) for the Eriba; since v2.71.0 the bus-60 Dometic sensors **and** their writable controls live in the shared, observation-gated `base.json`, so every brand that reports bus 60 gets them automatically (no per-brand duplication).
 
 | Slot | Sensor Name | Unit | Transform | Notes |
 |------|------------|------|-----------|-------|
@@ -638,7 +644,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 
 ### Writable controls (v2.68.0)
 
-Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`), same as the Thetford fridges. They live in **both `hymer.json`** (HYMER-brand vehicles) **and `eriba.json`** (Eriba Car 602, mirrored in v2.68.3) — each brand loads only its own overlay, so the controls must be duplicated. Same `DometicCompressorFridge` component + EHG SCU, so behaviour is identical:
+Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`), same as the Thetford fridges. Originally added per-brand in v2.68.0, they now live once in the shared, observation-gated `base.json` (v2.71.0) — so they materialise on **any** vehicle that reports bus 60, Eriba or HYMER alike, with no duplication. Same `DometicCompressorFridge` component + EHG SCU, so behaviour is identical:
 
 - **`select.*_dometic_fridge_cooling_step`** — options `Off / 1 / 2 / 3 / 4 / 5`. Selecting a level writes `PowerOn` (slot 8) = `true`, waits 500 ms, then writes the level (slot 2) as an int; **Off** writes `PowerOn` (slot 8) = `false`. Readback reflects `Off` whenever `dometic_fridge_power` is false. Both the level write (slot 2) and the on/off write (slot 8, Off branch) are confirmed on-vehicle.
 - **`binary_sensor.*_dometic_fridge_door`** — door-open state derived from the slot-16 warning enum (`dometic_fridge_warning`: 0 = closed, 10 = open; `on_value` 10). `door` device class. Confirmed on-vehicle.
@@ -798,9 +804,9 @@ See [#8 (comment)](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8#is
 ## Bus 116 — DellCool Compressor Fridge (unmapped — no vehicle confirmed yet)
 
 EHG component `DellCoolFridge` (kind: `fridge`). **Not yet mapped** — no user has
-reported data on bus 116. Documented here so users with this fridge can create
-their own brand overlay JSON. The DellCool error codes (0–11) above also apply
-to this bus.
+reported data on bus 116. Documented here so, once a vehicle confirms it, it can
+be added as a fixed EHG component to the shared `base.json`. The DellCool error
+codes (0–11) above also apply to this bus.
 
 Compared to bus 114 (`ThetfordT2152`): slot 2 = `PowerMode` (not `NightMode`),
 slot 4 = `CompressorOn` (not `FreezerLevel`), no `DCVoltage` slot (6 slots vs 7).

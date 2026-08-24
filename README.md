@@ -141,12 +141,17 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 > doors) are in [`base.json`](custom_components/hymer_connect/sensor_maps/base.json) and work immediately; help
 > map the rest via [**contributing-overlays.md**](docs/contributing-overlays.md).
 
-> **⚠️ Shared brand overlays:** Each brand overlay (e.g. `hymer.json`) contains mappings for **all known models** of
-> that brand. Components your vehicle lacks will show as **"unknown"** / **"unavailable"** — simply **disable** them
-> in **Settings → Entities** (filter by "hymer"). This is normal; the integration cannot auto-detect your exact build.
-> With **debug logging** enabled you will also see one informational line per brand-defined control at startup —
-> e.g. `Select platform: stepped select '…' on bus …` and `Number platform: '…' on bus … slot …`. These are
-> **DEBUG-level, not errors**; they simply reflect that the overlay offers that control for the brand.
+> **⚠️ Shared, observation-gated maps:** All mappings now live in the shared
+> [`base.json`](custom_components/hymer_connect/sensor_maps/base.json) (every fixed
+> EHG component) and [`lights.json`](custom_components/hymer_connect/sensor_maps/lights.json)
+> (all interior lights). The per-brand files (`hymer.json`, `eriba.json`, …) are
+> **empty stubs** kept only for the brand's vehicle list. Because the maps are
+> **observation-gated**, an entity is created **only once your vehicle actually
+> reports that bus** — so you no longer get phantom **"unknown"** / **"unavailable"**
+> entities for hardware you don't have. With **debug logging** enabled you may still
+> see one informational line per mapped control at startup — e.g.
+> `Select platform: stepped select '…' on bus …` and `Number platform: '…' on bus … slot …`.
+> These are **DEBUG-level, not errors**.
 
 ## Features
 
@@ -488,8 +493,9 @@ graph TB
 
 > **Primary development vehicle:** HYMER Grand Canyon S 600 CrossOver (2025, Mercedes Sprinter, Truma Combi D6E,
 > Thetford N4112A fridge, Voltronic MPP260CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
-> smart sensors) and HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge). Sensor
-> maps are shared at brand level, so bus/slot behavior can differ by model year and installed equipment.
+> smart sensors) and HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge). All
+> mappings are shared across brands in the observation-gated `base.json` / `lights.json`, so bus/slot behavior can
+> differ by model year and installed equipment — but an entity only materialises once your vehicle reports that bus.
 
 | What | Works? | Details |
 |------|--------|---------|
@@ -504,11 +510,11 @@ graph TB
 | **Solar** (bus 8) | ⚠️ Depends | Mapped for Votronic MPP260CI/MPP250Duo; other chargers may differ |
 | **Battery / BMS** (bus 99 / 29) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680). Slot meanings vary by model |
 
-**Missing sensors are harmless:** entities for components your vehicle lacks simply show **"Unavailable"** — no
-errors. The same applies to writable controls (stepped-switch selects and numbers): the overlay creates one for every
-brand model, and with **debug logging** on each logs a single `Select platform: stepped select '…' on bus …` /
-`Number platform: '…' on bus … slot …` line at startup. These are informational (**DEBUG**), not errors — **disable**
-the unused entities in **Settings → Entities** to tidy the UI. To add mappings for your brand/model, see
+**Missing sensors are harmless:** the shared `base.json` / `lights.json` are **observation-gated**, so entities (and
+their writable stepped-switch selects and numbers) are created **only for buses your vehicle actually reports** — no
+phantom **"Unavailable"** entries for hardware you don't have. With **debug logging** on, each mapped control still
+logs a single `Select platform: stepped select '…' on bus …` /
+`Number platform: '…' on bus … slot …` line at startup. These are informational (**DEBUG**), not errors. To add mappings for a not-yet-confirmed component, see
 [**contributing-overlays.md**](docs/contributing-overlays.md).
 
 ## Stale CAN Sensor Workarounds
@@ -660,11 +666,11 @@ change anything in the EHG app.
 
 ## Contributing
 
-Contributions are welcome! The complete guide to discovering your vehicle's slots and authoring a brand overlay is
+Contributions are welcome! The complete guide to discovering your vehicle's slots and adding a mapping is
 in [**docs/contributing-overlays.md**](docs/contributing-overlays.md).
 
 - **Report sensor mappings** — run the [Sensor Discovery Tool](docs/contributing-overlays.md#option-1-run-the-sensor-discovery-tool-recommended) or enable Dynamic Slot Discovery and share findings in a GitHub issue.
-- **Add a brand overlay** — copy `sensor_maps/hymer.json` → `sensor_maps/<your-brand>.json`, adjust mappings, test from your fork via HACS, open a PR. Strip `_generated_by` / `_source_vehicle_id` headers from converter output.
+- **Add a mapping** — for a fixed EHG component add it to the shared, observation-gated `sensor_maps/base.json` (or `sensor_maps/lights.json` for a light); only use a per-brand `sensor_maps/<your-brand>.json` for a genuinely brand-specific bus/name. Test from your fork via HACS, open a PR. Strip `_generated_by` / `_source_vehicle_id` headers from converter output.
 - **Fix bugs / add features** — feature branch, atomic conventional commits (`fix:`, `feat:`, `docs:`), reference related issues. See [CONTRIBUTING](https://github.com/BetaHydri/hymer-connect-ha-ble/blob/master/CONTRIBUTING.md).
 
 ### Acknowledgements
