@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
+    BRANDS,
     CONF_ACCESS_TOKEN,
     CONF_BRAND,
     CONF_EHG_REFRESH_TOKEN,
@@ -38,6 +39,13 @@ async def async_setup_entry(
     """Set up HYMER Connect from a config entry."""
     session = async_get_clientsession(hass)
     brand = entry.data.get(CONF_BRAND, "hymer")
+    # Show the selected brand in the entry title, but only upgrade the old
+    # auto-generated title - never override a title the user renamed themselves.
+    brand_name = BRANDS.get(brand, brand)
+    if entry.title == f"HYMER Connect ({brand_name})":
+        hass.config_entries.async_update_entry(
+            entry, title=f"HYMER Connect BLE (for {brand_name})"
+        )
     oauth_basic_auth = entry.data.get(CONF_OAUTH_BASIC_AUTH, "") or None
     api = HymerConnectApi(session, brand=brand, oauth_basic_auth=oauth_basic_auth)
 

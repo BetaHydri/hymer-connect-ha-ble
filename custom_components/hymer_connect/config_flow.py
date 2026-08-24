@@ -202,7 +202,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._data[CONF_BRAND], self._data[CONF_BRAND]
                 )
                 return self.async_create_entry(
-                    title=f"HYMER Connect ({brand_name})",
+                    title=f"HYMER Connect BLE (for {brand_name})",
                     data=self._data,
                 )
 
@@ -407,7 +407,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data[CONF_BRAND], self._data[CONF_BRAND]
         )
         return self.async_create_entry(
-            title=f"HYMER Connect ({brand_name})",
+            title=f"HYMER Connect BLE (for {brand_name})",
             data=self._data,
         )
 
