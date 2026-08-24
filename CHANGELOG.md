@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.4] - 2026-08-24
+
+### Added
+
+- **Gating completeness lint (`tools/_test_gating_completeness.py`).** A new regression check derives the optional-appliance universe from the decompiled EHG metadata table (`docs/ehg-app-metadata.md`) and asserts that every mapped appliance entity carries `require_observed`. Almost every appliance category has several mutually-exclusive hardware variants (9 fridges, ~8 heaters, ~8 ACs, 3 BMS, 4 tank monitors, ...) but a vehicle carries only one per category, so an un-gated appliance entity is a guaranteed phantom on every other variant. The lint is the enforcement that makes the eventual move of components into the universal `base.json` (brandless auto-mapping) safe. Universal always-present kinds (chassis / SCU / vehicle info) and naming-variable kinds (lights / habitation) are intentionally not enforced.
+
+### Changed
+
+- **Observation gating extended to the remaining mapped HYMER appliances flagged by the new lint: Votronic MPP250 solar charger (bus 8), BOS Connect battery monitor (bus 99) and Victron MultiPlus inverter/charger (bus 121).** All 25 read sensors/binaries on these three buses now honour `require_observed`, so on a HYMER vehicle with a different BMS/inverter (or no solar) they are no longer provided instead of lingering as phantom entities. Vehicles that actually report these buses (e.g. the S600 with Votronic + BOS + Victron) are unchanged.
+
 ## [2.69.3] - 2026-08-24
 
 ### Added
