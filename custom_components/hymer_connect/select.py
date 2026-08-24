@@ -41,7 +41,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HYMER Connect select entities from a config entry."""
-    from .pia_decoder import CLIMATE_DEFS, STEPPED_SELECT_DEFS
+    from .pia_decoder import CLIMATE_DEFS, STEPPED_SELECT_DEFS, get_truma_heater_defs
 
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SelectEntity] = []
@@ -51,10 +51,13 @@ async def async_setup_entry(
     # a non-Dometic vehicle, or the Thetford fridge on a compressor-fridge
     # vehicle) never leave phantom selects.  Entries WITHOUT require_observed
     # are created immediately, exactly as before.
-    gated: list[tuple[str, Callable[[], SelectEntity], tuple[str, ...]]] = []
+    gated: list[
+        tuple[str, Callable[[], SelectEntity], tuple[str, ...], str | None]
+    ] = []
 
     fridge_def = CLIMATE_DEFS.get("fridge")
-    heater_def = CLIMATE_DEFS.get("truma_heater")
+    heater_defs = get_truma_heater_defs()
+    selected_heater_profile: str | None = None
 
     if fridge_def:
         watch = _climate_read_sensors("fridge", fridge_def)
@@ -63,27 +66,39 @@ async def async_setup_entry(
                 "fridge",
                 lambda d=fridge_def: HymerFridgeSelect(coordinator, entry, d),
                 watch,
+                None,
             ))
         else:
             entities.append(HymerFridgeSelect(coordinator, entry, fridge_def))
         _LOGGER.debug("Select platform: fridge on bus %d", fridge_def.get("control_bus", 34))
-    if heater_def:
+    for profile_key, heater_def in heater_defs:
         watch = _climate_read_sensors("truma_heater", heater_def)
         if heater_def.get("require_observed") and watch:
             gated.append((
-                "truma_boiler",
+                f"{profile_key}_boiler",
                 lambda d=heater_def: HymerBoilerSelect(coordinator, entry, d),
                 watch,
+                profile_key,
             ))
-            gated.append((
-                "truma_energy",
-                lambda d=heater_def: HymerHeaterEnergySelect(coordinator, entry, d),
-                watch,
-            ))
+            if heater_def.get("supports_energy_select", True):
+                gated.append((
+                    f"{profile_key}_energy",
+                    lambda d=heater_def: HymerHeaterEnergySelect(coordinator, entry, d),
+                    watch,
+                    profile_key,
+                ))
         else:
             entities.append(HymerBoilerSelect(coordinator, entry, heater_def))
-            entities.append(HymerHeaterEnergySelect(coordinator, entry, heater_def))
-        _LOGGER.debug("Select platform: boiler+energy on bus %d", heater_def.get("heater_bus", 58))
+            if heater_def.get("supports_energy_select", True):
+                entities.append(HymerHeaterEnergySelect(coordinator, entry, heater_def))
+            selected_heater_profile = profile_key
+        _LOGGER.debug(
+            "Select platform: %s controls on bus %d",
+            profile_key,
+            heater_def.get("heater_bus", 58),
+        )
+        if selected_heater_profile is not None:
+            break
 
     # Generic JSON-driven stepped-switch selects (v2.63.0+).
     for key, defn in STEPPED_SELECT_DEFS.items():
@@ -92,6 +107,7 @@ async def async_setup_entry(
                 key,
                 lambda k=key, d=defn: HymerSteppedSelect(coordinator, entry, k, d),
                 _stepped_read_sensors(defn),
+                None,
             ))
             continue
         try:
@@ -115,14 +131,21 @@ async def async_setup_entry(
 
     @callback
     def _async_discover_gated() -> None:
+        nonlocal selected_heater_profile
         if not coordinator.data:
             return
         sensors = coordinator.data.get("signalr_sensors")
         if not isinstance(sensors, dict):
             return
         new_entities: list[SelectEntity] = []
-        for key, factory, watch in gated:
+        for key, factory, watch, heater_profile in gated:
             if key in created_keys:
+                continue
+            if (
+                heater_profile is not None
+                and selected_heater_profile is not None
+                and heater_profile != selected_heater_profile
+            ):
                 continue
             if not any(name in sensors for name in watch):
                 continue
@@ -133,6 +156,8 @@ async def async_setup_entry(
                 created_keys.add(key)
                 continue
             created_keys.add(key)
+            if heater_profile is not None:
+                selected_heater_profile = heater_profile
             _LOGGER.info(
                 "Observation-gated select '%s' materialised (read sensor reported)",
                 key,

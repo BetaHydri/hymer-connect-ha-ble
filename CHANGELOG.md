@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.70.1] - 2026-08-24
+
+### Added
+
+- **Truma Combi D (bus 57) support — the diesel-only Combi heater/boiler, observation-gated in `base.json`.** Some HYMER (and other EHG-brand) vehicles carry the **Truma Combi D** (`TrumaCombi_D`, diesel-only), which the SCU reports on **bus 57** — not the **Truma Combi DE** (`TrumaCombi_DE`, diesel+electric) on **bus 58** that the integration mapped until now. On those vehicles every heater entity stayed `unavailable` because bus 58 never produced data. This release adds a second, independent observation-gated Truma profile (`climate.truma_heater_d`): the climate thermostat and the Off/ECO/Turbo boiler select (reusing the existing `HymerHeaterClimate` / `HymerBoilerSelect` classes) plus the bus-57 read sensors and binary sensors. The two profiles are mutually exclusive — a vehicle materialises whichever bus it actually reports — so bus-58 vehicles (e.g. the Grand Canyon S 600 / S 700) are completely unchanged. Because the Combi D is diesel-only (it has no electric-power slot), the Diesel/Mix/Electric energy select is intentionally not offered for it. Ground truth: decompiled EHG app `componentId 57` + `tools/ehg_metadata.json`.
+
+### Changed
+
+- **Bus-57 heater entities use a `heater_d_*` naming qualifier** (e.g. `sensor.*_heater_d_setpoint`, `sensor.*_heater_d_operating_mode`, the `Diesel heater …` binary sensors) so they never collide with the bus-58 `heater_*` entities. Owners of a Truma Combi D whose heater entities were previously stuck `unavailable` (bus 58) will now get these **new** `heater_d_*` entities once the vehicle reports bus 57 — they must **repoint any dashboard cards and automations** to the new entity IDs. The climate thermostat (`climate.*_truma_heater`) and the boiler select keep their existing entity IDs (only one Truma profile is ever created per vehicle).
+
 ## [2.70.0] - 2026-08-24
 
 ### Added

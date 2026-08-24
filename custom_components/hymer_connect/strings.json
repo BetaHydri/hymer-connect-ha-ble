@@ -163,6 +163,18 @@
       "heater_fuel_type": {
         "name": "Heater fuel type"
       },
+      "heater_d_fuel_type": {
+        "name": "Diesel heater fuel type"
+      },
+      "heater_d_water_mode": {
+        "name": "Diesel heater boiler mode"
+      },
+      "heater_d_setpoint": {
+        "name": "Diesel heater setpoint"
+      },
+      "heater_d_operating_mode": {
+        "name": "Diesel heater operating mode"
+      },
       "current_gear": {
         "name": "Current gear"
       },
@@ -591,6 +603,21 @@
       },
       "heater_shoreline_connected": {
         "name": "Heater shoreline connected"
+      },
+      "heater_d_panel_busy": {
+        "name": "Diesel heater panel busy"
+      },
+      "heater_d_combi_error": {
+        "name": "Diesel heater combi error"
+      },
+      "heater_d_response_error": {
+        "name": "Diesel heater response error"
+      },
+      "heater_d_shoreline_connected": {
+        "name": "Diesel heater shoreline connected"
+      },
+      "heater_d_window_switch_closed": {
+        "name": "Diesel heater window switch closed"
       },
       "fridge_door": {
         "name": "Fridge door"

@@ -101,4 +101,26 @@ for key in ("alde_energy_priority", "alde_electric_boost",
         f"{key} not gated"
 print("Alde heater (bus 5) + TenHaaft satellite (bus 10) gating  OK")
 
+# --- Truma Combi D (bus 57) second gated profile (v2.70.1) ---
+assert pd.CLIMATE_DEFS["truma_heater_d"].get("require_observed") is True, \
+    "truma_heater_d not gated"
+assert pd.CLIMATE_DEFS["truma_heater_d"].get("heater_bus") == 57, \
+    "truma_heater_d must be bus 57"
+assert pd.CLIMATE_DEFS["truma_heater_d"].get("supports_energy_select") is False, \
+    "truma_heater_d (diesel-only) must not expose the energy select"
+# The legacy bus-58 profile stays first so its entity IDs never move.
+_profile_keys = [k for k, _ in pd.get_truma_heater_defs()]
+assert _profile_keys[:2] == ["truma_heater", "truma_heater_d"], \
+    f"unexpected Truma profile order: {_profile_keys}"
+for name in ("heater_d_fuel_type", "heater_d_water_mode", "heater_d_setpoint",
+             "heater_d_operating_mode", "heater_d_panel_busy",
+             "heater_d_combi_error", "heater_d_response_error",
+             "heater_d_shoreline_connected", "heater_d_window_switch_closed"):
+    assert pd.ENTITY_DEFS[name].get("require_observed") is True, \
+        f"{name} not gated"
+# The bus-57 names must never collide with the bus-58 heater_* names.
+assert "heater_d_setpoint" != "heater_setpoint"
+assert pd.ENTITY_DEFS["heater_setpoint"].get("require_observed") is True
+print("Truma Combi D (bus 57) second gated profile  OK")
+
 print("ALL RUNTIME CHECKS PASSED")

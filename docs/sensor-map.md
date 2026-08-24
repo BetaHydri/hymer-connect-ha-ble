@@ -120,6 +120,7 @@ Notes:
 | 44 | `LightCircuit20` | Bedroom overhead light | hymer | S 600 |
 | 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
 | 49 | `LIM404Mod2` | Truma LIM module | hymer | S 600 |
+| 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | hymer | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa AC | eriba | Eriba Car 602 |
 | 60 | `DometicCompressorFridge` | Dometic compressor fridge | eriba, hymer | Eriba Car 602; HYMER (Dometic) |

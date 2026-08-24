@@ -44,33 +44,40 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HYMER Connect climate from a config entry."""
-    from .pia_decoder import CLIMATE_DEFS
+    from .pia_decoder import get_truma_heater_defs
 
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
-    heater_def = CLIMATE_DEFS.get("truma_heater")
-    if not heater_def:
+    heater_defs = get_truma_heater_defs()
+    if not heater_defs:
         _LOGGER.debug("Climate platform: no truma_heater definition in JSON — skipping")
         return
-    _LOGGER.debug("Climate platform: truma_heater on bus %d", heater_def.get("heater_bus", 58))
 
-    # Component-specific read sensors used to gate creation (exclude the
-    # generic outside_temperature so the gate only fires on a Truma slot).
-    watch = tuple(
-        n for n in (
-            heater_def.get("setpoint_sensor", "heater_setpoint"),
-            heater_def.get("fuel_type_sensor", "heater_fuel_type"),
-            heater_def.get("boiler_sensor", "heater_fan_speed"),
-            heater_def.get("electric_power_sensor", "heater_electric_power"),
+    profiles: list[tuple[str, dict[str, Any], tuple[str, ...]]] = []
+    for profile_key, heater_def in heater_defs:
+        _LOGGER.debug(
+            "Climate platform: %s on bus %d",
+            profile_key,
+            heater_def.get("heater_bus", 58),
         )
-        if isinstance(n, str) and n
-    )
-
-    if not (heater_def.get("require_observed") and watch):
-        async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
-        return
+        # Component-specific read sensors used to gate creation (exclude the
+        # generic outside_temperature so the gate only fires on a Truma slot).
+        watch = tuple(
+            n for n in (
+                heater_def.get("setpoint_sensor", "heater_setpoint"),
+                heater_def.get("fuel_type_sensor", "heater_fuel_type"),
+                heater_def.get("boiler_sensor", "heater_fan_speed"),
+                heater_def.get("electric_power_sensor", "heater_electric_power"),
+            )
+            if isinstance(n, str) and n
+        )
+        if not (heater_def.get("require_observed") and watch):
+            async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
+            return
+        profiles.append((profile_key, heater_def, watch))
 
     # Observation-gated: create the thermostat only once the vehicle reports a
-    # Truma heater slot, so vehicles without a Truma Combi get no phantom entity.
+    # slot for one Truma profile, so mutually exclusive hardware variants do not
+    # create duplicate entities or route writes to the wrong bus.
     created = False
 
     @callback
@@ -81,11 +88,16 @@ async def async_setup_entry(
         sensors = coordinator.data.get("signalr_sensors")
         if not isinstance(sensors, dict):
             return
-        if not any(name in sensors for name in watch):
+        for profile_key, heater_def, watch in profiles:
+            if not any(name in sensors for name in watch):
+                continue
+            created = True
+            async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
+            _LOGGER.info(
+                "Observation-gated Truma climate materialised (%s slot reported)",
+                profile_key,
+            )
             return
-        created = True
-        async_add_entities([HymerHeaterClimate(coordinator, entry, heater_def)])
-        _LOGGER.info("Observation-gated Truma climate materialised (heater slot reported)")
 
     _async_discover_gated()
     entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))

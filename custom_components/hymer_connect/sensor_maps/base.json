@@ -507,7 +507,19 @@
     "71,4#g{n}": { "name": "hss_gaslevel{n}_status", "bus_name": "auto:gas:{n}", "platform": "sensor", "icon": "mdi:gas-cylinder" },
 
     "76,1#pin-6": { "name": "fresh_water_level", "require_observed": true, "bus_name": "pin-6", "restore": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:water" },
-    "76,1#pin-7": { "name": "gray_water_level", "require_observed": true, "bus_name": "pin-7", "restore": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:water-opacity" }
+    "76,1#pin-7": { "name": "gray_water_level", "require_observed": true, "bus_name": "pin-7", "restore": true, "unit": "%", "platform": "sensor", "state_class": "measurement", "icon": "mdi:water-opacity" },
+
+    "_truma_d_doc": "Truma Combi D (bus 57 = TrumaCombi_D): the DIESEL-only Combi heater+boiler. A DIFFERENT EHG component from the Truma Combi DE (bus 58 = TrumaCombi_DE, diesel+electric) still mapped in hymer.json - bus 57 has NO electric-power slot (no slot 9), so it has no electric/mix energy select. Ground truth = decompiled EHG app (componentId 57) + tools/ehg_metadata.json (slot 5 water_heater_mode uses OFF/ECO/HOT like bus 58). All require_observed => materialises only when the vehicle reports bus 57 (zero risk for bus-58 vehicles). Names use the heater_d_* qualifier so they never collide with the bus-58 heater_* entities. Reported on-vehicle by HYMER owner 'Jos', whose Truma sits on bus 57.",
+    "57,4": { "name": "heater_d_fuel_type", "require_observed": true, "platform": "sensor", "icon": "mdi:gas-burner" },
+    "57,5": { "_doc": "TrumaCombi_D water_heater_mode (string rw): OFF/ECO/HOT. Backs the boiler-mode select (Off/ECO/Turbo) via CLIMATE_DEFS truma_heater_d.boiler_sensor.", "name": "heater_d_water_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:water-boiler" },
+    "57,6": { "_doc": "TrumaCombi_D WaterTemperatureEnergySource (string rw). Decode-only (paired write partner of the air energy source, mirrors bus-58 heater_fuel_type_2).", "name": "heater_d_fuel_type_2" },
+    "57,7": { "name": "heater_d_panel_busy", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:remote" },
+    "57,8": { "name": "heater_d_setpoint", "require_observed": true, "unit": "°C", "platform": "sensor", "device_class": "temperature", "icon": "mdi:thermostat" },
+    "57,10": { "name": "heater_d_combi_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert-circle" },
+    "57,11": { "name": "heater_d_operating_mode", "require_observed": true, "platform": "sensor", "icon": "mdi:radiator" },
+    "57,12": { "name": "heater_d_response_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "icon": "mdi:alert" },
+    "57,13": { "name": "heater_d_shoreline_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "plug", "icon": "mdi:power-plug" },
+    "57,14": { "name": "heater_d_window_switch_closed", "require_observed": true, "platform": "binary_sensor", "icon": "mdi:window-closed-variant" }
   },
   "switches": {    "_doc": "Universal switches on bus 3 (habitation electrics). write_type: how the PIA command is sent. on_value: readback value meaning ON. holdoff_off: seconds to hold optimistic OFF (for SCU bounce-back).",
     "3,1": {
@@ -532,6 +544,20 @@
   },
   "climate": {
     "_doc": "Universal writable controls shared across all EHG brands. The Dometic compressor fridge (bus 60 = DometicCompressorFridge) is a fixed EHG component bound to bus 60 on every brand, so its controls live here and are observation-gated (require_observed) — the select entities are created only once the vehicle reports bus 60. On-vehicle confirmed via the HYMER-Group SCU (owner 'Jos').",
+    "truma_heater_d": {
+      "_doc": "Truma Combi D (bus 57 = TrumaCombi_D), the DIESEL-only Combi. Second dedicated Truma profile after the bus-58 truma_heater (Combi DE) in hymer.json. Selected only when the vehicle reports a bus-57 heater slot (require_observed) - mutually exclusive with bus 58, so at most one Truma climate + boiler entity is ever created. supports_energy_select:false because the Combi D has NO electric-power slot (no slot 9): it is diesel-only, so the Diesel/Mix/Electric energy select does not apply. The climate thermostat and the boiler (Off/ECO/Turbo) select reuse the same HymerHeaterClimate/HymerBoilerSelect classes as bus 58. Bus/slot model = decompiled EHG app componentId 57.",
+      "require_observed": true,
+      "supports_energy_select": false,
+      "heater_bus": 57,
+      "setpoint_sid": 8,
+      "fuel_type_sid": 4,
+      "fuel_type_2_sid": 6,
+      "boiler_sid": 5,
+      "temp_sensor": "outside_temperature",
+      "setpoint_sensor": "heater_d_setpoint",
+      "fuel_type_sensor": "heater_d_fuel_type",
+      "boiler_sensor": "heater_d_water_mode"
+    },
     "selects": {
       "fridge_dometic_cooling_step": {
         "_doc": "Dometic compressor fridge (bus 60 = DometicCompressorFridge) Off/1-5 cooling-step control. Ground truth from the decompiled EHG app (componentId 60): PowerOn = slot 8 (bool rw), Temperature = slot 2 (int rw, range 1-5, NO 0/Off). Mirrors the Thetford drivers (bus 34/32/114): power sid 8 (bool) then cooling-step sid 2 (uint). Off routes to PowerOn=false. Both the cooling-level write (slot 2) AND the on/off write (slot 8, Off branch) CONFIRMED on-vehicle by HYMER Dometic owner 'Jos' (2026-08-23). require_observed: created only when bus 60 is reported.",
