@@ -528,6 +528,14 @@ def load_sensor_map(brand: str) -> None:
                 "Ensure sensor_maps/base.json is present in custom_components/hymer_connect/."
             )
 
+    # Universal (gated) interior lights, shared across all brands. Loaded after
+    # base so brand overlays can still override a bus, before the brand file.
+    if "lights" not in _overlays_loaded:
+        lights_count = _load_json_overlay("lights.json")
+        _overlays_loaded.add("lights")
+        if lights_count:
+            _LOGGER.info("Sensor map: loaded lights.json (%d entries)", lights_count)
+
     brand_file = f"{brand}.json"
     brand_count = _load_json_overlay(brand_file)
     if brand_count:
@@ -562,6 +570,27 @@ def load_sensor_map(brand: str) -> None:
                 for b, info in sorted(AUTO_SLOT_GROUPS.items())
             ),
         )
+
+
+def get_truma_heater_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Return dedicated Truma profiles in stable selection order.
+
+    The legacy ``truma_heater`` profile stays first so an existing vehicle that
+    unexpectedly reports more than one Truma component keeps its established
+    entity IDs and control bus. Additional hardware variants use keys beginning
+    with ``truma_heater_`` and are selected by their observation gate.
+    """
+    profiles: list[tuple[str, dict[str, Any]]] = []
+    primary = CLIMATE_DEFS.get("truma_heater")
+    if isinstance(primary, dict):
+        profiles.append(("truma_heater", primary))
+    profiles.extend(
+        (key, CLIMATE_DEFS[key])
+        for key in sorted(CLIMATE_DEFS)
+        if key.startswith("truma_heater_")
+        and isinstance(CLIMATE_DEFS[key], dict)
+    )
+    return tuple(profiles)
 
 
 # Human-readable mappings for raw SCU string values

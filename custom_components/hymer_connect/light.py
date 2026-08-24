@@ -21,7 +21,7 @@ from homeassistant.components.light import (
     LightEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -45,11 +45,21 @@ class HymerLightEntityDescription(LightEntityDescription):
     color_temp_path: str | None = None
 
 
-def _build_light_descriptions() -> list[HymerLightEntityDescription]:
-    """Build light entity descriptions from JSON-loaded LIGHT_DEFS."""
+def _build_light_descriptions() -> tuple[
+    list[HymerLightEntityDescription],
+    list[tuple[HymerLightEntityDescription, str]],
+]:
+    """Build light entity descriptions from JSON-loaded LIGHT_DEFS.
+
+    Returns ``(always, gated)`` where ``gated`` entries carry
+    ``require_observed`` and are created on demand once their on/off read
+    sensor is reported by the vehicle (keyed by the sensor name to watch), so
+    a shared lights.json leaves no phantom lights on brands without a circuit.
+    """
     from .pia_decoder import LIGHT_DEFS, SENSOR_MAP
 
-    descriptions: list[HymerLightEntityDescription] = []
+    always: list[HymerLightEntityDescription] = []
+    gated: list[tuple[HymerLightEntityDescription, str]] = []
     for bus_id, meta in LIGHT_DEFS.items():
         if not isinstance(meta, dict) or "name" not in meta:
             continue
@@ -77,8 +87,12 @@ def _build_light_descriptions() -> list[HymerLightEntityDescription]:
             ct_entry = SENSOR_MAP.get((bus_id, 3))
             if ct_entry:
                 kwargs["color_temp_path"] = f"signalr_sensors.{ct_entry[0]}"
-        descriptions.append(HymerLightEntityDescription(**kwargs))
-    return descriptions
+        desc = HymerLightEntityDescription(**kwargs)
+        if meta.get("require_observed"):
+            gated.append((desc, on_off_name))
+        else:
+            always.append(desc)
+    return always, gated
 
 
 async def async_setup_entry(
@@ -87,12 +101,47 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
-    descriptions = _build_light_descriptions()
-    _LOGGER.debug("Light platform: %d light entities from JSON", len(descriptions))
+    descriptions, gated = _build_light_descriptions()
+    _LOGGER.debug(
+        "Light platform: %d light entities from JSON (+%d gated)",
+        len(descriptions), len(gated),
+    )
     async_add_entities(
         HymerConnectLight(coordinator, desc, entry)
         for desc in descriptions
     )
+
+    if not gated:
+        return
+
+    # Observation-gated lights: create each only once its on/off read sensor is
+    # actually reported, so absent circuits leave no phantom light.
+    created_keys: set[str] = set()
+
+    @callback
+    def _async_discover_gated() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        new_entities: list[HymerConnectLight] = []
+        for desc, watch in gated:
+            if desc.key in created_keys:
+                continue
+            if watch not in sensors:
+                continue
+            created_keys.add(desc.key)
+            new_entities.append(HymerConnectLight(coordinator, desc, entry))
+            _LOGGER.info(
+                "Observation-gated light %s materialised (%s reported)",
+                desc.key, watch,
+            )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _async_discover_gated()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
 
 
 class HymerConnectLight(

@@ -24,6 +24,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 MAPS = REPO / "custom_components" / "hymer_connect" / "sensor_maps"
 SECTIONS = ("sensors", "switches")
+# Shared files load for every brand (base first, then lights); overlays are per-brand.
+SHARED = ("base.json", "lights.json")
 OVERLAYS = ("hymer.json", "eriba.json")
 
 
@@ -45,7 +47,7 @@ def _keyed_names(doc: dict) -> dict[str, str]:
 def main() -> int:
     files = {
         name: _keyed_names(json.loads((MAPS / name).read_text(encoding="utf-8")))
-        for name in ("base.json",) + OVERLAYS
+        for name in SHARED + OVERLAYS
         if (MAPS / name).exists()
     }
 
@@ -62,12 +64,14 @@ def main() -> int:
             detail = ", ".join(f"{f}={n}" for f, n in sorted(per_file.items()))
             violations.append(f"  [A] slot {key} has conflicting names: {detail}")
 
-    # --- Check B: duplicate name within a resolved brand (base + overlay) ---
-    base = files.get("base.json", {})
+    # --- Check B: duplicate name within a resolved brand (shared + overlay) ---
+    shared_resolved: dict[str, str] = {}
+    for name in SHARED:
+        shared_resolved.update(files.get(name, {}))
     for overlay in OVERLAYS:
         if overlay not in files:
             continue
-        resolved: dict[str, str] = dict(base)
+        resolved: dict[str, str] = dict(shared_resolved)
         resolved.update(files[overlay])  # overlay wins, mirroring the loader
         by_name: dict[str, list[str]] = defaultdict(list)
         for key, name in resolved.items():
