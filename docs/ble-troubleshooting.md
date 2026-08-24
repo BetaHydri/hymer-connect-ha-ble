@@ -84,7 +84,7 @@ they do **different jobs**. The short rule:
 | --- | --- |
 | **QR code activation token** | The dealer QR token from your handover paperwork. Entering it **triggers the BLE pairing** (bond + confirmation-token exchange + mint of the host's own refresh token) and auto-sets the BLE-enabled flag. This is the field that makes BLE actually happen. |
 | **SCU Bluetooth address** | Optional. Same meaning as above — pin the MAC or leave empty to auto-scan. Setting it also auto-enables BLE. |
-| **EHG Remote Access Refresh Token** | Paste an existing cloud token here to **skip pairing** (cloud-only path). Leave it **empty** to force a fresh BLE pairing. |
+| **EHG Remote Access Refresh Token** | Paste an existing cloud token here to **skip pairing** (cloud-only path). Leave it **empty** to force a fresh BLE pairing. If you set up cloud-only earlier, this field is **pre-filled with your existing token** — you must **clear it** to trigger pairing. |
 | **OAuth Basic auth header** | Advanced/optional. Same override as in Configure. |
 
 > **Rule of thumb:** if you want the host to bond to the SCU and read over BLE, use
@@ -191,8 +191,10 @@ pairing and mint its **own** Pi-bound token. (For how this differs from the
    - **QR code activation token** — paste your dealer QR activation token (from the
      handover paperwork). This is required to enable BLE pairing.
    - **SCU Bluetooth address** — optional; leave empty to **auto-scan** for the SCU.
-   - Leave **EHG Remote Access Refresh Token** empty so a **fresh BLE pairing is
-     triggered** (if you paste a token here, pairing is skipped).
+   - **Clear the EHG Remote Access Refresh Token** field so a **fresh BLE pairing is
+     triggered**. Because you set up cloud-only before, this field is **pre-filled
+     with your existing token** — it must be **emptied** (if you leave a token here,
+     pairing is skipped). Copy it somewhere first as a cloud-only fallback.
 5. **Press CONNECTION** on the SCU touch panel, then **submit the form within
    ~25 seconds** and **do not close the dialog**. The pairing window can be as
    short as ~30 seconds on some SCUs, so submit promptly after the press rather
