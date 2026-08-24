@@ -14,7 +14,7 @@ from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -36,7 +36,20 @@ async def async_setup_entry(
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[NumberEntity] = []
 
+    # Observation-gated number factories: created only once the vehicle reports
+    # their backing read sensor, so absent components (e.g. the Alde setpoints
+    # on a non-Alde vehicle) never leave phantom number sliders.  Entries
+    # WITHOUT require_observed are created immediately, exactly as before.
+    gated: list[tuple[str, Any, tuple[str, ...]]] = []
+
     for key, defn in NUMBER_DEFS.items():
+        if defn.get("require_observed"):
+            gated.append((
+                key,
+                lambda k=key, d=defn: HymerNumber(coordinator, entry, k, d),
+                _number_read_sensors(defn),
+            ))
+            continue
         try:
             entities.append(HymerNumber(coordinator, entry, key, defn))
             _LOGGER.debug(
@@ -49,7 +62,49 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("Number platform: no number definitions — skipping")
+        _LOGGER.debug("Number platform: no immediate number definitions — skipping")
+
+    if not gated:
+        return
+
+    created_keys: set[str] = set()
+
+    @callback
+    def _async_discover_gated() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        new_entities: list[NumberEntity] = []
+        for key, factory, watch in gated:
+            if key in created_keys:
+                continue
+            if not any(name in sensors for name in watch):
+                continue
+            try:
+                new_entities.append(factory())
+            except Exception:  # noqa: BLE001 — never let one bad JSON entry kill the platform
+                _LOGGER.exception("Failed to create gated number '%s' — skipping", key)
+                created_keys.add(key)
+                continue
+            created_keys.add(key)
+            _LOGGER.info(
+                "Observation-gated number '%s' materialised (read sensor reported)",
+                key,
+            )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _async_discover_gated()
+    entry.async_on_unload(coordinator.async_add_listener(_async_discover_gated))
+
+
+def _number_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
+    """Return the backing read sensor names a gated number watches."""
+    read = defn.get("read") or {}
+    names = [read.get("value_sensor")]
+    return tuple(name for name in names if isinstance(name, str) and name)
 
 
 class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):

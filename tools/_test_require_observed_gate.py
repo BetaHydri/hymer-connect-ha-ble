@@ -32,10 +32,6 @@ for brand in ("hymer", "eriba"):
                              read.get("power_sensor")) if n]
         assert watch, f"{key} has no watchable read sensor ({brand})"
 
-    # Thetford absorber select (HYMER-only overlay) must NOT be gated
-    if "fridge_absorber_cooling_step" in pd.STEPPED_SELECT_DEFS:
-        assert pd.STEPPED_SELECT_DEFS["fridge_absorber_cooling_step"].get(
-            "require_observed") is not True
     print(f"Runtime gate flags survive loader for brand '{brand}'  OK")
 
 # --- S600 Thetford fridge + Truma Combi (dedicated-class gating, v2.69.1) ---
@@ -72,5 +68,37 @@ for key in ("fridge_compressor_freezer", "fridge_compressor_cooling_step"):
     assert pd.STEPPED_SELECT_DEFS[key].get("require_observed") is True, \
         f"{key} not gated"
 print("ML-T compressor fridge (bus 114) gating  OK")
+
+# --- BMC absorber fridge (bus 32) gating (v2.69.3) ---
+for name in ("fridge_absorber_power", "fridge_absorber_power_mode",
+             "fridge_absorber_cooling_step", "fridge_absorber_door"):
+    assert pd.ENTITY_DEFS[name].get("require_observed") is True, \
+        f"{name} not gated"
+for key in ("fridge_absorber_cooling_step", "fridge_absorber_power_mode"):
+    assert pd.STEPPED_SELECT_DEFS[key].get("require_observed") is True, \
+        f"{key} not gated"
+print("BMC absorber fridge (bus 32) gating  OK")
+
+# --- Alde heater (bus 5) + TenHaaft satellite (bus 10) gating (v2.69.3) ---
+for name in ("alde_inside_temp", "alde_setpoint", "alde_energy_priority",
+             "alde_warning", "alde_heating_on", "alde_heating_active",
+             "alde_outside_temp", "alde_zone2_temp", "alde_zone2_setpoint",
+             "alde_hot_water_mode", "alde_electric_setting", "alde_gas_active",
+             "alde_acc_setting", "alde_error",
+             "sat_satellite", "sat_status", "sat_signal_strength",
+             "sat_dish_moving", "sat_safe_position", "sat_standby"):
+    assert pd.ENTITY_DEFS[name].get("require_observed") is True, \
+        f"{name} not gated"
+for sw in ("5,9", "5,10", "10,1"):
+    assert pd.SWITCH_DEFS[sw].get("require_observed") is True, \
+        f"switch {sw} not gated"
+for num in ("alde_setpoint", "alde_zone2_setpoint"):
+    assert pd.NUMBER_DEFS[num].get("require_observed") is True, \
+        f"number {num} not gated"
+for key in ("alde_energy_priority", "alde_electric_boost",
+            "alde_hot_water", "sat_position"):
+    assert pd.STEPPED_SELECT_DEFS[key].get("require_observed") is True, \
+        f"{key} not gated"
+print("Alde heater (bus 5) + TenHaaft satellite (bus 10) gating  OK")
 
 print("ALL RUNTIME CHECKS PASSED")

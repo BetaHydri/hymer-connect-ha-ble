@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.3] - 2026-08-24
+
+### Added
+
+- **Observation gating now covered by the `number` platform too.** The `number` platform learned the same `require_observed` deferral the sensor/binary_sensor/select/switch/climate platforms already had: a gated number slot is created only once its backing read sensor is reported, then materialised via a coordinator listener. This lets the Alde setpoint sliders be gated (see below).
+
+### Changed
+
+- **Observation gating extended to the remaining BMC I 680-only fixed components: the absorber fridge (bus 32), the Alde 3030 heater (bus 5) and the TenHaaft satellite dish (bus 10).** These components exist only on the BMC I 680 and left phantom "unavailable" entities on every other vehicle (S600/S700/ML-T). They now honour `require_observed` and are created only once the vehicle reports one of their slots:
+  - **Absorber fridge (bus 32):** read sensors `fridge_absorber_power` / `_power_mode` / `_cooling_step` / `_door` and the selects `fridge_absorber_cooling_step` / `fridge_absorber_power_mode`.
+  - **Alde 3030 heater (bus 5):** all read sensors/binaries (`alde_inside_temp`, `alde_setpoint`, `alde_energy_priority`, `alde_warning`, `alde_heating_on`, `alde_heating_active`, `alde_outside_temp`, `alde_zone2_temp`, `alde_zone2_setpoint`, `alde_hot_water_mode`, `alde_electric_setting`, `alde_gas_active`, `alde_acc_setting`, `alde_error`), the `alde_heating_ctrl` / `alde_gas_ctrl` switches, the `alde_setpoint` / `alde_zone2_setpoint` number sliders and the `alde_energy_priority` / `alde_electric_boost` / `alde_hot_water` selects.
+  - **TenHaaft satellite dish (bus 10):** read sensors/binaries (`sat_satellite`, `sat_status`, `sat_signal_strength`, `sat_dish_moving`, `sat_safe_position`, `sat_standby`), the `sat_control` switch and the `sat_position` select.
+
+  On vehicles without these components the entities are no longer provided, so Home Assistant offers Delete to clean up the stale registry entries. BMC I 680 vehicles are unchanged.
+
 ## [2.69.2] - 2026-08-24
 
 ### Changed
