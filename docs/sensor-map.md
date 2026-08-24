@@ -641,7 +641,7 @@ Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`)
 
 - **`select.*_dometic_fridge_cooling_step`** — options `Off / 1 / 2 / 3 / 4 / 5`. Selecting a level writes `PowerOn` (slot 8) = `true`, waits 500 ms, then writes the level (slot 2) as an int; **Off** writes `PowerOn` (slot 8) = `false`. Readback reflects `Off` whenever `dometic_fridge_power` is false. Both the level write (slot 2) and the on/off write (slot 8, Off branch) are confirmed on-vehicle.
 - **`binary_sensor.*_dometic_fridge_door`** — door-open state derived from the slot-16 warning enum (`dometic_fridge_warning`: 0 = closed, 10 = open; `on_value` 10). `door` device class. Confirmed on-vehicle.
-- **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. These are the SCU wire values; the EHG app's **Modus** selector localizes them for display (DE: **Normal / Leise / Turbo**). Write path UNVERIFIED.
+- **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. These are the SCU wire values; the EHG app's **Modus** selector localizes them for display (DE: **Normal / Leise / Turbo**). Write path confirmed on-vehicle by Jos.
 
 > **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
 

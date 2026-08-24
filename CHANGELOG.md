@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.68.2] - 2026-08-24
+
+### Verified
+
+- **Bus 60 slot 1 (`UserMode`) mode-select write confirmed on-vehicle** by HYMER Dometic owner **Jos** — `select.*_dometic_fridge_mode` (Performance Cooling / Silent Mode / Turbo Mode) is no longer unverified. The SCU wire-value readback/write round-trip works; the EHG app localizes these for display (DE: Normal / Leise / Turbo). With this, the **entire Dometic bus-60 fridge control is on-vehicle verified**: power on/off (slot 8), cooling level 1–5 (slot 2), and user mode (slot 1). Options MUST stay as the SCU wire values — do not relabel to the German app strings.
+
 ## [2.68.1] - 2026-08-23
 
 ### Added
