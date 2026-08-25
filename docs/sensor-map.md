@@ -860,84 +860,32 @@ See [#8 (comment)](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8#is
 | 10 | Ambient temperature sensor defective |
 | 11 | Ambient temperature shutdown |
 
-## Bus 116 — DellCool Compressor Fridge (unmapped — no vehicle confirmed yet)
+## Bus 116 — DellCool Compressor Fridge (metadata, unverified)
 
-EHG component `DellCoolFridge` (kind: `fridge`). **Not yet mapped** — no user has
-reported data on bus 116. Documented here so, once a vehicle confirms it, it can
-be added as a fixed EHG component to the shared `base.json`. The DellCool error
-codes (0–11) above also apply to this bus.
+EHG component `DellCoolFridge` (kind: `fridge`). **Mapped from EHG app metadata in the shared
+`base.json` (v2.83.0), but no vehicle has confirmed it on-vehicle yet** — so every entity is
+observation-gated (`require_observed`) and the **write paths are UNVERIFIED** (test controls). The
+DellCool error codes (0–11) above also apply to this bus.
 
 Compared to bus 114 (`ThetfordT2152`): slot 2 = `PowerMode` (not `NightMode`),
 slot 4 = `CompressorOn` (not `FreezerLevel`), no `DCVoltage` slot (6 slots vs 7).
 
-| Slot | EHG Capability | Suggested `name` | Notes |
-|------|---------------|-----------------|-------|
-| (116, 1) | `FridgeOn` | `dellcool_fridge_power` | Power on/off (bool, rw) |
-| (116, 2) | `PowerMode` | `dellcool_fridge_power_mode` | Operating mode string (rw) — e.g. "Normal", "ECO" |
-| (116, 3) | `FridgeLevel` | `dellcool_fridge_level` | Cooling step 1–5 (int, rw) |
-| (116, 4) | `CompressorOn` | `dellcool_compressor_on` | Compressor running (bool, r) |
-| (116, 5) | `DoorOpen` | `dellcool_fridge_door` | Door open/closed (bool, r) |
-| (116, 6) | `WarningErrorInformation` | `dellcool_fridge_warning` | Error code 0–11 (int, r) — see DellCool error codes above |
+| Slot | EHG Capability | `name` | Notes |
+|------|---------------|--------|-------|
+| (116, 1) | `FridgeOn` | `dellcool_power` | Power on/off (bool, rw). Decode-only readback for the cooling-step select. |
+| (116, 2) | `PowerMode` | `dellcool_power_mode` | Operating mode string (rw). Backs the power-mode select. |
+| (116, 3) | `FridgeLevel` | `dellcool_level` | Cooling step 1–5 (int, rw). Decode-only readback for the cooling-step select. |
+| (116, 4) | `CompressorOn` | `dellcool_compressor_on` | Compressor running (bool, r). `binary_sensor`. |
+| (116, 5) | `DoorOpen` | `dellcool_door_open` | Door open/closed (bool, r). `binary_sensor` `device_class: door`. |
+| (116, 6) | `WarningErrorInformation` | `dellcool_warning` | Error code 0–11 (int, r) — see DellCool error codes above. Diagnostic. |
 
 <details>
-<summary>Ready-to-use JSON overlay template for bus 116</summary>
+<summary>Writable controls for bus 116 (already in base.json)</summary>
 
-Add this to your `{brand}.json` overlay file once a user confirms data on bus 116:
+Bus 116 is already mapped in the shared `base.json` (sensors above + two gated selects). No overlay is needed. The controls use the generic stepped/string-select driver (⚠️ **write paths UNVERIFIED**):
 
-```json
-{
-  "sensors": {
-    "116,1": {
-      "_doc": "DellCool compressor fridge power on/off.",
-      "name": "dellcool_fridge_power",
-      "platform": "binary_sensor",
-      "device_class": "power",
-      "icon": "mdi:fridge"
-    },
-    "116,2": {
-      "_doc": "DellCool operating mode (e.g. Normal, ECO).",
-      "name": "dellcool_fridge_power_mode",
-      "platform": "sensor",
-      "icon": "mdi:fridge-variant"
-    },
-    "116,3": {
-      "_doc": "DellCool cooling step 1-5. Decode-only — used by select entity.",
-      "name": "dellcool_fridge_level",
-      "icon": "mdi:fridge-industrial-outline"
-    },
-    "116,4": {
-      "_doc": "DellCool compressor running state.",
-      "name": "dellcool_compressor_on",
-      "platform": "binary_sensor",
-      "device_class": "running",
-      "icon": "mdi:fridge-outline"
-    },
-    "116,5": {
-      "_doc": "DellCool fridge door open/closed.",
-      "name": "dellcool_fridge_door",
-      "platform": "binary_sensor",
-      "device_class": "door",
-      "icon": "mdi:fridge-outline"
-    },
-    "116,6": {
-      "_doc": "DellCool error code 0-11. See DellCool error codes in docs/sensor-map.md.",
-      "name": "dellcool_fridge_warning",
-      "platform": "sensor",
-      "icon": "mdi:fridge-alert"
-    }
-  },
-  "switches": {
-    "116,1": {
-      "name": "dellcool_fridge_power_ctrl",
-      "icon": "mdi:fridge",
-      "write_type": "bool",
-      "on_value": true,
-      "read_path": "signalr_sensors.dellcool_fridge_power",
-      "requires_12v": true
-    }
-  }
-}
-```
+- **`select.*_dellcool_cooling_step`** — `Off / 1–5`. Writes `FridgeOn` (slot 1) = `true`, waits 500 ms, then the level (slot 3); **Off** writes `FridgeOn` = `false` (mirrors the Dometic/Thetford drivers). Reads `dellcool_power` (116,1) + `dellcool_level` (116,3).
+- **`select.*_dellcool_power_mode`** — the `PowerMode` string select (slot 2), options = the SCU wire values from the decompiled `DELLCOOL_POWER_MODES`. Reads `dellcool_power_mode` (116,2).
 
 </details>
 
@@ -1057,7 +1005,7 @@ Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidat
 
 - (5, 2) `Zone2ActualTemperature` / (5, 4) `Zone2TargetTemperature` (rw) — second heating zone; on Frank's single-zone BMC they read constant placeholders (85.0 / 36.0).
 - (5, 11) `AccSetting` (rw bool) — read sensor `alde_acc_setting` (v2.65.2); now also a writable **A/C switch** (`alde_acc_ctrl`, v2.73.0). On a B-ML I 780 it switches the bus-7 Truma Aventa A/C (@stbcgn, [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)).
-- (5, 13) `ac_installed` (r bool) — constant False on Frank's vehicle (no AC).
+- (5, 13) `alde_ac_installed` (r bool) — constant False on Frank's vehicle (no AC).
 
 Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.
 
@@ -1092,8 +1040,9 @@ Writable control (satellite On/Off switch **write path CONFIRMED on bus 10** by 
 
 Confirmed in the decompiled model, not yet exposed:
 
-- (10, 3) `stop_movement`, (10, 4) `open_sleep_mode` — bool **write-only** commands (candidates for future `button` entities).
-- (10, 11) `unsupported_function_state`, (10, 12) `alarm_beeper_state`, (10, 14) `k15_state` — all bool r. (Slot 7 does not exist.)
+- (10, 3) `stop_movement`, (10, 4) `open_sleep_mode` — bool **write-only** commands (candidates for future `button` entities; write-only slots can't be observation-gated, so they stay decode-only for now).
+
+(The read flags (10, 11) `sat_unsupported_function_state`, (10, 12) `sat_alarm_beeper_state`, (10, 14) `sat_k15_state` were surfaced as binary sensors in **v2.83.0**. Slot 7 does not exist.)
 
 ### Recommended Home Assistant cards (satellite)
 
@@ -1133,6 +1082,8 @@ ML-T 570 (bus 114), so bus 32 is free on those layouts. Confirmed on a HYMER BMC
 | (32, 2) | `fridge_absorber_power_mode` | — | `SetPowerMode` (string, rw) — power source. Read sensor backing the writable select below. |
 | (32, 3) | `fridge_absorber_cooling_step` | step | `fridge_level` (int 1–5, rw). |
 | (32, 5) | `fridge_absorber_door` | bool | `door_open` (bool, r — TRUE = open, FALSE = closed). `binary_sensor` `device_class: door`. |
+| (32, 8) | `fridge_absorber_warning` | — | `error_warning_information` (string, r). Diagnostic sensor. Mapped v2.82.0. |
+| (32, 10) | `fridge_absorber_automatic_mode` | — | `automatic_mode_active` (bool, r). `binary_sensor`. Mapped v2.82.0. |
 
 Writable controls (⚠️ **write paths UNVERIFIED on-vehicle** — test builds, revert if the SCU drops the write):
 
@@ -1141,4 +1092,4 @@ Writable controls (⚠️ **write paths UNVERIFIED on-vehicle** — test builds,
 | `select.hymer_absorber_fridge_cooling_step` | (32, 3) | v2.64.7 | Off / 1–5 (stepped-switch driver, mirrors bus 34/114: writes power sid 1 then step sid 3). |
 | `select.hymer_absorber_fridge_power_source` | (32, 2) | v2.64.9 | `Automatic mode` / `Gas mode` / `12V mode` / `AC mode` (string select). The Auto/Gas/12V/230V control. |
 
-Confirmed in the decompiled model, not yet exposed: (32, 8) `error_warning_information` (string, r), (32, 10) `automatic_mode_active` (bool, r).
+All decompiled bus-32 slots are now mapped: the former "not yet exposed" slots (32, 8) `error_warning_information` and (32, 10) `automatic_mode_active` were surfaced as read/diagnostic sensors in **v2.82.0** (see the slot table above).
