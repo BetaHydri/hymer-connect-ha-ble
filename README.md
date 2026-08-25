@@ -517,7 +517,7 @@ graph TB
 > **Additional observation-gated components now in `base.json` (v2.70–v2.76)** — created only when your vehicle
 > reports the bus: bus 2 Schaudt EBL 400 · bus 7 Truma Aventa Comfort A/C · bus 9 Dometic Series 10 fridge ·
 > bus 52 CBE PL50 · bus 57 Truma Combi D (diesel-only) · bus 59 Truma Aventa Compact A/C · bus 96 BatteryGuard 1000 ·
-> bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 105 Intelligent Battery Sensor · bus 107 ZipDee power awning ·
+> bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 102 MaxxFan roof fan (dual, read + 2 speed selects) · bus 105 Intelligent Battery Sensor · bus 107 ZipDee power awning ·
 > bus 117 CBE solar charger · bus 119/120 Truma Combi NEO / NEO E. Full list:
 > [`docs/sensor-map.md`](docs/sensor-map.md#complete-bus-index-mapped-buses).
 
@@ -545,6 +545,7 @@ graph TB
 | **Heater** (Truma Combi bus 58/57/119/120 · Alde bus 5 · Aventa bus 7/59) | ⚠️ Depends | Truma Combi **DE** on bus 58 (diesel+electric) and diesel-only Combi **D** on bus 57; Combi **NEO / NEO E** on bus 119/120; Alde 3030 on bus 5 (**read + writable**, confirmed BMC I 680 + B-ML I 780); Truma Aventa Comfort on bus 7 and Aventa Compact on bus 59 (read-only) |
 | **Fridge** (bus 34 / 32 / 114 / 60 / 9) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60), Dometic Series 10 absorber (9) |
 | **Solar** (bus 8 / 117) | ⚠️ Depends | Votronic MPP260CI/MPP250Duo on bus 8; CBE solar charger on bus 117; other chargers may differ |
+| **Roof fan** (bus 102) | ⚠️ Depends | MaxxFan roof ventilation fan (dual front/rear) — read sensors + two roof-fan-speed selects (OFF/LOW/MEDIUM/HIGH). Speed-write path **unverified** (test control) |
 | **Battery / BMS** (bus 99 / 29 / 105 / 97 / 96) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680); EHG Intelligent Battery Sensor on bus 105; Victron Cerbo GX on bus 97; BatteryGuard 1000 on bus 96. Slot meanings vary by model |
 
 **Missing sensors are harmless:** the shared `base.json` / `lights.json` are **observation-gated**, so entities (and

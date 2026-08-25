@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.77.0] - 2026-08-25
+
+### Added
+
+- **MaxxFan roof ventilation fan support (EHG bus 102, dual front + rear).** 12 read entities (on, dome position, roof-fan-speed state, rain sensor, device-failure, air-direction, firmware — front and rear) plus **two writable roof-fan-speed selects** (`OFF`/`LOW`/`MEDIUM`/`HIGH`). The component/slot model was recovered from the decompiled EHG app (componentId 102); the enum wire values match [@dan-simms1's](https://github.com/dan-simms1/hymer-connect-ha) `MAXXFAN_SPEEDS`. Everything is **observation-gated** (`require_observed`) so the entities are created **only** on vehicles that actually report bus 102 — **existing vehicles are unaffected**. The fan-speed **write path is UNVERIFIED** (test control): it is modelled from metadata but not yet confirmed on a MaxxFan-equipped vehicle. If you have one, please report whether setting a speed works (`Command sent over BLE (…, status=1)`), so it can be marked confirmed.
+
+No entity IDs change for existing vehicles and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.76.8] - 2026-08-25
 
 ### Changed

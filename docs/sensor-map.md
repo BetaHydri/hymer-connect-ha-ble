@@ -145,6 +145,7 @@ Notes:
 | 97 | `CerboGX` | Victron Cerbo GX | base | metadata (unverified) |
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
 | 100 | `TPMS` | EHG factory TPMS | base | metadata (unverified) |
+| 102 | `MaxxFan` | MaxxFan roof ventilation fan (dual front/rear) | base | metadata (unverified) |
 | 105 | `SmartBatterySensor` | Intelligent Battery Sensor (IBS) | base | metadata (unverified) |
 | 107 | `ZipDeePowerAwning` | ZipDee power awning (cover) | base | metadata (unverified) |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |

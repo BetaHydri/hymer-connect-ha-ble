@@ -559,6 +559,20 @@
     "105,31": { "name": "ibs_battery_table_valid", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:table-check" },
     "105,39": { "name": "ibs_battery_time_remaining", "require_observed": true, "platform": "sensor", "unit": "min", "state_class": "measurement", "icon": "mdi:clock-outline" },
 
+    "_maxxfan_doc": "MaxxFan roof ventilation fan (EHG bus 102, component 'MaxxFan', kind ventilation). Universal optional component - observation-gated, so these entities materialise only on a vehicle that actually reports bus 102 (existing vehicles are unaffected). Read-only status decode per the decompiled EHG app (componentId 102) + docs/ehg-app-metadata.md: front slots 1-6, rear (dual-fan) slots 7-11, firmware slot 12. The writable open/off + speed controls (slots 1/3 front, 7/9 rear; RoofFanSpeedState enum OFF/LOW/MEDIUM/HIGH) are intentionally NOT exposed as writable yet - a fan entity will be added once the write path is confirmed on-vehicle. WRITE PATH UNVERIFIED.",
+    "102,1": { "name": "maxxfan_on", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fan" },
+    "102,2": { "name": "maxxfan_dome_position", "require_observed": true, "platform": "sensor", "icon": "mdi:window-shutter" },
+    "102,3": { "name": "maxxfan_speed_state", "require_observed": true, "platform": "sensor", "icon": "mdi:fan" },
+    "102,4": { "name": "maxxfan_rain_sensor", "require_observed": true, "platform": "binary_sensor", "device_class": "moisture", "icon": "mdi:weather-rainy" },
+    "102,5": { "name": "maxxfan_device_failure", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
+    "102,6": { "name": "maxxfan_air_direction", "require_observed": true, "platform": "sensor", "icon": "mdi:swap-vertical" },
+    "102,7": { "name": "maxxfan_rear_on", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fan" },
+    "102,8": { "name": "maxxfan_rear_dome_position", "require_observed": true, "platform": "sensor", "icon": "mdi:window-shutter" },
+    "102,9": { "name": "maxxfan_rear_speed_state", "require_observed": true, "platform": "sensor", "icon": "mdi:fan" },
+    "102,10": { "name": "maxxfan_rear_air_direction", "require_observed": true, "platform": "sensor", "icon": "mdi:swap-vertical" },
+    "102,11": { "name": "maxxfan_rear_rain_sensor", "require_observed": true, "platform": "binary_sensor", "device_class": "moisture", "icon": "mdi:weather-rainy" },
+    "102,12": { "name": "maxxfan_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
     "_truma_neo_doc": "Truma Combi NEO (EHG bus 119, component 'TrumaCombiNeo') - the CP Plus NEO combi water+air heater. Universal optional component - observation-gated (truma_neo_*, distinct from the legacy Combi on bus 58 heater_* / bus 49 truma_* and the Combi D on bus 57 heater_d_*). Read-only status/telemetry per decompiled EHG app componentId 119: the int status flags (230V-available / window-switch / manual-mode / device-error) ship as diagnostic sensors (raw int, semantics unconfirmed); shower/heat-up times + room temperature ship as enabled measurements. Writable water/air mode/energy/fan/setpoint controls (slots 1-2,10-14) are exposed as observation-gated int-enum selects (water/air mode, water/air energy, air sub-mode, air fan mode) plus an air target-temperature number (slot 10, uint degC), with decode-only readbacks. WRITE PATH UNVERIFIED.",
     "119,1": { "_doc": "Decode-only readback for the truma_neo_water_mode select (int enum 0-5).", "name": "truma_neo_water_mode" },
     "119,2": { "_doc": "Decode-only readback for the truma_neo_water_energy select (int enum).", "name": "truma_neo_water_energy" },
@@ -1016,6 +1030,26 @@
         "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
         "read": { "value_sensor": "dometic_s10_power_mode" },
         "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "maxxfan_front_fan_speed": {
+        "_doc": "MaxxFan roof ventilation fan (EHG bus 102 = MaxxFan, kind ventilation) FRONT roof-fan speed (slot 3 = RoofFanSpeedState, string rw per decompiled EHG app componentId 102). Options are the SCU wire values from the decompiled stringRange (OFF/LOW/MEDIUM/HIGH, matching Dan Simms' MAXXFAN_SPEEDS) - do NOT relabel; the app localizes them for display. Reads maxxfan_speed_state (102,3). WRITE PATH UNVERIFIED - test control (no MaxxFan vehicle available to confirm). require_observed: created only when bus 102 is reported.",
+        "name": "MaxxFan roof fan speed",
+        "icon": "mdi:fan",
+        "control_bus": 102,
+        "require_observed": true,
+        "options": ["OFF", "LOW", "MEDIUM", "HIGH"],
+        "read": { "value_sensor": "maxxfan_speed_state" },
+        "writes": { "option": [{ "sid": 3, "str": "$option" }] }
+      },
+      "maxxfan_rear_fan_speed": {
+        "_doc": "MaxxFan roof ventilation fan (EHG bus 102 = MaxxFan, kind ventilation) REAR roof-fan speed (slot 9 = RearRoofFanSpeedState, string rw per decompiled EHG app componentId 102). Options are the SCU wire values (OFF/LOW/MEDIUM/HIGH, matching Dan Simms' MAXXFAN_SPEEDS) - do NOT relabel. Reads maxxfan_rear_speed_state (102,9). WRITE PATH UNVERIFIED - test control (no MaxxFan vehicle available to confirm). require_observed: created only when bus 102 is reported.",
+        "name": "MaxxFan rear fan speed",
+        "icon": "mdi:fan",
+        "control_bus": 102,
+        "require_observed": true,
+        "options": ["OFF", "LOW", "MEDIUM", "HIGH"],
+        "read": { "value_sensor": "maxxfan_rear_speed_state" },
+        "writes": { "option": [{ "sid": 9, "str": "$option" }] }
       },
       "ebl400_battery_type": {
         "_doc": "Schaudt EBL400 (bus 2) leisure-battery type select (slot 11 = LivingBatteryType, string rw). Options are the SCU wire values from the decompiled EHG app componentId 2 stringRange. 'Don't change battery type' is a no-op sentinel kept for wire fidelity (selecting it is a harmless no-op). Reads ebl400_battery_type. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 2 is reported.",
