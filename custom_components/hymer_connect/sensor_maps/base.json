@@ -1165,6 +1165,61 @@
         "fan_sensor": "saphir_rc_fan_mode"
       }
     },
+    "airxcel_zones": {
+      "_doc": "Airxcel AC Gateway dual-zone climate entities (v2.80.0+). Each zone (front/rear) aggregates the Airxcel slot model into one HA climate card with separate heat/cool target temperatures: HVAC mode (slot 1/17 string AIRXCEL_AC_MODES OFF/COOL/HEAT/AUTO_HEAT_COOL/FAN_ONLY/AUX_HEAT -> Off/Cool/Heat/HeatCool/Fan), heat target (slot 4/20 float) + cool target (slot 5/21 float), ambient (slot 14/30 read), and a combined fan mode (AUTO from slot 2/18 + LOW/MED/HIGH from slot 3/19). In AUTO_HEAT_COOL the card exposes a target range (low=heat, high=cool). Observation-gated on the mode readback. WRITE PATHS UNVERIFIED - test controls. The granular per-slot selects/numbers stay available.",
+      "front": {
+        "require_observed": true,
+        "name": "Airxcel front A/C",
+        "control_bus": 95,
+        "mode_sid": 1,
+        "fan_mode_sid": 2,
+        "fan_speed_sid": 3,
+        "heat_sid": 4,
+        "cool_sid": 5,
+        "min_temp": 10,
+        "max_temp": 35,
+        "mode_sensor": "airxcel_aircon_mode_front",
+        "fan_mode_sensor": "airxcel_aircon_fan_mode_front",
+        "fan_speed_sensor": "airxcel_aircon_fan_speed_front",
+        "heat_sensor": "airxcel_heat_temp_front",
+        "cool_sensor": "airxcel_cool_temp_front",
+        "current_sensor": "airxcel_ambient_temperature_front"
+      },
+      "rear": {
+        "require_observed": true,
+        "name": "Airxcel rear A/C",
+        "control_bus": 95,
+        "mode_sid": 17,
+        "fan_mode_sid": 18,
+        "fan_speed_sid": 19,
+        "heat_sid": 20,
+        "cool_sid": 21,
+        "min_temp": 10,
+        "max_temp": 35,
+        "mode_sensor": "airxcel_aircon_mode_rear",
+        "fan_mode_sensor": "airxcel_aircon_fan_mode_rear",
+        "fan_speed_sensor": "airxcel_aircon_fan_speed_rear",
+        "heat_sensor": "airxcel_heat_temp_rear",
+        "cool_sensor": "airxcel_cool_temp_rear",
+        "current_sensor": "airxcel_ambient_temperature_rear"
+      }
+    },
+    "modern_heaters": {
+      "_doc": "Modern enum-based heater climate entities (v2.80.0+). Aggregates an int-enum air-heater into one HA climate card: HVAC mode from the int mode slot (mapped via mode_values), target temperature (float) and current/ambient temperature (read). Written as uint for the mode, float for the target. Observation-gated on the mode readback. WRITE PATHS UNVERIFIED - test controls. The granular per-slot select/number controls stay available.",
+      "timberline_zone": {
+        "require_observed": true,
+        "name": "Timberline air heater",
+        "control_bus": 125,
+        "mode_sid": 3,
+        "target_sid": 4,
+        "min_temp": 5,
+        "max_temp": 35,
+        "mode_options": ["OFF", "HEAT", "FAN_ONLY"],
+        "mode_sensor": "timberline_air_mode",
+        "target_sensor": "timberline_air_target_temp",
+        "current_sensor": "timberline_zone_ambient_temperature"
+      }
+    },
     "selects": {
       "fridge_dometic_cooling_step": {
         "_doc": "Dometic compressor fridge (bus 60 = DometicCompressorFridge) Off/1-5 cooling-step control. Ground truth from the decompiled EHG app (componentId 60): PowerOn = slot 8 (bool rw), Temperature = slot 2 (int rw, range 1-5, NO 0/Off). Mirrors the Thetford drivers (bus 34/32/114): power sid 8 (bool) then cooling-step sid 2 (uint). Off routes to PowerOn=false. Both the cooling-level write (slot 2) AND the on/off write (slot 8, Off branch) CONFIRMED on-vehicle by HYMER Dometic owner 'Jos' (2026-08-23). require_observed: created only when bus 60 is reported.",

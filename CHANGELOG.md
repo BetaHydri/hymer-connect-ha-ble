@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.80.0] - 2026-08-25
+
+### Added
+
+- **Dual-zone Airxcel A/C thermostat (`climate`) entities.** The Airxcel AC Gateway (bus 95) now exposes a **front** and a **rear** Home Assistant climate card with **separate heat/cool target temperatures**: HVAC mode (Off/Cool/Heat/Heat-Cool/Fan), a target-temperature range in the Heat-Cool mode (low = heat, high = cool), current/ambient temperature, and a combined fan mode (Auto + Low/Med/High). Enum wire values match the decompiled EHG app (`AIRXCEL_AC_MODES` / `AIRXCEL_FAN_SPEEDS`).
+- **Timberline air-heater thermostat (`climate`) entity.** The Timberline zone heater (bus 125) now exposes a climate card driven by its int-enum mode slot (Off/Heat/Fan) plus target + ambient temperature.
+
+Both build on the slot-level controls shipped in v2.77.0 and complete the aggregated climate cards begun in v2.78.0 (Teleco/Saphir). Every entity is **observation-gated** (created only when the vehicle reports the bus), so existing vehicles are unaffected and no entity IDs change. **Write paths are UNVERIFIED** test controls until confirmed on-vehicle; the granular per-slot select/number controls remain available. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.79.0] - 2026-08-25
 
 ### Fixed
