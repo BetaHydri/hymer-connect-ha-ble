@@ -1,0 +1,51 @@
+name: Python unit tests
+
+# Fast, hardware-independent unit tests for the pure logic in
+# custom_components/hymer_connect (BLE PIA framing / pairing envelope, sensor-map
+# gating and collision lints, stepped selects, auto-slot templates). None of
+# these require a Home Assistant install or a vehicle. The BLE pairing harness
+# (tools/_test_ble_pairing.py) guards the field-1 BleProtocol envelope fix and
+# the device-locked pairing agent (it caught the v2.76.3 -> v2.76.4 regression).
+
+on:
+  push:
+    paths:
+      - 'custom_components/hymer_connect/**'
+      - 'tools/_test_*.py'
+      - '.github/workflows/python-tests.yml'
+  pull_request:
+    paths:
+      - 'custom_components/hymer_connect/**'
+      - 'tools/_test_*.py'
+      - '.github/workflows/python-tests.yml'
+  workflow_dispatch:
+
+env:
+  # Match the repo's Node-24 policy for JS-based actions (see other workflows).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Deterministic UTF-8 output regardless of runner locale.
+  PYTHONUTF8: '1'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run standalone unit tests (no Home Assistant required)
+        run: |
+          set -e
+          for t in \
+            tools/_test_ble_pairing.py \
+            tools/_test_ble_write_frame.py \
+            tools/_test_auto_slot_n.py \
+            tools/_test_collision_lint.py \
+            tools/_test_gating_completeness.py \
+            tools/_test_require_observed_gate.py \
+            tools/_test_stepped_select.py; do
+            echo "::group::$t"
+            python "$t"
+            echo "::endgroup::"
+          done
