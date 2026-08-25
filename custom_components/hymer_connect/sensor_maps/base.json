@@ -1120,6 +1120,51 @@
       "cooling_step_sensor": "fridge_cooling_step",
       "mode_sensor": "fridge_mode"
     },
+    "air_conditioners": {
+      "_doc": "Single-zone air-conditioner climate entities (v2.78.0+). Each def aggregates the standard 4-slot AC layout into one HA climate (thermostat) card: target-temperature (slot 1, float), current/room temperature (slot 2, read), HVAC mode (slot 3, string AIRCON_MODE_OPTIONS OFF/FAN/COOL/HEAT/DEHUMIDIFY/VENTILATION/AUTO) and fan mode (slot 4, string FAN_MODE_OPTIONS OFF/LOW/MID/HIGH/NIGHT/AUTO). Observation-gated on the mode readback sensor so it only materialises on a vehicle that reports the bus. The slot-level select/number controls for the same slots stay available for granular control. Dual-zone Airxcel (bus 95, separate heat/cool targets) is handled by its slot-level controls for now. WRITE PATHS UNVERIFIED - test controls.",
+      "ac_teleco": {
+        "require_observed": true,
+        "name": "Teleco DualClima",
+        "control_bus": 36,
+        "target_sid": 1,
+        "mode_sid": 3,
+        "fan_sid": 4,
+        "min_temp": 16,
+        "max_temp": 32,
+        "target_sensor": "teleco_target_temp",
+        "current_sensor": "teleco_room_temperature",
+        "mode_sensor": "teleco_aircon_mode",
+        "fan_sensor": "teleco_fan_mode"
+      },
+      "ac_saphir_compact": {
+        "require_observed": true,
+        "name": "Saphir Compact",
+        "control_bus": 79,
+        "target_sid": 1,
+        "mode_sid": 3,
+        "fan_sid": 4,
+        "min_temp": 16,
+        "max_temp": 32,
+        "target_sensor": "saphir_compact_target_temp",
+        "current_sensor": "saphir_compact_room_temperature",
+        "mode_sensor": "saphir_compact_aircon_mode",
+        "fan_sensor": "saphir_compact_fan_mode"
+      },
+      "ac_saphir_rc": {
+        "require_observed": true,
+        "name": "Saphir Comfort RC",
+        "control_bus": 89,
+        "target_sid": 1,
+        "mode_sid": 3,
+        "fan_sid": 4,
+        "min_temp": 16,
+        "max_temp": 32,
+        "target_sensor": "saphir_rc_target_temp",
+        "current_sensor": "saphir_rc_room_temperature",
+        "mode_sensor": "saphir_rc_aircon_mode",
+        "fan_sensor": "saphir_rc_fan_mode"
+      }
+    },
     "selects": {
       "fridge_dometic_cooling_step": {
         "_doc": "Dometic compressor fridge (bus 60 = DometicCompressorFridge) Off/1-5 cooling-step control. Ground truth from the decompiled EHG app (componentId 60): PowerOn = slot 8 (bool rw), Temperature = slot 2 (int rw, range 1-5, NO 0/Off). Mirrors the Thetford drivers (bus 34/32/114): power sid 8 (bool) then cooling-step sid 2 (uint). Off routes to PowerOn=false. Both the cooling-level write (slot 2) AND the on/off write (slot 8, Off branch) CONFIRMED on-vehicle by HYMER Dometic owner 'Jos' (2026-08-23). require_observed: created only when bus 60 is reported.",

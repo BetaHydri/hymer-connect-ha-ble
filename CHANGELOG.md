@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.78.0] - 2026-08-25
+
+### Added
+
+- **Air-conditioner thermostat (`climate`) entities for single-zone A/C units.** The Teleco Telair DualClima (bus 36), Truma Saphir Compact (bus 79) and Saphir Comfort RC (bus 89) now expose a proper Home Assistant **climate card** — HVAC mode (Off/Cool/Heat/Fan/Dry/Auto), target + current temperature, and fan mode — aggregating the slot-level controls added in v2.77.0 into one thermostat. Each entity is **observation-gated** (created only when the vehicle reports the bus) and JSON-driven from the new `climate.air_conditioners` section. Enum wire values match the decompiled EHG app (`AIRCON_MODE_OPTIONS` / `FAN_MODE_OPTIONS`); **write paths are UNVERIFIED** test controls until confirmed on-vehicle. The granular per-slot select/number controls remain available. The dual-zone Airxcel AC Gateway (bus 95, separate heat/cool targets) and the Timberline heaters (buses 124/125) keep their slot-level controls for now; aggregated climate cards for those will follow.
+
+No entity IDs change for existing vehicles and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.77.0] - 2026-08-25
 
 ### Added

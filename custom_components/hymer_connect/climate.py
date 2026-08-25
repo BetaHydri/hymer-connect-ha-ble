@@ -44,9 +44,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HYMER Connect climate from a config entry."""
-    from .pia_decoder import get_truma_heater_defs
+    from .pia_decoder import get_air_conditioner_defs, get_truma_heater_defs
 
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Single-zone air-conditioners (Teleco / Saphir …) — each observation-gated.
+    _setup_air_conditioners(coordinator, entry, async_add_entities, get_air_conditioner_defs())
+
     heater_defs = get_truma_heater_defs()
     if not heater_defs:
         _LOGGER.debug("Climate platform: no truma_heater definition in JSON — skipping")
@@ -269,4 +273,216 @@ class HymerHeaterClimate(
                     if self._optimistic_temp and abs(setpoint - self._optimistic_temp) < 0.5:
                         self._optimistic_mode = None
                         self._optimistic_temp = None
+        super()._handle_coordinator_update()
+
+
+# Wire values (from the decompiled EHG app) -> HA HVAC / fan modes.
+_AC_MODE_TO_HVAC: dict[str, HVACMode] = {
+    "OFF": HVACMode.OFF,
+    "FAN": HVACMode.FAN_ONLY,
+    "VENTILATION": HVACMode.FAN_ONLY,
+    "COOL": HVACMode.COOL,
+    "HEAT": HVACMode.HEAT,
+    "DEHUMIDIFY": HVACMode.DRY,
+    "AUTO": HVACMode.AUTO,
+}
+_AC_HVAC_TO_MODE: dict[HVACMode, str] = {
+    HVACMode.OFF: "OFF",
+    HVACMode.FAN_ONLY: "FAN",
+    HVACMode.COOL: "COOL",
+    HVACMode.HEAT: "HEAT",
+    HVACMode.DRY: "DEHUMIDIFY",
+    HVACMode.AUTO: "AUTO",
+}
+_AC_FAN_MODES = ["OFF", "LOW", "MID", "HIGH", "NIGHT", "AUTO"]
+
+
+def _setup_air_conditioners(
+    coordinator: HymerConnectCoordinator,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+    ac_defs: tuple[tuple[str, dict[str, Any]], ...],
+) -> None:
+    """Create one observation-gated AC climate entity per def."""
+    if not ac_defs:
+        return
+    created: set[str] = set()
+
+    @callback
+    def _discover() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        for key, ac_def in ac_defs:
+            if key in created:
+                continue
+            gate = ac_def.get("mode_sensor") or ac_def.get("current_sensor")
+            # Ungated defs (require_observed false) are created immediately.
+            if ac_def.get("require_observed") and gate and gate not in sensors:
+                continue
+            created.add(key)
+            async_add_entities([HymerACClimate(coordinator, entry, key, ac_def)])
+            _LOGGER.info("Air-conditioner climate materialised: %s (bus %s)",
+                         key, ac_def.get("control_bus"))
+
+    _discover()
+    entry.async_on_unload(coordinator.async_add_listener(_discover))
+
+
+class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+    """Single-zone air-conditioner climate (target/current/mode/fan).
+
+    JSON-driven from ``"climate"."air_conditioners"``.  All writes are
+    observation-gated test controls until confirmed on-vehicle.
+    """
+
+    _attr_has_entity_name = True
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_target_temperature_step = 1.0
+    _attr_icon = "mdi:air-conditioner"
+    _attr_fan_modes = _AC_FAN_MODES
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE
+    )
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        ac_def: dict[str, Any],
+    ) -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._bus = int(ac_def["control_bus"])
+        self._target_sid = int(ac_def.get("target_sid", 1))
+        self._mode_sid = int(ac_def.get("mode_sid", 3))
+        self._fan_sid = int(ac_def.get("fan_sid", 4))
+        self._target_sensor = ac_def.get("target_sensor", "")
+        self._current_sensor = ac_def.get("current_sensor", "")
+        self._mode_sensor = ac_def.get("mode_sensor", "")
+        self._fan_sensor = ac_def.get("fan_sensor", "")
+        self._attr_min_temp = float(ac_def.get("min_temp", 16))
+        self._attr_max_temp = float(ac_def.get("max_temp", 32))
+        self._attr_name = ac_def.get("name", "Air conditioner")
+        self._attr_unique_id = f"{entry.entry_id}_ac_{key}_b{self._bus}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+        self._attr_hvac_modes = [
+            HVACMode.OFF, HVACMode.FAN_ONLY, HVACMode.COOL,
+            HVACMode.HEAT, HVACMode.DRY, HVACMode.AUTO,
+        ]
+        self._optimistic_mode: HVACMode | None = None
+        self._optimistic_temp: float | None = None
+        self._optimistic_fan: str | None = None
+
+    def _sensor(self, name: str) -> Any:
+        if not name or self.coordinator.data is None:
+            return None
+        return _resolve_path(self.coordinator.data, f"signalr_sensors.{name}")
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
+        if self._optimistic_mode is not None:
+            return self._optimistic_mode
+        raw = self._sensor(self._mode_sensor)
+        if isinstance(raw, str):
+            return _AC_MODE_TO_HVAC.get(raw.upper())
+        return None
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        mode = self.hvac_mode
+        if mode == HVACMode.COOL:
+            return HVACAction.COOLING
+        if mode == HVACMode.HEAT:
+            return HVACAction.HEATING
+        if mode == HVACMode.DRY:
+            return HVACAction.DRYING
+        if mode == HVACMode.FAN_ONLY:
+            return HVACAction.FAN
+        if mode == HVACMode.OFF:
+            return HVACAction.OFF
+        return HVACAction.IDLE
+
+    @property
+    def current_temperature(self) -> float | None:
+        val = self._sensor(self._current_sensor)
+        try:
+            return float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        if self._optimistic_temp is not None:
+            return self._optimistic_temp
+        val = self._sensor(self._target_sensor)
+        try:
+            return float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def fan_mode(self) -> str | None:
+        if self._optimistic_fan is not None:
+            return self._optimistic_fan
+        raw = self._sensor(self._fan_sensor)
+        return raw if isinstance(raw, str) and raw in _AC_FAN_MODES else None
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        wire = _AC_HVAC_TO_MODE.get(hvac_mode)
+        if wire is None:
+            return
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire},
+        ])
+        self._optimistic_mode = hvac_mode
+        self.async_write_ha_state()
+
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        temp = kwargs.get(ATTR_TEMPERATURE)
+        if temp is None:
+            return
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": float(temp)},
+        ])
+        self._optimistic_temp = float(temp)
+        self.async_write_ha_state()
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        if fan_mode not in _AC_FAN_MODES:
+            return
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._fan_sid, "str_value": fan_mode},
+        ])
+        self._optimistic_fan = fan_mode
+        self.async_write_ha_state()
+
+    def _handle_coordinator_update(self) -> None:
+        # Clear optimistic flags once the SCU readback matches.
+        if self.coordinator.data:
+            raw_mode = self._sensor(self._mode_sensor)
+            if (
+                self._optimistic_mode is not None
+                and isinstance(raw_mode, str)
+                and _AC_MODE_TO_HVAC.get(raw_mode.upper()) == self._optimistic_mode
+            ):
+                self._optimistic_mode = None
+            raw_fan = self._sensor(self._fan_sensor)
+            if self._optimistic_fan is not None and raw_fan == self._optimistic_fan:
+                self._optimistic_fan = None
+            raw_temp = self._sensor(self._target_sensor)
+            if self._optimistic_temp is not None and raw_temp is not None:
+                try:
+                    if abs(float(raw_temp) - self._optimistic_temp) < 0.5:
+                        self._optimistic_temp = None
+                except (ValueError, TypeError):
+                    pass
         super()._handle_coordinator_update()
