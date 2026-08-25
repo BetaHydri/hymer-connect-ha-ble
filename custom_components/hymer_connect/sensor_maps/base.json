@@ -573,6 +573,65 @@
     "102,11": { "name": "maxxfan_rear_rain_sensor", "require_observed": true, "platform": "binary_sensor", "device_class": "moisture", "icon": "mdi:weather-rainy" },
     "102,12": { "name": "maxxfan_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
 
+    "_seelevel_doc": "Garnet SeeLevel 709 RVC/NLP tank monitor (EHG bus 91, component 'SeeLevel_709_RVC_NLP', kind tank_monitor). Universal optional component - observation-gated, so these appear only on a vehicle that reports bus 91 (existing vehicles unaffected). All slots are read-only per the decompiled EHG app (componentId 91): primary + secondary fresh/black/grey/LPG levels as percentages, device failure + firmware as diagnostics. No writable slots.",
+    "91,1": { "name": "seelevel_fresh_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "91,2": { "name": "seelevel_black_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:toilet" },
+    "91,3": { "name": "seelevel_grey_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "91,4": { "name": "seelevel_lpg_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:propane-tank" },
+    "91,5": { "name": "seelevel_fresh_water_level_2", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "91,6": { "name": "seelevel_black_water_level_2", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:toilet" },
+    "91,7": { "name": "seelevel_grey_water_level_2", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "91,8": { "name": "seelevel_lpg_level_2", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:propane-tank" },
+    "91,10": { "name": "seelevel_device_failure", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
+    "91,11": { "name": "seelevel_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
+    "_thetford_toilet_doc": "Thetford iNDUS toilet (EHG bus 56, component 'ThetfordIndusToilet', kind toilet). Universal optional component - observation-gated (bus 56). Read-only status + tank/cartridge levels per the decompiled EHG app (componentId 56): availability flags, D+/pulsing-flush/grey-reuse statuses, grey/black/fresh tank levels, grey/flush/black cartridge levels, notification. The writable slots (56,17-21 = time-sync / D-signal simulation / bluetooth whitelisting / clock hour+minute) are diagnostic/config only and are intentionally NOT exposed as controls.",
+    "56,1": { "name": "thetford_toilet_flush_tank_available", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:water-check" },
+    "56,2": { "name": "thetford_toilet_tank_unit_available", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:storage-tank" },
+    "56,3": { "name": "thetford_toilet_cartridge_unit_available", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:cup" },
+    "56,4": { "name": "thetford_toilet_ui_available", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:tablet" },
+    "56,5": { "name": "thetford_toilet_discharge_ui_available", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:tablet" },
+    "56,6": { "name": "thetford_toilet_dplus_status", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:power-plug" },
+    "56,7": { "name": "thetford_toilet_pulsing_flush_status", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:water-sync" },
+    "56,8": { "name": "thetford_toilet_reuse_grey_water_status", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:water-sync" },
+    "56,9": { "name": "thetford_toilet_grey_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "56,10": { "name": "thetford_toilet_black_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:toilet" },
+    "56,11": { "name": "thetford_toilet_fresh_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:water-percent" },
+    "56,12": { "name": "thetford_toilet_grey_cartridge_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:cup-water" },
+    "56,13": { "name": "thetford_toilet_flush_cartridge_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:cup-water" },
+    "56,14": { "name": "thetford_toilet_black_cartridge_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:cup-water" },
+    "56,15": { "name": "thetford_toilet_external_bt_connected", "require_observed": true, "platform": "binary_sensor", "device_class": "connectivity", "entity_category": "diagnostic", "icon": "mdi:bluetooth" },
+    "56,16": { "name": "thetford_toilet_notification", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:message-alert" },
+
+    "_thetford_toilet_eco_doc": "Thetford iNDUS toilet ECO (EHG bus 127, component 'ThetfordIndusToiletEco', kind toilet). Universal optional component - observation-gated (bus 127). Both slots read-only per the decompiled EHG app (componentId 127): black-water tank level + notification. No writable slots.",
+    "127,1": { "name": "thetford_toilet_eco_black_water_level", "require_observed": true, "platform": "sensor", "unit": "%", "icon": "mdi:toilet" },
+    "127,2": { "name": "thetford_toilet_eco_notification", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:message-alert" },
+
+    "_switchpad_doc": "EHG SwitchPad control panel (EHG bus 109, component 'SwitchPad', kind switch_pad). Universal optional component - observation-gated (bus 109). Slot 1 Mode (string rw) is exposed as a select (switchpad_mode); the three button-brightness slots (3/4/5, int rw) as number controls; mode-status/device-failure/firmware are read sensors. Decode-only readbacks below feed the controls. WRITE PATH UNVERIFIED.",
+    "109,1": { "_doc": "Decode-only readback for the switchpad_mode select (string enum).", "name": "switchpad_mode" },
+    "109,2": { "name": "switchpad_mode_status", "require_observed": true, "platform": "sensor", "icon": "mdi:gesture-tap-button" },
+    "109,3": { "_doc": "Decode-only readback for the switchpad_onboard_brightness number (int).", "name": "switchpad_onboard_brightness" },
+    "109,4": { "_doc": "Decode-only readback for the switchpad_away_brightness number (int).", "name": "switchpad_away_brightness" },
+    "109,5": { "_doc": "Decode-only readback for the switchpad_sleep_brightness number (int).", "name": "switchpad_sleep_brightness" },
+    "109,6": { "name": "switchpad_device_failure", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
+    "109,7": { "name": "switchpad_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
+    "_dellcool_doc": "DellCool compressor fridge (EHG bus 116, component 'DellCoolFridge', kind fridge). Universal optional component - observation-gated (bus 116). Mirrors the Dometic/Thetford drivers: power (slot 1 bool) + cooling level (slot 3 int 1-5) via one dellcool_cooling_step select, plus a power-mode select (slot 2 string). Compressor/door/warning are read sensors. Decode-only readbacks below feed the controls. WRITE PATH UNVERIFIED.",
+    "116,1": { "_doc": "Decode-only readback for the dellcool_cooling_step select power branch (bool).", "name": "dellcool_power" },
+    "116,2": { "_doc": "Decode-only readback for the dellcool_power_mode select (string enum).", "name": "dellcool_power_mode" },
+    "116,3": { "_doc": "Decode-only readback for the dellcool_cooling_step select level branch (int 1-5).", "name": "dellcool_level" },
+    "116,4": { "name": "dellcool_compressor_on", "require_observed": true, "platform": "binary_sensor", "device_class": "running", "icon": "mdi:engine" },
+    "116,5": { "name": "dellcool_door_open", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-alert" },
+    "116,6": { "name": "dellcool_warning", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert" },
+
+    "_indelb_doc": "Indel B compressor fridge (EHG bus 118, component 'IndelBFridge', kind fridge). Universal optional component - observation-gated (bus 118). Mirrors the Dometic/Thetford drivers: power (slot 1 bool) + cooling level (slot 3 int 1-5) via one indelb_cooling_step select, plus a power-mode select (slot 2 string). Door/error/firmware are read sensors. Decode-only readbacks below feed the controls. WRITE PATH UNVERIFIED.",
+    "118,1": { "_doc": "Decode-only readback for the indelb_cooling_step select power branch (bool).", "name": "indelb_power" },
+    "118,2": { "_doc": "Decode-only readback for the indelb_power_mode select (string enum).", "name": "indelb_power_mode" },
+    "118,3": { "_doc": "Decode-only readback for the indelb_cooling_step select level branch (int 1-5).", "name": "indelb_level" },
+    "118,4": { "name": "indelb_door_open", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-alert" },
+    "118,5": { "name": "indelb_error", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert" },
+    "118,6": { "name": "indelb_firmware", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:chip" },
+
     "_truma_neo_doc": "Truma Combi NEO (EHG bus 119, component 'TrumaCombiNeo') - the CP Plus NEO combi water+air heater. Universal optional component - observation-gated (truma_neo_*, distinct from the legacy Combi on bus 58 heater_* / bus 49 truma_* and the Combi D on bus 57 heater_d_*). Read-only status/telemetry per decompiled EHG app componentId 119: the int status flags (230V-available / window-switch / manual-mode / device-error) ship as diagnostic sensors (raw int, semantics unconfirmed); shower/heat-up times + room temperature ship as enabled measurements. Writable water/air mode/energy/fan/setpoint controls (slots 1-2,10-14) are exposed as observation-gated int-enum selects (water/air mode, water/air energy, air sub-mode, air fan mode) plus an air target-temperature number (slot 10, uint degC), with decode-only readbacks. WRITE PATH UNVERIFIED.",
     "119,1": { "_doc": "Decode-only readback for the truma_neo_water_mode select (int enum 0-5).", "name": "truma_neo_water_mode" },
     "119,2": { "_doc": "Decode-only readback for the truma_neo_water_energy select (int enum).", "name": "truma_neo_water_energy" },
@@ -1051,6 +1110,80 @@
         "read": { "value_sensor": "maxxfan_rear_speed_state" },
         "writes": { "option": [{ "sid": 9, "str": "$option" }] }
       },
+      "dellcool_cooling_step": {
+        "_doc": "DellCool compressor fridge (bus 116 = DellCoolFridge) power + cooling level. Ground truth decompiled EHG app componentId 116: FridgeOn slot 1 (bool rw), FridgeLevel slot 3 (int rw 1-5). Off routes to FridgeOn=false; a level turns power on then sets the step (mirrors the Dometic/Thetford drivers). Reads dellcool_power (116,1) + dellcool_level (116,3). WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 116 is reported.",
+        "name": "DellCool cooling step",
+        "icon": "mdi:fridge",
+        "control_bus": 116,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "dellcool_level",
+          "power_sensor": "dellcool_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "dellcool_power_mode": {
+        "_doc": "DellCool compressor fridge (bus 116) power-mode select (slot 2 = PowerMode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 116 (Dan Simms DELLCOOL_POWER_MODES) - do NOT relabel. Reads dellcool_power_mode. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 116 is reported.",
+        "name": "DellCool power mode",
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 116,
+        "require_observed": true,
+        "options": ["NORMAL_MODE", "SILENT_MODE", "AUTO_MODE"],
+        "read": { "value_sensor": "dellcool_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "indelb_cooling_step": {
+        "_doc": "Indel B compressor fridge (bus 118 = IndelBFridge) power + cooling level. Ground truth decompiled EHG app componentId 118: FridgeOn slot 1 (bool rw), FridgeLevel slot 3 (int rw 1-5). Off routes to FridgeOn=false; a level turns power on then sets the step (mirrors the Dometic/Thetford drivers). Reads indelb_power (118,1) + indelb_level (118,3). WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 118 is reported.",
+        "name": "Indel B cooling step",
+        "icon": "mdi:fridge",
+        "control_bus": 118,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "indelb_level",
+          "power_sensor": "indelb_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "indelb_power_mode": {
+        "_doc": "Indel B compressor fridge (bus 118) power-mode select (slot 2 = PowerMode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 118 (Dan Simms INDELB_POWER_MODES) - do NOT relabel. Reads indelb_power_mode. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 118 is reported.",
+        "name": "Indel B power mode",
+        "icon": "mdi:fridge-industrial",
+        "control_bus": 118,
+        "require_observed": true,
+        "options": ["NORMAL_MODE", "NIGHT_MODE", "TURBO_MODE", "NIGHT_AND_TURBO_MODE"],
+        "read": { "value_sensor": "indelb_power_mode" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "switchpad_mode": {
+        "_doc": "EHG SwitchPad (bus 109 = SwitchPad) operating-mode select (slot 1 = Mode, string rw). Options are the SCU wire values from the decompiled EHG app componentId 109 (Dan Simms SWITCH_PAD_MODE_OPTIONS) - do NOT relabel. Reads switchpad_mode. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 109 is reported.",
+        "name": "SwitchPad mode",
+        "icon": "mdi:gesture-tap-button",
+        "control_bus": 109,
+        "require_observed": true,
+        "options": ["ON_BOARD_MODE", "AWAY_MODE", "SLEEP_MODE"],
+        "read": { "value_sensor": "switchpad_mode" },
+        "writes": { "option": [{ "sid": 1, "str": "$option" }] }
+      },
       "ebl400_battery_type": {
         "_doc": "Schaudt EBL400 (bus 2) leisure-battery type select (slot 11 = LivingBatteryType, string rw). Options are the SCU wire values from the decompiled EHG app componentId 2 stringRange. 'Don't change battery type' is a no-op sentinel kept for wire fidelity (selecting it is a harmless no-op). Reads ebl400_battery_type. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 2 is reported.",
         "name": "Battery type",
@@ -1351,6 +1484,51 @@
         "write_type": "uint",
         "require_observed": true,
         "read": { "value_sensor": "ebl400_living_battery_capacity" }
+      },
+      "switchpad_onboard_brightness": {
+        "_doc": "EHG SwitchPad (bus 109) on-board-mode button brightness (slot 3 = OnBoardModeButtonBrightness, int rw). Written as uint. Range assumed 0-100 (percent) pending on-vehicle confirmation. Reads switchpad_onboard_brightness. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 109 is reported.",
+        "name": "SwitchPad on-board brightness",
+        "icon": "mdi:brightness-6",
+        "control_bus": 109,
+        "sid": 3,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "mode": "slider",
+        "write_type": "uint",
+        "require_observed": true,
+        "read": { "value_sensor": "switchpad_onboard_brightness" }
+      },
+      "switchpad_away_brightness": {
+        "_doc": "EHG SwitchPad (bus 109) away-mode button brightness (slot 4 = AwayModeButtonBrightness, int rw). Written as uint. Range assumed 0-100 (percent) pending on-vehicle confirmation. Reads switchpad_away_brightness. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 109 is reported.",
+        "name": "SwitchPad away brightness",
+        "icon": "mdi:brightness-5",
+        "control_bus": 109,
+        "sid": 4,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "mode": "slider",
+        "write_type": "uint",
+        "require_observed": true,
+        "read": { "value_sensor": "switchpad_away_brightness" }
+      },
+      "switchpad_sleep_brightness": {
+        "_doc": "EHG SwitchPad (bus 109) sleep-mode button brightness (slot 5 = SleepModeButtonBrightness, int rw). Written as uint. Range assumed 0-100 (percent) pending on-vehicle confirmation. Reads switchpad_sleep_brightness. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 109 is reported.",
+        "name": "SwitchPad sleep brightness",
+        "icon": "mdi:brightness-4",
+        "control_bus": 109,
+        "sid": 5,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%",
+        "mode": "slider",
+        "write_type": "uint",
+        "require_observed": true,
+        "read": { "value_sensor": "switchpad_sleep_brightness" }
       },
       "truma_neo_air_target_temp": {
         "_doc": "Truma Combi NEO (bus 119) air heater target room temperature (slot 10 = AirHeaterTargetRoomTemperature, int degC rw, range 5-30 per decompiled EHG app componentId 119). Written as uint. Reads truma_neo_air_target_temp. WRITE PATH UNVERIFIED - test control. require_observed.",
