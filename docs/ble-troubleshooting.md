@@ -348,13 +348,16 @@ integration:
   why "only a Proxmox reboot helps".
 
 **How a *healthy* reconnect looks** (this integration self-heals — no reboot
-needed). The coordinator retries BLE on every poll with a fresh GATT session, so a
-drop is followed within seconds to a few minutes by a new `BLE direct path
-established`:
+needed). Since **v2.76.7** an independent watchdog retries BLE every ~30 s with a
+fresh GATT session — **independent of cloud activity** — so a drop is followed
+within seconds to a couple of minutes by a new `BLE direct path established`.
+(Before v2.76.7 the retry rode on the coordinator poll, which is starved whenever
+SignalR keeps pushing, so a drop could sit un-recovered until the next reload —
+see [Enabling BLE does not connect until you reload](#enabling-ble-does-not-connect-until-you-reload-fixed-v2767).)
 
 ```text
 coordinator] BLE disconnected — SignalR continues providing sensor data.
-             BLE will be retried on next poll cycle.
+             BLE will be retried by the watchdog.
 coordinator] BLE direct path established to SCU AA:BB:CC:DD:EE:FF (mode=dual)
 ```
 
