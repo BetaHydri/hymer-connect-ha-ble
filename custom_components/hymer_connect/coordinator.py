@@ -96,6 +96,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_pairing_in_progress = False  # set by config_flow during Step 3 BLE pairing
         self._ble_command_ack = asyncio.Event()  # set when BLE PIA response arrives after a command
         self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
+        self._ble_listen_task: asyncio.Task | None = None  # background NUS listen loop; cancelled on teardown
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -549,7 +550,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # 12V off) and the listen loop's 30s uart_queue.get() keeps cycling.
             # hass.async_create_background_task() is truly fire-and-forget:
             # not awaited during bootstrap/shutdown, not tied to config entry.
-            self.hass.async_create_background_task(
+            # Keep the handle so unload/reload can cancel it (avoids orphaning
+            # the BleakClient, which wedges BlueZ on USB-passthrough hosts).
+            self._ble_listen_task = self.hass.async_create_background_task(
                 self._ble_listen_loop(),
                 name=f"hymer_connect_ble_listen_{self.ble_address or 'scu'}",
             )
@@ -646,13 +649,55 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     async def stop_ble(self) -> None:
-        """Disconnect the BLE client."""
+        """Disconnect the BLE client and cancel its background listen loop.
+
+        Cancelling the fire-and-forget listen task first prevents an orphaned
+        BleakClient from keeping the BlueZ GATT connection open after a reload.
+        """
+        task = self._ble_listen_task
+        self._ble_listen_task = None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                _LOGGER.debug("BLE listen task raised on cancel", exc_info=True)
         if self._ble_client:
             await self._ble_client.disconnect()
             self._ble_client = None
         self._ble_connected = False
         if self._connection_mode == "ble":
             self._connection_mode = "cloud"
+
+    async def async_shutdown(self) -> None:
+        """Full teardown for config-entry unload/reload: stop SignalR AND BLE.
+
+        Critical on an integration UPDATE/reload: without releasing the BLE
+        client and its background listen loop, the orphaned BleakClient keeps
+        the BlueZ GATT connection open. The next setup then cannot reconnect,
+        and on USB-passthrough hosts (e.g. a Bluetooth dongle passed into a
+        Proxmox VM) the adapter stays wedged until a full host reboot.
+        """
+        self._shutting_down = True
+        await self.stop_signalr()
+        try:
+            await asyncio.wait_for(self.stop_ble(), timeout=_BLE_CLEANUP_TIMEOUT)
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "BLE cleanup did not finish within %ds during unload — "
+                "releasing references anyway",
+                _BLE_CLEANUP_TIMEOUT,
+            )
+            self._ble_listen_task = None
+            self._ble_client = None
+            self._ble_connected = False
+        except Exception:
+            _LOGGER.debug("BLE cleanup during unload failed", exc_info=True)
+            self._ble_listen_task = None
+            self._ble_client = None
+            self._ble_connected = False
 
     async def _cleanup_ble_after_start_failure(self) -> None:
         """Best-effort BLE cleanup that must not block HA setup.

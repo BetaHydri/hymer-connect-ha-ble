@@ -188,7 +188,10 @@ async def async_unload_entry(
     """Unload a config entry."""
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN].get(entry.entry_id)
     if coordinator:
-        await coordinator.stop_signalr()
+        # Full teardown: stop SignalR AND release the BLE client + its background
+        # listen loop. Skipping the BLE side orphans the BleakClient on reload,
+        # which wedges BlueZ on USB-passthrough hosts (e.g. Proxmox) until reboot.
+        await coordinator.async_shutdown()
     if unload_ok := await hass.config_entries.async_unload_platforms(
         entry, PLATFORM_LIST
     ):

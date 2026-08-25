@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.5] - 2026-08-25
+
+### Fixed
+
+- **Integration updates/reloads no longer orphan the BLE stack (fixes "every update drops BLE until a full host reboot").** On a config-entry unload — which is exactly what a HACS update or a manual "Reload" does — the integration only stopped the SignalR/cloud connection and left the BLE side running: the `BleakClient` (with its active notify subscription) was never disconnected and its fire-and-forget listen loop kept running against the old client. That orphaned connection held the BlueZ GATT link open, so the freshly-loaded integration could not reconnect, and on USB-passthrough hosts (e.g. a Bluetooth dongle passed into a Proxmox VM) the adapter stayed wedged until a full host reboot. Unload now performs a full teardown (`async_shutdown`): it stops SignalR **and** cancels the BLE listen task and disconnects the client, guarded by a timeout so a stuck BlueZ cleanup can never block the reload. Reported by a Proxmox user (Jos).
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant (not just "Reload").
+
 ## [2.76.4] - 2026-08-25
 
 ### Fixed
