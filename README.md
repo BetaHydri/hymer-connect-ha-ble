@@ -453,7 +453,7 @@ graph TB
 
     subgraph "LIN Bus"
         LIN1["Bus 3 — lin1<br/>CBE EBL402 Habitation Electrics<br/>12V main · Battery V/A/SOC<br/>Water tanks · Solar · Shore power"]
-        LIN2["Bus 8 — lin2<br/>Voltronic MPP260CI MPPT<br/>Solar V/A/W · Charger status<br/>Error · AES · Reduced power"]
+        LIN2["Bus 8 — lin2<br/>Votronic MPP260CI MPPT<br/>Solar V/A/W · Charger status<br/>Error · AES · Reduced power"]
     end
 
     subgraph "PIA-addressed Devices"
@@ -493,7 +493,7 @@ graph TB
 | 1 | `can0` | **CAN** | Mercedes Sprinter chassis | Odometer, fuel, doors, ignition, engine, AdBlue, VIN, temperature |
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
 | 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — read-only (v2.64.7) |
-| 8 | `lin2` | **LIN** | Voltronic MPP260CI | Solar voltage, current, power, charger status, error flags |
+| 8 | `lin2` | **LIN** | Votronic MPP260CI | Solar voltage, current, power, charger status, error flags |
 | 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite (writable select, v2.64.9), dish status, signal strength |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
 | 13 | — | PIA | BMC I 680 floor ambient light | On/off, brightness (member of Wohnen group, bus 24) — v2.64.6 |
@@ -522,12 +522,12 @@ graph TB
 | 114 | — | PIA | ML-T 570 Thetford Compressor T2120C fridge | Power, silent/night mode, cooling step 1–5, freezer level 0–3, door, warning |
 | 121 | — | PIA | Victron MultiPlus | Inverter/charger state, V/A/Hz, shore input (disabled — **non-functional**, VE.Bus incompatible with vehicle CAN) |
 
-> **Additional observation-gated components now in `base.json` (v2.70–v2.78)** — created only when your vehicle
-> reports the bus: bus 2 Schaudt EBL 400 · bus 7 Truma Aventa Comfort A/C · bus 9 Dometic Series 10 fridge ·
+> **Additional observation-gated components now in `base.json` (v2.70–v2.87)** — created only when your vehicle
+> reports the bus: bus 2 Schaudt EBL 400 · bus 6 Truma Combi E · bus 7 Truma Aventa Comfort A/C · bus 9 Dometic Series 10 fridge · bus 31 Truma Combi (gas-only) ·
 > bus 36 Teleco DualClima A/C *(climate card)* · bus 52 CBE PL50 · bus 56 Thetford iNDUS toilet · bus 57 Truma Combi D (diesel-only) ·
 > bus 59 Truma Aventa Compact A/C · bus 79 Truma Saphir Compact A/C *(climate card)* · bus 89 Saphir Comfort RC A/C *(climate card)* ·
 > bus 91 Garnet SeeLevel tank monitor · bus 95 Airxcel AC Gateway (dual-zone, *climate cards*) · bus 96 BatteryGuard 1000 ·
-> bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 102 MaxxFan roof fan (dual) · bus 105 Intelligent Battery Sensor · bus 107 ZipDee power awning ·
+> bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 102 MaxxFan roof fan (dual) · bus 103 Vitrifrigo fridge · bus 105 Intelligent Battery Sensor · bus 106 Thetford T2095 fridge · bus 107 ZipDee power awning ·
 > bus 109 EHG SwitchPad · bus 116 DellCool fridge · bus 117 CBE solar charger · bus 118 Indel B fridge ·
 > bus 119/120 Truma Combi NEO / NEO E · bus 124/125 Timberline heater *(climate card)* · bus 127 Thetford iNDUS toilet ECO. Full list:
 > [`docs/sensor-map.md`](docs/sensor-map.md#complete-bus-index-mapped-buses).
@@ -539,7 +539,7 @@ graph TB
 ## Compatibility with Other Vehicles
 
 > **Primary development vehicle:** HYMER Grand Canyon S 600 CrossOver (2025, Mercedes Sprinter, Truma Combi D6E,
-> Thetford N4112A fridge, Voltronic MPP260CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
+> Thetford N4112A fridge, Votronic MPP260CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
 > smart sensors), HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge) and HYMER
 > B-ML I 780 (first Truma Aventa Comfort + Alde ACC A/C switch, write paths confirmed via [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)). All
 > mappings are shared across brands in the observation-gated `base.json` / `lights.json`, so bus/slot behavior can
@@ -553,8 +553,8 @@ graph TB
 | **Habitation sensors** (bus 3) | ✅ Yes | CBE EBL402 habitation electrics — in `base.json`, confirmed on every EHG SCU |
 | **Chassis CAN** (bus 1 — odometer, fuel, AdBlue, doors, locks, outside temp) | ⚠️ Partial | Confirmed on Mercedes-Sprinter models (S 600 / S 700 / ML-T 570 / BMC I 680); VW-Crafter Eriba reports its chassis on a different, not-yet-mapped bus |
 | **Lights** | ⚠️ Partial | Light bus IDs are specific to each floorplan; your vehicle may differ |
-| **Heater** (Truma Combi bus 58/57/119/120 · Alde bus 5 · Aventa bus 7/59) | ⚠️ Depends | Truma Combi **DE** on bus 58 (diesel+electric) and diesel-only Combi **D** on bus 57; Combi **NEO / NEO E** on bus 119/120; Alde 3030 on bus 5 (**read + writable**, confirmed BMC I 680 + B-ML I 780); Truma Aventa Comfort on bus 7 and Aventa Compact on bus 59 (read-only) |
-| **Fridge** (bus 34 / 32 / 114 / 60 / 9) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60), Dometic Series 10 absorber (9) |
+| **Heater** (Truma Combi bus 58/57/6/31/119/120 · Alde bus 5 · Aventa bus 7/59) | ⚠️ Depends | Truma Combi **DE** on bus 58 (diesel+electric), diesel-only Combi **D** on bus 57, gas+electric Combi **E** on bus 6 and gas-only Combi on bus 31 (full climate + boiler-mode + energy select; write paths UNVERIFIED); Combi **NEO / NEO E** on bus 119/120; Alde 3030 on bus 5 (**read + writable**, confirmed BMC I 680 + B-ML I 780); Truma Aventa Comfort on bus 7 and Aventa Compact on bus 59 (read-only) |
+| **Fridge** (bus 34 / 32 / 114 / 60 / 9 / 103 / 106 / 116 / 118) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60), Dometic Series 10 absorber (9), Vitrifrigo compressor (103), Thetford T2095 compressor (106), DellCool compressor (116), Indel B compressor (118) — bus 103/106/116/118 are mapped from metadata (gated), write paths UNVERIFIED |
 | **Solar** (bus 8 / 117) | ⚠️ Depends | Votronic MPP260CI/MPP250Duo on bus 8; CBE solar charger on bus 117; other chargers may differ |
 | **Roof fan** (bus 102) | ⚠️ Depends | MaxxFan roof ventilation fan (dual front/rear) — read sensors + two roof-fan-speed selects (OFF/LOW/MEDIUM/HIGH). Speed-write path **unverified** (test control) |
 | **Battery / BMS** (bus 99 / 29 / 105 / 97 / 96) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680); EHG Intelligent Battery Sensor on bus 105; Victron Cerbo GX on bus 97; BatteryGuard 1000 on bus 96. Slot meanings vary by model |
