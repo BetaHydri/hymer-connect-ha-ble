@@ -1092,4 +1092,6 @@ Writable controls (⚠️ **write paths UNVERIFIED on-vehicle** — test builds,
 | `select.hymer_absorber_fridge_cooling_step` | (32, 3) | v2.64.7 | Off / 1–5 (stepped-switch driver, mirrors bus 34/114: writes power sid 1 then step sid 3). |
 | `select.hymer_absorber_fridge_power_source` | (32, 2) | v2.64.9 | `Automatic mode` / `Gas mode` / `12V mode` / `AC mode` (string select). The Auto/Gas/12V/230V control. |
 
+> Slots **(32, 2)** and **(32, 3)** appear in both tables on purpose: they are the readback sensors (top table) that the two selects (bottom table) read back **and** write to — one slot with a read sensor **and** its control, not a duplicate. Same readback+control pattern as the Dometic fridge (bus 60).
+
 All decompiled bus-32 slots are now mapped: the former "not yet exposed" slots (32, 8) `error_warning_information` and (32, 10) `automatic_mode_active` were surfaced as read/diagnostic sensors in **v2.82.0** (see the slot table above).
