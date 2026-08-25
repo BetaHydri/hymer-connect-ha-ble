@@ -680,6 +680,8 @@ Backing readback sensors: `heater_e_*` (6,4/5/6/8/9) and `heater_g_*` (31,4/5/6/
 | (60, 11) | `dometic_compressor_on` | — | — | Compressor running (r, bool) |
 | (60, 12) | `dometic_condenser_fan` | — | — | Condenser fan running (r, bool) |
 | (60, 13) | `dometic_fridge_type` | — | — | Compressor type: "Compressor" (r) |
+| (60, 14) | `dometic_fan_1_available` | — | — | Fan1Available (bool, r) — whether compressor fan 1 is fitted. Static capability flag, **diagnostic** binary sensor (mapped v2.87.0). |
+| (60, 15) | `dometic_fan_2_available` | — | — | Fan2Available (bool, r) — whether compressor fan 2 is fitted. Static capability flag, **diagnostic** binary sensor (mapped v2.87.0). |
 | (60, 16) | `dometic_fridge_warning` | — | — | WarningErrorInformation code 0–127 (int, r). For the door: **0 = closed, 10 = open** (confirmed on-vehicle), surfaced separately as `binary_sensor.*_dometic_fridge_door`. |
 | (60, 17) | `dometic_fridge_ai_type` | — | — | AI type: "Refrigeration" (r) |
 
@@ -691,7 +693,12 @@ Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`)
 - **`binary_sensor.*_dometic_fridge_door`** — door-open state derived from the slot-16 warning enum (`dometic_fridge_warning`: 0 = closed, 10 = open; `on_value` 10). `door` device class. Confirmed on-vehicle.
 - **`select.*_dometic_fridge_mode`** — options `Performance Cooling / Silent Mode / Turbo Mode`, written as a string to slot 1. These are the SCU wire values; the EHG app's **Modus** selector localizes them for display (DE: **Normal / Leise / Turbo**). Write path confirmed on-vehicle by Jos.
 
-> **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`). Slots 3–7, 14–15, 18–21 are unmapped (not yet observed in live data). See `docs/ehg-app-metadata.md` for the full slot definitions.
+> **EHG app metadata** defines 21 slots for bus 60 (`DometicCompressorFridge`, kind: `fridge`), all decoded and named in `base.json`. The remaining slots are intentionally **decode-only** (named but not surfaced as HA entities), verified against the decompiled bundle 2026-08-25:
+>
+> - **Write-only command flags** (`60,3` NewProtocol, `60,5` Lock, `60,6` Sync, `60,7` CMode — all `bool w`): internal protocol/command triggers with **no readback**. Can't be observation-gated (no read sensor to key on), so they stay decode-only rather than clutter every vehicle.
+> - **Internal / opaque** (`60,4` Page `int rw`, `60,21` Heartbeat `bool rw` keepalive, `60,18` Lstat / `60,19` RChange / `60,20` LChange — `bool r` with no known meaning): no user value.
+>
+> The two readable capability flags `60,14` / `60,15` (Fan1/Fan2 available) **were** promoted to diagnostic binary sensors in v2.87.0. See `docs/ehg-app-metadata.md` for the full slot definitions.
 
 ## Bus 66 — Dinette pendant lamp (ML-T 570 CrossOver, confirmed 2026-06-01)
 

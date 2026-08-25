@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.87.0] - 2026-08-25
+
+### Added
+
+- **Two Dometic compressor-fridge diagnostic sensors (bus 60), verified against the decompiled EHG app bundle.** The `Fan1Available` / `Fan2Available` capability flags (slots 14/15, `bool r`) were already decoded internally but not surfaced; they are now diagnostic binary sensors (`dometic_fan_1_available` / `dometic_fan_2_available`), observation-gated on bus 60. All 21 bus-60 slots were re-verified slot-by-slot against the app's own single-line records (Dan Simms' extraction methodology). The remaining unsurfaced slots stay **decode-only** on purpose: the write-only command flags (`Lock`, `Sync`, `CMode`, `NewProtocol`) have no readback so they can't be observation-gated, and `Page` / `Heartbeat` / `Lstat` / `RChange` / `LChange` are internal or opaque with no user value. Existing entities are unaffected; the two new sensors only appear on vehicles that report bus 60. `docs/sensor-map.md` updated to document this accurately.
+
 ## [2.86.0] - 2026-08-25
 
 ### Added
