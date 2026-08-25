@@ -661,7 +661,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._connection_mode = "cloud"
             _LOGGER.info(
                 "BLE disconnected — SignalR continues providing sensor data. "
-                "BLE will be retried on next poll cycle."
+                "BLE will be retried automatically."
             )
 
     async def stop_ble(self) -> None:

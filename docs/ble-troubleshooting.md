@@ -376,9 +376,17 @@ see [Enabling BLE does not connect until you reload](#enabling-ble-does-not-conn
 
 ```text
 coordinator] BLE disconnected — SignalR continues providing sensor data.
-             BLE will be retried by the watchdog.
+             BLE will be retried automatically.
 coordinator] BLE direct path established to SCU AA:BB:CC:DD:EE:FF (mode=dual)
 ```
+
+The watchdog's own status lines (all `INFO`/`WARNING`, no debug needed):
+
+| Log message | Meaning |
+| --- | --- |
+| `BLE direct path active — running alongside SignalR (…)` | Reconnect succeeded — BLE is back up next to the cloud path. |
+| `BLE failed N times — next attempt in Xs` | An attempt failed; the next retry is scheduled after a growing back-off. A trailing `(bonding rejected)` means the SCU refused the bond (press CONNECTION / clear the bond). |
+| `BLE startup exceeded Xs — continuing with cloud fallback and retrying BLE in Xs` | A single attempt took too long; the coordinator keeps serving data over the cloud and retries BLE shortly. Harmless unless it repeats indefinitely. |
 
 On a healthy host, individual BLE sessions typically last **hours**, and the worst
 case after a hiccup (e.g. a one-off `TLS handshake failed`) is a reconnect within

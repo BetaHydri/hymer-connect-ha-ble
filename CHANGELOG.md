@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.8] - 2026-08-25
+
+### Changed
+
+- **Honest reconnect log line.** After a BLE drop the coordinator logged `BLE will be retried on next poll cycle.` — but since v2.76.7 the reliable driver is the independent watchdog, not the (push-starved) poll. The line now reads `BLE will be retried automatically.`, which is accurate regardless of which driver fires.
+- **Docs:** `docs/ble-troubleshooting.md` gains a "Did my command go over BLE or the cloud?" section (the `Command sent over BLE (…, status=1)` / `Cloud command sent (… ble_connected=False)` INFO lines), a watchdog/back-off log mini-reference, and verbatim wording for two pairing-stage log lines so they are text-searchable.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant (not just "Reload").
+
 ## [2.76.7] - 2026-08-25
 
 ### Changed
