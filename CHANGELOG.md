@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.80.1] - 2026-08-25
+
+### Changed
+
+- **BLE `wakeScuUp` is now sent only as a handshake-recovery step, not on every connect.** v2.79.0 added the EHG `wakeScuUp` nudge (`0x0A` → SCU POWER_CONTROL) before every TLS handshake. It is now issued **only after a first handshake attempt stalls** with `Timed out waiting for SCU BLE data`, then the handshake is retried once. A healthy, already-awake SCU completes on the first attempt and never receives the extra write, so the common path is unchanged; the wake is reserved for the genuine standby case it was meant to address.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.80.0] - 2026-08-25
 
 ### Added
