@@ -484,11 +484,19 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
             ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
             ehg_refresh_token = user_input.get(CONF_EHG_REFRESH_TOKEN, "").strip()
             oauth_basic_auth_in = user_input.get(CONF_OAUTH_BASIC_AUTH, "").strip()
+            force_repair = user_input.get("force_repair", False)
 
             if oauth_basic_auth_in and not HymerConnectApi.is_valid_basic_auth(
                 oauth_basic_auth_in
             ):
                 errors[CONF_OAUTH_BASIC_AUTH] = "invalid_basic_auth"
+
+            # A forced BLE re-pair needs a QR activation token — entered now or
+            # already stored. Without it the pairing step cannot mint a token.
+            if force_repair and not (
+                qr_token or reconfigure_entry.data.get(CONF_QR_TOKEN, "")
+            ):
+                errors["base"] = "qr_token_required"
 
             data_updates: dict[str, Any] = {}
 
@@ -539,7 +547,13 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_updates[CONF_BLE_ADDRESS] = ble_address
                 data_updates[CONF_BLE_ENABLED] = True
 
-            if ehg_refresh_token:
+            if force_repair:
+                # Explicit BLE re-pair: ignore the pre-filled EHG token so the
+                # pairing step actually runs and mints a fresh one. The stored
+                # token is kept and only overwritten on a successful pair, so a
+                # failed pairing does not break the existing cloud connection.
+                data_updates[CONF_BLE_ENABLED] = True
+            elif ehg_refresh_token:
                 data_updates[CONF_EHG_REFRESH_TOKEN] = ehg_refresh_token
 
             if not errors and data_updates:
@@ -610,6 +624,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_BLE_ADDRESS, default=current_ble): str,
                     vol.Optional(CONF_EHG_REFRESH_TOKEN, default=current_ehg): str,
                     vol.Optional(CONF_OAUTH_BASIC_AUTH, default=current_oauth_basic): str,
+                    vol.Optional("force_repair", default=False): bool,
                 }
             ),
             errors=errors,

@@ -38,16 +38,18 @@
       },
       "reconfigure": {
         "title": "Reconfigure HYMER Connect",
-        "description": "Add or update the QR code activation token, SCU Bluetooth address, or EHG refresh token. Leave a field empty to keep the current value.\n\nTo re-pair over BLE: clear the EHG Remote Access Refresh Token field (it is pre-filled with your current token, so 'empty' means delete it), enter the QR token, then press CONNECTION on the SCU FIRST and submit within ~25 seconds.",
+        "description": "Add or update the QR code activation token, SCU Bluetooth address, or EHG refresh token. Leave a field empty to keep the current value.\n\nTo re-pair over BLE (e.g. after moving Home Assistant to a new host): tick 'Re-pair over BLE', leave the QR token in place, press CONNECTION on the SCU FIRST and submit within ~25 seconds. The pre-filled EHG token is then ignored and a fresh one is minted on success (the old token stays intact if pairing fails).",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
-          "ehg_refresh_token": "EHG Remote Access Refresh Token"
+          "ehg_refresh_token": "EHG Remote Access Refresh Token",
+          "force_repair": "Re-pair over BLE (mint a new EHG token)"
         },
         "data_description": {
           "qr_activation_token": "Paste the text from the dealer-provided QR activation code (on the vehicle handover document) to link the vehicle and enable BLE pairing.",
           "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF) to enable the BLE direct path.",
-          "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here."
+          "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here.",
+          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token, even though the token field is pre-filled. Requires a QR activation token (entered here or already stored). Use this after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit within ~25 seconds."
         }
       },
       "ble_pairing": {

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.84.0] - 2026-08-25
+
+### Fixed
+
+- **Reconfigure can now reliably re-pair over BLE after moving Home Assistant to a new host.** When a Home Assistant backup is restored onto a freshly installed Raspberry Pi (or any new host), the config entry keeps working over the cloud, but the OS-level Bluetooth bond does not survive — the new host is unbonded, so the local BLE path stays down. Re-pairing through **Reconfigure** silently did nothing: the EHG token field is pre-filled with the stored token, and because an empty field means "keep the current value", the pairing step was skipped and the dialog returned "reconfigure successful" within a fraction of a second, with the old token still in place. There was no data-loss bug (the token was never actively restored, just never cleared), but there was also no dependable way to force a fresh bond from the Reconfigure dialog. Added an explicit **"Re-pair over BLE (mint a new EHG token)"** checkbox to Reconfigure: tick it, leave the pre-filled token as-is, press **CONNECTION** on the SCU, and submit within ~25 seconds — the pre-filled token is ignored, the BLE pairing progress dialog runs (up to ~2 minutes), and a fresh EHG token is minted and stored. The old token is preserved if pairing fails, so the cloud connection is never broken by an unsuccessful attempt. A QR activation token (entered now or already stored) is required and validated up front. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.83.0] - 2026-08-25
 
 ### Added
