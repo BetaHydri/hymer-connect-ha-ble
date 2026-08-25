@@ -407,9 +407,9 @@ unmapped pending on-vehicle correlation.
 | (3, 21) | `solar_charger_status` | — | — | MPPT charger status. Discovery: `1` (int) |
 | (3, 22) | `shoreline_connected` | — | — | Shore power connected. Discovery: `False` (bool) |
 
-## Bus 8 — Voltronic MPP260CI (MPPT solar charger)
+## Bus 8 — Votronic MPPT 260 CI (MPPT solar charger)
 
-All 7 slots are solar charger data — same layout on both S600 (MPP260CI) and
+All 7 slots are solar charger data — same layout on both S600 (MPPT 260 CI) and
 S700 (MPP250Duo). Some code labels in `pia_decoder.py` still carry legacy names
 from an earlier incorrect sensor map where bus 8 was wrongly labeled as grey
 water / ventilation. Solar power is computed as `voltage × current` instead of

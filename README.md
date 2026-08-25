@@ -453,7 +453,7 @@ graph TB
 
     subgraph "LIN Bus"
         LIN1["Bus 3 — lin1<br/>CBE EBL402 Habitation Electrics<br/>12V main · Battery V/A/SOC<br/>Water tanks · Solar · Shore power"]
-        LIN2["Bus 8 — lin2<br/>Votronic MPP260CI MPPT<br/>Solar V/A/W · Charger status<br/>Error · AES · Reduced power"]
+        LIN2["Bus 8 — lin2<br/>Votronic MPPT 260 CI<br/>Solar V/A/W · Charger status<br/>Error · AES · Reduced power"]
     end
 
     subgraph "PIA-addressed Devices"
@@ -493,7 +493,7 @@ graph TB
 | 1 | `can0` | **CAN** | Mercedes Sprinter chassis | Odometer, fuel, doors, ignition, engine, AdBlue, VIN, temperature |
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
 | 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — read-only (v2.64.7) |
-| 8 | `lin2` | **LIN** | Votronic MPP260CI | Solar voltage, current, power, charger status, error flags |
+| 8 | `lin2` | **LIN** | Votronic MPPT 260 CI | Solar voltage, current, power, charger status, error flags |
 | 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite (writable select, v2.64.9), dish status, signal strength |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
 | 13 | — | PIA | BMC I 680 floor ambient light | On/off, brightness (member of Wohnen group, bus 24) — v2.64.6 |
@@ -539,7 +539,7 @@ graph TB
 ## Compatibility with Other Vehicles
 
 > **Primary development vehicle:** HYMER Grand Canyon S 600 CrossOver (2025, Mercedes Sprinter, Truma Combi D6E,
-> Thetford N4112A fridge, Votronic MPP260CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
+> Thetford N4112A fridge, Votronic MPPT 260 CI solar). **Also field-validated:** HYMER ML-T 570 / 580 (incl. external
 > smart sensors), HYMER BMC I 680 (MY2024 — first Alde 3030, TenHaaft dish and Thetford N4142E+ fridge) and HYMER
 > B-ML I 780 (first Truma Aventa Comfort + Alde ACC A/C switch, write paths confirmed via [#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)). All
 > mappings are shared across brands in the observation-gated `base.json` / `lights.json`, so bus/slot behavior can
@@ -555,7 +555,7 @@ graph TB
 | **Lights** | ⚠️ Partial | Light bus IDs are specific to each floorplan; your vehicle may differ |
 | **Heater** (Truma Combi bus 58/57/6/31/119/120 · Alde bus 5 · Aventa bus 7/59) | ⚠️ Depends | Truma Combi **DE** on bus 58 (diesel+electric), diesel-only Combi **D** on bus 57, gas+electric Combi **E** on bus 6 and gas-only Combi on bus 31 (full climate + boiler-mode + energy select; write paths UNVERIFIED); Combi **NEO / NEO E** on bus 119/120; Alde 3030 on bus 5 (**read + writable**, confirmed BMC I 680 + B-ML I 780); Truma Aventa Comfort on bus 7 and Aventa Compact on bus 59 (read-only) |
 | **Fridge** (bus 34 / 32 / 114 / 60 / 9 / 103 / 106 / 116 / 118) | ⚠️ Depends | Thetford N4112A absorber (34), N4142E+ absorber (32), T2120C compressor (114), Dometic compressor (60), Dometic Series 10 absorber (9), Vitrifrigo compressor (103), Thetford T2095 compressor (106), DellCool compressor (116), Indel B compressor (118) — bus 103/106/116/118 are mapped from metadata (gated), write paths UNVERIFIED |
-| **Solar** (bus 8 / 117) | ⚠️ Depends | Votronic MPP260CI/MPP250Duo on bus 8; CBE solar charger on bus 117; other chargers may differ |
+| **Solar** (bus 8 / 117) | ⚠️ Depends | Votronic MPPT 260 CI on bus 8 (EHG names it `VotronicMPP250Duo`); CBE solar charger on bus 117; other chargers may differ |
 | **Roof fan** (bus 102) | ⚠️ Depends | MaxxFan roof ventilation fan (dual front/rear) — read sensors + two roof-fan-speed selects (OFF/LOW/MEDIUM/HIGH). Speed-write path **unverified** (test control) |
 | **Battery / BMS** (bus 99 / 29 / 105 / 97 / 96) | ⚠️ Depends | BOS LUX LiFePO4 BMS on bus 99 (S 600 / S 700); habitation battery SoC on bus 29 (BMC I 680); EHG Intelligent Battery Sensor on bus 105; Victron Cerbo GX on bus 97; BatteryGuard 1000 on bus 96. Slot meanings vary by model |
 
