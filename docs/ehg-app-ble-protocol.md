@@ -212,7 +212,7 @@ The protobuf field numbers for `deleteMobileDevices`, `getPairedMobileDevices`, 
 are embedded in compiled Hermes bytecode. Three approaches to extract:
 
 1. **Hermes decompiler** — use `hbcdump` or `hermes-dec` on `index.android.bundle`
-   - `_hermes_decompiled/` folder exists but is empty (not yet done)
+   - **Done:** the decompiled bundle now lives at `source/androidapp/_archive_old_app/_hermes_decompiled/index.js` and was used to extract the full `(componentId, slot)` catalog (labels/modes/datatypes/enums) — see [`ehg-app-metadata.md`](ehg-app-metadata.md). The device-management field numbers (`deleteMobileDevices` / `getPairedMobileDevices`) were still not pinned down from it.
 2. **MITM capture** — intercept BLE traffic while the EHG app performs an unpair
 3. **Brute-force** — try field numbers 1–15 systematically (protobuf fields are small integers)
 
