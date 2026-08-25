@@ -189,6 +189,7 @@ After setup, check these items:
 Start here:
 
 - **BLE setup & pairing problems (Path A / adding BLE later):** [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md)
+- **Moved HA to a new host and BLE stopped?** Re-pair via **Reconfigure** — tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+) and keep the pre-filled token: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup)
 - **Other troubleshooting:** [`README.md`](README.md#troubleshooting)
 - **Dashboard setup:** [`dashboards/README.md`](dashboards/README.md)
 - **Sensor reference:** [`docs/sensor-map.md`](docs/sensor-map.md)

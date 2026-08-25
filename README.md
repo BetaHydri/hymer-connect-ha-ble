@@ -161,7 +161,7 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 |---|---|---|
 | **Switches** | 12V main, water pump, fridge ECO (Leise) | With 12V off, lights + pump go **unavailable** (guard keys on `main_switch` off *or* prolonged SCU data-silence from **any** transport — SignalR or BLE, v2.76.1 / fixed transport-agnostic in v2.76.6); fridge/boiler/heater stay controllable |
 | **Lights** | 8 interior + outside LED bar + 2 group toggles (Wohnen / Privat) | On/Off, brightness; **color temp on ambient lights only** (Wohnen bus 12, Privat bus 15) |
-| **Climate** | Truma Combi heater (target temp, Heat/Off), heater energy source, Off/ECO/Hot boiler, Alde 3030 (heating + A/C switch, target temp, energy priority, hot water), Truma Aventa A/C, fridge cooling step | Truma Combi on bus 58 (DE) / 57 (D, diesel-only) / 119·120 (NEO); Alde 3030 (bus 5) now **read + writable** — confirmed BMC I 680 + B-ML I 780 |
+| **Climate** | Truma Combi heater (target temp, Heat/Off), heater energy source, Off/ECO/Hot boiler, Alde 3030 (heating + A/C switch, target temp, energy priority, hot water), Truma Aventa A/C, fridge cooling step | Truma Combi on bus 58 (DE) / 57 (D, diesel-only) / 6 (E, gas+electric) / 31 (gas-only) / 119·120 (NEO); Alde 3030 (bus 5) now **read + writable** — confirmed BMC I 680 + B-ML I 780 |
 | **Cover** | ZipDee power awning — open / close / stop, 0–100 % position, user-lock | Observation-gated (bus 107, v2.73.0); tilt slots not exposed |
 | **Fuel (computed)** | tank liters, consumption (L/100km), estimated range | Derived from CAN odometer + fuel %; tank capacity configurable (default 93 L) |
 | **Device tracker** | GPS location on the HA map | Requires **"Find-My-RV"** enabled in the EHG app (Mehr → Services und Abonnements) |
@@ -320,6 +320,12 @@ keeps working in 12V standby and fully offline).
 3. **Press CONNECTION** on the SCU panel, then **submit the form within ~25 s** (the pairing window can be as
    short as ~30 s) and don't close the dialog.
 4. On **BLE Pairing Complete** the host is bonded and has stored its own token — sensors now stream over BLE.
+
+> **Moved HA to a new host and lost the BLE bond?** (e.g. you restored a backup onto a fresh Raspberry Pi — the
+> cloud keeps working but the OS-level Bluetooth bond does not survive.) In **Reconfigure**, tick **Re-pair over
+> BLE (mint a new EHG token)** (v2.84.0+) and **leave** the pre-filled EHG token in place — it is ignored and a
+> fresh one is minted on success (the old token stays intact if pairing fails). See
+> [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup).
 
 Writes go **BLE-first with automatic cloud fallback** by default (v2.67.0+); toggle it under **⚙️ Configure →
 "Send commands over BLE when connected"**. Which knob lives where (Configure vs Reconfigure) and every option is

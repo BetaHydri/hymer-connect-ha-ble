@@ -102,6 +102,7 @@ Notes:
 | 2 | `EBL400` | Schaudt EBL 400 habitation controller | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
 | 3 | `EBL402` | CBE EBL402 habitation electrics | base | all |
 | 5 | `Alde3020` | Alde 3030 hydronic heater | base | BMC I 680 |
+| 6 | `TrumaCombi_E` | Truma Combi E (gas + electric) heater | base | metadata (unverified) |
 | 7 | `TrumaAventaComfort` | Truma Aventa Comfort air conditioner | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
 | 8 | `VotronicMPP250Duo` | Votronic MPPT solar charger | base | S 600 / S 700 |
 | 9 | `DometicSeries10` | Dometic Series 10 absorber fridge | base | B-ML I 780 ([#18](https://github.com/BetaHydri/hymer-connect-ha-ble/pull/18)) |
@@ -122,6 +123,7 @@ Notes:
 | 27 | `LightGroup04` | "Privat" light group | lights | S 600 / ML-T 570 / BMC I 680 |
 | 29 | `Component29` | Habitation (body) battery SoC | base | BMC I 680 |
 | 30 | `ScuSignals` | SCU telemetry (LTE / BT / GPS) | base | all |
+| 31 | `TrumaCombi` | Truma Combi (gas-only) heater | base | metadata (unverified) |
 | 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | base | BMC I 680 |
 | 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | base | S 600 / S 700 |
 | 36 | `TelecoTelairDualClima` | Teleco Telair DualClima A/C | base | metadata (unverified) |
@@ -152,7 +154,9 @@ Notes:
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
 | 100 | `TPMS` | EHG factory TPMS | base | metadata (unverified) |
 | 102 | `MaxxFan` | MaxxFan roof ventilation fan (dual front/rear) | base | metadata (unverified) |
+| 103 | `VitrifrigoFridge` | Vitrifrigo compressor fridge | base | metadata (unverified) |
 | 105 | `SmartBatterySensor` | Intelligent Battery Sensor (IBS) | base | metadata (unverified) |
+| 106 | `ThetfordT2095` | Thetford T2095 compressor fridge | base | metadata (unverified) |
 | 107 | `ZipDeePowerAwning` | ZipDee power awning (cover) | base | metadata (unverified) |
 | 109 | `SwitchPad` | EHG SwitchPad control panel | base | metadata (unverified) |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |
@@ -650,6 +654,17 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 | (58, 13) | `heater_shoreline_connected` (EHG: `shoreline_connected`) | — | Shoreline connected flag (bool). `r` |
 | (58, 14) | `heater_diesel_safety` (EHG: `window_switch_closed`) | — | Diesel safety interlock flag (bool). `True` = safety OK / heater can run, `False` = interlock inactive. Not a physical window contact. `r` |
 
+## Bus 6 / 31 — Truma Combi E & gas Combi (metadata, unverified)
+
+> **Added v2.86.0** (read/diagnostic sensors in v2.82.0). Two more Truma Combi variants that share the **same slot layout** as the Combi D (bus 57) and Combi D6E (bus 58) — confirmed because the bus-6/31 diagnostic slots (7/10/12/13/14) line up 1:1 with bus 57. They load as full climate profiles (`truma_heater_e` / `truma_heater_g`) reusing the same driver classes, so a reported bus materialises a thermostat + boiler-mode select (+ energy select on the Combi E). **Write paths UNVERIFIED** — test controls. Observation-gated (`require_observed`), and mutually exclusive in practice (a vehicle reports one Truma bus).
+
+| Bus | Component | Electric? | Controls created |
+| --- | --- | --- | --- |
+| **6** | `TrumaCombi_E` | yes (slot 9) | Thermostat (setpoint slot 8), boiler-mode select `Off / ECO / HOT` (slot 5), heater-energy select (slots 4/6 + electric power slot 9) |
+| **31** | `TrumaCombi` | no | Thermostat (setpoint slot 8), boiler-mode select `Off / ECO / HOT` (slot 5) — **no** energy select (gas-only) |
+
+Backing readback sensors: `heater_e_*` (6,4/5/6/8/9) and `heater_g_*` (31,4/5/6/8). Slot semantics are identical to [Bus 58](#bus-58--truma-combi-d6e-heater-shared-s600s700). Enums from Dan Simms' metadata overlay (`BOILER_MODE_OPTIONS` = OFF/ECO/HOT, `HEATER_ENERGY_OPTIONS`). `heater_air_mode` (slot 11) has no enum in the catalog and is left decode-only.
+
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
 > **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge — including the **ML-T 580**, which can be ordered with different fridges (Jos's ML-T 580 has the Dometic bus-60 unit). The fridge type follows the build order, not the model line: the ML-T 570 CrossOver uses the Thetford Compressor T2120C (bus 114), S600/S700 use Thetford absorber (bus 34/37) and BMC I 680 uses Thetford absorber (bus 32) — none of those use bus 60.
@@ -781,6 +796,17 @@ diesel tank capacity (default: 93 L for Sprinter 419/519 CDI).
 **Tank capacity configuration:**
 Settings → Integrations → HYMER Connect → Configure → "Diesel tank capacity"
 Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI standard).
+
+## Bus 103 / 106 — Vitrifrigo & Thetford T2095 compressor fridges (metadata, unverified)
+
+> **Added v2.85.0** (read/diagnostic sensors in v2.82.0). Two compressor fridges controlled via the generic stepped-select driver — the same pattern as the Dometic (bus 60) and Thetford absorber (bus 34) fridges: **FridgeOn** = slot 1 (bool), **FridgeLevel** = slot 3 (int 1–5), and on the Vitrifrigo a **mode** string on slot 2. **Write paths UNVERIFIED** — test controls. Observation-gated (`require_observed`).
+
+| Bus | Component | Controls created |
+| --- | --- | --- |
+| **103** | `VitrifrigoFridge` | Cooling-step select `Off / 1–5` (`fridge_vitrifrigo_cooling_step`, power slot 1 → level slot 3), mode select `NORMAL / TURBO / NIGHT / SILENT` (`fridge_vitrifrigo_mode`, slot 2) |
+| **106** | `ThetfordT2095` | Cooling-step select `Off / 1–5` (`fridge_thetford_2095_cooling_step`, power slot 1 → level slot 3) |
+
+Cooling-step behaviour: selecting a level writes `FridgeOn` (slot 1) = `true`, waits 500 ms, then writes the level (slot 3); **Off** writes `FridgeOn` = `false` (mirrors the [Dometic](#bus-60--dometic-compressor-fridge-dometiccompressorfridge) driver). Backing readback sensors: `fridge_vitrifrigo_*` (103,1/2/3) and `fridge_thetford_2095_*` (106,1/3). Full slot catalog: [`docs/ehg-app-metadata.md`](ehg-app-metadata.md).
 
 ## Bus 114 — Thetford Compressor T2120C fridge (ML-T 570 CrossOver, confirmed 2026-06-07)
 
