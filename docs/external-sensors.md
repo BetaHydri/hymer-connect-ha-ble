@@ -195,7 +195,7 @@ These are not SIU sensors but built-in vehicle components whose data appears in 
 | **CBE** | EBL402 / PL50 | `CBE_PL50_DIS`, `I7850_2_EBL40212VSupply` | Electrical panel |
 | **Toptron** | EL711 Dimmer | `ToptronDimmerEL711` | LED dimming |
 | **Hegotec / Pegotec** | Light Module | `HegotecLightModule`, `PegotecLightModuleNoGlass` | Interior lighting |
-| **Voltronic** | MPPT Solar | `SolarPanelVoltage` (via Bus 8) | Solar charge controller |
+| **Votronic** | MPPT Solar | `SolarPanelVoltage` (via Bus 8) | Solar charge controller |
 | **Dometic** | Series 10 Fridge | `DometicSeries10Integrator` | Compressor fridge |
 
 ## Third-Party Sensor Compatibility
