@@ -314,11 +314,9 @@ brand mapping wins for that brand. This lets you:
   },
   "climate": {
     "truma_heater": { ... },
-    "fridge": { ... }
-  },
-  "select": {
-    "34,3": { ... },
-    "37,1": { ... }
+    "fridge": { ... },
+    "selects": { "fridge_dometic_cooling_step": { ... }, "fridge_dometic_mode": { ... } },
+    "numbers": { "ebl400_capacity": { ... } }
   }
 }
 ```
@@ -333,6 +331,7 @@ Key format: `"bus_id,sensor_id"` or `"bus_id,sensor_id#group_id"` (the `#group_i
 |-------|------|:---:|-----------|---------|
 | **`name`** | string | ✅ Yes | Entity name prefix in HA (platform + name becomes entity ID) | `"battery_voltage"` → entity: `sensor.hymer_battery_voltage` |
 | **`platform`** | string | ✅ Yes | HA platform: `sensor`, `binary_sensor`, `button`, `switch` (select/climate are inferred) | `"sensor"` |
+| **`require_observed`** | boolean | ❌ No | **Gating.** Create the entity **only once the vehicle actually reports this bus** — no phantom entities for hardware you don't have. Set `true` on every new appliance mapping. | `true` |
 | **`unit`** | string | ❌ No | Unit of measurement. Overrides any hardcoded default | `"V"`, `"%"`, `"°C"`, `"A"` |
 | **`state_class`** | string | ❌ No | `"measurement"` (most sensors), `"total"` (cumulative), `"total_increasing"` (never resets) | `"measurement"` |
 | **`device_class`** | string | ❌ No | HA device class (enables icons, UOM, automations) | `"temperature"`, `"voltage"`, `"pressure"`, `"battery"` |
@@ -367,60 +366,109 @@ Example:
 
 #### **switches**
 
-Key format: `"bus_id,sensor_id"`. Typically boolean on/off controls (fridge ECO, water pump, 12V main).
+Key format: `"bus_id,sensor_id"` — the slot the switch **writes to**. Boolean/string on-off controls (water pump, 12V main, fridge ECO).
 
 | Field | Type | Mandatory? | Description |
 |-------|------|:---:|-----------|
 | **`name`** | string | ✅ Yes | Entity name |
+| **`write_type`** | string | ✅ Yes | How the value is written: `"bool"`, `"str"`, or `"uint"` |
+| **`on_value`** | any | ❌ No | Readback value that means **ON** (e.g. `true`, `"On"`) |
+| **`write_on`** / **`write_off`** | string | ❌ No | For `write_type: "str"` — the exact strings written for on/off (e.g. `"On"`/`"Off"`) |
+| **`read_path`** | string | ❌ No | Where the state is read back, e.g. `"signalr_sensors.water_pump_active"`. Defaults to `signalr_sensors.<name>` |
+| **`requires_12v`** | boolean | ❌ No | Mark the switch unavailable when 12V main is off |
+| **`holdoff_off`** | int | ❌ No | Seconds to hold an optimistic OFF (for SCU bounce-back) |
+| **`require_observed`** | boolean | ❌ No | **Gating** — create only once the vehicle reports this bus |
 | **`icon`** | string | ❌ No | MDI icon |
 | **`_doc`** | string | ❌ No | Developer comment |
 
-#### **select**
+#### **climate.selects** (writable selects — stepped & string)
 
-Key format: `"bus_id,sensor_id"`. Multi-option controls (fridge mode, heater energy source).
+Writable selects live under `climate` → `selects`, keyed by a **select name** (not a `bus,slot`). The generic driver (`HymerSteppedSelect`) reads a backing sensor and writes to control slots. Two shapes:
 
 | Field | Type | Mandatory? | Description |
 |-------|------|:---:|-----------|
-| **`name`** | string | ✅ Yes | Entity name |
-| **`icon`** | string | ❌ No | MDI icon |
-| **`options`** | list | ✅ Yes (v2.64.0+) | List of valid string options (no labels yet; use hardcoded `_VALUE_LABELS` in code or JSON int_labels for int-based selects) |
-| **`_doc`** | string | ❌ No | Developer comment |
+| **`name`** | string | ✅ Yes | Friendly name (HA entity id = `select.hymer_<slug(name)>`) |
+| **`control_bus`** | int | ✅ Yes | Bus the writes target |
+| **`options`** | list | ✅ Yes | Valid options — SCU **wire values**, do not relabel |
+| **`require_observed`** | boolean | ✅ recommended | Create only once the vehicle reports `control_bus` |
+| **`read`** | object | ✅ Yes | `{ "value_sensor": "..." }` (string select) or `{ "step_sensor", "power_sensor", "off_when_power_false", "off_value" }` (stepped) |
+| **`writes`** | object | ✅ Yes | Write recipe (see below) |
+| **`icon`** / **`_doc`** | | ❌ No | Icon / comment |
 
-Example (stepped switch for fridge — raw ints 0–5):
+**Stepped cooling-step select** (Off/1–5, power-then-step dance):
 
 ```json
-"34,3": {
-  "name": "fridge_cooling_step",
-  "type": "stepped_switch",
-  "min": 0,
-  "max": 5,
-  "step": 1,
-  "int_labels": { "0": "Off", "1": "Min", "2": "Low", "3": "Medium", "4": "High", "5": "Max" }
+"climate": {
+  "selects": {
+    "fridge_dometic_cooling_step": {
+      "name": "Dometic fridge cooling step",
+      "control_bus": 60,
+      "require_observed": true,
+      "options": ["Off", "1", "2", "3", "4", "5"],
+      "read": { "step_sensor": "dometic_fridge_level", "power_sensor": "dometic_fridge_power", "off_when_power_false": true, "off_value": 0 },
+      "writes": {
+        "off":  [ { "sid": 8, "bool": false } ],
+        "step": [ { "sid": 8, "bool": true }, { "delay_ms": 500 }, { "sid": 2, "uint": "$option_int" } ]
+      }
+    }
+  }
 }
 ```
 
-#### **climate** (Truma heater, boiler)
+**String select** (writes the chosen option verbatim):
 
-Special nested structure for complex multi-slot appliances.
+```json
+"fridge_dometic_mode": {
+  "name": "Dometic fridge mode",
+  "control_bus": 60,
+  "require_observed": true,
+  "options": ["Performance Cooling", "Silent Mode", "Turbo Mode"],
+  "read":  { "value_sensor": "dometic_fridge_mode" },
+  "writes": { "option": [ { "sid": 1, "str": "$option" } ] }
+}
+```
+
+`$option` = the selected string, `$option_int` = its integer. The `read` sensors must exist in `sensors` (they can be decode-only).
+
+#### **climate.numbers** (writable numeric slots)
+
+Under `climate` → `numbers`, keyed by a **number name**:
+
+```json
+"climate": {
+  "numbers": {
+    "ebl400_capacity": {
+      "name": "Living battery capacity",
+      "control_bus": 2, "sid": 10,
+      "min": 1, "max": 4095, "step": 1,
+      "unit": "Ah", "mode": "box", "write_type": "uint",
+      "require_observed": true,
+      "read": { "value_sensor": "ebl400_living_battery_capacity" }
+    }
+  }
+}
+```
+
+#### **climate** profiles (Truma heater thermostat)
+
+The Truma climate thermostat + boiler/energy selects are configured by a `truma_heater` (or `truma_heater_*` for additional variants) block under `climate`, keyed by **bus + sid** and pointing at backing readback sensors. Add another variant with a key starting `truma_heater_` — the loader picks up any `truma_heater_*` automatically (no code change).
 
 ```json
 "climate": {
   "truma_heater": {
-    "setpoint_slot": "58,1",
-    "mode_slot": "58,2",
-    "fuel_type_slot": "58,3",
-    "fan_speed_slot": "58,4",
-    "electric_power_slot": "58,5"
-  },
-  "fridge": {
-    "mode_slot": "37,1",
-    "power_slot": "34,1",
-    "cooling_step_slot": "34,3",
-    "eco_slot": "34,2",
-    "door_slot": "34,5"
+    "require_observed": true,
+    "heater_bus": 58,
+    "setpoint_sid": 8, "fuel_type_sid": 4, "fuel_type_2_sid": 6, "boiler_sid": 5, "electric_power_sid": 9,
+    "temp_sensor": "outside_temperature",
+    "setpoint_sensor": "heater_setpoint",
+    "fuel_type_sensor": "heater_fuel_type",
+    "boiler_sensor": "heater_fan_speed",
+    "electric_power_sensor": "heater_electric_power"
   }
 }
 ```
+
+Set `"supports_energy_select": false` for a gas/diesel-only Combi with no electric slot 9. The absorber/compressor **fridge** cooling controls are `climate.selects` stepped selects (shown above), not a separate slot-map.
 
 ### Decision matrix — when do you need which fields?
 
@@ -501,29 +549,29 @@ Raw values: `0` = Off, `1` = On, but the SCU sends string values `"On"` / `"Off"
 
 **Why both?** The decoder tries all three: (1) exact value match in `value_labels`, (2) fallback to `int_labels`, (3) raw value if neither matches.
 
-#### **Example 3: Stepped switch with transform (fridge cooling step 0–5)**
+#### **Example 3: Stepped cooling-step select (fridge, Off/1–5)**
 
-Raw slot (34,3) sends ints 0–5 where 0=off, 1–5=intensity levels.
+A compressor fridge with power on slot 1 (bool) and a cooling level 1–5 on slot 3 (int). It becomes an `Off / 1…5` select under `climate.selects` — Off writes power off; a level writes power on, waits, then the level:
 
 ```json
-"34,3": {
-  "name": "fridge_cooling_step",
-  "platform": "select",
-  "type": "stepped_switch",
-  "min": 0,
-  "max": 5,
-  "step": 1,
-  "int_labels": {
-    "0": "Off",
-    "1": "Low",
-    "2": "Medium-Low",
-    "3": "Medium",
-    "4": "Medium-High",
-    "5": "High"
-  },
-  "_doc": "Stepped brightness-like switch for fridge compressor cooling intensity."
+"climate": {
+  "selects": {
+    "my_fridge_cooling_step": {
+      "name": "My fridge cooling step",
+      "control_bus": 34,
+      "require_observed": true,
+      "options": ["Off", "1", "2", "3", "4", "5"],
+      "read": { "step_sensor": "my_fridge_level", "power_sensor": "my_fridge_power", "off_when_power_false": true, "off_value": 0 },
+      "writes": {
+        "off":  [ { "sid": 1, "bool": false } ],
+        "step": [ { "sid": 1, "bool": true }, { "delay_ms": 500 }, { "sid": 3, "uint": "$option_int" } ]
+      }
+    }
+  }
 }
 ```
+
+(The `my_fridge_level` / `my_fridge_power` readback sensors are mapped in `sensors` — they can be decode-only.)
 
 Creates: `select.hymer_fridge_cooling_step` with options "Off"–"High". Selecting "High" sends raw int `5` to the SCU.
 
@@ -668,28 +716,25 @@ Same keys go into `translations/en.json` under each platform section. See [trans
     "3,1": { "name": "main_switch_12v", "icon": "mdi:power" },
     "34,1": { "name": "fridge_power", "icon": "mdi:fridge" }
   },
-  "select": {
-    "34,3": {
-      "name": "fridge_cooling_step",
-      "type": "stepped_switch",
-      "min": 0,
-      "max": 5,
-      "int_labels": { "0": "Off", "1": "Low", "2": "Mid", "3": "High" }
-    }
-  },
   "climate": {
-    "fridge": {
-      "mode_slot": "37,1",
-      "power_slot": "34,1",
-      "cooling_step_slot": "34,3",
-      "eco_slot": "34,2",
-      "door_slot": "34,5"
+    "selects": {
+      "fridge_cooling_step": {
+        "name": "Fridge cooling step",
+        "control_bus": 34,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": { "step_sensor": "fridge_level", "power_sensor": "fridge_power", "off_when_power_false": true, "off_value": 0 },
+        "writes": {
+          "off":  [ { "sid": 1, "bool": false } ],
+          "step": [ { "sid": 1, "bool": true }, { "delay_ms": 500 }, { "sid": 3, "uint": "$option_int" } ]
+        }
+      }
     }
   }
 }
 ```
 
-This covers: battery (sensor), lights (on/off + brightness), fridge (switch + climate), multi-device tyre sensors (auto-slot), and select entity for cooling step.
+This covers: battery (sensor), lights (on/off + brightness), fridge (switch + a `climate.selects` cooling-step select), and multi-device tyre sensors (auto-slot).
 
 ### Translations
 
