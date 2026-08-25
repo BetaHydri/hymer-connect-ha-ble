@@ -124,12 +124,14 @@ Notes:
 | 30 | `ScuSignals` | SCU telemetry (LTE / BT / GPS) | base | all |
 | 32 | `ThetfordN4000` | Thetford N4142E+ absorber fridge | base | BMC I 680 |
 | 34 | `ThetfordT2000` | Thetford N4112A absorber fridge | base | S 600 / S 700 |
+| 36 | `TelecoTelairDualClima` | Teleco Telair DualClima A/C | base | metadata (unverified) |
 | 37 | `VehicleInformation` | Fridge mode/status readback (PIA) | base | S 600 / S 700 |
 | 43 | `LightCircuit19` | Seating overhead light | lights | S 600 |
 | 44 | `LightCircuit20` | Bedroom overhead light | lights | S 600 |
 | 45 | `LIM411Mod1` | SCU / LIM lighting module | base | all |
 | 49 | `LIM404Mod2` | Truma LIM module | base | S 600 |
 | 52 | `CBE_PL50_DISS` | CBE PL50 habitation controller | base | metadata (unverified) |
+| 56 | `ThetfordIndusToilet` | Thetford iNDUS toilet | base | metadata (unverified) |
 | 57 | `TrumaCombi_D` | Truma Combi D (diesel-only) heater | base | HYMER (Truma Combi D) |
 | 58 | `TrumaCombi_DE` | Truma Combi D6E heater | base | S 600 / S 700 |
 | 59 | `TrumaAventaCompact` | Truma Aventa Compact AC | base | Eriba Car 602 |
@@ -140,7 +142,11 @@ Notes:
 | 73 | `Component73` | HSS contact sensors (auto-slot) | base | HSS accessory |
 | 74 | `Component74` | SIU temperature/humidity sensors (auto-slot) | base | ML-T 570 |
 | 76 | `Component76` | Fresh / grey water tank levels | base | ML-T 570 |
+| 79 | `TrumaSaphirCompact` | Truma Saphir Compact A/C | base | metadata (unverified) |
+| 89 | `TrumaSaphirComfortRC` | Truma Saphir Comfort RC A/C | base | metadata (unverified) |
+| 91 | `SeeLevel_709_RVC_NLP` | Garnet SeeLevel 709 tank monitor | base | metadata (unverified) |
 | 93 | `LightCircuit32` | Eriba bedroom-furniture light | lights | Eriba Car 602 |
+| 95 | `AirxcelACGateway` | Airxcel AC Gateway (dual-zone A/C) | base | metadata (unverified) |
 | 96 | `BatteryGuard1000` | BatteryGuard 1000 DC power guard | base | metadata (unverified) |
 | 97 | `CerboGX` | Victron Cerbo GX | base | metadata (unverified) |
 | 99 | `BOSConnect` | BOS LUX LiFePO4 BMS | base | S 600 / S 700 |
@@ -148,11 +154,17 @@ Notes:
 | 102 | `MaxxFan` | MaxxFan roof ventilation fan (dual front/rear) | base | metadata (unverified) |
 | 105 | `SmartBatterySensor` | Intelligent Battery Sensor (IBS) | base | metadata (unverified) |
 | 107 | `ZipDeePowerAwning` | ZipDee power awning (cover) | base | metadata (unverified) |
+| 109 | `SwitchPad` | EHG SwitchPad control panel | base | metadata (unverified) |
 | 114 | `ThetfordT2152` | Thetford Compressor T2120C fridge | base | ML-T 570 |
+| 116 | `DellCoolFridge` | DellCool compressor fridge | base | metadata (unverified) |
 | 117 | `CBESolarCharger` | CBE solar charger | base | metadata (unverified) |
+| 118 | `IndelBFridge` | Indel B compressor fridge | base | metadata (unverified) |
 | 119 | `TrumaCombiNeo` | Truma Combi NEO heater | base | metadata (unverified) |
 | 120 | `TrumaCombiNeo_E` | Truma Combi NEO E heater | base | metadata (unverified) |
 | 121 | `VictronMultiplus` | Victron MultiPlus inverter/charger *(non-functional on S600)* | base | S 600 |
+| 124 | `TimberlineHeaterCommon` | Timberline water + floor heater | base | metadata (unverified) |
+| 125 | `TimberlineHeaterZone` | Timberline air/furnace heater zone | base | metadata (unverified) |
+| 127 | `ThetfordIndusToiletEco` | Thetford iNDUS toilet ECO | base | metadata (unverified) |
 
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)
 
