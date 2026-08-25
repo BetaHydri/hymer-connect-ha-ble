@@ -32,6 +32,8 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
+    UNAVAILABLE_SILENCE_BLE,
+    UNAVAILABLE_SILENCE_CLOUD,
 )
 from .signalr_client import HymerSignalRClient
 
@@ -120,6 +122,19 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def connection_mode(self) -> str:
         """Return the current connection mode: 'ble' or 'cloud'."""
         return self._connection_mode
+
+    @property
+    def unavailable_silence_threshold(self) -> int:
+        """Data-silence seconds before 12V-gated entities go unavailable.
+
+        BLE-only mode streams every ~200-300ms, so 15s of silence conclusively
+        means 12V off. When the cloud is involved (cloud/dual) its ~30-40s push
+        cadence sets the floor for ``data_silence_seconds``, so use 60s to avoid
+        false flicker while the link is healthy.
+        """
+        if self._connection_mode == "ble":
+            return UNAVAILABLE_SILENCE_BLE
+        return UNAVAILABLE_SILENCE_CLOUD
 
     @property
     def ble_enabled(self) -> bool:

@@ -67,6 +67,16 @@ BRANDS = {
 # Default scan interval (seconds)
 DEFAULT_SCAN_INTERVAL = 60
 
+# Seconds of data silence (any transport) after which 12V-dependent entities
+# (lights, water pump) are marked unavailable. Decoupled from the SignalR
+# reconnect cap (STALE_DATA_TIMEOUT, 3 min) so the dashboard greys out quickly.
+# Cutting habitation 12V does NOT power the SCU down: main_switch freezes at
+# "On" and the SCU just stops streaming, so data-silence is the reliable signal.
+# Transport-aware: BLE streams sub-second, so 15s of silence is conclusive; the
+# cloud push cadence can gap ~30-40s, so it needs headroom to avoid flapping.
+UNAVAILABLE_SILENCE_BLE = 15
+UNAVAILABLE_SILENCE_CLOUD = 60
+
 # Config keys
 CONF_BRAND = "brand"
 CONF_ACCESS_TOKEN = "access_token"

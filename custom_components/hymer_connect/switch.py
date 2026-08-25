@@ -420,10 +420,9 @@ class HymerConnectSwitch(
                 return False
             # 12V-off freezes the main_switch readback on some vehicles while
             # the SCU stops streaming. Prolonged data silence (from ANY
-            # transport - SignalR or BLE) = 12V physically off. Using the
-            # coordinator clock keeps BLE mode from falsely reading silence
-            # while the SignalR socket is quiet.
-            if self.coordinator.data_silence_seconds > STALE_DATA_TIMEOUT:
+            # transport - SignalR or BLE) = 12V physically off. Transport-aware
+            # threshold: fast over BLE (sub-second cadence), headroom over cloud.
+            if self.coordinator.data_silence_seconds > self.coordinator.unavailable_silence_threshold:
                 return False
         return super().available
 

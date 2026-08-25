@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.81.0] - 2026-08-25
+
+### Changed
+
+- **12V-dependent entities (lights, water pump) grey out much faster after 12V main is switched off.** Cutting habitation 12V does not power the SCU down — it freezes the `main_switch` readback at `"On"` and simply stops streaming — so data-silence is the reliable "12V off" signal. That silence threshold was previously coupled to the 3-minute SignalR reconnect cap (`STALE_DATA_TIMEOUT`), so the dashboard took up to ~3 min to strike the entities through. It is now a dedicated, **transport-aware** threshold: **~15 s in BLE-only mode** (sub-second stream cadence makes silence conclusive quickly) and **~60 s when the cloud is involved** (cloud pushes can gap ~30–40 s, so headroom avoids false flicker). When the SCU does report `main_switch = "Off"` directly (e.g. switching 12V off from HA), the entities still go unavailable within the readback latency (BLE ~200–300 ms). The 3-minute constant is unchanged for SignalR reconnect health.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.80.2] - 2026-08-25
 
 ### Fixed

@@ -29,7 +29,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
 from .sensor import _resolve_path
-from .signalr_client import STALE_DATA_TIMEOUT
+from .signalr_client import STALE_DATA_TIMEOUT  # noqa: F401  (kept for compat)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -197,9 +197,9 @@ class HymerConnectLight(
             return False
         # 12V-off freezes main_switch readback on some vehicles while the SCU
         # stops streaming. Prolonged data silence (from ANY transport - SignalR
-        # or BLE) = 12V physically off. Using the coordinator clock keeps BLE
-        # mode from falsely reading silence while the SignalR socket is quiet.
-        if self.coordinator.data_silence_seconds > STALE_DATA_TIMEOUT:
+        # or BLE) = 12V physically off. Transport-aware threshold: fast over BLE
+        # (sub-second cadence), with headroom over the cloud.
+        if self.coordinator.data_silence_seconds > self.coordinator.unavailable_silence_threshold:
             return False
         return super().available
 
