@@ -3,7 +3,7 @@
 > **Audience:** Maintainers and advanced troubleshooters. Normal users only need
 > the setup and troubleshooting guidance in the main README.
 
-> **Last updated:** 2026-06-09 (v2.63.11)
+> **Last updated:** 2026-08-25 (v2.87.0)
 
 This document explains how the HYMER Connect integration maintains its real-time
 connection to the vehicle SCU (Smart Connectivity Unit) through Azure SignalR Service.
@@ -32,11 +32,15 @@ Home Assistant
 
 Both paths run concurrently. With BLE subscriptions, both paths can provide
 all ~130 sensors — BLE at ~50 ms latency, SignalR at ~500 ms–2 s. Both merge
-into the same data store. **All write commands are sent via SignalR**
-(cloud) because vehicle testing on SCU firmware 1.12.0.0 proved every BLE
-`setValues` write is silently dropped — see [`ble-communication.md`](ble-communication.md#write-commands-removed-in-v26224)
-for the full investigation. The coordinator does one reconnect-retry on
-SignalR failure; there is no BLE leg in the write path any more.
+into the same data store. **Writes go over BLE first with automatic cloud
+fallback (v2.67.0+, on by default):** when BLE is connected, a command is sent
+over the local BLE link and falls back to SignalR if the SCU does not acknowledge;
+when BLE is not connected, all writes go via SignalR. The earlier conclusion that
+the SCU silently drops BLE `setValues` writes (v2.62.24) turned out to be a
+**client-side protobuf-encoding bug** — fixed in **v2.66.0** (subscription path in
+**v2.66.2**, on-by-default in **v2.67.0**), root cause found by **Dan Simms**; see
+[`ble-communication.md`](ble-communication.md) for the full investigation. On the
+SignalR leg the coordinator does one reconnect-retry on failure.
 
 After initial setup (OAuth2 login + EHG token exchange), the BLE path can
 operate fully offline. SignalR requires ongoing internet connectivity.
@@ -352,11 +356,15 @@ The EHG app connects via **BLE** (Bluetooth Low Energy) directly to the SCU
 when you are near the vehicle. This works even with **12V off** because BLE
 communication bypasses the cloud entirely.
 
-Home Assistant only has the **SignalR cloud path**. When 12V is off, the SCU
-enters standby and stops pushing passive sensor data (door state, temperatures,
-water levels) to the cloud. Commands (fridge on/off, lights) still work because
-the SCU echoes command responses, but passive sensors like the fridge door
-(bus 37) do not update.
+If Home Assistant is running **cloud-only** (no BLE path, or BLE not connected), it
+has only the **SignalR cloud path**. When 12V is off, the SCU enters standby and
+stops pushing passive sensor data (door state, temperatures, water levels) to the
+cloud. Commands (fridge on/off, lights) still work because the SCU echoes command
+responses, but passive sensors like the fridge door (bus 37) do not update.
+
+> **With the BLE path connected this is not an issue** — the SCU's BLE link stays
+> active in 12V standby, so a BLE-connected HA host keeps receiving passive sensor
+> updates (door, temps, water) even with 12V off.
 
 **Solution:** Turn 12V ON, wait for `SCU reconnected (scu_connected false→true)`
 in the HA log, then test the fridge door. You should see:
