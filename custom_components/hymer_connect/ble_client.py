@@ -2075,8 +2075,10 @@ class ScuBleClient:
 
         # Device-locking: BlueZ passes the device object path as the first arg of
         # the pairing callbacks. We only answer for our SCU so a stray device
-        # pairing in the same window cannot hijack our auto-accept.
-        device_suffix = "dev_" + addr.replace(":", "_").upper()
+        # pairing in the same window cannot hijack our auto-accept. Compare fully
+        # upper-cased on both sides (BlueZ paths use "dev_" but the hex casing
+        # varies by adapter) so our own SCU is never rejected.
+        device_suffix = ("dev_" + addr.replace(":", "_")).upper()
         _DEVICE_ARG_METHODS = frozenset(
             {
                 "RequestConfirmation",

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.4] - 2026-08-25
+
+### Fixed
+
+- **BLE pairing could reject the SCU's own bond (regression in v2.76.3).** The new device-locked pairing agent compared the BlueZ device path against a suffix that upper-cased only the address hex but left `dev_` lower-case, while the path was compared fully upper-cased — so `endswith()` failed for the target SCU and the agent answered a legitimate `RequestConfirmation`/`RequestAuthorization` callback with `org.bluez.Error.Rejected`, aborting `Device1.Pair()`. The comparison is now fully case-normalised on both sides, so the SCU's own pairing callbacks are accepted and foreign devices are still rejected. Anyone who updated to v2.76.3 should update to v2.76.4 before pairing. Caught by a new local pairing unit harness.
+
+No entity IDs change and no configuration migration is required.
+
 ## [2.76.3] - 2026-08-25
 
 ### Changed
