@@ -2263,6 +2263,4008 @@
         "datatype": "string",
         "mode": "r"
       }
+    },
+    "1": {
+      "1": {
+        "label": "mileage",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "m"
+      },
+      "2": {
+        "label": "fuel_tank_level",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "%"
+      },
+      "3": {
+        "label": "central_locking_status",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "test_signal_write",
+        "mode": "w",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "next_service",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "km"
+      },
+      "6": {
+        "label": "ad_blue_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "7": {
+        "label": "ad_blue_remain_distance",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "km"
+      },
+      "8": {
+        "label": "vin",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "9": {
+        "label": "outside_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "10": {
+        "label": "lightsense_night",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "wiping_water_empty",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "door_state_driver",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "13": {
+        "label": "door_state_entrance_door",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "14": {
+        "label": "motor_oil_warning",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "15": {
+        "label": "ignition_status",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "16": {
+        "label": "engine_running",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "17": {
+        "label": "cooling_water_empty",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "18": {
+        "label": "parking_brake_engaged",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "19": {
+        "label": "standheizung_available",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "20": {
+        "label": "standheizung",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "21": {
+        "label": "cruise_control_active",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "22": {
+        "label": "downhill_assist_active",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "23": {
+        "label": "language_setting",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "3": {
+      "1": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "shore_line",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "switch_pump",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "charge_mode",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "living_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "6": {
+        "label": "living_battery_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "7": {
+        "label": "starter_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "8": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "9": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "10": {
+        "label": "living_battery_capacity",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "Ah"
+      },
+      "11": {
+        "label": "living_battery_type",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "fresh_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "waste_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "outside_temp_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "15": {
+        "label": "outside_temp_calib_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "16": {
+        "label": "ebl_over_temperature",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "17": {
+        "label": "battery_keeper_active",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "18": {
+        "label": "d_plus_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "19": {
+        "label": "ebl_outdoor_temp_sensor",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "20": {
+        "label": "activate_tank_refill_interval",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "21": {
+        "label": "update_tank_level_immediately",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "22": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "4": {
+      "6": {
+        "label": "output_configuration_channel_a",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "output_configuration_channel_b",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "5": {
+      "1": {
+        "label": "zone2_enabled",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "zone2_actual_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "zone1_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "4": {
+        "label": "zone2_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "5": {
+        "label": "prio_electricity_gas",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "hot_water_setting",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "electricity_setting",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "kW"
+      },
+      "8": {
+        "label": "panel_busy",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "panel_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "gas_setting",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "acc_setting",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "12": {
+        "label": "error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "ac_installed",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "pump_running",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "15": {
+        "label": "outdoor_actual_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      }
+    },
+    "7": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "air_con_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "automatic_mode",
+        "mode": "rw",
+        "datatype": "string"
+      }
+    },
+    "8": {
+      "1": {
+        "label": "solar_active",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "solar_panel_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "3": {
+        "label": "charging_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "4": {
+        "label": "error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "reduced_power",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "aes_active",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "solar_panel_power",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "W"
+      }
+    },
+    "10": {
+      "1": {
+        "label": "start",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "park",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "stop_movement",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "open_sleep_mode",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "satellite_position",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "state",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "8": {
+        "label": "unified_signal_quality",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "9": {
+        "label": "dish_moving_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "safe_position_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "unsupported_function_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "12": {
+        "label": "alarm_beeper_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "standby_mode_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "k15_state",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "11": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "12": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "13": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "14": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "15": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "16": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "17": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "18": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "19": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "20": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "21": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "22": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "23": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "24": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "25": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "26": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "27": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "29": {
+      "1": {
+        "label": "battery_voltage_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "30": {
+      "1": {
+        "label": "gps_location",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "latitude,longitude"
+      },
+      "2": {
+        "label": "scu_internal_time",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "YYYY-MM-DD hh:mm Z"
+      },
+      "3": {
+        "label": "lte_connection_quality",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "lte_connection_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "scu_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "6": {
+        "label": "paired_bt_devices",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "7": {
+        "label": "connected_bt_devices",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "8": {
+        "label": "battery_cutoff_switch",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "user_active",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "d_plus",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "wake_up_chassis",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "12": {
+        "label": "battery_switch_active",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "vehicle_movement",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "33": {
+      "1": {
+        "label": "start",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "park",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "force_off",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "satellite_position",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "state",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "get_alarm",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "get_alarm_code",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "34": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "night_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "freezer_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "5": {
+        "label": "door_open",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "warning_error_information",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "7": {
+        "label": "dc_voltage",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "mV"
+      }
+    },
+    "35": {
+      "1": {
+        "label": "blackwater_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "36": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "37": {
+      "1": {
+        "label": "vehicle_type",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "2": {
+        "label": "vehicle_brand",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      }
+    },
+    "38": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "39": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "40": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "41": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "42": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "color",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "43": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "44": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "45": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "46": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "47": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "48": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "49": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "50": {
+      "8": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "all_light_power",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "51": {
+      "10": {
+        "label": "all_light_power",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "53": {
+      "1": {
+        "label": "aux_tank_type",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "aux_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "4": {
+        "label": "fresh_water_alarm",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "waste_water_alarm",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "aux_alarm",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "54": {
+      "1": {
+        "label": "internal_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "external_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "vehicle_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      }
+    },
+    "55": {
+      "1": {
+        "label": "leisure_bat_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "2": {
+        "label": "leisure_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      }
+    },
+    "56": {
+      "1": {
+        "label": "flush_tank_available",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "tank_unit_available",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "cartridge_unit_available",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "toilet_ui_available",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "discharge_ui_available",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "d_plus_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "pulsing_flush_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "reuse_grey_water_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "grey_water_tank_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "10": {
+        "label": "black_water_tank_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "11": {
+        "label": "fresh_water_tank_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "12": {
+        "label": "grey_cartridge_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "13": {
+        "label": "flush_cartridge_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "14": {
+        "label": "black_cartridge_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "15": {
+        "label": "external_bluetooth_device_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "16": {
+        "label": "get_notification",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "17": {
+        "label": "synchronize_current_time_settings",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "18": {
+        "label": "d_signal_simulation",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "19": {
+        "label": "set_bluetooth_in_whitelisting_mode",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "20": {
+        "label": "current_time_hour",
+        "mode": "w",
+        "datatype": "int",
+        "unit": "H"
+      },
+      "21": {
+        "label": "current_time_minute",
+        "mode": "w",
+        "datatype": "int",
+        "unit": "M"
+      }
+    },
+    "58": {
+      "4": {
+        "label": "air_temperature_energy_source",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "target_water_temperature",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "water_temperature_energy_source",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "panel_busy",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "target_air_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "9": {
+        "label": "power_limit",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "W"
+      },
+      "10": {
+        "label": "combi_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "air_temperature_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "response_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "window_switch_closed",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "59": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "air_con_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "automatic_mode",
+        "mode": "rw",
+        "datatype": "string"
+      }
+    },
+    "61": {
+      "1": {
+        "label": "light_channel1_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "light_channel2_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "light_channel3_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "light_channel4_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "trade_fair_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "12_v_signal",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "kreis_licht",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "heartbeat",
+        "mode": "w",
+        "datatype": "bool"
+      }
+    },
+    "62": {
+      "1": {
+        "label": "light_channel1_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "light_channel2_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "light_channel3_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "light_channel4_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "trade_fair_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "12_v_signal",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "kreis_licht",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "heartbeat",
+        "mode": "w",
+        "datatype": "bool"
+      }
+    },
+    "63": {
+      "1": {
+        "label": "light_channel1_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "light_channel2_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "light_channel3_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "light_channel4_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "trade_fair_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "12_v_signal",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "kreis_licht",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "heartbeat",
+        "mode": "w",
+        "datatype": "bool"
+      }
+    },
+    "64": {
+      "1": {
+        "label": "light_channel1_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "light_channel2_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "light_channel3_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "light_channel4_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "d_plus_state",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "trade_fair_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "12_v_signal",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "kreis_licht",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "heartbeat",
+        "mode": "w",
+        "datatype": "bool"
+      }
+    },
+    "65": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "air_con_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "automatic_mode",
+        "mode": "rw",
+        "datatype": "string"
+      }
+    },
+    "66": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "67": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "68": {
+      "1": {
+        "label": "base_orientation",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "quaternion"
+      },
+      "2": {
+        "label": "front_orientation",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "quaternion"
+      },
+      "3": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "69": {
+      "1": {
+        "label": "voltage_lower_limit",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "2": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "3": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "70": {
+      "1": {
+        "label": "pressure_lower_limit",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "b"
+      },
+      "2": {
+        "label": "pressure_upper_limit",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "b"
+      },
+      "3": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "battery_charge_low_threshold",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "71": {
+      "1": {
+        "label": "tank_level_percentage_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "tank_height",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "mm"
+      },
+      "3": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "battery_charge_low_threshold",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "72": {
+      "1": {
+        "label": "tank_level_percentage_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "3": {
+        "label": "tank_level_percentage_upper_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "4": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "tank_type",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "tank_height",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "mm"
+      },
+      "7": {
+        "label": "tank_lookup_table",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "%"
+      },
+      "8": {
+        "label": "tank_lookup_table_millimeters",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "mm"
+      },
+      "9": {
+        "label": "battery_charge_low_threshold",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "73": {
+      "1": {
+        "label": "alarm_state",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "2": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "3": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "notification_type",
+        "mode": "r",
+        "datatype": "int"
+      }
+    },
+    "74": {
+      "1": {
+        "label": "temperature_upper_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "temperature_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "battery_charge_low_threshold",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "75": {
+      "1": {
+        "label": "pressure_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "2": {
+        "label": "load_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "3": {
+        "label": "switch_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "4": {
+        "label": "level_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "5": {
+        "label": "volt_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "6": {
+        "label": "water_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "7": {
+        "label": "wired_water_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "8": {
+        "label": "gas_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "9": {
+        "label": "temperature_log_interval",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "s"
+      },
+      "10": {
+        "label": "movement_detection_acceleration_threshold",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "m/s2"
+      },
+      "11": {
+        "label": "driving_detection_acceleration_threshold",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "m/s2"
+      },
+      "12": {
+        "label": "movement_detection_percentage_threshold",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "%"
+      },
+      "13": {
+        "label": "driving_detection_percentage_threshold",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "%"
+      },
+      "14": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      }
+    },
+    "76": {
+      "1": {
+        "label": "tank_level_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "tank_lookup_table",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "%"
+      },
+      "3": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "tank_level_upper_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "5": {
+        "label": "sensor_installed",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "6": {
+        "label": "tank_lookup_table_millimeters",
+        "mode": "r",
+        "datatype": "string",
+        "unit": "mm"
+      },
+      "7": {
+        "label": "tank_type",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "77": {
+      "1": {
+        "label": "weight_upper_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "kg"
+      },
+      "2": {
+        "label": "weight_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "kg"
+      },
+      "3": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "78": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "79": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "air_con_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "automatic_mode",
+        "mode": "rw",
+        "datatype": "string"
+      }
+    },
+    "80": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "81": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "82": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "83": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "84": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "85": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "86": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "87": {
+      "1": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "4": {
+        "label": "fresh_water_alarm",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "waste_water_alarm",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "88": {
+      "1": {
+        "label": "on",
+        "mode": "w",
+        "datatype": "bool"
+      }
+    },
+    "89": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "air_con_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "automatic_mode",
+        "mode": "rw",
+        "datatype": "string"
+      }
+    },
+    "90": {
+      "1": {
+        "label": "switchable_glass",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "91": {
+      "1": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "black_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "gray_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "4": {
+        "label": "lpg_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "5": {
+        "label": "second_fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "second_black_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "7": {
+        "label": "second_gray_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "8": {
+        "label": "second_lpg_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "9": {
+        "label": "sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "11": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "92": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "device_failure_status",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "93": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "94": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "95": {
+      "1": {
+        "label": "air_con_mode_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "air_con_fan_mode_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "air_con_fan_speed_state_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "heat_temperature_front",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "5": {
+        "label": "cool_temperature_front",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "6": {
+        "label": "roof_fan_on_off_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "roof_fan_mode_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "8": {
+        "label": "fan_speed_mode_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "9": {
+        "label": "roof_fan_speed_state_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "10": {
+        "label": "air_flow_direction_mode_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "11": {
+        "label": "dome_opening_and_closing_front",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "rain_sensor_on_off_front",
+        "mode": "w",
+        "datatype": "string"
+      },
+      "13": {
+        "label": "rain_status_front",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "14": {
+        "label": "ambient_temperature_front",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "15": {
+        "label": "air_con_failure_front",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "16": {
+        "label": "fan_failure_front",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "17": {
+        "label": "air_con_mode_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "18": {
+        "label": "air_con_fan_mode_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "19": {
+        "label": "air_con_fan_speed_state_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "20": {
+        "label": "heat_temperature_rear",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "21": {
+        "label": "cool_temperature_rear",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "22": {
+        "label": "roof_fan_on_off_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "23": {
+        "label": "roof_fan_mode_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "24": {
+        "label": "fan_speed_mode_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "25": {
+        "label": "roof_fan_speed_state_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "26": {
+        "label": "air_flow_direction_mode_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "27": {
+        "label": "dome_opening_and_closing_rear",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "28": {
+        "label": "rain_sensor_on_off_rear",
+        "mode": "w",
+        "datatype": "string"
+      },
+      "29": {
+        "label": "rain_status_rear",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "30": {
+        "label": "ambient_temperature_rear",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "31": {
+        "label": "air_con_failure_rear",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "32": {
+        "label": "fan_failure_rear",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "33": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "98": {
+      "1": {
+        "label": "main_living_room_light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "galley_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "galley_locker_accent_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "bedroom_light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "5": {
+        "label": "bedroom_locker_accent_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "bath_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "shower_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "awning_light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "9": {
+        "label": "entrance_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "water_pump_enable",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "12": {
+        "label": "tank_heater_pads",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "bathroom_fan",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "galley_light_switch",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "15": {
+        "label": "awning_power",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "16": {
+        "label": "grab_handle_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "17": {
+        "label": "aisle_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "18": {
+        "label": "front_accent_light",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "19": {
+        "label": "bed_reading_lights",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "20": {
+        "label": "front_read_lights",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "21": {
+        "label": "galley_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "22": {
+        "label": "galley_locker_accent_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "23": {
+        "label": "bedroom_locker_accent_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "24": {
+        "label": "bath_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "25": {
+        "label": "shower_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "26": {
+        "label": "entrance_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "27": {
+        "label": "grab_handle_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "28": {
+        "label": "aisle_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "29": {
+        "label": "front_accent_light_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "30": {
+        "label": "bed_reading_lights_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "31": {
+        "label": "front_read_lights_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "32": {
+        "label": "main_living_room_light_with_delay",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "33": {
+        "label": "bedroom_light_with_delay",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "34": {
+        "label": "bath_light_brightness_with_delay",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "35": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "99": {
+      "1": {
+        "label": "battery_state_of_charge_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "battery_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "3": {
+        "label": "battery_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "4": {
+        "label": "battery_state_of_charge",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "5": {
+        "label": "battery_time_remaining",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "min"
+      },
+      "6": {
+        "label": "battery_state_of_health",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "7": {
+        "label": "battery_capacity_remaining",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "Ah"
+      },
+      "8": {
+        "label": "battery_relative_capacity",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "9": {
+        "label": "battery_charge_detected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "int"
+      }
+    },
+    "101": {
+      "1": {
+        "label": "roof_state",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "airmat_state",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "roof_control_enabled",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "error_code",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "error_code_instance",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "roof_command",
+        "mode": "w",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "airmat_hardness_left",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "8": {
+        "label": "airmat_hardness_right",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      }
+    },
+    "102": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "dome_open_close",
+        "mode": "rw",
+        "datatype": "int"
+      },
+      "3": {
+        "label": "roof_fan_speed_state",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "rain_sensor",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "5": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "6": {
+        "label": "air_direction",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "rear_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "rear_dome_open_close",
+        "mode": "rw",
+        "datatype": "int"
+      },
+      "9": {
+        "label": "rear_roof_fan_speed_state",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "10": {
+        "label": "rear_air_direction",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "rear_rain_sensor",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "12": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "103": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "fridge_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "error_warning_information",
+        "mode": "r",
+        "datatype": "int"
+      }
+    },
+    "104": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "106": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "night_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "5": {
+        "label": "door_open",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "warning_error_information",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "7": {
+        "label": "dc_voltage",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "mV"
+      },
+      "8": {
+        "label": "freezer_on",
+        "mode": "rw",
+        "datatype": "bool"
+      }
+    },
+    "108": {
+      "1": {
+        "label": "mileage",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "km"
+      },
+      "2": {
+        "label": "fuel_tank_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "tire_pressure_status_front_right",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "4": {
+        "label": "tire_pressure_status_front_left",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "tire_pressure_status_back_right",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "6": {
+        "label": "tire_pressure_status_back_left",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "distance_to_service",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "km"
+      },
+      "8": {
+        "label": "low_fuel_warning",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "engine_state",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "10": {
+        "label": "park_brake_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "vin",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "12": {
+        "label": "days_to_service",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "day"
+      },
+      "13": {
+        "label": "battery_voltage_level",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "14": {
+        "label": "battery_charge_status",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "15": {
+        "label": "bonnet_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "16": {
+        "label": "rhr_door_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "17": {
+        "label": "lhr_door_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "18": {
+        "label": "passenger_door_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "19": {
+        "label": "driver_door_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "20": {
+        "label": "remaining_range",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "km"
+      },
+      "21": {
+        "label": "external_temperature_c",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "22": {
+        "label": "external_temperature_f",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°F"
+      },
+      "23": {
+        "label": "ignition_status",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "24": {
+        "label": "engine_running",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "109": {
+      "1": {
+        "label": "mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "mode_status",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "on_board_mode_button_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "4": {
+        "label": "away_mode_button_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "5": {
+        "label": "sleep_mode_button_brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "device_failure",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "7": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "110": {
+      "1": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "shore_line",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "switch_pump",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "living_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "5": {
+        "label": "starter_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "6": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "7": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "8": {
+        "label": "fresh_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "waste_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "activate_tank_refill_interval",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "update_tank_level_immediately",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "12": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "aux_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "14": {
+        "label": "light_status",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "111": {
+      "1": {
+        "label": "position",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "2": {
+        "label": "display_name",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "temperature_upper_limit",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "4": {
+        "label": "temperature_lower_limit",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "5": {
+        "label": "battery_state_of_charge_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "software_version",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "7": {
+        "label": "hardware_version",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "112": {
+      "1": {
+        "label": "on",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "113": {
+      "1": {
+        "label": "on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "brightness",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      }
+    },
+    "114": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "night_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "freezer_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "5": {
+        "label": "door_open",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "warning_error_information",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "7": {
+        "label": "dc_voltage",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "mV"
+      }
+    },
+    "115": {
+      "1": {
+        "label": "state_of_charge_lower_limit",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "3": {
+        "label": "battery_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "4": {
+        "label": "batteries_error",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "5": {
+        "label": "state_of_charge",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "%"
+      },
+      "6": {
+        "label": "state_of_health",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "%"
+      },
+      "7": {
+        "label": "opt_charge_volt",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "8": {
+        "label": "available_capacity",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "Ah"
+      },
+      "9": {
+        "label": "dischargeable_capacity",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "Ah"
+      },
+      "10": {
+        "label": "nominal_capacity",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "Ah"
+      }
+    },
+    "116": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "power_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "compressor_on",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "door_open",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "warning_error_information",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      }
+    },
+    "118": {
+      "1": {
+        "label": "fridge_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "power_mode",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "fridge_level",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "door_open",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "error_information",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "6": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "121": {
+      "1": {
+        "label": "inverter_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "inverter_state",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "3": {
+        "label": "inverter_l1_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "4": {
+        "label": "inverter_l1_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "5": {
+        "label": "inverter_l1_frequency",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "Hz"
+      },
+      "6": {
+        "label": "inverter_l2_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "7": {
+        "label": "inverter_l2_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "8": {
+        "label": "inverter_l2_frequency",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "Hz"
+      },
+      "9": {
+        "label": "charger_on",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "charger_state",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "11": {
+        "label": "charge_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "12": {
+        "label": "charge_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "13": {
+        "label": "maximum_charge_current",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "14": {
+        "label": "charger_input_current_limit",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "A"
+      },
+      "15": {
+        "label": "charger_input_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "16": {
+        "label": "charger_input_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "17": {
+        "label": "charger_input_frequency",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "Hz"
+      },
+      "18": {
+        "label": "device_failure_status",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "19": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "122": {
+      "1": {
+        "label": "12_v_supply",
+        "mode": "rw",
+        "datatype": "string"
+      },
+      "2": {
+        "label": "shore_line",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "3": {
+        "label": "living_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "4": {
+        "label": "starter_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "5": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "6": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "7": {
+        "label": "fresh_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "waste_water_sensor_failure",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "activate_tank_refill_interval",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "update_tank_level_immediately",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "11": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "12": {
+        "label": "aux_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "13": {
+        "label": "light_status",
+        "mode": "r",
+        "datatype": "bool"
+      }
+    },
+    "123": {
+      "1": {
+        "label": "target_room_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "C"
+      },
+      "2": {
+        "label": "actual_room_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "C"
+      },
+      "3": {
+        "label": "air_con_mode",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "4": {
+        "label": "fan_mode",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "step"
+      },
+      "5": {
+        "label": "aircon_error",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "manual_mode",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "light",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "8": {
+        "label": "firmware",
+        "mode": "r",
+        "datatype": "string"
+      }
+    },
+    "124": {
+      "1": {
+        "label": "water_heater_operating_mode",
+        "mode": "rw",
+        "datatype": "int"
+      },
+      "2": {
+        "label": "water_heater_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "3": {
+        "label": "water_heater_burner_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "water_heater_ac_element_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "water_heater_ignition_failure_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "water_heater_engine_preheat",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "water_heater_hot_water_priority",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "8": {
+        "label": "floor_heater_operating_status",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "9": {
+        "label": "floor_heater_pump_status",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "10": {
+        "label": "floor_heater_measured_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "11": {
+        "label": "floor_heater_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "12": {
+        "label": "floor_heater_hysteresis",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "13": {
+        "label": "device_failure_status",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "step"
+      }
+    },
+    "125": {
+      "1": {
+        "label": "furnace_operating_mode",
+        "mode": "rw",
+        "datatype": "int"
+      },
+      "2": {
+        "label": "fan_speed",
+        "mode": "rw",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "3": {
+        "label": "air_heater_operating_mode",
+        "mode": "rw",
+        "datatype": "int"
+      },
+      "4": {
+        "label": "air_heater_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "5": {
+        "label": "air_heater_current_schedule",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "6": {
+        "label": "air_heater_storage_mode",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "air_heater_day_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "8": {
+        "label": "air_heater_day_start_time",
+        "mode": "rw",
+        "datatype": "string",
+        "unit": "hh:mm"
+      },
+      "9": {
+        "label": "air_heater_night_target_temperature",
+        "mode": "rw",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "10": {
+        "label": "air_heater_night_start_time",
+        "mode": "rw",
+        "datatype": "string",
+        "unit": "hh:mm"
+      },
+      "11": {
+        "label": "ambient_temperature",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "°C"
+      },
+      "12": {
+        "label": "circulation_pump_output",
+        "mode": "rw",
+        "datatype": "int"
+      }
+    },
+    "126": {
+      "1": {
+        "label": "shore_line_connected",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "2": {
+        "label": "d_plus_state",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "3": {
+        "label": "disconnectable_loads_disarmed",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "4": {
+        "label": "not_disconnectable_load",
+        "mode": "r",
+        "datatype": "bool"
+      },
+      "5": {
+        "label": "main_load",
+        "mode": "rw",
+        "datatype": "bool"
+      },
+      "6": {
+        "label": "main_load_toggle",
+        "mode": "w",
+        "datatype": "bool"
+      },
+      "7": {
+        "label": "starter_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "8": {
+        "label": "living_battery_voltage",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "V"
+      },
+      "9": {
+        "label": "living_battery_current",
+        "mode": "r",
+        "datatype": "float",
+        "unit": "A"
+      },
+      "10": {
+        "label": "charger_current230_v",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "A"
+      },
+      "11": {
+        "label": "fresh_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "12": {
+        "label": "waste_water_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "13": {
+        "label": "charger_version",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "14": {
+        "label": "panel_version",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "15": {
+        "label": "charger_model_name1",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "16": {
+        "label": "charger_model_name2",
+        "mode": "r",
+        "datatype": "string"
+      },
+      "17": {
+        "label": "battery_type",
+        "mode": "r",
+        "datatype": "int"
+      },
+      "18": {
+        "label": "imax_out",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "A"
+      }
+    },
+    "127": {
+      "1": {
+        "label": "black_water_tank_level",
+        "mode": "r",
+        "datatype": "int",
+        "unit": "%"
+      },
+      "2": {
+        "label": "get_notification",
+        "mode": "r",
+        "datatype": "string"
+      }
     }
   }
 }
