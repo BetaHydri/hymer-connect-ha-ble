@@ -2016,6 +2016,12 @@ class ScuBleClient:
         Registers an agent path with BlueZ, handles all agent method calls
         via add_message_handler (including Introspect so BlueZ can find the
         object), then calls Device1.Pair().
+
+        The agent is device-locked to this SCU (foreign devices that pair in
+        the same window are rejected) and also answers the legacy PIN/passkey
+        callbacks, which some BlueZ/SCU combinations select instead of
+        RequestConfirmation - omitting them makes Device1.Pair() fail with an
+        unknown-method error.
         """
         try:
             from dbus_fast.aio import MessageBus
@@ -2048,6 +2054,14 @@ class ScuBleClient:
     <method name="RequestAuthorization">
       <arg name="device" type="o" direction="in"/>
     </method>
+    <method name="RequestPinCode">
+      <arg name="device" type="o" direction="in"/>
+      <arg name="pincode" type="s" direction="out"/>
+    </method>
+    <method name="RequestPasskey">
+      <arg name="device" type="o" direction="in"/>
+      <arg name="passkey" type="u" direction="out"/>
+    </method>
     <method name="Cancel"/>
   </interface>
   <interface name="org.freedesktop.DBus.Introspectable">
@@ -2058,6 +2072,25 @@ class ScuBleClient:
 </node>"""
 
         _LOGGER.debug("D-Bus agent: registering NoInputNoOutput agent for %s", addr)
+
+        # Device-locking: BlueZ passes the device object path as the first arg of
+        # the pairing callbacks. We only answer for our SCU so a stray device
+        # pairing in the same window cannot hijack our auto-accept.
+        device_suffix = "dev_" + addr.replace(":", "_").upper()
+        _DEVICE_ARG_METHODS = frozenset(
+            {
+                "RequestConfirmation",
+                "RequestAuthorization",
+                "AuthorizeService",
+                "RequestPinCode",
+                "RequestPasskey",
+            }
+        )
+
+        def _is_our_device(body: Any) -> bool:
+            if not body:
+                return True  # Release/Cancel carry no device argument
+            return str(body[0]).upper().endswith(device_suffix)
 
         bus = None
         try:
@@ -2077,10 +2110,29 @@ class ScuBleClient:
                     bus.send_message(reply)
                     return True
 
-                # Handle all Agent1 methods — auto-accept everything
                 if msg.interface == "org.bluez.Agent1":
-                    _LOGGER.debug("D-Bus agent: auto-accepting %s", msg.member)
-                    reply = Message.new_method_return(msg)
+                    member = msg.member
+                    # Reject pairing callbacks for any device that is not our SCU.
+                    if member in _DEVICE_ARG_METHODS and not _is_our_device(msg.body):
+                        _LOGGER.debug(
+                            "D-Bus agent: rejecting %s for foreign device %s",
+                            member, msg.body[0] if msg.body else "?",
+                        )
+                        reply = Message.new_error(
+                            msg, "org.bluez.Error.Rejected", "not our device"
+                        )
+                        bus.send_message(reply)
+                        return True
+                    # Legacy JustWorks fallbacks: some adapter/SCU combos select
+                    # PIN/passkey instead of RequestConfirmation. These expect a
+                    # return value, so an empty method_return would be malformed.
+                    if member == "RequestPinCode":
+                        reply = Message.new_method_return(msg, "s", ["0000"])
+                    elif member == "RequestPasskey":
+                        reply = Message.new_method_return(msg, "u", [0])
+                    else:
+                        reply = Message.new_method_return(msg)
+                    _LOGGER.debug("D-Bus agent: accepting %s", member)
                     bus.send_message(reply)
                     return True
 

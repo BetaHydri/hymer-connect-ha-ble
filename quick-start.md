@@ -106,9 +106,11 @@ This is the recommended setup when your HA host is inside the vehicle or otherwi
    right after your press is the one most likely to succeed.
 8. Wait for pairing and token exchange to finish
 
-> For the full pairing-sequence best practices, host requirements (`bluetoothctl`,
-> legacy TLS), and recovery steps, see
-> [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md).
+> The host's built-in pairing agent is **device-locked** to your SCU and handles
+> both the JustWorks confirmation and the **legacy PIN/passkey** exchange
+> automatically — you never enter a PIN. For the full pairing-sequence best
+> practices, host requirements (`bluetoothctl`, legacy TLS), and recovery steps,
+> see [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md).
 
 After that:
 

@@ -151,7 +151,11 @@ and during pairing:
 - **`bluetoothctl` must be available on the host.** The integration performs the
   JustWorks bond via a `bluetoothctl` agent (bleak's own `pair()` registers no
   agent, so BlueZ would otherwise cancel the pairing). HA OS and most container
-  images ship it; a stripped-down host may not.
+  images ship it; a stripped-down host may not. The built-in pairing agent is
+  **device-locked** to your SCU (a stray device pairing in the same window is
+  rejected) and also answers the **legacy PIN/passkey** callbacks, which some
+  adapter/SCU combinations select instead of the JustWorks confirmation — so a
+  bond that previously failed with an unknown-method/passkey error now completes.
 - **Press CONNECTION at the right time — the window can be short.** The SCU only
   accepts the bond while it is in pairing mode. On some vehicles this window is
   **~2 minutes**, but on others (e.g. B-MC I 680, SCU 1.13.0.0) it closes after

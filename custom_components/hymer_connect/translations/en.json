@@ -18,7 +18,7 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ When the integration connects for the first time, press the CONNECTION (CONNECTION) button on the SCU control panel in your vehicle. This is the same button you pressed when pairing the EHG app. The integration handles the rest automatically.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ Order matters: press the CONNECTION button on the SCU control panel FIRST, then submit this form within ~25 seconds. Some SCUs hold the pairing window open for only ~30 seconds. This is the same button you pressed when pairing the EHG app.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -40,7 +40,7 @@
       },
       "reconfigure": {
         "title": "Reconfigure HYMER Connect",
-        "description": "Add or update the QR code activation token, SCU Bluetooth address, EHG refresh token, or OAuth client header. Leave a field empty to keep the current value.",
+        "description": "Add or update the QR code activation token, SCU Bluetooth address, EHG refresh token, or OAuth client header. Leave a field empty to keep the current value.\n\nTo re-pair over BLE: clear the EHG Remote Access Refresh Token field (it is pre-filled with your current token, so 'empty' means delete it), enter the QR token, then press CONNECTION on the SCU FIRST and submit within ~25 seconds.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -56,7 +56,7 @@
       },
       "ble_pairing": {
         "title": "BLE Pairing with SCU",
-        "description": "Press the **CONNECTION** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. This can take up to 2 minutes.\n\nDo NOT close this dialog."
+        "description": "If you haven't already, press the **CONNECTION** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. It retries for up to 2 minutes, but some SCUs hold the pairing window open only ~30 seconds — so press CONNECTION right as you submit.\n\nDo NOT close this dialog."
       },
       "ble_result": {
         "title": "BLE Pairing Complete",
@@ -64,7 +64,7 @@
       }
     },
     "progress": {
-      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press CONNECTION on the vehicle control panel. Retrying for up to 2 minutes."
+      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press CONNECTION on the vehicle control panel now. Retrying for up to 2 minutes."
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.3] - 2026-08-25
+
+### Changed
+
+- **More reliable BLE pairing on more hosts.** The built-in D-Bus pairing agent now also answers the **legacy PIN/passkey** callbacks (`RequestPinCode` → `"0000"`, `RequestPasskey` → `0`), which some BlueZ/adapter/SCU combinations select instead of the JustWorks `RequestConfirmation`. Previously those combinations made `Device1.Pair()` fail with an unknown-method error; the bond now completes without user interaction. The success path (JustWorks confirmation) is unchanged — the PIN/passkey handlers are pure additive fallbacks. (Independently confirmed on Dan Simms' Linux/BlueZ pairing tool.)
+- **Pairing agent is now device-locked to your SCU.** The agent only answers pairing callbacks for the target SCU address; a stray device that happens to pair in the same window is rejected (`org.bluez.Error.Rejected`) instead of being auto-accepted.
+- **Clearer in-app pairing instructions.** The Vehicle-activation, Reconfigure and BLE-pairing dialogs now tell you to **press CONNECTION on the SCU first, then submit within ~25 seconds** (some SCUs hold the pairing window open only ~30 s), and the Reconfigure step spells out that the pre-filled EHG token field must be **cleared** to trigger a fresh BLE re-pair. `quick-start.md` and `docs/ble-troubleshooting.md` document the device-locked agent and the legacy PIN/passkey handling.
+
+No entity IDs change and no configuration migration is required.
+
 ## [2.76.2] - 2026-08-24
 
 ### Changed
