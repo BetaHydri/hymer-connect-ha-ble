@@ -275,16 +275,35 @@ token**. The message that stops tells you which host dependency to fix:
 | --- | --- | --- |
 | `🟢 BLE bonding SUCCESSFUL on attempt N` | Bond | CONNECTION was pressed, JustWorks bond worked |
 | `BLE bonding rejected by SCU — press CONNECTION …` | Bond | Button not pressed in time, out of range, `bluetoothctl` missing, or phone holds the BLE link. Retry near the vehicle; close the EHG app. |
-| `No SCU found via Bluetooth scan` (`ble_no_scu_found`) | Scan | Out of range, 12 V off, or Bluetooth integration/adapter not working |
+| `BLE scan found no SCU devices` (`ble_no_scu_found`) | Scan | Out of range, 12 V off, or Bluetooth integration/adapter not working |
 | `BLE TLS session established with SCU …` | TLS | Legacy-TLS handshake OK |
 | *(pairing hangs, then times out after TLS starts)* | TLS | Host OpenSSL likely rejects TLS 1.0/1.1 — see [What to watch out for](#what-to-watch-out-for-on-the-ble-direct-path) |
-| `Could not obtain confirmation token …` (`ble_no_confirmation_token`) | Cloud | Cloud API did not return a confirmation token — check account/network |
+| `Cloud did not return a confirmation token` (`ble_no_confirmation_token`) | Cloud | Cloud API did not return a confirmation token — check account/network |
 | `BLE pairing response received from SCU …` | Pair | SCU answered the pairing request |
 | `BLE pairing … did not contain a refresh token` (`ble_no_refresh_token`) | Pair | SCU answered but returned no token (pairing slot rejected) — clear the bond and retry |
 | `BLE pairing failed …` (`ble_pairing_failed`) | Any | Generic failure — read the lines above it to find the real stage |
 
 The GATT-level chatter (MTU negotiation, `ATT error: 0x0e`, write pacing) is
 explained in [`ble-communication.md`](ble-communication.md#gatt-write-pacing-v2610).
+
+## Did my command go over BLE or the cloud?
+
+A frequent question (and the reason people don't find a `setValues` line): when you
+switch a light or pump, the write is tried over the **local BLE link first** and
+**falls back to the cloud** if BLE isn't connected or the SCU doesn't ACK it. One
+`INFO` line per command tells you which path was actually used — no debug logging
+needed:
+
+| Log message | Meaning |
+| --- | --- |
+| `Command sent over BLE (<label>, status=1)` | ✅ The write went over the **local BLE** link and the SCU acknowledged it (`status=1`). This is the line to look for to confirm BLE writes work. Requires *Enable BLE direct path* **and** *Send commands over BLE* on, plus a live BLE connection. |
+| `BLE write not accepted (status=<n>) — falling back to cloud` | BLE was connected but the SCU **rejected** the write (`status` other than 1); the command was re-sent over the cloud. |
+| `BLE write attempt raised — falling back to cloud` | The BLE write threw (e.g. link dropped mid-write); the command was re-sent over the cloud. |
+| `Cloud command sent (attempt N/2, <label>, ble_connected=False)` | No BLE link was up, so the command went straight over the **cloud/SignalR** path. If you expected BLE, first fix the connection (see [Reading the log](#reading-the-log--which-stage-failed) / the watchdog). |
+
+So if you only ever see `Cloud command sent … ble_connected=False`, the write path
+is fine — it's the **BLE connection** that isn't up. Chase that first (bond +
+watchdog), not the command itself.
 
 ## What a healthy BLE session looks like
 
