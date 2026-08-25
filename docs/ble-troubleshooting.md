@@ -84,13 +84,21 @@ they do **different jobs**. The short rule:
 | --- | --- |
 | **QR code activation token** | The dealer QR token from your handover paperwork. Entering it **triggers the BLE pairing** (bond + confirmation-token exchange + mint of the host's own refresh token) and auto-sets the BLE-enabled flag. This is the field that makes BLE actually happen. |
 | **SCU Bluetooth address** | Optional. Same meaning as above — pin the MAC or leave empty to auto-scan. Setting it also auto-enables BLE. |
-| **EHG Remote Access Refresh Token** | Paste an existing cloud token here to **skip pairing** (cloud-only path). Leave it **empty** to force a fresh BLE pairing. If you set up cloud-only earlier, this field is **pre-filled with your existing token** — you must **clear it** to trigger pairing. |
+| **EHG Remote Access Refresh Token** | Paste an existing cloud token here to **skip pairing** (cloud-only path). Leave it **empty** to force a fresh BLE pairing. If you set up cloud-only earlier, this field is **pre-filled with your existing token** — either **clear it** to trigger pairing, or (v2.84.0+) leave it in place and tick **Re-pair over BLE** below. |
 | **OAuth Basic auth header** | Same as in Configure — the built-in EHG-app `Basic` credentials are used by default; only paste a value here to **override** them. Leave empty otherwise. |
+| **Re-pair over BLE (mint a new EHG token)** *(v2.84.0+)* | A checkbox that forces a fresh BLE bond **without clearing the pre-filled EHG token**. Tick it, leave the token field as-is, press **CONNECTION** on the SCU, and submit within ~25 s — the pre-filled token is **ignored** and a new one is minted on success. Requires a **QR activation token** (entered now or already stored). The old token is **kept and only overwritten on a successful pair**, so a failed attempt never breaks your existing cloud connection. Built for the **host-migration** case (restore an HA backup onto a new Raspberry Pi → the OS-level Bluetooth bond does not survive, so the BLE path stays down until you re-pair). |
+
+![Reconfigure HYMER Connect dialog showing the "Re-pair over BLE (mint a new EHG token)" checkbox at the bottom](../images/reconfigure.png)
 
 > **Rule of thumb:** if you want the host to bond to the SCU and read over BLE, use
 > **Reconfigure** with the **QR token** and leave the EHG token empty. Use
 > **⚙️ Configure** afterwards only to turn that read path off/on, pin the MAC, or
 > clear the bond.
+>
+> **Moved HA to a new host and lost the bond?** You don't have to clear anything —
+> just tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+), leave the
+> pre-filled token in place, press **CONNECTION**, and submit within ~25 s. See
+> [Add BLE to an existing cloud-only setup](#add-ble-to-an-existing-cloud-only-setup).
 
 ### How the two BLE options interact (and what pairing sets)
 
@@ -195,10 +203,15 @@ pairing and mint its **own** Pi-bound token. (For how this differs from the
    - **QR code activation token** — paste your dealer QR activation token (from the
      handover paperwork). This is required to enable BLE pairing.
    - **SCU Bluetooth address** — optional; leave empty to **auto-scan** for the SCU.
-   - **Clear the EHG Remote Access Refresh Token** field so a **fresh BLE pairing is
-     triggered**. Because you set up cloud-only before, this field is **pre-filled
-     with your existing token** — it must be **emptied** (if you leave a token here,
-     pairing is skipped). Copy it somewhere first as a cloud-only fallback.
+   - **Trigger the pairing** in one of two ways:
+     - **Easiest (v2.84.0+):** tick **Re-pair over BLE (mint a new EHG token)** and
+       **leave** the pre-filled EHG token in place — it is ignored and a fresh one
+       is minted on success (the old token stays intact if pairing fails).
+     - **Or:** **clear the EHG Remote Access Refresh Token** field so a fresh BLE
+       pairing is triggered. Because you set up cloud-only before, this field is
+       **pre-filled with your existing token** — it must be **emptied** (if you
+       leave a token here without the checkbox, pairing is skipped). Copy it
+       somewhere first as a cloud-only fallback.
 5. **Press CONNECTION** on the SCU touch panel, then **submit the form within
    ~25 seconds** and **do not close the dialog**. The pairing window can be as
    short as ~30 seconds on some SCUs, so submit promptly after the press rather
