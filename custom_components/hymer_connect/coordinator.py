@@ -87,6 +87,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._signalr_lock = asyncio.Lock()  # prevent concurrent reconnect attempts
         self._shutting_down = False  # suppress reconnects during HA shutdown/unload
         self._signalr_connected_at: float = 0.0  # monotonic time of last successful connect
+        self._last_data_monotonic: float = 0.0  # last data merged from ANY transport (SignalR OR BLE)
         # BLE dual-path support (experimental)
         self._ble_client = None  # ScuBleClient instance when BLE is enabled
         self._ble_connected = False
@@ -184,6 +185,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _on_signalr_update(self, sensor_data: dict[str, Any]) -> None:
         """Handle incoming SignalR sensor data."""
+        self._last_data_monotonic = time.monotonic()
         self._signalr_data.update(sensor_data)
         self._compute_fuel_metrics()
         _LOGGER.debug(
@@ -194,6 +196,19 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             **(self.data or {}),
             "signalr_sensors": self._signalr_data,
         })
+
+    @property
+    def data_silence_seconds(self) -> float:
+        """Seconds since the last data frame from ANY transport (SignalR OR BLE).
+
+        Transport-agnostic: BLE frames also refresh this because they flow
+        through _on_signalr_update. The 12V-off availability guard uses this so
+        BLE mode does not falsely conclude data-silence while the SignalR socket
+        is quiet. Returns 0.0 before the first frame.
+        """
+        if self._last_data_monotonic <= 0:
+            return 0.0
+        return time.monotonic() - self._last_data_monotonic
 
     def _compute_fuel_metrics(self) -> None:
         """Compute fuel consumption (L/100km) and range from odometer + fuel level.

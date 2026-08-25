@@ -190,10 +190,11 @@ class HymerConnectLight(
         main = _resolve_path(self.coordinator.data, "signalr_sensors.main_switch")
         if main is not None and str(main) != "On":
             return False
-        # CBE EBL402 (bus 3): 12V-off freezes main_switch at "On" while the SCU
-        # stops streaming.  Prolonged data silence = 12V physically off.
-        client = self.coordinator.signalr_client
-        if client is not None and client.data_silence_seconds > STALE_DATA_TIMEOUT:
+        # 12V-off freezes main_switch readback on some vehicles while the SCU
+        # stops streaming. Prolonged data silence (from ANY transport - SignalR
+        # or BLE) = 12V physically off. Using the coordinator clock keeps BLE
+        # mode from falsely reading silence while the SignalR socket is quiet.
+        if self.coordinator.data_silence_seconds > STALE_DATA_TIMEOUT:
             return False
         return super().available
 

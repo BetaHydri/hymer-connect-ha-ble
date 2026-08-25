@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.6] - 2026-08-25
+
+### Fixed
+
+- **Entities no longer go `unavailable` when the local BLE direct path is active.** The v2.76.1 12V-off availability guard (lights + `requires_12v` switches) treated "no fresh data" as 12V-off using a **SignalR-only** clock (`signalr_client.data_silence_seconds`). BLE frames flow through a shared merge (`_on_signalr_update`) but never refreshed that clock, so in `mode=ble` the guard saw growing silence and marked almost every gated entity unavailable even though ~130 sensors kept arriving over BLE. On vehicles whose habitation controller is not on bus 3 (e.g. Schaudt EBL 400 on bus 2, HYMER B-ML I 780) there is no `main_switch` readback, so the data-silence check was the *only* determinant and the whole gated surface dropped. The guard now uses a **transport-agnostic** coordinator clock that any SignalR **or** BLE frame refreshes, so BLE mode stays available while a genuine 12V-off (both transports silent) is still detected. Reported by @stbcgn ([#20](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/20)); this also unblocks on-vehicle testing of the local BLE write path.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant (not just "Reload").
+
 ## [2.76.5] - 2026-08-25
 
 ### Fixed
