@@ -315,8 +315,10 @@ keeps working in 12V standby and fully offline).
 **Steps** (full detail: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup))
 
 1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Reconfigure**.
-2. Paste the **QR activation token**; leave **SCU Bluetooth address** empty (auto-scan) and leave **EHG Remote
-   Access Refresh Token** empty so a **fresh pairing is triggered** (pasting a token here skips pairing).
+2. Paste the **QR activation token** and leave **SCU Bluetooth address** empty (auto-scan). Your **EHG Remote
+   Access Refresh Token** is **pre-filled** from the cloud-only setup — tick **Re-pair over BLE (mint a new EHG
+   token)** (v2.84.0+) to keep it in place and still force a fresh pairing (recommended), **or** clear the token
+   field so pairing is triggered (leaving a token without the checkbox **skips** pairing).
 3. **Press CONNECTION** on the SCU panel, then **submit the form within ~25 s** (the pairing window can be as
    short as ~30 s) and don't close the dialog.
 4. On **BLE Pairing Complete** the host is bonded and has stored its own token — sensors now stream over BLE.
