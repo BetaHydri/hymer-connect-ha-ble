@@ -518,10 +518,10 @@ graph TB
 > reports the bus: bus 2 Schaudt EBL 400 · bus 7 Truma Aventa Comfort A/C · bus 9 Dometic Series 10 fridge ·
 > bus 36 Teleco DualClima A/C *(climate card)* · bus 52 CBE PL50 · bus 56 Thetford iNDUS toilet · bus 57 Truma Combi D (diesel-only) ·
 > bus 59 Truma Aventa Compact A/C · bus 79 Truma Saphir Compact A/C *(climate card)* · bus 89 Saphir Comfort RC A/C *(climate card)* ·
-> bus 91 Garnet SeeLevel tank monitor · bus 95 Airxcel AC Gateway (dual-zone, slot controls) · bus 96 BatteryGuard 1000 ·
+> bus 91 Garnet SeeLevel tank monitor · bus 95 Airxcel AC Gateway (dual-zone, *climate cards*) · bus 96 BatteryGuard 1000 ·
 > bus 97 Victron Cerbo GX · bus 100 factory TPMS · bus 102 MaxxFan roof fan (dual) · bus 105 Intelligent Battery Sensor · bus 107 ZipDee power awning ·
 > bus 109 EHG SwitchPad · bus 116 DellCool fridge · bus 117 CBE solar charger · bus 118 Indel B fridge ·
-> bus 119/120 Truma Combi NEO / NEO E · bus 124/125 Timberline heater · bus 127 Thetford iNDUS toilet ECO. Full list:
+> bus 119/120 Truma Combi NEO / NEO E · bus 124/125 Timberline heater *(climate card)* · bus 127 Thetford iNDUS toilet ECO. Full list:
 > [`docs/sensor-map.md`](docs/sensor-map.md#complete-bus-index-mapped-buses).
 
 > **Note:** "PIA-addressed devices" are not necessarily on a separate physical bus — PIA is a logical addressing
