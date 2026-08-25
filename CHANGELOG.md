@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.83.0] - 2026-08-25
+
+### Added
+
+- **89 more gated read sensors across 20 components, straight from the decompiled EHG catalog (add-only).** Newly surfaced observation-gated read entities for previously unmapped or partially-mapped components: Truma Aventa Comfort / Comfort Direct / Aventa 2G A/C (buses 7/65/123), Teleco Flatsat + TenHaaft satellite extras (33/10), CBE PL50 water + sensor + battery-info modules (53/87/54/55), Philippi black-water sensor (35), PD1600 inverter (92), Modulus power hub (98), BOS habitation battery (111), AD100 / AD100-no-pump / Teleco TEB310D habitation controllers (110/122/126), the inflatable-roof controller (101), shoreline (112), and single-slot gaps on Alde (5) and SeeLevel (91). Names follow existing family conventions (`aventa_*`, `sat_*`, `cbe_water_*`, `battery_bos_*`, `ad100_*`, …). Every entity is `require_observed` (created only when your vehicle reports that bus), so **existing vehicles and entity IDs are unaffected** — no entity was renamed. Martin's SIU smart-sensor range (buses 70–77) and opaque unknown components were deliberately left untouched. Writable controls follow later. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.82.0] - 2026-08-25
 
 ### Added
