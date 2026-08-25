@@ -407,13 +407,17 @@ unmapped pending on-vehicle correlation.
 | (3, 21) | `solar_charger_status` | — | — | MPPT charger status. Discovery: `1` (int) |
 | (3, 22) | `shoreline_connected` | — | — | Shore power connected. Discovery: `False` (bool) |
 
-## Bus 8 — Votronic MPPT 260 CI (MPPT solar charger)
+## Bus 8 — Votronic solar charger (EHG component `VotronicMPP250Duo`)
 
-All 7 slots are solar charger data — same layout on both S600 (MPPT 260 CI) and
-S700 (MPP250Duo). Some code labels in `pia_decoder.py` still carry legacy names
-from an earlier incorrect sensor map where bus 8 was wrongly labeled as grey
-water / ventilation. Solar power is computed as `voltage × current` instead of
-reading the raw slot (8, 7) directly.
+The EHG app registers componentId 8 under the **generic** name `VotronicMPP250Duo`
+**regardless of the physical Votronic charger fitted**. Votronic ships two CI
+series — **MPP CI** (classic) and **MPPT CI "AllSeason"** (with `T`), each as
+170/220/260/360/440 CI (plus the Neo line). The **S600 primary dev vehicle** has a
+**Votronic MPPT 260 CI**; the S700 reports the same bus-8 layout. All 7 slots are
+solar charger data with the same slot layout across the CI models. Some code labels
+in `pia_decoder.py` still carry legacy names from an earlier incorrect sensor map
+where bus 8 was wrongly labeled as grey water / ventilation. Solar power is computed
+as `voltage × current` instead of reading the raw slot (8, 7) directly.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
