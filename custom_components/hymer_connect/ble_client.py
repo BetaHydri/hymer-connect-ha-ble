@@ -1486,6 +1486,28 @@ class ScuBleClient:
         _LOGGER.info("BLE connected to SCU %s (MTU=%d, chunk=%d)",
                       self._scu_address, mtu, self._write_chunk_size)
 
+    async def _wake_scu(self) -> None:
+        """Nudge the SCU awake before starting TLS (best-effort).
+
+        Mirrors the EHG app's ``wakeScuUp()``: a single ``0x0A`` byte written to
+        the POWER_CONTROL characteristic. When the SCU has settled into a
+        low-power/standby state it accepts the GATT connection but its NUS/TLS
+        stack is not yet listening, so our ClientHello is silently dropped and
+        ``establish_tls`` hits the 20s ``Timed out waiting for SCU BLE data``
+        timeout (Jos "signature b"). This write is harmless when the SCU is
+        already awake, so it is always safe to send. Never raises — a missing
+        characteristic or a stale link must not block the handshake.
+        """
+        if self._client is None:
+            return
+        try:
+            await self._client.write_gatt_char(
+                POWER_CONTROL_UUID, WAKE_UP_COMMAND, response=False
+            )
+            _LOGGER.debug("BLE wakeScuUp sent (0x0A → POWER_CONTROL)")
+        except Exception as err:
+            _LOGGER.debug("BLE wakeScuUp skipped (%s)", err)
+
     async def establish_tls(self) -> None:
         """Perform TLS handshake over the BLE GATT NUS channel."""
         if not self._connected:
@@ -1493,6 +1515,10 @@ class ScuBleClient:
 
         self._tls = _TlsOverBle()
         self._frame_acc.clear()
+
+        # Nudge the SCU awake so its NUS/TLS stack is listening before we send
+        # the ClientHello (mirrors the EHG app). Best-effort — see _wake_scu.
+        await self._wake_scu()
 
         # Send ClientHello
         outbound = self._tls.begin_handshake()

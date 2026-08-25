@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.79.0] - 2026-08-25
+
+### Fixed
+
+- **BLE: clean connect but the SCU never answers (`Timed out waiting for SCU BLE data`).** On some hosts the BLE link connects and negotiates full MTU, then the TLS handshake stalls for the full 20s timeout because the SCU accepted the GATT connection while its NUS/TLS stack was still asleep — so the ClientHello was silently dropped. After ~11 such failures the retry backs off to 15 minutes, so BLE effectively stays down until a reconnect happens to land while the SCU is awake. The integration now sends the EHG app's **`wakeScuUp`** nudge (a single `0x0A` byte to the SCU POWER_CONTROL characteristic) immediately before the ClientHello, so the SCU's communication stack is listening when the handshake starts. The write is best-effort — it never blocks or fails the handshake — and is harmless when the SCU is already awake, so vehicles with healthy BLE are unaffected. Look for `BLE wakeScuUp sent (0x0A → POWER_CONTROL)` followed by `BLE TLS session established` in the debug log to confirm it took effect.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.78.0] - 2026-08-25
 
 ### Added
