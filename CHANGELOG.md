@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.82.0] - 2026-08-25
+
+### Added
+
+- **More appliance read sensors from the decompiled EHG catalog (gated, add-only).** New observation-gated read entities for previously unmapped components: **Truma Combi (gas, bus 31)** and **Truma Combi E (bus 6)** diagnostics (panel-busy, combi/response error, shoreline-connected, window-switch), the **Vitrifrigo fridge (bus 103)** warning, the **Thetford T2095 fridge (bus 106)** door/warning/supply-voltage, and the two missing **Thetford N4000 absorber fridge (bus 32)** slots (warning + automatic-mode). Every entity is `require_observed` (created only when your vehicle reports that bus), so **existing vehicles and entity IDs are unaffected**. Ground truth = the decompiled EHG app slot catalog; writable controls for these components follow in a later release. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.81.0] - 2026-08-25
 
 ### Changed
