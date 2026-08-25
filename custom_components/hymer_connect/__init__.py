@@ -133,12 +133,16 @@ async def _async_options_updated(
     """
     _LOGGER.info("Options updated for %s — applied without reload", entry.title)
 
-    # If BLE was just enabled, kick an immediate connect attempt instead of
-    # waiting for the watchdog/poll (the method self-guards if already on or
-    # not enabled).
+    # Mirror the option both ways: enabling kicks an immediate connect instead
+    # of waiting for the watchdog/poll; disabling tears the live link down now
+    # instead of leaving it up until a reload (#20, @stbcgn). Both callees
+    # self-guard, so they are safe no-ops in the wrong state.
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if coordinator is not None:
-        hass.async_create_task(coordinator._async_try_ble_connect())
+        if coordinator.ble_enabled:
+            hass.async_create_task(coordinator._async_try_ble_connect())
+        else:
+            hass.async_create_task(coordinator.stop_ble())
 
 
 def _async_enable_new_entities(

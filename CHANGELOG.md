@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.80.2] - 2026-08-25
+
+### Fixed
+
+- **Lights and the water pump no longer go `unavailable` in BLE mode on vehicles without a bus-3 habitation controller** (#20, [@stbcgn](https://github.com/stbcgn)). The 12V-off availability guard hid any entity whose `main_switch` reading was not the string `"On"`. On vehicles like the B-ML I 780 (EBL 400 on bus 2, no bus-3 controller) `main_switch` is never populated over the cloud, but the BLE slot discovery surfaces a **phantom** raw bus-3 value (int `1`), which `str(main) != "On"` misread as "12V off". The guard now trusts only a properly mapped `main_switch` **string** (`"Off"` = hide); phantom raw values are ignored. Genuine 12V-off is still caught by the transport-agnostic data-silence check added in v2.76.6, so nothing is lost on vehicles that do report a real main switch.
+- **Disabling the BLE direct path now tears the link down immediately**, instead of leaving it connected until a manual reload (#20, [@stbcgn](https://github.com/stbcgn)). The option toggle was wired for the enable direction only; it now mirrors both ways (enable → immediate connect, disable → immediate `stop_ble()`).
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.80.1] - 2026-08-25
 
 ### Changed

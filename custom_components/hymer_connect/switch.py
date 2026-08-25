@@ -411,7 +411,12 @@ class HymerConnectSwitch(
             if self.coordinator.data is None:
                 return False
             main = _resolve_path(self.coordinator.data, "signalr_sensors.main_switch")
-            if main is not None and str(main) != "On":
+            # Only a properly mapped main_switch reports the string "On"/"Off"/
+            # "Changing". On vehicles without a bus-3 habitation controller, BLE
+            # slot discovery can surface a phantom raw bus-3 value (int 1) that
+            # must NOT be misread as "12V off" (#20, @stbcgn). Genuine 12V-off is
+            # still caught by the data-silence check below.
+            if isinstance(main, str) and main == "Off":
                 return False
             # 12V-off freezes the main_switch readback on some vehicles while
             # the SCU stops streaming. Prolonged data silence (from ANY
