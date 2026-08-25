@@ -159,7 +159,7 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 
 | Domain | Entities | Notes |
 |---|---|---|
-| **Switches** | 12V main, water pump, fridge ECO (Leise) | With 12V off, lights + pump go **unavailable** (guard keys on `main_switch` off *or* prolonged SCU data-silence, v2.76.1); fridge/boiler/heater stay controllable |
+| **Switches** | 12V main, water pump, fridge ECO (Leise) | With 12V off, lights + pump go **unavailable** (guard keys on `main_switch` off *or* prolonged SCU data-silence from **any** transport — SignalR or BLE, v2.76.1 / fixed transport-agnostic in v2.76.6); fridge/boiler/heater stay controllable |
 | **Lights** | 8 interior + outside LED bar + 2 group toggles (Wohnen / Privat) | On/Off, brightness; **color temp on ambient lights only** (Wohnen bus 12, Privat bus 15) |
 | **Climate** | Truma Combi heater (target temp, Heat/Off), heater energy source, Off/ECO/Hot boiler, Alde 3030 (heating + A/C switch, target temp, energy priority, hot water), Truma Aventa A/C, fridge cooling step | Truma Combi on bus 58 (DE) / 57 (D, diesel-only) / 119·120 (NEO); Alde 3030 (bus 5) now **read + writable** — confirmed BMC I 680 + B-ML I 780 |
 | **Cover** | ZipDee power awning — open / close / stop, 0–100 % position, user-lock | Observation-gated (bus 107, v2.73.0); tilt slots not exposed |

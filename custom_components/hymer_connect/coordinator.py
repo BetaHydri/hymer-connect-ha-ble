@@ -98,6 +98,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_command_ack = asyncio.Event()  # set when BLE PIA response arrives after a command
         self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
         self._ble_listen_task: asyncio.Task | None = None  # background NUS listen loop; cancelled on teardown
+        self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -189,7 +190,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._signalr_data.update(sensor_data)
         self._compute_fuel_metrics()
         _LOGGER.debug(
-            "SignalR push: %d total sensors", len(self._signalr_data)
+            "Sensor data merged (SignalR/BLE): %d total sensors", len(self._signalr_data)
         )
         # Trigger HA entity updates immediately
         self.async_set_updated_data({
@@ -1065,6 +1066,78 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         finally:
             self._ble_pairing_in_progress = False
 
+    async def _async_try_ble_connect(self) -> None:
+        """Attempt the BLE direct path if enabled and not already connected.
+
+        Driven by three callers: the coordinator poll (often starved because
+        every SignalR push reschedules it), an independent watchdog timer, and
+        an immediate kick when the BLE option is toggled on. Re-entrant-safe via
+        ``_ble_connecting`` so overlapping callers never create two clients.
+
+        Backoff: the first few failures retry at the normal interval (so we do
+        not miss the ~60-120s SCU pairing window after pressing CONNECTION);
+        after that it escalates. Skipped while the config-flow pairing task runs.
+        """
+        if not self.ble_enabled or self._ble_connected:
+            return
+        if self._ble_pairing_in_progress:
+            _LOGGER.debug("BLE attempt skipped — config flow pairing in progress")
+            return
+        if self._ble_connecting:
+            return
+        if time.monotonic() < self._ble_next_attempt:
+            return
+        self._ble_connecting = True
+        try:
+            try:
+                ble_result = await asyncio.wait_for(
+                    self.start_ble(), timeout=_BLE_STARTUP_TIMEOUT
+                )
+                if ble_result is True:
+                    self._ble_consecutive_failures = 0
+                    self._ble_next_attempt = 0.0
+                    _LOGGER.info(
+                        "BLE direct path active — running alongside SignalR "
+                        "(both paths: ~130 sensors, BLE ~50ms / SignalR ~500ms–2s)"
+                    )
+                else:
+                    is_bonding = ble_result == "bonding_rejected"
+                    self._ble_consecutive_failures += 1
+                    backoff = self._ble_backoff_seconds(
+                        bonding_rejected=is_bonding
+                    )
+                    self._ble_next_attempt = time.monotonic() + backoff
+                    _LOGGER.info(
+                        "BLE failed %d times — next attempt in %ds%s",
+                        self._ble_consecutive_failures, backoff,
+                        " (bonding rejected)" if is_bonding else "",
+                    )
+            except asyncio.TimeoutError:
+                self._ble_consecutive_failures += 1
+                backoff = self._ble_backoff_seconds()
+                self._ble_next_attempt = time.monotonic() + backoff
+                _LOGGER.warning(
+                    "BLE startup exceeded %ds — continuing with cloud fallback "
+                    "and retrying BLE in %ds",
+                    _BLE_STARTUP_TIMEOUT, backoff,
+                )
+                await self._cleanup_ble_after_start_failure()
+            except Exception:
+                self._ble_consecutive_failures += 1
+                backoff = self._ble_backoff_seconds()
+                self._ble_next_attempt = time.monotonic() + backoff
+                _LOGGER.debug(
+                    "BLE connection attempt failed (attempt %d, next in %ds)",
+                    self._ble_consecutive_failures, backoff,
+                    exc_info=True,
+                )
+        finally:
+            self._ble_connecting = False
+
+    async def async_ble_watchdog(self, _now: Any = None) -> None:
+        """Watchdog tick: (re)connect BLE independent of the push-starved poll."""
+        await self._async_try_ble_connect()
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the REST API and merge with SignalR data."""
         now = time.monotonic()
@@ -1122,69 +1195,12 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._scu_urn = self._vehicle_urn
 
         # --- Connection management: try BLE first, fall back to SignalR ---
-
-        # Attempt BLE direct path if enabled and not already connected.
-        # After consecutive TLS failures (SCU ignores ClientHello without
-        # bonding/CONNECTION), back off to avoid wasting ~20s per poll.
-        # Keep first 5 attempts at normal poll interval (60s) so we don't
-        # miss the SCU pairing window (~60-120s after pressing CONNECTION).
-        # After 5 failures, escalate: 5min, 10min, max 15min.
         #
-        # Skip BLE if the config flow pairing task is actively running —
-        # a concurrent connect/pair would race and sabotage the pairing.
-        if self.ble_enabled and not self._ble_connected:
-            if self._ble_pairing_in_progress:
-                _LOGGER.debug("BLE attempt skipped — config flow pairing in progress")
-            elif time.monotonic() < self._ble_next_attempt:
-                remaining = int(self._ble_next_attempt - time.monotonic())
-                _LOGGER.debug(
-                    "BLE attempt deferred — %d consecutive failures, "
-                    "next attempt in %ds",
-                    self._ble_consecutive_failures, remaining,
-                )
-            else:
-                try:
-                    ble_result = await asyncio.wait_for(
-                        self.start_ble(), timeout=_BLE_STARTUP_TIMEOUT
-                    )
-                    if ble_result is True:
-                        self._ble_consecutive_failures = 0
-                        self._ble_next_attempt = 0.0
-                        _LOGGER.info(
-                            "BLE direct path active — running alongside SignalR "
-                            "(both paths: ~130 sensors, BLE ~50ms / SignalR ~500ms–2s)"
-                        )
-                    else:
-                        is_bonding = ble_result == "bonding_rejected"
-                        self._ble_consecutive_failures += 1
-                        backoff = self._ble_backoff_seconds(
-                            bonding_rejected=is_bonding
-                        )
-                        self._ble_next_attempt = time.monotonic() + backoff
-                        _LOGGER.info(
-                            "BLE failed %d times — next attempt in %ds%s",
-                            self._ble_consecutive_failures, backoff,
-                            " (bonding rejected)" if is_bonding else "",
-                        )
-                except asyncio.TimeoutError:
-                    self._ble_consecutive_failures += 1
-                    backoff = self._ble_backoff_seconds()
-                    self._ble_next_attempt = time.monotonic() + backoff
-                    _LOGGER.warning(
-                        "BLE startup exceeded %ds — continuing with cloud fallback "
-                        "and retrying BLE in %ds",
-                        _BLE_STARTUP_TIMEOUT, backoff,
-                    )
-                    await self._cleanup_ble_after_start_failure()
-                except Exception:
-                    self._ble_consecutive_failures += 1
-                    backoff = self._ble_backoff_seconds()
-                    self._ble_next_attempt = time.monotonic() + backoff
-                    _LOGGER.debug(
-                        "BLE connection attempt failed (attempt %d, next in %ds)",
-                        self._ble_consecutive_failures, backoff,
-                        exc_info=True,
-                    )
+        # BLE (re)connect lives in _async_try_ble_connect and is driven from
+        # here AND from an independent watchdog timer (the poll alone is starved
+        # whenever SignalR pushes keep rescheduling it). The method is
+        # re-entrant-safe, so calling it from both is harmless.
+        await self._async_try_ble_connect()
 
         # --- SignalR connection management (always active) ---
         # SignalR runs alongside BLE — BLE provides ~28 sensors at ~50ms,

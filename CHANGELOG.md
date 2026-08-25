@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.7] - 2026-08-25
+
+### Changed
+
+- **BLE now (re)connects on its own — enabling it no longer requires a reload.** BLE connect/recover lived only in the coordinator poll, which is starved whenever SignalR keeps pushing (every push reschedules the poll), so ticking *Enable BLE direct path* in Options did nothing until an explicit integration reload, and a dropped BLE link would not recover while the cloud stayed healthy. An **independent watchdog timer** now drives BLE (re)connect regardless of cloud activity, and toggling the option on kicks an **immediate** attempt. The connect logic was extracted into one re-entrant method shared by the poll, the watchdog and the option toggle. Reported alongside [#20](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/20) (@stbcgn).
+- **Clearer debug log.** The per-frame merge line `SignalR push: N total sensors` is renamed to `Sensor data merged (SignalR/BLE): N total sensors` — it always fired for BLE frames too (they share the merge), which had been a source of confusion when diagnosing BLE-mode issues.
+- **Docs:** `docs/ble-troubleshooting.md` gains sections on the BLE-mode `unavailable` symptom (fixed in v2.76.6) and the enable-without-reload behaviour; `README.md` notes the 12V availability guard is now transport-agnostic.
+
+No entity IDs change and no configuration migration is required. As always after a HACS update, **restart** Home Assistant (not just "Reload").
+
 ## [2.76.6] - 2026-08-25
 
 ### Fixed

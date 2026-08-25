@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
@@ -10,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
@@ -97,6 +99,15 @@ async def async_setup_entry(
     # Reload integration when options change (e.g. tank capacity)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
+    # BLE (re)connect is otherwise carried by the coordinator poll, which is
+    # starved whenever SignalR pushes keep rescheduling it. An independent
+    # watchdog ensures BLE connects/recovers even while the cloud is healthy.
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass, coordinator.async_ble_watchdog, timedelta(seconds=30)
+        )
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORM_LIST)
 
     # Auto-enable entities that were disabled during integration upgrades.
@@ -121,6 +132,13 @@ async def _async_options_updated(
     evaluated.  Fixed in v2.63.10.
     """
     _LOGGER.info("Options updated for %s — applied without reload", entry.title)
+
+    # If BLE was just enabled, kick an immediate connect attempt instead of
+    # waiting for the watchdog/poll (the method self-guards if already on or
+    # not enabled).
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is not None:
+        hass.async_create_task(coordinator._async_try_ble_connect())
 
 
 def _async_enable_new_entities(

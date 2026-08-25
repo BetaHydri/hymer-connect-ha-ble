@@ -170,6 +170,10 @@ Result:
 - sensor data will not flow yet
 - later use **Reconfigure** to add BLE or paste a token
 
+> Since **v2.76.7**, turning on **Enable BLE direct path** connects right away —
+> no integration reload needed — and a dropped BLE link recovers on its own via
+> a background watchdog, even while the cloud connection stays healthy.
+
 ## First checks after setup
 
 After setup, check these items:

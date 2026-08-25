@@ -310,7 +310,7 @@ Then, continuously, decoded sensor frames arriving over the local BLE link:
 ble_client]  BLE PIA RECV AA:BB:CC:DD:EE:FF: plaintext=29 B hex=…
 pia_decoder] RAW PIA bus=8 | sid=2 | f10/wt2=hex:6c696e32 ("lin2") | f6/wt5=19.1
 pia_decoder] DISCOVERY mapped (8,2) solar_voltage: 19.1 → 18.1
-coordinator] SignalR push: 130 total sensors
+coordinator] Sensor data merged (SignalR/BLE): 130 total sensors
 ```
 
 What to check in your own log:
@@ -380,6 +380,37 @@ until you reboot the host, work through the host-side checklist:
 
 If BLE self-heals within minutes in your log (the healthy pattern above), you are
 **not** affected by this — no action needed.
+
+## Entities go `unavailable` when the BLE direct path is on
+
+**Fixed in v2.76.6 — update if you see this.** On v2.76.2–v2.76.5, the moment the
+BLE direct path came up (`mode=ble`), almost every gated entity (lights, the
+`requires_12v` switches, and everything keyed to the 12V main switch) dropped to
+`unavailable` and stayed there — even though ~130 sensors kept arriving. The
+write path could not be tested because Home Assistant refuses to dispatch a
+service call to an unavailable entity.
+
+Cause: the v2.76.1 “12V-off” availability guard treated *data silence* as 12V-off
+using a **SignalR-only** clock. BLE frames arrive on a separate path and never
+refreshed that clock, so BLE mode looked “silent” and flipped everything off
+(worst on vehicles whose habitation controller is not on bus 3, e.g. the Schaudt
+EBL 400 on bus 2, where there is no `main_switch` readback at all). v2.76.6 makes
+the guard **transport-agnostic**: any SignalR **or** BLE frame counts as fresh
+data, so BLE mode stays available while a genuine 12V-off (both transports
+silent) is still detected.
+
+If you are stuck on an older build and see this, turning `Enable BLE direct path`
+off alone is **not** enough — the entities stay unavailable until you also
+**reload** the integration. Updating to v2.76.6+ removes the problem entirely.
+
+## Enabling BLE does not connect until you reload (fixed v2.76.7)
+
+Before v2.76.7, ticking **Enable BLE direct path** in Options did not actually
+start a connection — the (re)connect lived in the coordinator poll, which is
+starved whenever SignalR keeps pushing (each push reschedules the poll). Only an
+explicit integration reload triggered a BLE attempt. Since v2.76.7 an independent
+watchdog drives BLE (re)connect regardless of cloud activity, and toggling the
+option on kicks an immediate attempt — no reload needed.
 
 ## Clear a stale BLE bond
 
