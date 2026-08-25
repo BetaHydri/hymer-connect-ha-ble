@@ -44,12 +44,26 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HYMER Connect climate from a config entry."""
-    from .pia_decoder import get_air_conditioner_defs, get_truma_heater_defs
+    from .pia_decoder import (
+        get_air_conditioner_defs,
+        get_airxcel_zone_defs,
+        get_modern_heater_defs,
+        get_truma_heater_defs,
+    )
 
     coordinator: HymerConnectCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     # Single-zone air-conditioners (Teleco / Saphir …) — each observation-gated.
     _setup_air_conditioners(coordinator, entry, async_add_entities, get_air_conditioner_defs())
+    # Airxcel dual-zone A/C (front/rear) + modern enum heaters (Timberline).
+    _setup_gated_climate(
+        coordinator, entry, async_add_entities,
+        get_airxcel_zone_defs(), HymerAirxcelClimate, "Airxcel zone",
+    )
+    _setup_gated_climate(
+        coordinator, entry, async_add_entities,
+        get_modern_heater_defs(), HymerModernHeaterClimate, "Modern heater",
+    )
 
     heater_defs = get_truma_heater_defs()
     if not heater_defs:
@@ -486,3 +500,326 @@ class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
                 except (ValueError, TypeError):
                     pass
         super()._handle_coordinator_update()
+
+
+try:  # ATTR_TARGET_TEMP_LOW/HIGH moved across HA cores
+    from homeassistant.components.climate.const import (
+        ATTR_TARGET_TEMP_HIGH,
+        ATTR_TARGET_TEMP_LOW,
+    )
+except ImportError:  # pragma: no cover
+    from homeassistant.const import ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW
+
+_HEAT_COOL_MODE = getattr(HVACMode, "HEAT_COOL", HVACMode.AUTO)
+_TARGET_RANGE_FEATURE = getattr(ClimateEntityFeature, "TARGET_TEMPERATURE_RANGE", 0)
+
+_AIRXCEL_MODE_TO_HVAC: dict[str, HVACMode] = {
+    "OFF": HVACMode.OFF,
+    "COOL": HVACMode.COOL,
+    "HEAT": HVACMode.HEAT,
+    "AUTO_HEAT_COOL": _HEAT_COOL_MODE,
+    "FAN_ONLY": HVACMode.FAN_ONLY,
+    "AUX_HEAT": HVACMode.HEAT,
+}
+_AIRXCEL_HVAC_TO_MODE: dict[HVACMode, str] = {
+    HVACMode.OFF: "OFF",
+    HVACMode.COOL: "COOL",
+    HVACMode.HEAT: "HEAT",
+    _HEAT_COOL_MODE: "AUTO_HEAT_COOL",
+    HVACMode.FAN_ONLY: "FAN_ONLY",
+}
+_AIRXCEL_FAN_MODES = ["AUTO", "LOW", "MED", "HIGH"]
+
+# Modern enum-heater option -> HA HVAC (Timberline air heater).
+_MODERN_MODE_TO_HVAC: dict[str, HVACMode] = {
+    "OFF": HVACMode.OFF,
+    "HEAT": HVACMode.HEAT,
+    "HEATING": HVACMode.HEAT,
+    "FAN_ONLY": HVACMode.FAN_ONLY,
+    "VENTILATING": HVACMode.FAN_ONLY,
+}
+
+
+def _setup_gated_climate(
+    coordinator: HymerConnectCoordinator,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+    defs: tuple[tuple[str, dict[str, Any]], ...],
+    cls: type,
+    label: str,
+) -> None:
+    """Create one observation-gated climate entity per def, on the mode sensor."""
+    if not defs:
+        return
+    created: set[str] = set()
+
+    @callback
+    def _discover() -> None:
+        if not coordinator.data:
+            return
+        sensors = coordinator.data.get("signalr_sensors")
+        if not isinstance(sensors, dict):
+            return
+        for key, cdef in defs:
+            if key in created:
+                continue
+            gate = cdef.get("mode_sensor") or cdef.get("current_sensor")
+            if cdef.get("require_observed") and gate and gate not in sensors:
+                continue
+            created.add(key)
+            async_add_entities([cls(coordinator, entry, key, cdef)])
+            _LOGGER.info("%s climate materialised: %s (bus %s)",
+                         label, key, cdef.get("control_bus"))
+
+    _discover()
+    entry.async_on_unload(coordinator.async_add_listener(_discover))
+
+
+class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+    """Airxcel dual-zone A/C climate with separate heat/cool targets."""
+
+    _attr_has_entity_name = True
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_target_temperature_step = 1.0
+    _attr_icon = "mdi:air-conditioner"
+    _attr_fan_modes = _AIRXCEL_FAN_MODES
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.FAN_MODE
+        | _TARGET_RANGE_FEATURE
+    )
+
+    def __init__(self, coordinator, entry, key, cdef) -> None:
+        super().__init__(coordinator)
+        self._bus = int(cdef["control_bus"])
+        self._mode_sid = int(cdef["mode_sid"])
+        self._fan_mode_sid = int(cdef["fan_mode_sid"])
+        self._fan_speed_sid = int(cdef["fan_speed_sid"])
+        self._heat_sid = int(cdef["heat_sid"])
+        self._cool_sid = int(cdef["cool_sid"])
+        self._mode_sensor = cdef.get("mode_sensor", "")
+        self._fan_mode_sensor = cdef.get("fan_mode_sensor", "")
+        self._fan_speed_sensor = cdef.get("fan_speed_sensor", "")
+        self._heat_sensor = cdef.get("heat_sensor", "")
+        self._cool_sensor = cdef.get("cool_sensor", "")
+        self._current_sensor = cdef.get("current_sensor", "")
+        self._attr_min_temp = float(cdef.get("min_temp", 10))
+        self._attr_max_temp = float(cdef.get("max_temp", 35))
+        self._attr_name = cdef.get("name", "Airxcel A/C")
+        self._attr_unique_id = f"{entry.entry_id}_airxcel_{key}_b{self._bus}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+        self._attr_hvac_modes = [
+            HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT,
+            _HEAT_COOL_MODE, HVACMode.FAN_ONLY,
+        ]
+
+    def _sensor(self, name: str) -> Any:
+        if not name or self.coordinator.data is None:
+            return None
+        return _resolve_path(self.coordinator.data, f"signalr_sensors.{name}")
+
+    def _temp(self, name: str) -> float | None:
+        val = self._sensor(name)
+        try:
+            f = float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
+        return f if f is not None and f > HEATER_OFF_SETPOINT else None
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
+        raw = self._sensor(self._mode_sensor)
+        return _AIRXCEL_MODE_TO_HVAC.get(raw.upper()) if isinstance(raw, str) else None
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        mode = self.hvac_mode
+        if mode == HVACMode.COOL:
+            return HVACAction.COOLING
+        if mode == HVACMode.HEAT:
+            return HVACAction.HEATING
+        if mode == HVACMode.FAN_ONLY:
+            return HVACAction.FAN
+        if mode == HVACMode.OFF:
+            return HVACAction.OFF
+        return HVACAction.IDLE
+
+    @property
+    def current_temperature(self) -> float | None:
+        return self._temp(self._current_sensor)
+
+    @property
+    def target_temperature(self) -> float | None:
+        if self.hvac_mode == _HEAT_COOL_MODE:
+            return None
+        if self.hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY):
+            return self._temp(self._cool_sensor)
+        return self._temp(self._heat_sensor)
+
+    @property
+    def target_temperature_low(self) -> float | None:
+        return self._temp(self._heat_sensor) if self.hvac_mode == _HEAT_COOL_MODE else None
+
+    @property
+    def target_temperature_high(self) -> float | None:
+        return self._temp(self._cool_sensor) if self.hvac_mode == _HEAT_COOL_MODE else None
+
+    @property
+    def fan_mode(self) -> str | None:
+        fm = self._sensor(self._fan_mode_sensor)
+        if isinstance(fm, str) and fm.upper() == "AUTO":
+            return "AUTO"
+        fs = self._sensor(self._fan_speed_sensor)
+        return fs if isinstance(fs, str) and fs in _AIRXCEL_FAN_MODES else None
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        wire = _AIRXCEL_HVAC_TO_MODE.get(hvac_mode)
+        if wire is None:
+            return
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire},
+        ])
+        self.async_write_ha_state()
+
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        low = kwargs.get(ATTR_TARGET_TEMP_LOW)
+        high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
+        cmds: list[dict[str, Any]] = []
+        if low is not None and high is not None:
+            cmds.append({"bus_id": self._bus, "sensor_id": self._heat_sid, "float_value": float(low)})
+            cmds.append({"bus_id": self._bus, "sensor_id": self._cool_sid, "float_value": float(high)})
+        else:
+            temp = kwargs.get(ATTR_TEMPERATURE)
+            if temp is None:
+                return
+            sid = self._cool_sid if self.hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY) else self._heat_sid
+            cmds.append({"bus_id": self._bus, "sensor_id": sid, "float_value": float(temp)})
+        await self.coordinator.async_send_multi_sensor_command(cmds)
+        self.async_write_ha_state()
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        if fan_mode not in _AIRXCEL_FAN_MODES:
+            return
+        if fan_mode == "AUTO":
+            cmds = [{"bus_id": self._bus, "sensor_id": self._fan_mode_sid, "str_value": "AUTO"}]
+        else:
+            cmds = [
+                {"bus_id": self._bus, "sensor_id": self._fan_mode_sid, "str_value": "ON"},
+                {"bus_id": self._bus, "sensor_id": self._fan_speed_sid, "str_value": fan_mode},
+            ]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
+        self.async_write_ha_state()
+
+
+class HymerModernHeaterClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+    """Modern enum-based heater climate (int mode slot + float target)."""
+
+    _attr_has_entity_name = True
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_target_temperature_step = 1.0
+    _attr_icon = "mdi:radiator"
+    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+
+    def __init__(self, coordinator, entry, key, cdef) -> None:
+        super().__init__(coordinator)
+        self._bus = int(cdef["control_bus"])
+        self._mode_sid = int(cdef["mode_sid"])
+        self._target_sid = int(cdef["target_sid"])
+        self._mode_sensor = cdef.get("mode_sensor", "")
+        self._target_sensor = cdef.get("target_sensor", "")
+        self._current_sensor = cdef.get("current_sensor", "")
+        self._options: list[str] = [str(o).upper() for o in cdef.get("mode_options", [])]
+        self._attr_min_temp = float(cdef.get("min_temp", 5))
+        self._attr_max_temp = float(cdef.get("max_temp", 35))
+        self._attr_name = cdef.get("name", "Heater")
+        self._attr_unique_id = f"{entry.entry_id}_modern_heater_{key}_b{self._bus}"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+        modes: list[HVACMode] = []
+        for opt in self._options:
+            hv = _MODERN_MODE_TO_HVAC.get(opt)
+            if hv is not None and hv not in modes:
+                modes.append(hv)
+        if HVACMode.OFF not in modes:
+            modes.insert(0, HVACMode.OFF)
+        self._attr_hvac_modes = modes or [HVACMode.OFF, HVACMode.HEAT]
+
+    def _sensor(self, name: str) -> Any:
+        if not name or self.coordinator.data is None:
+            return None
+        return _resolve_path(self.coordinator.data, f"signalr_sensors.{name}")
+
+    def _mode_index(self) -> int | None:
+        raw = self._sensor(self._mode_sensor)
+        try:
+            return int(raw) if raw is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
+        idx = self._mode_index()
+        if idx is None or idx < 0 or idx >= len(self._options):
+            return None
+        return _MODERN_MODE_TO_HVAC.get(self._options[idx])
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        mode = self.hvac_mode
+        if mode == HVACMode.HEAT:
+            return HVACAction.HEATING
+        if mode == HVACMode.FAN_ONLY:
+            return HVACAction.FAN
+        if mode == HVACMode.OFF:
+            return HVACAction.OFF
+        return HVACAction.IDLE
+
+    @property
+    def current_temperature(self) -> float | None:
+        val = self._sensor(self._current_sensor)
+        try:
+            return float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        val = self._sensor(self._target_sensor)
+        try:
+            f = float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
+        return f if f is not None and f > HEATER_OFF_SETPOINT else None
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        # Map the requested HVAC mode back to the first matching enum index.
+        target_opt = None
+        for opt in self._options:
+            if _MODERN_MODE_TO_HVAC.get(opt) == hvac_mode:
+                target_opt = opt
+                break
+        if target_opt is None:
+            return
+        idx = self._options.index(target_opt)
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._mode_sid, "uint_value": idx},
+        ])
+        self.async_write_ha_state()
+
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        temp = kwargs.get(ATTR_TEMPERATURE)
+        if temp is None:
+            return
+        await self.coordinator.async_send_multi_sensor_command([
+            {"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": float(temp)},
+        ])
+        self.async_write_ha_state()

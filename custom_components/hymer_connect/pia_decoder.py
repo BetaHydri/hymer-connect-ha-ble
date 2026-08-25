@@ -94,6 +94,14 @@ CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
 # :class:`climate.HymerACClimate` thermostat entity (target/current/mode/fan).
 AC_CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
 
+# Airxcel dual-zone climate definitions (v2.80.0+) from
+# ``"climate"."airxcel_zones"`` (front/rear); drive :class:`climate.HymerAirxcelClimate`.
+AIRXCEL_ZONE_DEFS: dict[str, dict[str, Any]] = {}
+
+# Modern enum-heater climate definitions (v2.80.0+) from
+# ``"climate"."modern_heaters"``; drive :class:`climate.HymerModernHeaterClimate`.
+MODERN_HEATER_DEFS: dict[str, dict[str, Any]] = {}
+
 # Generic stepped-switch select definitions (v2.63.0+) loaded from the
 # ``"climate"."selects"`` JSON subsection.  Drives appliances exposing a
 # small set of integer steps (fridge cooling 1-5, freezer 1-3, fan
@@ -512,6 +520,18 @@ def _load_json_overlay(filename: str) -> int:
                     continue
                 AC_CLIMATE_DEFS[ac_key] = ac_def
             continue
+        if key == "airxcel_zones" and isinstance(climate_def, dict):
+            for z_key, z_def in climate_def.items():
+                if z_key.startswith("_") or not isinstance(z_def, dict):
+                    continue
+                AIRXCEL_ZONE_DEFS[z_key] = z_def
+            continue
+        if key == "modern_heaters" and isinstance(climate_def, dict):
+            for h_key, h_def in climate_def.items():
+                if h_key.startswith("_") or not isinstance(h_def, dict):
+                    continue
+                MODERN_HEATER_DEFS[h_key] = h_def
+            continue
         if isinstance(climate_def, dict):
             CLIMATE_DEFS[key] = climate_def
     if climate:
@@ -632,6 +652,24 @@ def get_air_conditioner_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
         (key, AC_CLIMATE_DEFS[key])
         for key in sorted(AC_CLIMATE_DEFS)
         if isinstance(AC_CLIMATE_DEFS[key], dict)
+    )
+
+
+def get_airxcel_zone_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Return Airxcel dual-zone climate profiles (front/rear) in stable order."""
+    return tuple(
+        (key, AIRXCEL_ZONE_DEFS[key])
+        for key in sorted(AIRXCEL_ZONE_DEFS)
+        if isinstance(AIRXCEL_ZONE_DEFS[key], dict)
+    )
+
+
+def get_modern_heater_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Return modern enum-heater climate profiles (e.g. Timberline) in order."""
+    return tuple(
+        (key, MODERN_HEATER_DEFS[key])
+        for key in sorted(MODERN_HEATER_DEFS)
+        if isinstance(MODERN_HEATER_DEFS[key], dict)
     )
 
 
