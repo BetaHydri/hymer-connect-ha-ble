@@ -421,7 +421,7 @@ as `voltage × current` instead of reading the raw slot (8, 7) directly.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (8, 1) | `solar_active` | — | MPPT "charging active" flag. Computed from `solar_current > 0`. Legacy code label: `gray_water_sensor` |
+| (8, 1) | `solar_active` | — | **Computed** `binary_sensor` (`computed.solar_active` in `binary_sensor.py`) — derived from `solar_current > 0`, **not** a raw slot read. The raw slot (8, 1) itself is an unused legacy decode-only key (`gray_water_sensor`). |
 | (8, 2) | `solar_voltage` | V | Panel voltage — confirmed 19.9V live |
 | (8, 3) | `solar_current` | A | Charge current — confirmed 2.1A live |
 | (8, 4) | `solar_error` | — | MPPT error flag (bool). `binary_sensor` with `device_class: problem`. Promoted from decode-only in v2.63.8. Legacy code label: `vent_1` |
