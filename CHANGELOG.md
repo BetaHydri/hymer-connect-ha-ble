@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.86.0] - 2026-08-25
+
+### Added
+
+- **Full climate + boiler + energy controls for the Truma Combi E (bus 6) and gas Combi (bus 31), gated and add-only.** These two Truma Combi variants now get proper control entities — a **thermostat** (target air temperature), a **boiler-mode select** (Off/ECO/HOT), and, for the Combi E (which has the 230 V electric element), a **heater-energy select** — reusing the exact same battle-tested driver classes as the already-shipped Combi D (bus 57) and Combi DE (bus 58) profiles. No new code paths: the integration already discovers any `truma_heater_*` profile generically, so bus 6 and bus 31 slot in cleanly. The slot layout is confirmed identical to bus 57/58 — the bus-6/31 diagnostic slots mapped in v2.82.0 (panel-busy 7, error 10, response-error 12, shoreline 13, window 14) line up 1:1 with bus 57. Also adds the backing readback sensors (energy source, water mode, setpoint, electric power). Each profile is `require_observed` and mutually exclusive in practice (a vehicle reports one Truma bus), so **existing vehicles and entity IDs are unaffected** — no entity was renamed. The **write paths are UNVERIFIED** on-vehicle (no bus-6/31 owner has confirmed yet) and are flagged as test controls in the map. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.85.0] - 2026-08-25
 
 ### Added
