@@ -54,7 +54,7 @@ The sensor-map edits below use `sensor_maps/base.json` as the example (a light e
 1. **Sensor map** — `sensor_maps/base.json`:
 
    ```jsonc
-   "signalr_sensors": {
+   "sensors": {
      "50,9": {
        "platform": "sensor",
        "name": "fresh_water_pressure",
@@ -107,10 +107,10 @@ This is the **only entity type that needs entries in two sections** of the trans
 
 **Example**: a dimmable ceiling light on bus 70 (on/off at slot 1, brightness at slot 2).
 
-1. **Sensor map** (`lights.json`) — add the *sub-sensors* in `signalr_sensors` and the *light entity* in `lights`:
+1. **Sensor map** (`lights.json`) — add the *sub-sensors* in `sensors` and the *light entity* in `lights`:
 
    ```jsonc
-   "signalr_sensors": {
+   "sensors": {
      "70,1": { "platform": "sensor", "name": "light_kitchen_ceiling", "icon": "mdi:ceiling-light" },
      "70,2": { "platform": "sensor", "name": "light_kitchen_ceiling_brightness", "unit": "%", "state_class": "measurement", "icon": "mdi:brightness-percent" }
    },
@@ -154,7 +154,7 @@ For lights with color temperature, add a third sub-sensor (suffix `_color_temp`)
    }
    ```
 
-   (Note: the *underlying* sensor `exterior_light` must already exist in `signalr_sensors` and already have its own translation key in `entity.sensor`.)
+   (Note: the *underlying* sensor `exterior_light` must already exist in `sensors` and already have its own translation key in `entity.sensor`.)
 
 2. **`strings.json`** and **`translations/en.json`** — add to `entity.switch`:
 
