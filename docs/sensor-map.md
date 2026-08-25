@@ -900,14 +900,15 @@ connects external wireless sensors (temperature, humidity, tyre pressure, gas le
 SCU. Sensors pair to the SIU via QR code in the EHG app.
 
 The ML-T 570 has 3 SIU temperature/humidity sensors in the EHG app (Kühlschrank / Schlafbereich /
-Wohnbereich). Bus 74 is the first one confirmed — the other two likely use different bus IDs
-(discovered buses 71, 73, 76, etc. are candidates). See `docs/external-sensors.md` for the full
-SIU sensor ecosystem documentation.
+Wohnbereich). Multiple devices on bus 74 are separated by the **auto-slot** instance suffix
+(`74,slot#tp{n}`), so they materialise as `hss_temp1_*`, `hss_temp2_*`, … on the **same** bus. See
+`docs/external-sensors.md` for the full SIU sensor ecosystem and the auto-slot section below.
 
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (74, 1) | `smart_temperature_1` | °C | Temperature reading. User reports 37.0 °C matching EHG app. |
-| (74, 2) | `smart_humidity_1` | % | Humidity reading. User reports 32–33 % matching EHG app. |
+| (74, 1) | `hss_temp{n}_temperature` | °C | Temperature reading. Auto-slot `74,1#tp{n}` (first device = `hss_temp1_temperature`). User reports 37.0 °C matching EHG app. |
+| (74, 2) | `hss_temp{n}_humidity` | % | Humidity reading. Auto-slot `74,2#tp{n}`. User reports 32–33 % matching EHG app. |
+| (74, 3) | `hss_temp{n}_battery` | % | Sensor battery level. Auto-slot `74,3#tp{n}`. `device_class: battery`. |
 
 ## Bus 76 — Water tank levels (ML-T 570 CrossOver, confirmed 2026-06-08)
 
