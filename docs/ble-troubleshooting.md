@@ -144,6 +144,22 @@ adapter** — no external USB BLE dongle needed. Other BLE-capable HA hosts
 (BlueZ-based) should work but are **unverified**; if you get BLE running on
 different hardware, a short report is very welcome.
 
+### ESP32 / ESPHome Bluetooth proxies do **not** work for the SCU
+
+A remote **Bluetooth proxy** (ESP32/ESPHome) can relay advertisements and even
+active GATT reads/writes — but it **cannot perform OS-level bonding/pairing**, and
+the SCU **requires a JustWorks bond** for every connection (without it the SCU
+ignores the TLS handshake). The integration also pairs the SCU via **BlueZ
+`Device1.Pair()` directly on a local adapter**, which a proxy does not provide. So:
+
+- The **SCU BLE path needs a real local BlueZ adapter** on the HA host (e.g. the
+  RPi4's built-in radio or a USB dongle). It **cannot** run over an ESP32 proxy.
+- An ESP32 proxy is still fine for **passive third-party BLE sensors** (Mopeka,
+  Ruuvi, tank/gas pucks, etc.) — just not for the SCU.
+- **Virtualised hosts (Proxmox/HAOS VM):** a proxy will *not* fix SCU BLE drops.
+  If the host's own `bluetoothd`/`btusb` fights the passed-through adapter, either
+  blacklist `btusb` on the host, or run HA on hardware without that contention.
+
 ## What to watch out for on the BLE-direct path
 
 BLE pairing on the HA host is more environment-sensitive than the Android APK,
