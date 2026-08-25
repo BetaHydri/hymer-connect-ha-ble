@@ -89,6 +89,11 @@ SWITCH_DEFS: dict[str, dict[str, Any]] = {}
 # climate.py and select.py to parameterize write commands per brand.
 CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
 
+# Single-zone air-conditioner climate definitions (v2.78.0+) loaded from the
+# ``"climate"."air_conditioners"`` JSON subsection.  Each drives one
+# :class:`climate.HymerACClimate` thermostat entity (target/current/mode/fan).
+AC_CLIMATE_DEFS: dict[str, dict[str, Any]] = {}
+
 # Generic stepped-switch select definitions (v2.63.0+) loaded from the
 # ``"climate"."selects"`` JSON subsection.  Drives appliances exposing a
 # small set of integer steps (fridge cooling 1-5, freezer 1-3, fan
@@ -501,6 +506,12 @@ def _load_json_overlay(filename: str) -> int:
                     continue
                 NUMBER_DEFS[num_key] = num_def
             continue
+        if key == "air_conditioners" and isinstance(climate_def, dict):
+            for ac_key, ac_def in climate_def.items():
+                if ac_key.startswith("_") or not isinstance(ac_def, dict):
+                    continue
+                AC_CLIMATE_DEFS[ac_key] = ac_def
+            continue
         if isinstance(climate_def, dict):
             CLIMATE_DEFS[key] = climate_def
     if climate:
@@ -608,6 +619,20 @@ def get_truma_heater_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
         and isinstance(CLIMATE_DEFS[key], dict)
     )
     return tuple(profiles)
+
+
+def get_air_conditioner_defs() -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Return single-zone air-conditioner climate profiles in stable order.
+
+    Each entry is ``(key, def)`` from the ``"climate"."air_conditioners"`` JSON
+    subsection.  climate.py builds one observation-gated thermostat entity per
+    def, so a vehicle only materialises the A/C climate for the bus it reports.
+    """
+    return tuple(
+        (key, AC_CLIMATE_DEFS[key])
+        for key in sorted(AC_CLIMATE_DEFS)
+        if isinstance(AC_CLIMATE_DEFS[key], dict)
+    )
 
 
 # Human-readable mappings for raw SCU string values
