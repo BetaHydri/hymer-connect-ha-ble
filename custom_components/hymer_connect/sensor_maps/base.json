@@ -1009,6 +1009,11 @@
     "106,5": { "_doc": "Thetford T2095 fridge (EHG bus 106) door open/closed (bool).", "name": "fridge_thetford_2095_door", "require_observed": true, "platform": "binary_sensor", "device_class": "door", "icon": "mdi:fridge-outline" },
     "106,6": { "_doc": "Thetford T2095 fridge (EHG bus 106) warning/error information (int). Read-only diagnostic.", "name": "fridge_thetford_2095_warning", "require_observed": true, "platform": "sensor", "entity_category": "diagnostic", "icon": "mdi:alert" },
     "106,7": { "_doc": "Thetford T2095 fridge (EHG bus 106) supply voltage in millivolts.", "name": "fridge_thetford_2095_supply_voltage", "require_observed": true, "unit": "V", "transform": "div1000", "platform": "sensor", "device_class": "voltage", "state_class": "measurement", "icon": "mdi:flash" },
+    "103,1": { "_doc": "Vitrifrigo fridge (EHG bus 103) power on/off (bool rw, FridgeOn). Readback for the fridge_vitrifrigo_cooling_step select.", "name": "fridge_vitrifrigo_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "103,2": { "_doc": "Vitrifrigo fridge (EHG bus 103) mode (string rw, FRIDGE_MODE_OPTIONS NORMAL/TURBO/NIGHT/SILENT per decompiled EHG app). Readback for the fridge_vitrifrigo_mode select.", "name": "fridge_vitrifrigo_mode_state", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge" },
+    "103,3": { "_doc": "Vitrifrigo fridge (EHG bus 103) cooling level 1-5 (int rw). Readback for the fridge_vitrifrigo_cooling_step select.", "name": "fridge_vitrifrigo_level", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-outline" },
+    "106,1": { "_doc": "Thetford T2095 fridge (EHG bus 106) power on/off (bool rw, FridgeOn). Readback for the fridge_thetford_2095_cooling_step select.", "name": "fridge_thetford_2095_power", "require_observed": true, "platform": "binary_sensor", "device_class": "power", "icon": "mdi:fridge" },
+    "106,3": { "_doc": "Thetford T2095 fridge (EHG bus 106) cooling level 1-5 (int rw). Readback for the fridge_thetford_2095_cooling_step select.", "name": "fridge_thetford_2095_level", "require_observed": true, "platform": "sensor", "icon": "mdi:fridge-outline" },
     "6,7": { "_doc": "Truma Combi E (EHG bus 6) control panel busy (bool). Read-only diagnostic.", "name": "heater_e_panel_busy", "require_observed": true, "platform": "binary_sensor", "entity_category": "diagnostic", "icon": "mdi:progress-clock" },
     "6,10": { "_doc": "Truma Combi E (EHG bus 6) combi error (bool).", "name": "heater_e_combi_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "entity_category": "diagnostic", "icon": "mdi:alert-circle" },
     "6,12": { "_doc": "Truma Combi E (EHG bus 6) response error (bool).", "name": "heater_e_response_error", "require_observed": true, "platform": "binary_sensor", "device_class": "problem", "entity_category": "diagnostic", "icon": "mdi:alert" },
@@ -2050,6 +2055,60 @@
         "options": ["Automatic mode", "Gas mode", "12V mode", "AC mode"],
         "read": { "value_sensor": "fridge_absorber_power_mode" },
         "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "fridge_vitrifrigo_cooling_step": {
+        "_doc": "Vitrifrigo compressor fridge (EHG bus 103) Off/1-5 cooling-step control. Ground truth from the decompiled EHG app (componentId 103): FridgeOn = slot 1 (bool rw), FridgeLevel = slot 3 (int rw, range 1-5). Off routes to FridgeOn=false; a level turns power on then sets the step (mirrors the Dometic/Thetford drivers). Reads fridge_vitrifrigo_power (103,1) + fridge_vitrifrigo_level (103,3). WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 103 is reported.",
+        "name": "Fridge cooling step",
+        "icon": "mdi:fridge",
+        "control_bus": 103,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_vitrifrigo_level",
+          "power_sensor": "fridge_vitrifrigo_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
+      },
+      "fridge_vitrifrigo_mode": {
+        "_doc": "Vitrifrigo fridge (EHG bus 103) user mode select (slot 2 = mode, string rw). Options are the EHG FRIDGE_MODE_OPTIONS wire values (NORMAL/TURBO/NIGHT/SILENT) from Dan Simms' metadata overlay; keep as wire values for readback (sensor fridge_vitrifrigo_mode_state 103,2) and write. WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 103 is reported.",
+        "name": "Fridge mode",
+        "icon": "mdi:fridge",
+        "control_bus": 103,
+        "require_observed": true,
+        "options": ["NORMAL", "TURBO", "NIGHT", "SILENT"],
+        "read": { "value_sensor": "fridge_vitrifrigo_mode_state" },
+        "writes": { "option": [{ "sid": 2, "str": "$option" }] }
+      },
+      "fridge_thetford_2095_cooling_step": {
+        "_doc": "Thetford T2095 compressor fridge (EHG bus 106) Off/1-5 cooling-step control. Ground truth from the decompiled EHG app (componentId 106): FridgeOn = slot 1 (bool rw), FridgeLevel = slot 3 (int rw, range 1-5). Off routes to FridgeOn=false; a level turns power on then sets the step (mirrors the Dometic/Thetford drivers). Reads fridge_thetford_2095_power (106,1) + fridge_thetford_2095_level (106,3). WRITE PATH UNVERIFIED - test control. require_observed: created only when bus 106 is reported.",
+        "name": "Fridge cooling step",
+        "icon": "mdi:fridge",
+        "control_bus": 106,
+        "require_observed": true,
+        "options": ["Off", "1", "2", "3", "4", "5"],
+        "read": {
+          "step_sensor": "fridge_thetford_2095_level",
+          "power_sensor": "fridge_thetford_2095_power",
+          "off_when_power_false": true,
+          "off_value": 0
+        },
+        "writes": {
+          "off": [{ "sid": 1, "bool": false }],
+          "step": [
+            { "sid": 1, "bool": true },
+            { "delay_ms": 500 },
+            { "sid": 3, "uint": "$option_int" }
+          ]
+        }
       }
     },
     "numbers": {

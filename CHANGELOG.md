@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.85.0] - 2026-08-25
+
+### Added
+
+- **Writable cooling controls for the Vitrifrigo (bus 103) and Thetford T2095 (bus 106) compressor fridges (gated, add-only).** Building on the v2.82.0/v2.83.0 read-sensor work, these two compressor fridges now get full control entities mirroring the confirmed Dometic/Thetford driver pattern: an **Off/1-5 cooling-step select** (routes "Off" to `FridgeOn=false`, and any level turns power on then sets the step via the slot-1-then-slot-3 dance), plus power/level readback sensors and — for the Vitrifrigo — a **fridge mode select** (`NORMAL`/`TURBO`/`NIGHT`/`SILENT`, the EHG wire values). Slot ground truth (FridgeOn = slot 1 bool, level = slot 3 int, mode = slot 2 string) comes from the decompiled EHG app catalog; enum values come from Dan Simms' metadata overlay. The **write paths are UNVERIFIED** on-vehicle (no owner has confirmed yet) and are flagged as test controls in the map. Every entity is `require_observed` (created only when your vehicle reports that bus), so **existing vehicles and entity IDs are unaffected** — no entity was renamed. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.84.0] - 2026-08-25
 
 ### Fixed
