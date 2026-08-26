@@ -183,6 +183,7 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 | **Fridge** | Mode (cooling step), door status, ECO/Quiet mode, power on/off |
 | **Lights** | 8 interior lights, LED bar, Wohnen group, Privat group |
 | **System** | SCU connected/firmware, Truma firmware, LTE connected, paired BT devices, SCU restart button |
+| **Diagnostics** (device class *problem*) | `binary_sensor` **BLE degraded** — BLE write channel wedged (v2.90.0); **SCU frozen** — SCU firmware hung / clock stuck (v2.91.0). Reason + recovery step in each sensor's attributes; see [Troubleshooting](#troubleshooting) |
 | **Victron** | Inverter/charger, voltages, currents (bus 121 — disabled, **non-functional**: VE.Bus incompatible with vehicle CAN) |
 | **Total** | **~130 entities** (sensors, binary sensors, lights, switches, climate, selects) |
 
@@ -710,6 +711,20 @@ write channel (MTU 23 + `Write acquired`). Recovering a wedged channel is host-s
 **full host reboot** on HAOS (no host `systemctl`), or `systemctl restart bluetooth` on
 Supervised/Proxmox/container. Details:
 [BLE goes silently dead, or a write channel wedges](docs/ble-troubleshooting.md#ble-goes-silently-dead-or-a-write-channel-wedges-improved-v2900).
+
+### SCU frozen — dashboard unresponsive, 12 V stuck "on", commands ignored (v2.91.0)
+
+If the SCU firmware hangs it still reports **SCU connected** and keeps the dashboard populated, but its
+internal clock stops and it **ignores every command over both BLE and cloud** — including the restart button.
+Symptoms: the 12 V main tile stays "on" no matter what you send, switches snap back to the stale readback after
+the command hold-off, and the log repeats `command channel dead, forcing full re-auth + reconnect` with no effect.
+The root cause is the SCU itself, not the integration or the connection. **v2.91.0** adds a diagnostic
+`binary_sensor` **"SCU frozen"** (device class *problem*, under Diagnostics) that turns on when the SCU is still
+connected and streaming but its internal clock has not advanced for 15 minutes — and it stops the pointless
+re-authentication churn while frozen (its attributes show the frozen clock value, how long it has been stuck, and
+the recovery step). **Only a physical Aufbaubatterie power-cycle recovers a hung SCU** — no software restart (BLE
+or cloud) reaches it. The sensor clears itself automatically once the SCU's clock ticks again after the power-cycle.
+Works on cloud-only and BLE setups alike.
 
 ### Integration removal — stale BlueZ bonds
 
