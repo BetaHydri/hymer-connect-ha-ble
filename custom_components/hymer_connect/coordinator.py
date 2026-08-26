@@ -79,7 +79,14 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._scu_urn = scu_urn  # urn:ehg:scu:sXXX.XX.XX.XXX.XXX
         self._ehg_refresh_token = ehg_refresh_token  # BLE-derived refresh token
         self._signalr: HymerSignalRClient | None = None
-        self._signalr_data: dict[str, Any] = {}
+        # #23: persist the merged sensor set at entry scope so it survives a
+        # coordinator rebuild (config-entry re-setup) mid-startup. A fresh
+        # coordinator re-seeds this accumulated union instead of starting empty,
+        # so BLE-only one-shot habitation slots are never lost when the cloud
+        # connects. Only ever grows via .update(); cleared on entry removal.
+        self._signalr_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {}).setdefault(
+            f"{entry.entry_id}_sensor_union", {}
+        )
         self._reconnect_backoff: int = _INITIAL_BACKOFF
         self._last_reconnect_attempt: float = 0.0
         self._consecutive_failures: int = 0

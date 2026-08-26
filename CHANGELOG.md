@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0b2] - 2026-08-26 (pre-release)
+
+### Fixed
+
+- **BETA — Habitation entities still stay `unavailable` after a BLE-first restart because the merged sensor set is wiped when the cloud connects (#23).** Beta testing of 2.89.0b1 on the affected firmware (Schaudt EBL 400 / PIA 0.32.0-rc.2) showed the startup warm-up fires correctly but cannot fix the problem on its own: the debug log revealed the coordinator's merged sensor set goes **194 → 0 → 133** the moment the SignalR cloud connects — the full BLE snapshot is not just shrunk, it is emptied. Because the merge only ever *adds* keys and never clears them, a drop to zero can only mean the coordinator instance is rebuilt mid-startup (a config-entry re-setup), and the fresh instance starts with an empty set, discards the rich 194-slot BLE snapshot, and fills only the ~133 keys the cloud reports. The one-shot habitation control slots (water pump, 12 V main, fresh-water, shoreline, Dometic S10) live only in that discarded BLE snapshot, so they are never seen when discovery runs — warm-up or not. This build makes the merged sensor set a **monotonic union persisted at the config-entry level**: it survives a coordinator rebuild (a fresh coordinator re-seeds the accumulated set instead of starting empty) and a slot seen from either transport is never dropped when the other connects, so the 194-slot BLE set is intact when discovery runs and the habitation entities materialise. The 2.89.0b1 warm-up re-observe is kept as belt-and-braces. The persisted set is cleared when the integration is removed, and is in-memory only (a real Home Assistant restart still starts fresh). This is a **pre-release for re-testing on the affected firmware**; feedback welcome on #23. As always after updating, **restart** Home Assistant.
+
 ## [2.89.0b1] - 2026-08-26 (pre-release)
 
 ### Fixed

@@ -243,6 +243,10 @@ async def async_remove_entry(
     from .ble_client import async_clear_bluez_bond
     from .const import CONF_BLE_ADDRESS
 
+    # #23: drop the persisted per-entry sensor union so a genuine re-add starts
+    # fresh (kept across reloads by not clearing it in async_unload_entry).
+    hass.data.get(DOMAIN, {}).pop(f"{entry.entry_id}_sensor_union", None)
+
     ble_address = entry.data.get(CONF_BLE_ADDRESS, "")
     if ble_address:
         removed = await async_clear_bluez_bond(ble_address)
