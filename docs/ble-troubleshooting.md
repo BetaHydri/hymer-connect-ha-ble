@@ -430,15 +430,58 @@ until you reboot the host, work through the host-side checklist:
   scanner may fail to re-discover the SCU after a drop; HA logs this as
   `Scanner hciX … is in passive-only mode but active scans have been requested`.
 - **Reset only the adapter instead of the whole host** to confirm the diagnosis —
-  on the host run `bluetoothctl power off` then `power on`, or restart the
-  `bluetooth` service (`systemctl restart bluetooth`). If that restores BLE, the
-  USB adapter / BlueZ was the cause, not Home Assistant.
+  on the host run `bluetoothctl power off` then `power on`. On **Supervised /
+  Proxmox host / container** installs with a real host shell you can also restart
+  the `bluetooth` service (`systemctl restart bluetooth`). **On Home Assistant OS
+  this does not exist** — HAOS has no host `systemd`, so the SSH add-on can run
+  `bluetoothctl` but cannot recycle the host daemon; there a **full host reboot**
+  (`ha host reboot`) is the recovery. If any of these restores BLE, the USB adapter
+  / BlueZ was the cause, not Home Assistant.
 - **Check USB power management** for the dongle (disable autosuspend) and, on
   Proxmox, pass the **physical USB port** through rather than the device ID so a
   re-enumeration after a reset still maps into the VM.
 
 If BLE self-heals within minutes in your log (the healthy pattern above), you are
 **not** affected by this — no action needed.
+
+## BLE goes silently dead, or a write channel wedges (improved v2.90.0)
+
+Two harder host-BlueZ failure modes — most common on **Home Assistant OS as a
+Proxmox VM with a USB Bluetooth adapter passed through**, where the Proxmox host's
+own `bluetoothd` keeps re-claiming the adapter — are handled better since v2.90.0:
+
+- **Silently-dead link.** BlueZ can drop the SCU channel **without firing a
+  disconnect callback**: `bleak` keeps reporting the link as connected, the listen
+  loop just waits on an empty queue, and before v2.90.0 the reconnect watchdog
+  short-circuited as "already connected" — so BLE stayed dead until a Home Assistant
+  restart (the cloud kept the dashboard whole, so nothing looked wrong). v2.90.0
+  adds a **receive-liveness check** that does not trust `is_connected`: if BLE
+  claims connected but no BLE frame has arrived for **~60–90 s** **while data is
+  still flowing over the cloud** (the SCU is provably awake), the link is treated as
+  dead, torn down and reconnected on the next watchdog tick. A genuine 12 V-off
+  standby (both transports silent) does **not** trigger it. Log line:
+  `BLE link appears silently dead … forcing teardown and reconnect`. (On-vehicle:
+  detection ~80 s after a `bluetoothctl disconnect`, reconnect ~1.5 s later at
+  MTU 247, no restart.)
+- **Wedged write channel.** If a reconnect lands back on a leaked BlueZ acquisition
+  (MTU pinned at 23 + `[org.bluez.Error.NotPermitted] Write acquired`) that a fresh
+  GATT session cannot clear, v2.90.0 reports a hard failure and backs off
+  (2 → 15 min) instead of hammering an identical reconnect every 30 s. It also
+  exposes a diagnostic `binary_sensor` **"BLE degraded"** (device class *problem*,
+  under Diagnostics) so you can see the state directly, plus a `WARNING` naming the
+  fix. The **cloud path keeps working** throughout.
+
+**Recovering a wedged channel is host-side — and depends on your install type:**
+
+| Install | How to recover a leaked BlueZ acquisition |
+| --- | --- |
+| **Home Assistant OS** (incl. HAOS as a Proxmox VM) | A **full host reboot** (`ha host reboot`). HAOS has no host `systemd`, so `systemctl restart bluetooth` is **not** available; the SSH add-on can run `bluetoothctl` but cannot recycle the host daemon. |
+| **Supervised / Proxmox host / container** (real host shell) | `systemctl restart bluetooth` on the host releases the leaked descriptors without a reboot. |
+
+> **Proxmox tip:** the durable cure for the passthrough case is to stop the
+> **Proxmox host** from touching the adapter at all — blacklist / `mask` the host's
+> own Bluetooth stack so only the HA VM owns the dongle. The v2.90.0 auto-reconnect
+> is a second line of defence on top of that, not a replacement.
 
 ## Entities go `unavailable` when the BLE direct path is on
 

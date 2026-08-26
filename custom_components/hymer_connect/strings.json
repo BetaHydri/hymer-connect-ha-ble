@@ -513,6 +513,9 @@
       "scu_connected": {
         "name": "SCU connected"
       },
+      "ble_degraded": {
+        "name": "BLE degraded"
+      },
       "cruise_control": {
         "name": "Cruise control"
       },

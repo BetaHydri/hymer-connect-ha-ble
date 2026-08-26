@@ -18,6 +18,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -148,6 +149,12 @@ async def async_setup_entry(
         for desc in all_descriptions
     )
 
+    # #24 diagnostic: expose "BLE degraded / writes failing" so a stale BlueZ
+    # write channel (link up, MTU 23, every write fails) is visible without
+    # reading the debug log. Only relevant when the BLE direct path is enabled.
+    if coordinator.ble_enabled:
+        async_add_entities([HymerBleDegradedBinarySensor(coordinator, entry)])
+
     # Observation-gated binary sensors: create each only once its backing
     # sensor name is actually reported by the vehicle, so absent components
     # (e.g. the Dometic fridge) never leave phantom entities behind.
@@ -234,3 +241,47 @@ class HymerConnectBinarySensor(
         if isinstance(value, str) and isinstance(on_value, str):
             return value.upper() == on_value.upper()
         return value == on_value
+
+
+class HymerBleDegradedBinarySensor(
+    CoordinatorEntity[HymerConnectCoordinator], BinarySensorEntity
+):
+    """Diagnostic sensor: on when the BLE write/notify channel is dead (#24).
+
+    Reads the coordinator's degraded flag directly (not a vehicle slot), set when
+    a stale BlueZ ``Write acquired`` acquisition survives a fresh GATT session.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "ble_degraded"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:bluetooth-off"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the BLE-degraded diagnostic sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_ble_degraded"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return True while BLE is connected but its write channel is stale."""
+        return self.coordinator.ble_write_degraded
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose the reason so the failure is actionable from the UI."""
+        reason = self.coordinator._ble_degraded_reason
+        if reason:
+            return {"reason": reason}
+        return None

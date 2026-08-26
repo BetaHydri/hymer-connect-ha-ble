@@ -698,6 +698,19 @@ claims the link at a restart (the old cloud-first-then-BLE workaround, now autom
 later at boot; non-retrofit vehicles, cloud-only setups and off-grid restarts are unaffected. Details:
 [Habitation entities stay unavailable after a BLE-first restart](docs/ble-troubleshooting.md#habitation-entities-stay-unavailable-after-a-ble-first-restart-fixed-v2890).
 
+### BLE goes silently dead or a write channel wedges (improved v2.90.0)
+
+On hosts where the BlueZ stack drops the SCU link **without a disconnect callback**
+(most common on **HAOS as a Proxmox VM with a passed-through USB adapter**), BLE could
+stay dead until a Home Assistant restart — invisible because the cloud kept serving.
+**v2.90.0** adds a **receive-liveness check** that reconnects a silently-dead link
+within ~60–90 s (while the cloud proves the SCU is awake), plus a diagnostic
+`binary_sensor` **"BLE degraded"** and an escalating back-off for a genuinely wedged
+write channel (MTU 23 + `Write acquired`). Recovering a wedged channel is host-side: a
+**full host reboot** on HAOS (no host `systemctl`), or `systemctl restart bluetooth` on
+Supervised/Proxmox/container. Details:
+[BLE goes silently dead, or a write channel wedges](docs/ble-troubleshooting.md#ble-goes-silently-dead-or-a-write-channel-wedges-improved-v2900).
+
 ### Integration removal — stale BlueZ bonds
 
 Removal auto-clears the BlueZ bond via D-Bus. For integrations deleted with a version before v2.40.0-alpha.2, clear
