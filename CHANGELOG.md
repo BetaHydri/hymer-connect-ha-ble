@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.88.0] - 2026-08-26
+
+### Added
+
+- **Slow-moving sensors now keep their last known value across a Home Assistant restart instead of showing "unknown" until fresh data arrives (add-only).** After a restart or integration reload the SCU snapshot is empty for a moment, so parked-relevant sensors used to fall back to *unknown*/*Unbekannt* — and computed fuel consumption needed a fresh ~5 km drive to repopulate. These sensors now restore their last value from Home Assistant's state store on startup and display it until the SCU pushes a new reading. **Live data always wins** — the restored value is only a placeholder for the brief "no data yet" window and is overwritten the moment the SCU reports again, so a draining battery or emptying tank still tracks in real time. Restore is enabled for: **fuel level (L), fuel consumption (L/100 km), estimated range**, **battery state-of-charge** (lithium/BOS, body/habitation, Cerbo), **all fresh/grey/black/waste water tank levels** (Philippi, CBE, AD100, TEB310D, SeeLevel, Thetford, EBL400), **odometer** and **distance-to-service**, and the **HYMER Smart System tyre-pressure** accessory sensors. Fast-moving live values (instantaneous power/current) and clocks were deliberately left non-restoring because a stale reading there would mislead. No entity was renamed and nothing new is created — this only changes how existing sensors behave right after startup. As always after a HACS update, **restart** Home Assistant.
+
 ## [2.87.0] - 2026-08-25
 
 ### Added
