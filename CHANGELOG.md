@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.0b1] - 2026-08-26 (pre-release)
+
+### Added
+
+- **BETA — new diagnostic `binary_sensor` "SCU frozen" that turns on when the SCU firmware is hung.** A hung SCU keeps its connection (`SCU connected` stays on) and may keep pushing frames, but its internal clock (`scu_internal_time`) stops advancing and it silently ignores every command over BOTH BLE and cloud — including the restart button. Until now this looked like an unresponsive dashboard with no explanation: the 12 V main tile stuck at "on", switches reverting to the stale readback after the command hold-off, and a full re-auth + reconnect firing per command while nothing actually changes. The new sensor (device class *problem*, under Diagnostics) detects the condition — SCU still connected and frames still arriving, but the clock unchanged for 15 minutes — and exposes the frozen clock value, how long it has been stuck, and the recovery step in its attributes. The only recovery is a physical Aufbaubatterie power-cycle; no software restart (BLE or cloud) reaches a hung SCU. Works on cloud-only and BLE setups alike. This is a pre-release for on-vehicle confirmation.
+
 ## [2.90.0] - 2026-08-26
 
 ### Fixed

@@ -68,6 +68,8 @@ _BLE_COLD_START_SETTLE_MIN = 8  # cloud connected: minimum wait after connect be
 _BLE_COLD_START_PLATEAU = 8  # cloud connected: open once the merged set hasn't grown for this long
 _BLE_COLD_START_SETTLE_MAX = 45  # cloud connected: hard cap since connect if the set never plateaus
 _BLE_COLD_START_NO_CLOUD = 20  # cloud absent: release BLE this soon rather than wait for a cloud that isn't coming
+_SCU_FROZEN_TIMEOUT = 900  # SCU clock (scu_internal_time) unchanged this long while still connected + data flowing = hung SCU (physical power-cycle required)
+_SCU_FROZEN_DATA_WINDOW = 180  # only judge frozen while frames still arrive; beyond this it's standby/12V-off, not a hung-but-connected SCU
 _BLE_RX_LIVENESS_TIMEOUT = 60  # #24: BLE claims connected but no BLE frame for this long (while other data flows) = silently dead link
 
 # Fuel consumption tracking
@@ -132,6 +134,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_write_degraded = False  # #24 True when BLE is up but the write/notify channel is a stale BlueZ acquisition
         self._ble_degraded_reason: str | None = None  # #24 human-readable reason for the degraded state
         self._ble_last_rx_monotonic: float = 0.0  # #24 last time a BLE frame arrived (liveness; is_connected is not trustworthy)
+        self._scu_clock_value: Any = None  # last observed scu_internal_time value (frozen-SCU detection)
+        self._scu_clock_last_change_monotonic: float = 0.0  # when the SCU clock last advanced
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -257,6 +261,14 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._signalr_data.update(sensor_data)
         if len(self._signalr_data) > _before:
             self._signalr_last_growth_monotonic = time.monotonic()
+        # Frozen-SCU detection: track the SCU's own clock. A hung SCU keeps the
+        # link (scu_connected stays on) and may keep re-pushing frames, but its
+        # internal clock stops advancing — the one unambiguous "firmware wedged"
+        # signal (only a physical power-cycle recovers it).
+        clock = self._signalr_data.get("scu_internal_time")
+        if clock is not None and clock != self._scu_clock_value:
+            self._scu_clock_value = clock
+            self._scu_clock_last_change_monotonic = time.monotonic()
         self._compute_fuel_metrics()
         _LOGGER.debug(
             "Sensor data merged (SignalR/BLE): %d total sensors", len(self._signalr_data)
@@ -279,6 +291,33 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._last_data_monotonic <= 0:
             return 0.0
         return time.monotonic() - self._last_data_monotonic
+
+    @property
+    def scu_frozen(self) -> bool:
+        """True when the SCU firmware appears hung.
+
+        A hung SCU keeps the connection (``scu_connected`` stays on) and may keep
+        re-pushing frames, but its internal clock (``scu_internal_time``) stops
+        advancing and it ignores every command over BOTH BLE and cloud — only a
+        physical Aufbaubatterie power-cycle recovers it. Gated on live data flow
+        so a genuine standby/12V-off (frames go silent) is not misreported.
+        """
+        if self._scu_clock_last_change_monotonic <= 0:
+            return False
+        if not self._signalr_data.get("scu_connected"):
+            return False
+        if self.data_silence_seconds >= _SCU_FROZEN_DATA_WINDOW:
+            return False
+        return (
+            time.monotonic() - self._scu_clock_last_change_monotonic
+        ) >= _SCU_FROZEN_TIMEOUT
+
+    @property
+    def scu_frozen_since_seconds(self) -> float:
+        """Seconds the SCU clock has been stuck while frozen (0.0 if not frozen)."""
+        if not self.scu_frozen:
+            return 0.0
+        return time.monotonic() - self._scu_clock_last_change_monotonic
 
     def _compute_fuel_metrics(self) -> None:
         """Compute fuel consumption (L/100km) and range from odometer + fuel level.

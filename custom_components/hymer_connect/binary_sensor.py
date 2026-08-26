@@ -155,6 +155,12 @@ async def async_setup_entry(
     if coordinator.ble_enabled:
         async_add_entities([HymerBleDegradedBinarySensor(coordinator, entry)])
 
+    # Frozen-SCU diagnostic: on when the SCU firmware is hung — still connected
+    # and pushing frames, but its clock stopped and it ignores every command
+    # (BLE and cloud). Only a physical power-cycle recovers it. Works on
+    # cloud-only and BLE setups alike, so it is always created.
+    async_add_entities([HymerScuFrozenBinarySensor(coordinator, entry)])
+
     # Observation-gated binary sensors: create each only once its backing
     # sensor name is actually reported by the vehicle, so absent components
     # (e.g. the Dometic fridge) never leave phantom entities behind.
@@ -285,3 +291,57 @@ class HymerBleDegradedBinarySensor(
         if reason:
             return {"reason": reason}
         return None
+
+
+class HymerScuFrozenBinarySensor(
+    CoordinatorEntity[HymerConnectCoordinator], BinarySensorEntity
+):
+    """Diagnostic sensor: on when the SCU firmware appears hung.
+
+    The SCU stays "connected" and may keep pushing frames, but its internal
+    clock (``scu_internal_time``) stops advancing and it ignores every command
+    over both BLE and cloud. Only a physical Aufbaubatterie power-cycle recovers
+    it. Reads the coordinator's freeze detection, not a vehicle slot.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "scu_frozen"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:snowflake-alert"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the frozen-SCU diagnostic sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_scu_frozen"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return True while the SCU is connected but its clock has frozen."""
+        return self.coordinator.scu_frozen
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose the frozen clock value + duration + recovery hint."""
+        if not self.coordinator.scu_frozen:
+            return None
+        return {
+            "scu_clock": self.coordinator._scu_clock_value,
+            "clock_frozen_for_minutes": round(
+                self.coordinator.scu_frozen_since_seconds / 60
+            ),
+            "recovery": (
+                "Physical Aufbaubatterie power-cycle required — the SCU ignores "
+                "BLE and cloud commands (including the restart button) while hung."
+            ),
+        }

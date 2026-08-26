@@ -521,6 +521,9 @@
       "ble_degraded": {
         "name": "BLE degraded"
       },
+      "scu_frozen": {
+        "name": "SCU frozen"
+      },
       "cruise_control": {
         "name": "Cruise control"
       },
