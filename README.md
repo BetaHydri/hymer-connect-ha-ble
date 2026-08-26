@@ -720,11 +720,12 @@ Symptoms: the 12 V main tile stays "on" no matter what you send, switches snap b
 the command hold-off, and the log repeats `command channel dead, forcing full re-auth + reconnect` with no effect.
 The root cause is the SCU itself, not the integration or the connection. **v2.91.0** adds a diagnostic
 `binary_sensor` **"SCU frozen"** (device class *problem*, under Diagnostics) that turns on when the SCU is still
-connected and streaming but its internal clock has not advanced for 15 minutes — and it stops the pointless
-re-authentication churn while frozen (its attributes show the frozen clock value, how long it has been stuck, and
-the recovery step). **Only a physical Aufbaubatterie power-cycle recovers a hung SCU** — no software restart (BLE
-or cloud) reaches it. The sensor clears itself automatically once the SCU's clock ticks again after the power-cycle.
-Works on cloud-only and BLE setups alike.
+connected and streaming but its own UTC clock lags real time by 15 minutes or more — detected **immediately**
+(v2.91.1), so it reads correctly right after a Home Assistant restart (with a "clock hasn't advanced" timer as
+fallback) — and it stops the pointless re-authentication churn while frozen (its attributes show the frozen clock
+value, how long it has been stuck, and the recovery step). **Only a physical Aufbaubatterie power-cycle recovers a
+hung SCU** — no software restart (BLE or cloud) reaches it. The sensor clears itself automatically once the SCU's
+clock ticks again after the power-cycle. Works on cloud-only and BLE setups alike.
 
 ### Integration removal — stale BlueZ bonds
 

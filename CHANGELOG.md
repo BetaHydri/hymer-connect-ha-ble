@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.1] - 2026-08-26
+
+### Changed
+
+- **The "SCU frozen" sensor now detects a hung SCU instantly and survives a restart.** v2.91.0 measured "clock has not advanced for 15 minutes" with an in-process (monotonic) timer, so after every Home Assistant restart it read `OK` for ~15 minutes before flipping back to `Problem`, even if the SCU was still hung. It now also compares the SCU's own UTC clock (`scu_internal_time`) directly against real time: if the SCU clock lags real time by 15 minutes or more, it is reported frozen **immediately** — no waiting, and correct right after a restart because it does not rely on an in-memory timer. The original "clock not advancing" check is kept as a fallback for any vehicle whose SCU clock is not real-time-synced. The attributes now show the true frozen duration (e.g. hours/days), not just the time since Home Assistant last started.
+
+### Removed
+
+- **Removed the "BLE Field Scan" diagnostic button.** It was a leftover reverse-engineering tool that brute-forced PIA protobuf field numbers over a fresh BLE/TLS session — it required a physical CONNECTION press, opened a competing BLE session, blocked the normal BLE reconnect watchdog for up to ~64 s, and could wedge the BlueZ link. Its purpose (discovering field numbers for paired-device management) never became a shipped feature, and no functionality depends on it. Removing it declutters the Diagnostics section and eliminates an accidental-press hazard. The unused helper code behind it was removed as well.
+
 ## [2.91.0] - 2026-08-26
 
 ### Added

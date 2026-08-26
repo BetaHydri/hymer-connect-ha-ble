@@ -7,7 +7,7 @@ The coordinator polls REST periodically and merges SignalR push data on arrival.
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import time
 from typing import Any
@@ -70,6 +70,7 @@ _BLE_COLD_START_SETTLE_MAX = 45  # cloud connected: hard cap since connect if th
 _BLE_COLD_START_NO_CLOUD = 20  # cloud absent: release BLE this soon rather than wait for a cloud that isn't coming
 _SCU_FROZEN_TIMEOUT = 900  # SCU clock (scu_internal_time) unchanged this long while still connected + data flowing = hung SCU (physical power-cycle required)
 _SCU_FROZEN_DATA_WINDOW = 180  # only judge frozen while frames still arrive; beyond this it's standby/12V-off, not a hung-but-connected SCU
+_SCU_FROZEN_WALLCLOCK_LAG = 900  # SCU's own UTC clock this far behind real time = hung (instant, survives restarts)
 _BLE_RX_LIVENESS_TIMEOUT = 60  # #24: BLE claims connected but no BLE frame for this long (while other data flows) = silently dead link
 
 # Fuel consumption tracking
@@ -299,25 +300,69 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         A hung SCU keeps the connection (``scu_connected`` stays on) and may keep
         re-pushing frames, but its internal clock (``scu_internal_time``) stops
         advancing and it ignores every command over BOTH BLE and cloud — only a
-        physical Aufbaubatterie power-cycle recovers it. Gated on live data flow
-        so a genuine standby/12V-off (frames go silent) is not misreported.
+        physical Aufbaubatterie power-cycle recovers it. Two OR-ed detectors:
+        (a) the SCU's own UTC clock lags real time (instant, survives restarts);
+        (b) the clock value has not advanced for a while (fallback for a clock
+        that is not real-time-synced). Gated on live data flow so a genuine
+        standby/12V-off (frames go silent) is not misreported.
         """
-        if self._scu_clock_last_change_monotonic <= 0:
-            return False
         if not self._signalr_data.get("scu_connected"):
             return False
         if self.data_silence_seconds >= _SCU_FROZEN_DATA_WINDOW:
             return False
+        lag = self._scu_clock_wallclock_lag()
+        if lag is not None and lag >= _SCU_FROZEN_WALLCLOCK_LAG:
+            return True
         return (
-            time.monotonic() - self._scu_clock_last_change_monotonic
-        ) >= _SCU_FROZEN_TIMEOUT
+            self._scu_clock_last_change_monotonic > 0
+            and (time.monotonic() - self._scu_clock_last_change_monotonic)
+            >= _SCU_FROZEN_TIMEOUT
+        )
 
     @property
     def scu_frozen_since_seconds(self) -> float:
-        """Seconds the SCU clock has been stuck while frozen (0.0 if not frozen)."""
+        """Seconds the SCU has been frozen (0.0 if not frozen).
+
+        Prefers the wall-clock lag (the true frozen duration, survives restarts);
+        falls back to time since the clock value was last seen to advance.
+        """
         if not self.scu_frozen:
             return 0.0
-        return time.monotonic() - self._scu_clock_last_change_monotonic
+        lag = self._scu_clock_wallclock_lag()
+        if lag is not None:
+            return lag
+        if self._scu_clock_last_change_monotonic > 0:
+            return time.monotonic() - self._scu_clock_last_change_monotonic
+        return 0.0
+
+    def _scu_clock_wallclock_lag(self) -> float | None:
+        """Seconds the SCU's internal UTC clock lags real time, or None.
+
+        ``scu_internal_time`` is the SCU's own wall clock (e.g. "2026-08-24 11:07
+        UTC"). Healthy it tracks real time; when the firmware hangs it stops and
+        falls behind. Returns None if the value is absent or unparseable.
+        """
+        raw = self._signalr_data.get("scu_internal_time")
+        if raw is None or raw == "":
+            return None
+        parsed: datetime | None = None
+        text = str(raw).strip()
+        for fmt in (
+            "%Y-%m-%d %H:%M UTC", "%Y-%m-%d %H:%M:%S UTC",
+            "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S",
+        ):
+            try:
+                parsed = datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            try:
+                parsed = datetime.fromtimestamp(float(raw), tz=timezone.utc)
+            except (ValueError, TypeError, OSError):
+                return None
+        lag = (datetime.now(timezone.utc) - parsed).total_seconds()
+        return lag if lag > 0 else 0.0
 
     def _compute_fuel_metrics(self) -> None:
         """Compute fuel consumption (L/100km) and range from odometer + fuel level.
@@ -1131,114 +1176,6 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         payload = build_restart_system_request(cold=True)
         await self.async_send_pia_request(payload)
         _LOGGER.warning("SCU restart command sent — the SCU will reboot")
-
-    async def async_ble_field_scan(self) -> None:
-        """Connect via BLE/TLS and brute-force UserRequestTopic field numbers 1-15.
-
-        Retries bonding up to 8 times (~64s) waiting for CONNECTION button press.
-        Results are logged at WARNING level.
-        """
-        from .ble_client import ScuBleClient, BleTransportError
-
-        ble_address = self.ble_address
-        if not ble_address:
-            _LOGGER.warning("BLE field scan: no BLE address configured")
-            return
-
-        _LOGGER.warning(
-            "BLE field scan: starting — press CONNECTION on the SCU touch panel! "
-            "Connecting to %s (will retry bonding for ~64s)",
-            ble_address,
-        )
-        self._ble_pairing_in_progress = True
-        try:
-            client = None
-            max_attempts = 8
-            retry_delay = 8
-
-            for attempt in range(1, max_attempts + 1):
-                remaining = (max_attempts - attempt + 1) * retry_delay
-                _LOGGER.warning(
-                    "BLE field scan: bonding attempt %d/%d (%ds remaining) — "
-                    "press CONNECTION if not already pressed",
-                    attempt, max_attempts, remaining,
-                )
-                try:
-                    client = ScuBleClient(
-                        scu_address=ble_address,
-                        connect_timeout=15.0,
-                        tls_timeout=30.0,
-                    )
-                    await client.connect()
-                    _LOGGER.warning(
-                        "BLE field scan: bonding SUCCESSFUL on attempt %d/%d",
-                        attempt, max_attempts,
-                    )
-                    break
-                except BleTransportError as bond_err:
-                    if "CONNECTION" in str(bond_err) or "Authentication" in str(bond_err):
-                        _LOGGER.warning(
-                            "BLE field scan: bonding attempt %d/%d failed — "
-                            "CONNECTION not pressed yet. Retrying in %ds...",
-                            attempt, max_attempts, retry_delay,
-                        )
-                        if client:
-                            try:
-                                await client.disconnect()
-                            except Exception:
-                                pass
-                            client = None
-                        if attempt < max_attempts:
-                            await asyncio.sleep(retry_delay)
-                            continue
-                        _LOGGER.warning("BLE field scan: bonding failed after %d attempts", max_attempts)
-                        return
-                    raise
-                except Exception as err:
-                    _LOGGER.warning("BLE field scan: connect attempt %d failed: %s", attempt, err)
-                    if client:
-                        try:
-                            await client.disconnect()
-                        except Exception:
-                            pass
-                        client = None
-                    if attempt < max_attempts:
-                        await asyncio.sleep(retry_delay)
-                        continue
-                    _LOGGER.warning("BLE field scan: connect failed after %d attempts", max_attempts)
-                    return
-
-            if not client or not client.ble_connected:
-                _LOGGER.warning("BLE field scan: could not connect")
-                return
-
-            _LOGGER.info("BLE field scan: connected, establishing TLS")
-            await client.establish_tls()
-            _LOGGER.info("BLE field scan: TLS established, scanning fields 1-15")
-
-            results = await client.brute_force_user_fields(
-                field_range=range(1, 16),
-                timeout_per_field=8.0,
-            )
-
-            _LOGGER.warning(
-                "BLE field scan COMPLETE — %d fields responded: %s",
-                len(results),
-                {fn: r.get("status") for fn, r in results.items()},
-            )
-            for fn, r in sorted(results.items()):
-                _LOGGER.warning(
-                    "BLE field scan result: field=%d status=%s fields=%s",
-                    fn, r.get("status"), r.get("fields"),
-                )
-
-            await client.disconnect()
-        except BleTransportError as err:
-            _LOGGER.warning("BLE field scan failed: %s", err)
-        except Exception as err:
-            _LOGGER.warning("BLE field scan unexpected error: %s", err)
-        finally:
-            self._ble_pairing_in_progress = False
 
     async def _async_try_ble_connect(self) -> None:
         """Attempt the BLE direct path if enabled and not already connected.
