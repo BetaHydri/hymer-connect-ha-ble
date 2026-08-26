@@ -325,6 +325,21 @@ class HymerConnectSwitch(
                     self._optimistic_on = None
                     self.async_write_ha_state()
             else:
+                # A hung SCU keeps scu_connected=on and the SignalR link healthy,
+                # but ignores every command — a full re-auth won't help and just
+                # churns. The "SCU frozen" diagnostic sensor is already on; stop
+                # here instead of re-auth-storming (only a power-cycle recovers).
+                if self.coordinator.scu_frozen:
+                    _LOGGER.warning(
+                        "Switch %s: command (%s) not confirmed — SCU appears "
+                        "frozen (clock stuck; ignores BLE + cloud). A physical "
+                        "power-cycle is required; not re-authenticating.",
+                        self.entity_description.key, expected_on,
+                    )
+                    self._optimistic_on = None
+                    self._retry_count = 0
+                    self.async_write_ha_state()
+                    return
                 self._retry_count += 1
                 if self._retry_count > 1:
                     _LOGGER.warning(
