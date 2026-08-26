@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
@@ -109,6 +109,15 @@ async def async_setup_entry(
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORM_LIST)
+
+    # #23: at a BLE-first cold start the one-shot habitation slots can arrive
+    # before the platform discovery listeners are attached, so those gated
+    # entities never materialise. Re-deliver the full snapshot a few times over
+    # the warm-up window so discovery runs against the complete set.
+    for _delay in (15, 45, 90):
+        entry.async_on_unload(
+            async_call_later(hass, _delay, coordinator.async_warmup_reobserve)
+        )
 
     # Auto-enable entities that were disabled during integration upgrades.
     # HA core may disable new entities added after initial setup.  All entities

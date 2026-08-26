@@ -556,24 +556,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # groups — same subscriptions SignalR sends.  Without these, the
             # SCU only pushes ~28 sensors autonomously.  With subscriptions,
             # all ~130 sensors should stream over BLE.
-            try:
-                from .pia_decoder import build_subscription_requests, build_refresh_command
-                requests = build_subscription_requests()
-                _LOGGER.info(
-                    "Sending %d PIA subscription requests over BLE", len(requests)
-                )
-                for payload in requests:
-                    await self._ble_client.send_pia_command(payload)
-                # Send refresh to force SCU to push current states
-                refresh = build_refresh_command()
-                await self._ble_client.send_pia_command(refresh)
-                _LOGGER.info("BLE PIA subscriptions + refresh sent")
-            except Exception:
-                _LOGGER.warning(
-                    "BLE PIA subscription failed — SCU will only push "
-                    "autonomous sensors (~28). SignalR provides full coverage.",
-                    exc_info=True,
-                )
+            await self._send_ble_subscriptions()
 
             # Start BLE listen loop as a background task — NOT a tracked task.
             # async_create_task() tasks are awaited during HA bootstrap/shutdown,
@@ -626,6 +609,53 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             # Return sentinel so caller can apply bonding-specific backoff
             return "bonding_rejected" if is_bonding_rejection else False
+
+    async def _send_ble_subscriptions(self) -> None:
+        """Send the PIA subscription burst + refresh over the BLE link.
+
+        This is what makes the SCU push the full ~130-sensor set (including the
+        one-shot habitation control slots) instead of only the ~28 autonomous
+        sensors. Safe no-op when BLE is not connected.
+        """
+        client = self._ble_client
+        if client is None or not self._ble_connected:
+            return
+        try:
+            from .pia_decoder import build_subscription_requests, build_refresh_command
+            requests = build_subscription_requests()
+            _LOGGER.info(
+                "Sending %d PIA subscription requests over BLE", len(requests)
+            )
+            for payload in requests:
+                await client.send_pia_command(payload)
+            await client.send_pia_command(build_refresh_command())
+            _LOGGER.info("BLE PIA subscriptions + refresh sent")
+        except Exception:
+            _LOGGER.warning(
+                "BLE PIA subscription failed — SCU will only push "
+                "autonomous sensors (~28). SignalR provides full coverage.",
+                exc_info=True,
+            )
+
+    async def async_warmup_reobserve(self, _now: Any = None) -> None:
+        """Re-deliver the full snapshot during startup so gated entities materialise.
+
+        Fixes #23: at a BLE-first cold start the one-shot habitation control
+        slots (pump/main/shoreline/fresh-water, Dometic S10 selects) can arrive
+        before the entity platforms have attached their discovery listeners, so
+        those gated entities are never created — and the SCU never re-pushes the
+        static slots. Re-issuing the BLE subscription+refresh (the only source
+        of those slots) and forcing a coordinator refresh makes discovery re-run
+        against the full accumulated set, materialising anything that missed the
+        initial window.
+        """
+        await self._send_ble_subscriptions()
+        if self._signalr is not None and self._signalr.connected:
+            try:
+                await self._signalr.resubscribe()
+            except Exception:
+                _LOGGER.debug("Warm-up cloud resubscribe failed", exc_info=True)
+        await self.async_request_refresh()
 
     def _on_ble_pia_response(self, b64_payload: str) -> None:
         """Handle PIA response received via BLE — same decoder as SignalR."""

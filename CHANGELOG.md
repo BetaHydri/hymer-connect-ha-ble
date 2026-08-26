@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0b1] - 2026-08-26 (pre-release)
+
+### Fixed
+
+- **BETA — Gated habitation entities stay `unavailable` after a restart when BLE is enabled at startup (#23).** On some SCUs (confirmed on a Schaudt EBL 400 / PIA 0.32.0-rc.2 retrofit), a plain restart with the BLE direct path already enabled left the water pump, 12 V main switch, shoreline, fresh-water level and the Dometic S10 selects stuck `unavailable`, and they never recovered — only disabling BLE, letting the cloud settle, then re-enabling BLE brought them back. Root cause (confirmed from a debug log): those habitation **control** slots are delivered exactly once, in the initial BLE subscription+refresh snapshot, and the SCU never re-pushes them; if the coordinator's sensor set is reset around the moment the entity platforms attach their discovery listeners, the discovery pass runs against a set that no longer contains those one-shot slots, so the gated entities are never created and there is no second delivery to recover from. This build adds a **startup warm-up re-observe**: shortly after the platforms are set up (at ~15/45/90 s) the integration re-issues the BLE subscription+refresh burst and forces a coordinator refresh, so discovery re-runs against the full accumulated set and materialises any habitation entity that missed the initial window. Add-only and self-guarding — no effect on vehicles that already come up cleanly. This is a **pre-release for testing on the affected firmware**; feedback welcome on #23. As always after updating, **restart** Home Assistant.
+
 ## [2.88.0] - 2026-08-26
 
 ### Added
