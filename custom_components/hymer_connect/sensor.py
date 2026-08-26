@@ -81,6 +81,7 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_path="signalr_sensors.fuel_level_liters",
         icon="mdi:fuel",
+        restore_last=True,
     ),
     HymerSensorEntityDescription(
         key="fuel_consumption",
@@ -89,6 +90,7 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_path="signalr_sensors.fuel_consumption",
         icon="mdi:gas-station-outline",
+        restore_last=True,
     ),
     HymerSensorEntityDescription(
         key="fuel_range_estimated",
@@ -98,6 +100,7 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_path="signalr_sensors.fuel_range_estimated",
         icon="mdi:map-marker-distance",
+        restore_last=True,
     ),
     HymerSensorEntityDescription(
         key="solar_power",
@@ -116,6 +119,7 @@ STATIC_SIGNALR_SENSORS: tuple[HymerSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_path="signalr_sensors.lithium_soc",
         icon="mdi:battery",
+        restore_last=True,
     ),
     HymerSensorEntityDescription(
         key="charge_phase",
