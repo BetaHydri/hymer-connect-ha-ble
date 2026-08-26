@@ -51,6 +51,15 @@ _REST_METADATA_INTERVAL = 600  # 10 minutes between full REST metadata refreshes
 _RESUBSCRIBE_INTERVAL = 600  # 10 minutes — only resubscribe periodically, not every poll
 _BLE_STARTUP_TIMEOUT = 90  # hard cap so BLE/BlueZ cannot block HA startup
 _BLE_CLEANUP_TIMEOUT = 5  # best-effort disconnect cap after failed startup
+# #23: cold-start cloud-first gate. On some SCUs (Schaudt EBL 400 / PIA rc.2) the
+# habitation control slots arrive ONLY over the cloud, and an active BLE session makes
+# the SCU withhold them from the cloud channel. Defer the FIRST BLE attempt at cold
+# start until the cloud snapshot has landed (or a grace cap), so those slots reach the
+# monotonic union before BLE claims the link. Non-retrofit fleet SCUs deliver the full
+# set over BLE anyway, so this only shifts their BLE connect a few seconds later with
+# no data lost. Latches open after the first pass; reconnects/toggles are never gated.
+_BLE_COLD_START_SETTLE = 20  # seconds after SignalR connects to let the cloud snapshot land
+_BLE_COLD_START_CLOUD_GRACE = 45  # hard cap from startup: BLE connects even if cloud never does
 
 # Fuel consumption tracking
 _FUEL_REFUEL_THRESHOLD_PCT = 5  # fuel increase > 5% = refueling detected
@@ -108,6 +117,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
         self._ble_listen_task: asyncio.Task | None = None  # background NUS listen loop; cancelled on teardown
         self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
+        self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
+        self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -1135,6 +1146,34 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._ble_pairing_in_progress:
             _LOGGER.debug("BLE attempt skipped — config flow pairing in progress")
             return
+        # #23: at cold start, let the cloud snapshot land first so cloud-only
+        # habitation slots reach the union before BLE claims the SCU link (an
+        # active BLE session makes some SCUs withhold those slots from the cloud).
+        if not self._ble_cold_start_gate_open:
+            now = time.monotonic()
+            signalr_settled = (
+                self._signalr is not None
+                and self._signalr.connected
+                and self._signalr_connected_at > 0
+                and (now - self._signalr_connected_at) >= _BLE_COLD_START_SETTLE
+            )
+            grace_elapsed = (
+                now - self._startup_monotonic
+            ) >= _BLE_COLD_START_CLOUD_GRACE
+            if signalr_settled or grace_elapsed:
+                self._ble_cold_start_gate_open = True
+                _LOGGER.info(
+                    "BLE cold-start gate open (%s) — proceeding with BLE connect",
+                    "cloud snapshot settled" if signalr_settled else "grace elapsed",
+                )
+            else:
+                _LOGGER.debug(
+                    "BLE deferred at cold start — letting cloud seed first "
+                    "(signalr_connected=%s, %.0fs since startup)",
+                    self._signalr.connected if self._signalr else False,
+                    now - self._startup_monotonic,
+                )
+                return
         if self._ble_connecting:
             return
         if time.monotonic() < self._ble_next_attempt:

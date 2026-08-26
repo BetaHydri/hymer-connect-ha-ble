@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0b3] - 2026-08-26 (pre-release)
+
+### Fixed
+
+- **BETA — Habitation entities stay `unavailable` after a BLE-first restart because an active BLE link makes the SCU withhold the cloud-only control slots (#23).** Beta testing of 2.89.0b2 inverted the diagnosis. A decisive on-vehicle test (disconnecting BLE at the OS level, changing nothing else) made the merged sensor set jump from 134 to 194 and every habitation entity materialise — on the cloud path alone, with BLE staying down. So the bus-2 controls (water pump, 12 V main, fresh-water, shoreline) and the Dometic S10 selects on bus 9 are **not** delivered over BLE at all on the affected firmware (Schaudt EBL 400 / PIA 0.32.0-rc.2); they come from the cloud/SignalR path, and while the BLE direct path is connected the SCU withholds them from the cloud channel. That is why the previous warm-up could not help and why the known workaround (start cloud-only, then enable BLE) always worked. This build adds a **cold-start cloud-first gate**: at a restart the first BLE connection is deferred until the cloud snapshot has landed (or a short grace cap), so the cloud-only slots reach the monotonic union before BLE claims the link — exactly automating the working workaround. The gate **latches open after startup**, so in-session BLE reconnects and the manual BLE toggle are never delayed. Non-retrofit vehicles that already receive the full set over BLE are unaffected in substance — the cloud seeds within seconds, so BLE simply comes up a few seconds later with the identical set and nothing is lost; a hard grace cap guarantees BLE still comes up even with no cloud connection. The 2.89.0b2 monotonic union stays in (it is what keeps those slots once seen), as does the b1 warm-up. This is a **pre-release for re-testing on the affected firmware**; feedback welcome on #23. As always after updating, **restart** Home Assistant.
+
 ## [2.89.0b2] - 2026-08-26 (pre-release)
 
 ### Fixed
