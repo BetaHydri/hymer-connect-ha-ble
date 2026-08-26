@@ -162,7 +162,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
-            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
+            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip().upper()
             ble_enabled = user_input.get(CONF_BLE_ENABLED, False)
 
             if qr_token:
@@ -481,7 +481,7 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             qr_token = user_input.get(CONF_QR_TOKEN, "").strip()
-            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip()
+            ble_address = user_input.get(CONF_BLE_ADDRESS, "").strip().upper()
             ehg_refresh_token = user_input.get(CONF_EHG_REFRESH_TOKEN, "").strip()
             oauth_basic_auth_in = user_input.get(CONF_OAUTH_BASIC_AUTH, "").strip()
             force_repair = user_input.get("force_repair", False)
@@ -644,6 +644,9 @@ class HymerConnectOptionsFlow(OptionsFlow):
         """Manage the options — tank capacity + BLE settings."""
         errors: dict[str, str] = {}
         if user_input is not None:
+            if ble_address := user_input.get(CONF_BLE_ADDRESS):
+                user_input[CONF_BLE_ADDRESS] = ble_address.strip().upper()
+
             # Validate optional pasted OAuth Basic-auth header before saving.
             oauth_basic_auth_in = (user_input.get(CONF_OAUTH_BASIC_AUTH, "") or "").strip()
             if oauth_basic_auth_in and not HymerConnectApi.is_valid_basic_auth(
@@ -671,7 +674,7 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     ble_address = (
                         self._config_entry.options.get(CONF_BLE_ADDRESS, "")
                         or self._config_entry.data.get(CONF_BLE_ADDRESS, "")
-                    )
+                    ).upper()
                     if ble_address:
                         removed = await async_clear_bluez_bond(ble_address)
                         _LOGGER.info(

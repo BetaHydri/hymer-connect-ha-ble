@@ -15,7 +15,8 @@ hardware-independent pairing/protocol logic:
   4. _extract_response_id_status parses a response and returns (None, None) for
      a non-response frame.
   5. encode/decode_ble_pia_frame round-trip (magic + length + CRC).
-  6. SPEC MIRROR of the D-Bus pairing agent's device-lock + legacy PIN/passkey
+    6. ScuBleClient normalizes mixed-case SCU addresses for HA scanner lookup.
+    7. SPEC MIRROR of the D-Bus pairing agent's device-lock + legacy PIN/passkey
      decision (v2.76.3). This mirrors the closure in
      ble_client._pair_via_bluetoothctl, which is not importable; KEEP IN SYNC
      if that logic changes.
@@ -147,6 +148,20 @@ def test_frame_roundtrip(m) -> None:
     check("payload survives framing", m.decode_ble_pia_frame(m.encode_ble_pia_frame(data)) == data)
 
 
+def test_scu_address_normalization(m) -> None:
+    print("6) ScuBleClient normalizes the SCU address")
+    original_has_bleak = m.HAS_BLEAK
+    try:
+        m.HAS_BLEAK = True
+        client = m.ScuBleClient(scu_address="f8:3C:CB:6B:E8:46")
+        check(
+            "mixed-case address becomes uppercase",
+            client.scu_address == "F8:3C:CB:6B:E8:46",
+        )
+    finally:
+        m.HAS_BLEAK = original_has_bleak
+
+
 def _decide_agent_response(member: str, device_path, scu_address: str):
     """SPEC MIRROR of ble_client._pair_via_bluetoothctl's agent closure (v2.76.3).
 
@@ -172,7 +187,7 @@ def _decide_agent_response(member: str, device_path, scu_address: str):
 
 
 def test_agent_decision_spec() -> None:
-    print("6) SPEC MIRROR: device-locked agent + legacy PIN/passkey (v2.76.3)")
+    print("7) SPEC MIRROR: device-locked agent + legacy PIN/passkey (v2.76.3)")
     scu = "C5:D9:A0:14:C5:37"
     ours = "/org/bluez/hci0/dev_C5_D9_A0_14_C5_37"
     foreign = "/org/bluez/hci0/dev_11_22_33_44_55_66"
@@ -195,6 +210,7 @@ def main() -> int:
     test_rewrap_cloud_payload(m)
     test_extract_response_id_status(m)
     test_frame_roundtrip(m)
+    test_scu_address_normalization(m)
     test_agent_decision_spec()
     print()
     if _FAILURES:

@@ -247,7 +247,7 @@ async def async_remove_entry(
     # fresh (kept across reloads by not clearing it in async_unload_entry).
     hass.data.get(DOMAIN, {}).pop(f"{entry.entry_id}_sensor_union", None)
 
-    ble_address = entry.data.get(CONF_BLE_ADDRESS, "")
+    ble_address = entry.data.get(CONF_BLE_ADDRESS, "").upper()
     if ble_address:
         removed = await async_clear_bluez_bond(ble_address)
         if removed:

@@ -916,7 +916,7 @@ class ScuBleClient:
             raise BleTransportError(
                 "bleak is not installed. Install with: pip install bleak"
             )
-        self._scu_address = scu_address
+        self._scu_address = (scu_address or "").upper()
         self._connect_timeout = connect_timeout
         self._tls_timeout = tls_timeout
         self._on_pia_response = on_pia_response

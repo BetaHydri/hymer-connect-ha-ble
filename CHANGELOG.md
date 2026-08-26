@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.1] - 2026-08-26
+
+### Fixed
+
+- **BLE connections no longer fail with "never seen by any scanner" when the stored SCU address contains lower-case letters.** Home Assistant records Bluetooth advertisements under the upper-case MAC address emitted by the scanner. A manually entered or imported mixed-case address therefore did not match, even while the SCU was visible and connectable in Home Assistant's Advertisements view. SCU addresses are now normalized to upper case when entered, read, connected, or used to clear a bond. Existing configurations are corrected automatically after updating and restarting; reconfiguration is not required. This stable patch contains none of the `2.90.0b1` or `2.90.0b2` BLE recovery changes.
+
 ## [2.89.0] - 2026-08-26
 
 ### Fixed

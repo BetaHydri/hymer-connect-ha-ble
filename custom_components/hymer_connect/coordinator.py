@@ -176,10 +176,11 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def ble_address(self) -> str:
         """Return the configured SCU BLE address (options override data)."""
-        return (
+        address = (
             self.config_entry.options.get(CONF_BLE_ADDRESS)
             or self.config_entry.data.get(CONF_BLE_ADDRESS, "")
         )
+        return address.upper() if address else ""
 
     @property
     def ble_write_enabled(self) -> bool:
