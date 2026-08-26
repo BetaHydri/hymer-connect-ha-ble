@@ -462,6 +462,58 @@ If you are stuck on an older build and see this, turning `Enable BLE direct path
 off alone is **not** enough — the entities stay unavailable until you also
 **reload** the integration. Updating to v2.76.6+ removes the problem entirely.
 
+## Habitation entities stay `unavailable` after a BLE-first restart (fixed v2.89.0)
+
+**Fixed in v2.89.0 — update if you see this.** On builds up to v2.88.0, if the
+**BLE direct path was already enabled when Home Assistant started** (a plain HA
+restart or a host reboot), a group of *habitation-control* entities could come up
+`unavailable` and **never recover** on their own — while lights, heater and fridge
+came up fine. Typically affected:
+
+- `switch.*_wasserpumpe` (water pump), `switch.*_12v_hauptschalter` (12 V main),
+  `switch.*_landstrom` / shoreline, `sensor.*_frischwasser` (fresh-water level),
+- the **Dometic S10** selects,
+
+i.e. the controls that on some vehicles (notably **retrofit SCUs with PIA
+0.32.0-rc.2 and a Schaudt EBL 400 on bus 2**) are delivered **only over the
+cloud/SignalR** path. The firmware withholds those slots from the cloud channel
+*while a BLE session is connected*, so at a BLE-first start the cloud never
+delivered them before entity discovery ran, and the gated entities were never
+created. The known manual workaround was: start cloud-only, then enable BLE.
+
+**What v2.89.0 changes — what you can expect now:**
+
+- **The cloud-first-then-BLE workaround is now automatic.** At a restart the
+  integration briefly lets the **cloud snapshot arrive first** and only then brings
+  BLE up, so those cloud-only control slots reach Home Assistant and the entities
+  materialise. On the confirmed retrofit vehicle, the first-ever fully populated
+  BLE-enabled restart came up with the complete entity list.
+- **BLE connects a few seconds later at restart** than before (it waits for the
+  cloud set to stop growing, then connects). This delay applies **only to the first
+  connect right after a start** — in-session reconnects, the reconnect watchdog and
+  toggling BLE on/off are **not** delayed.
+- **Slots stay put.** Once a value has been seen from either transport it is kept,
+  so the cloud connecting can no longer "shrink" the set and drop entities.
+
+**Not affected / unchanged:**
+
+- **Non-retrofit vehicles** (e.g. Grand Canyon S 600) already receive the full set
+  over BLE — for them BLE simply comes up a few seconds later with the identical
+  data, nothing is lost.
+- **Cloud-only setups (Path B/C)** and the cloud/SignalR path are completely
+  untouched — the new gate only ever delays a *BLE* connect attempt.
+- **Off-grid restarts (no LTE / no cloud):** BLE is released after a short window
+  instead of waiting for a cloud that isn't coming, so a BLE-only host still comes
+  up on its own.
+
+> **Edge case:** if the cloud is unusually slow to deliver the habitation slots at
+> one particular boot, BLE may still connect before they arrive and those few
+> controls can stay `unavailable` for that session. If you hit this, a single
+> integration **reload** (or toggling BLE off/on) fixes it. It is rare and being
+> tracked for further hardening.
+
+As always after updating, **restart** Home Assistant.
+
 ## Enabling BLE does not connect until you reload (fixed v2.76.7)
 
 Before v2.76.7, ticking **Enable BLE direct path** in Options did not actually

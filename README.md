@@ -689,6 +689,15 @@ minutes; press CONNECTION at any point in that window.
 No token stored → SignalR connects but can't authenticate (`0 fields updated`). **Fix:** trigger BLE pairing via
 ⋮ → Reconfigure to obtain the token, or provide a token captured via mitmproxy.
 
+### Habitation entities `unavailable` after a BLE-first restart (fixed v2.89.0)
+
+On builds up to v2.88.0, with **BLE enabled at startup** some habitation controls (water pump, 12 V main, shoreline,
+fresh-water level, Dometic S10 selects) could come up `unavailable` and never recover — mainly on **retrofit SCUs**
+where those slots arrive only over the cloud. **v2.89.0 fixes this** by letting the cloud snapshot arrive before BLE
+claims the link at a restart (the old cloud-first-then-BLE workaround, now automatic). BLE just connects a few seconds
+later at boot; non-retrofit vehicles, cloud-only setups and off-grid restarts are unaffected. Details:
+[Habitation entities stay unavailable after a BLE-first restart](docs/ble-troubleshooting.md#habitation-entities-stay-unavailable-after-a-ble-first-restart-fixed-v2890).
+
 ### Integration removal — stale BlueZ bonds
 
 Removal auto-clears the BlueZ bond via D-Bus. For integrations deleted with a version before v2.40.0-alpha.2, clear
