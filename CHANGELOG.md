@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.90.0b2] - 2026-08-26 (pre-release)
+
+### Fixed
+
+- **BETA — a silently-dead BLE link is now detected and reconnected instead of staying dead until a restart (#24).** Beta testing of 2.90.0b1 surfaced a distinct, more common half of the same family: after an external BLE disconnect the host's BlueZ stack can drop the channel **without firing a disconnect callback**, so `bleak` keeps reporting `is_connected = True`, the listen loop just spins on an empty queue, and the integration never notices — no `BLE disconnected` line, no reconnect attempt, the 30 s watchdog short-circuits as "already connected," and BLE stays silently dead until Home Assistant is restarted. It stayed invisible because the cloud path carried on and the monotonic union held the full sensor set, so entity-wise nothing looked wrong. This build adds a **BLE receive-liveness check** that does not trust `is_connected`: if BLE claims connected but no BLE frame has arrived for ~60 s **while data is still flowing over another transport** (the SCU is provably awake, witnessed by the cloud), the link is treated as dead — BLE is torn down and reconnected on the next watchdog tick. The "data still arriving" gate means a genuine 12 V-off standby (both transports silent) does not churn reconnects. This directly fixes the case Stefan reported where a deliberate `bluetoothctl disconnect` left BLE dead for 15 minutes with no reaction.
+- **BETA — the stale-channel recovery hint is now correct for Home Assistant OS.** The 2.90.0b1 log/message recommended `systemctl restart bluetooth`, which **does not exist on Home Assistant OS** (the SSH add-on has host D-Bus but no host systemd or Supervisor access, so the `bluetoothd` daemon can only be recycled by a full host reboot). The messages now say: reboot the host (required on HAOS) or, on Supervised/Proxmox/container installs with a real host shell, restart the bluetooth service. Thanks to Stefan for measuring this on HAOS.
+
+Everything from 2.90.0b1 (stale-write-channel hard failure + escalating backoff, conditional MTU-23 log, "BLE degraded" diagnostic sensor) and from the stable 2.89.0 (#23) is included. As always after updating, **restart** Home Assistant.
+
 ## [2.90.0b1] - 2026-08-26 (pre-release)
 
 ### Fixed

@@ -1509,8 +1509,9 @@ class ScuBleClient:
             raise BleStaleChannelError(
                 "BLE write channel still stale after a fresh GATT session "
                 "(MTU 23, Write acquired) — the host BlueZ daemon is holding a "
-                "leaked acquisition; 'systemctl restart bluetooth' or a host "
-                "reboot is required to recover"
+                "leaked acquisition; recover by rebooting the host (required on "
+                "Home Assistant OS) or, on Supervised/Proxmox/container installs, "
+                "by restarting the bluetooth service ('systemctl restart bluetooth')"
             )
 
         self._client = client
