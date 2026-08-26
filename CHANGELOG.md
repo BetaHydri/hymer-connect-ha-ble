@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0b4] - 2026-08-26 (pre-release)
+
+### Changed
+
+- **BETA (precautionary) — the cold-start cloud-first gate no longer delays the BLE path at an off-grid restart.** The 2.89.0b3 gate used a single 45 s cap for “cloud is slow” and “cloud is absent,” which meant a normal SCU parked **without LTE/internet** would wait up to ~45 s for its BLE link after a Home Assistant restart. The gate is now split into two cases: when the cloud **is** connecting it waits ~20 s for the snapshot to land (so the retrofit cloud-only habitation slots seed the union first — the #23 fix); when there is **no cloud at all** it releases BLE after ~20 s instead of waiting for a cloud that isn’t coming. Net effect for the fleet: the off-grid BLE delay drops from ~45 s to ~20 s, and retrofit-on-a-slow-link is actually more robust because the settle window is measured from cloud-connect rather than from startup. Everything else from the 2.89.0b1–b3 line is unchanged (monotonic union, warm-up re-observe, cold-start gate). Note: this is a **precautionary** refinement for the off-grid edge case; full offline availability of learned habitation entities with **no cloud at all** at a cold start is a larger resilience change still to come. As always after updating, **restart** Home Assistant.
+
 ## [2.89.0b3] - 2026-08-26 (pre-release)
 
 ### Fixed

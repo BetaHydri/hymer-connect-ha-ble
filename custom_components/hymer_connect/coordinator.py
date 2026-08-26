@@ -58,8 +58,11 @@ _BLE_CLEANUP_TIMEOUT = 5  # best-effort disconnect cap after failed startup
 # monotonic union before BLE claims the link. Non-retrofit fleet SCUs deliver the full
 # set over BLE anyway, so this only shifts their BLE connect a few seconds later with
 # no data lost. Latches open after the first pass; reconnects/toggles are never gated.
-_BLE_COLD_START_SETTLE = 20  # seconds after SignalR connects to let the cloud snapshot land
-_BLE_COLD_START_CLOUD_GRACE = 45  # hard cap from startup: BLE connects even if cloud never does
+# Two decoupled timeouts: when the cloud IS connecting we wait for its snapshot to
+# settle; when the cloud is absent (off-grid / no LTE) we release BLE quickly so the
+# fleet's BLE path is not delayed at an off-grid restart.
+_BLE_COLD_START_SETTLE = 20  # cloud connected: wait this long after connect for the snapshot to land
+_BLE_COLD_START_NO_CLOUD = 20  # cloud absent: release BLE this soon rather than wait for a cloud that isn't coming
 
 # Fuel consumption tracking
 _FUEL_REFUEL_THRESHOLD_PCT = 5  # fuel increase > 5% = refueling detected
@@ -1151,26 +1154,36 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # active BLE session makes some SCUs withhold those slots from the cloud).
         if not self._ble_cold_start_gate_open:
             now = time.monotonic()
-            signalr_settled = (
+            sr_connected = (
                 self._signalr is not None
                 and self._signalr.connected
                 and self._signalr_connected_at > 0
-                and (now - self._signalr_connected_at) >= _BLE_COLD_START_SETTLE
             )
-            grace_elapsed = (
-                now - self._startup_monotonic
-            ) >= _BLE_COLD_START_CLOUD_GRACE
-            if signalr_settled or grace_elapsed:
+            if sr_connected:
+                # Cloud is here — wait for its snapshot to settle, then open.
+                open_gate = (
+                    now - self._signalr_connected_at
+                ) >= _BLE_COLD_START_SETTLE
+                reason = "cloud snapshot settled"
+            else:
+                # No cloud (yet). Don't hold BLE waiting for a cloud that may be
+                # absent (off-grid / no LTE) — release after a short window so the
+                # fleet's BLE path is not delayed at an off-grid restart.
+                open_gate = (
+                    now - self._startup_monotonic
+                ) >= _BLE_COLD_START_NO_CLOUD
+                reason = "no cloud — releasing BLE"
+            if open_gate:
                 self._ble_cold_start_gate_open = True
                 _LOGGER.info(
                     "BLE cold-start gate open (%s) — proceeding with BLE connect",
-                    "cloud snapshot settled" if signalr_settled else "grace elapsed",
+                    reason,
                 )
             else:
                 _LOGGER.debug(
                     "BLE deferred at cold start — letting cloud seed first "
                     "(signalr_connected=%s, %.0fs since startup)",
-                    self._signalr.connected if self._signalr else False,
+                    sr_connected,
                     now - self._startup_monotonic,
                 )
                 return
