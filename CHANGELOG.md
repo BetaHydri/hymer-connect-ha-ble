@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0] - 2026-08-26
+
+### Fixed
+
+- **Habitation entities no longer stay `unavailable` after a restart when the BLE direct path is enabled at startup (#23).** On retrofit SCUs (confirmed on a Schaudt EBL 400 / PIA 0.32.0-rc.2, HYMER B-ML I 780), a plain Home Assistant restart with BLE enabled left the water pump, 12 V main switch, shoreline, fresh-water level and the Dometic S10 selects stuck `unavailable` — and they never recovered until BLE was disabled, the cloud settled, and BLE re-enabled. On-vehicle debugging traced it to a firmware behaviour: those habitation **control** slots arrive only over the **cloud/SignalR** path, and while a BLE session is connected the SCU withholds them from the cloud channel — so at a BLE-first restart the cloud never delivers them before the entity platforms run their discovery pass, and the gated entities are never created. The fix has three parts, all add-only and self-guarding: (1) the merged sensor set is now a **monotonic union persisted at the config-entry level**, so a slot seen from either transport is never dropped and survives a coordinator rebuild; (2) a **cold-start cloud-first gate** defers the first BLE connection at a restart until the cloud snapshot has **plateaued** (stopped growing) — automating the known cloud-first-then-BLE workaround so the cloud-only slots reach the union before BLE claims the link; and (3) a startup **warm-up re-observe** re-runs discovery as belt-and-braces. **Non-retrofit vehicles are unaffected in substance** — they receive the full set over BLE anyway, so BLE simply comes up a few seconds later with the identical set and nothing is lost. The gate only ever delays BLE connect attempts: **cloud-only deployments and the cloud/SignalR path are untouched**, and an off-grid restart with no cloud releases BLE after a short window instead of waiting. Confirmed fixed on-vehicle (full 194-slot set, complete entity list) across host reboots and plain restarts. As always after updating, **restart** Home Assistant.
+- **Slow-moving sensors keep their last known value across a restart** (fuel level/consumption/range, battery state-of-charge, all water-tank levels, odometer, distance-to-service, tyre pressures) instead of briefly showing *unknown* until fresh data arrives. Live data always wins. (Carried over from 2.88.0.)
+
 ## [2.89.0b4] - 2026-08-26 (pre-release)
 
 ### Changed

@@ -60,8 +60,13 @@ _BLE_CLEANUP_TIMEOUT = 5  # best-effort disconnect cap after failed startup
 # no data lost. Latches open after the first pass; reconnects/toggles are never gated.
 # Two decoupled timeouts: when the cloud IS connecting we wait for its snapshot to
 # settle; when the cloud is absent (off-grid / no LTE) we release BLE quickly so the
-# fleet's BLE path is not delayed at an off-grid restart.
-_BLE_COLD_START_SETTLE = 20  # cloud connected: wait this long after connect for the snapshot to land
+# fleet's BLE path is not delayed at an off-grid restart. In the cloud-connected case
+# we open on PLATEAU (the merged set has stopped growing) rather than a fixed delay,
+# so slow-delivering boots still get the one-shot habitation slots into the union
+# before BLE claims the link (#23 run-1 race).
+_BLE_COLD_START_SETTLE_MIN = 8  # cloud connected: minimum wait after connect before considering the set settled
+_BLE_COLD_START_PLATEAU = 8  # cloud connected: open once the merged set hasn't grown for this long
+_BLE_COLD_START_SETTLE_MAX = 45  # cloud connected: hard cap since connect if the set never plateaus
 _BLE_COLD_START_NO_CLOUD = 20  # cloud absent: release BLE this soon rather than wait for a cloud that isn't coming
 
 # Fuel consumption tracking
@@ -122,6 +127,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
         self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
         self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
+        self._signalr_last_growth_monotonic: float = 0.0  # #23 last time the merged set gained a new key
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -223,7 +229,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _on_signalr_update(self, sensor_data: dict[str, Any]) -> None:
         """Handle incoming SignalR sensor data."""
         self._last_data_monotonic = time.monotonic()
+        _before = len(self._signalr_data)
         self._signalr_data.update(sensor_data)
+        if len(self._signalr_data) > _before:
+            self._signalr_last_growth_monotonic = time.monotonic()
         self._compute_fuel_metrics()
         _LOGGER.debug(
             "Sensor data merged (SignalR/BLE): %d total sensors", len(self._signalr_data)
@@ -1160,11 +1169,22 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and self._signalr_connected_at > 0
             )
             if sr_connected:
-                # Cloud is here — wait for its snapshot to settle, then open.
-                open_gate = (
-                    now - self._signalr_connected_at
-                ) >= _BLE_COLD_START_SETTLE
-                reason = "cloud snapshot settled"
+                # Cloud is here — open once its snapshot has PLATEAUED (the merged
+                # set stopped growing), so slow-delivering boots still get the
+                # one-shot habitation slots into the union before BLE claims the
+                # link. Capped so a continuously-trickling cloud can't hold BLE off.
+                since_connect = now - self._signalr_connected_at
+                plateaued = (
+                    since_connect >= _BLE_COLD_START_SETTLE_MIN
+                    and self._signalr_last_growth_monotonic > 0
+                    and (now - self._signalr_last_growth_monotonic)
+                    >= _BLE_COLD_START_PLATEAU
+                )
+                capped = since_connect >= _BLE_COLD_START_SETTLE_MAX
+                open_gate = plateaued or capped
+                reason = (
+                    "cloud snapshot plateaued" if plateaued else "settle cap"
+                )
             else:
                 # No cloud (yet). Don't hold BLE waiting for a cloud that may be
                 # absent (off-grid / no LTE) — release after a short window so the
