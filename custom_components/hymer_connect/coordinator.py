@@ -51,6 +51,23 @@ _REST_METADATA_INTERVAL = 600  # 10 minutes between full REST metadata refreshes
 _RESUBSCRIBE_INTERVAL = 600  # 10 minutes — only resubscribe periodically, not every poll
 _BLE_STARTUP_TIMEOUT = 90  # hard cap so BLE/BlueZ cannot block HA startup
 _BLE_CLEANUP_TIMEOUT = 5  # best-effort disconnect cap after failed startup
+# #23: cold-start cloud-first gate. On some SCUs (Schaudt EBL 400 / PIA rc.2) the
+# habitation control slots arrive ONLY over the cloud, and an active BLE session makes
+# the SCU withhold them from the cloud channel. Defer the FIRST BLE attempt at cold
+# start until the cloud snapshot has landed (or a grace cap), so those slots reach the
+# monotonic union before BLE claims the link. Non-retrofit fleet SCUs deliver the full
+# set over BLE anyway, so this only shifts their BLE connect a few seconds later with
+# no data lost. Latches open after the first pass; reconnects/toggles are never gated.
+# Two decoupled timeouts: when the cloud IS connecting we wait for its snapshot to
+# settle; when the cloud is absent (off-grid / no LTE) we release BLE quickly so the
+# fleet's BLE path is not delayed at an off-grid restart. In the cloud-connected case
+# we open on PLATEAU (the merged set has stopped growing) rather than a fixed delay,
+# so slow-delivering boots still get the one-shot habitation slots into the union
+# before BLE claims the link (#23 run-1 race).
+_BLE_COLD_START_SETTLE_MIN = 8  # cloud connected: minimum wait after connect before considering the set settled
+_BLE_COLD_START_PLATEAU = 8  # cloud connected: open once the merged set hasn't grown for this long
+_BLE_COLD_START_SETTLE_MAX = 45  # cloud connected: hard cap since connect if the set never plateaus
+_BLE_COLD_START_NO_CLOUD = 20  # cloud absent: release BLE this soon rather than wait for a cloud that isn't coming
 
 # Fuel consumption tracking
 _FUEL_REFUEL_THRESHOLD_PCT = 5  # fuel increase > 5% = refueling detected
@@ -79,7 +96,14 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._scu_urn = scu_urn  # urn:ehg:scu:sXXX.XX.XX.XXX.XXX
         self._ehg_refresh_token = ehg_refresh_token  # BLE-derived refresh token
         self._signalr: HymerSignalRClient | None = None
-        self._signalr_data: dict[str, Any] = {}
+        # #23: persist the merged sensor set at entry scope so it survives a
+        # coordinator rebuild (config-entry re-setup) mid-startup. A fresh
+        # coordinator re-seeds this accumulated union instead of starting empty,
+        # so BLE-only one-shot habitation slots are never lost when the cloud
+        # connects. Only ever grows via .update(); cleared on entry removal.
+        self._signalr_data: dict[str, Any] = hass.data.setdefault(DOMAIN, {}).setdefault(
+            f"{entry.entry_id}_sensor_union", {}
+        )
         self._reconnect_backoff: int = _INITIAL_BACKOFF
         self._last_reconnect_attempt: float = 0.0
         self._consecutive_failures: int = 0
@@ -101,6 +125,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
         self._ble_listen_task: asyncio.Task | None = None  # background NUS listen loop; cancelled on teardown
         self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
+        self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
+        self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
+        self._signalr_last_growth_monotonic: float = 0.0  # #23 last time the merged set gained a new key
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -202,7 +229,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _on_signalr_update(self, sensor_data: dict[str, Any]) -> None:
         """Handle incoming SignalR sensor data."""
         self._last_data_monotonic = time.monotonic()
+        _before = len(self._signalr_data)
         self._signalr_data.update(sensor_data)
+        if len(self._signalr_data) > _before:
+            self._signalr_last_growth_monotonic = time.monotonic()
         self._compute_fuel_metrics()
         _LOGGER.debug(
             "Sensor data merged (SignalR/BLE): %d total sensors", len(self._signalr_data)
@@ -556,24 +586,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # groups — same subscriptions SignalR sends.  Without these, the
             # SCU only pushes ~28 sensors autonomously.  With subscriptions,
             # all ~130 sensors should stream over BLE.
-            try:
-                from .pia_decoder import build_subscription_requests, build_refresh_command
-                requests = build_subscription_requests()
-                _LOGGER.info(
-                    "Sending %d PIA subscription requests over BLE", len(requests)
-                )
-                for payload in requests:
-                    await self._ble_client.send_pia_command(payload)
-                # Send refresh to force SCU to push current states
-                refresh = build_refresh_command()
-                await self._ble_client.send_pia_command(refresh)
-                _LOGGER.info("BLE PIA subscriptions + refresh sent")
-            except Exception:
-                _LOGGER.warning(
-                    "BLE PIA subscription failed — SCU will only push "
-                    "autonomous sensors (~28). SignalR provides full coverage.",
-                    exc_info=True,
-                )
+            await self._send_ble_subscriptions()
 
             # Start BLE listen loop as a background task — NOT a tracked task.
             # async_create_task() tasks are awaited during HA bootstrap/shutdown,
@@ -626,6 +639,53 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             # Return sentinel so caller can apply bonding-specific backoff
             return "bonding_rejected" if is_bonding_rejection else False
+
+    async def _send_ble_subscriptions(self) -> None:
+        """Send the PIA subscription burst + refresh over the BLE link.
+
+        This is what makes the SCU push the full ~130-sensor set (including the
+        one-shot habitation control slots) instead of only the ~28 autonomous
+        sensors. Safe no-op when BLE is not connected.
+        """
+        client = self._ble_client
+        if client is None or not self._ble_connected:
+            return
+        try:
+            from .pia_decoder import build_subscription_requests, build_refresh_command
+            requests = build_subscription_requests()
+            _LOGGER.info(
+                "Sending %d PIA subscription requests over BLE", len(requests)
+            )
+            for payload in requests:
+                await client.send_pia_command(payload)
+            await client.send_pia_command(build_refresh_command())
+            _LOGGER.info("BLE PIA subscriptions + refresh sent")
+        except Exception:
+            _LOGGER.warning(
+                "BLE PIA subscription failed — SCU will only push "
+                "autonomous sensors (~28). SignalR provides full coverage.",
+                exc_info=True,
+            )
+
+    async def async_warmup_reobserve(self, _now: Any = None) -> None:
+        """Re-deliver the full snapshot during startup so gated entities materialise.
+
+        Fixes #23: at a BLE-first cold start the one-shot habitation control
+        slots (pump/main/shoreline/fresh-water, Dometic S10 selects) can arrive
+        before the entity platforms have attached their discovery listeners, so
+        those gated entities are never created — and the SCU never re-pushes the
+        static slots. Re-issuing the BLE subscription+refresh (the only source
+        of those slots) and forcing a coordinator refresh makes discovery re-run
+        against the full accumulated set, materialising anything that missed the
+        initial window.
+        """
+        await self._send_ble_subscriptions()
+        if self._signalr is not None and self._signalr.connected:
+            try:
+                await self._signalr.resubscribe()
+            except Exception:
+                _LOGGER.debug("Warm-up cloud resubscribe failed", exc_info=True)
+        await self.async_request_refresh()
 
     def _on_ble_pia_response(self, b64_payload: str) -> None:
         """Handle PIA response received via BLE — same decoder as SignalR."""
@@ -1098,6 +1158,55 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._ble_pairing_in_progress:
             _LOGGER.debug("BLE attempt skipped — config flow pairing in progress")
             return
+        # #23: at cold start, let the cloud snapshot land first so cloud-only
+        # habitation slots reach the union before BLE claims the SCU link (an
+        # active BLE session makes some SCUs withhold those slots from the cloud).
+        if not self._ble_cold_start_gate_open:
+            now = time.monotonic()
+            sr_connected = (
+                self._signalr is not None
+                and self._signalr.connected
+                and self._signalr_connected_at > 0
+            )
+            if sr_connected:
+                # Cloud is here — open once its snapshot has PLATEAUED (the merged
+                # set stopped growing), so slow-delivering boots still get the
+                # one-shot habitation slots into the union before BLE claims the
+                # link. Capped so a continuously-trickling cloud can't hold BLE off.
+                since_connect = now - self._signalr_connected_at
+                plateaued = (
+                    since_connect >= _BLE_COLD_START_SETTLE_MIN
+                    and self._signalr_last_growth_monotonic > 0
+                    and (now - self._signalr_last_growth_monotonic)
+                    >= _BLE_COLD_START_PLATEAU
+                )
+                capped = since_connect >= _BLE_COLD_START_SETTLE_MAX
+                open_gate = plateaued or capped
+                reason = (
+                    "cloud snapshot plateaued" if plateaued else "settle cap"
+                )
+            else:
+                # No cloud (yet). Don't hold BLE waiting for a cloud that may be
+                # absent (off-grid / no LTE) — release after a short window so the
+                # fleet's BLE path is not delayed at an off-grid restart.
+                open_gate = (
+                    now - self._startup_monotonic
+                ) >= _BLE_COLD_START_NO_CLOUD
+                reason = "no cloud — releasing BLE"
+            if open_gate:
+                self._ble_cold_start_gate_open = True
+                _LOGGER.info(
+                    "BLE cold-start gate open (%s) — proceeding with BLE connect",
+                    reason,
+                )
+            else:
+                _LOGGER.debug(
+                    "BLE deferred at cold start — letting cloud seed first "
+                    "(signalr_connected=%s, %.0fs since startup)",
+                    sr_connected,
+                    now - self._startup_monotonic,
+                )
+                return
         if self._ble_connecting:
             return
         if time.monotonic() < self._ble_next_attempt:
