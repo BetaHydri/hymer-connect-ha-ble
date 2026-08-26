@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.90.0b1] - 2026-08-26 (pre-release)
+
+### Fixed
+
+- **BETA — a stale BlueZ write/notify channel is now detected as a hard failure and surfaced, instead of silently degrading to MTU 23 and retrying identically forever (#24).** After an external BLE disconnect (a phone app claiming the SCU, an adapter reset, a BlueZ hiccup, or a deliberate `bluetoothctl disconnect`), the host's BlueZ daemon can keep a leaked `[org.bluez.Error.NotPermitted] Write acquired` acquisition. The link then reconnects onto that same stale channel: the MTU stays at the 23-byte default, the TLS handshake never completes, and every write fails — yet the connect “succeeded,” so the integration kept re-attempting an identical reconnect on the ~30 s watchdog indefinitely. The leaked file descriptors live in the `bluetoothd` daemon, so neither a Home Assistant restart nor a `bluetoothctl power off/on` releases them — only `systemctl restart bluetooth` or a host reboot does. This build: (1) treats “fresh GATT session still comes back with MTU 23 + `Write acquired`” as a **hard failure** and backs off on an escalating schedule (2—15 min) instead of hammering every 30 s; (2) makes the reassuring “MTU 23 is normal and does not affect functionality” log line **conditional** — it is suppressed when the low MTU was caused by a stale acquisition (the link is actually dead), and an honest warning with the `systemctl restart bluetooth` recovery hint is logged instead; and (3) adds a diagnostic **`binary_sensor` “BLE degraded”** (device class *problem*) that turns on while the write channel is stale, with the reason in its attributes, so the condition is visible without reading the debug log. The cloud/SignalR path is unaffected throughout, and a genuinely benign MTU-23 link (e.g. a BLE proxy that never grants a larger MTU) is unchanged — the new handling only triggers on an actual leaked acquisition. This is a **pre-release for testing on the affected setup**; it also contains everything from 2.89.0 (the #23 habitation-entity fix). Reproduce with `bluetoothctl disconnect <SCU>` and watch for the new “BLE degraded” sensor and warning; feedback welcome on #24. As always after updating, **restart** Home Assistant.
+
 ## [2.89.0] - 2026-08-26
 
 ### Fixed

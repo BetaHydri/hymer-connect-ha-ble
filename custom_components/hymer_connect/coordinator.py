@@ -128,6 +128,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
         self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
         self._signalr_last_growth_monotonic: float = 0.0  # #23 last time the merged set gained a new key
+        self._ble_write_degraded = False  # #24 True when BLE is up but the write/notify channel is a stale BlueZ acquisition
+        self._ble_degraded_reason: str | None = None  # #24 human-readable reason for the degraded state
         # Fuel consumption tracking — reference point for trip calculation
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
@@ -200,7 +202,20 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         )
 
-    def _ble_backoff_seconds(self, *, bonding_rejected: bool = False) -> int:
+    @property
+    def ble_write_degraded(self) -> bool:
+        """Return True when BLE is up but its write/notify channel is dead (#24).
+
+        Set when a stale BlueZ ``Write acquired`` acquisition survives a fresh
+        GATT session (MTU pinned at 23, writes/TLS fail). The cloud path keeps
+        working; recovery needs a host-side ``systemctl restart bluetooth`` or a
+        reboot. Exposed as a diagnostic binary_sensor.
+        """
+        return self._ble_write_degraded
+
+    def _ble_backoff_seconds(
+        self, *, bonding_rejected: bool = False, stale_channel: bool = False
+    ) -> int:
         """Return backoff delay in seconds based on consecutive BLE failures.
 
         Bonding rejections (AuthenticationFailed) mean CONNECTION hasn't been
@@ -211,6 +226,12 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Other failures: first 5 at normal poll interval (60s), then 5/10/15 min.
         """
         n = self._ble_consecutive_failures
+        if stale_channel:
+            # #24: a daemon-leaked BlueZ acquisition never clears by reconnecting
+            # — an identical retry every 30s is pointless. Escalate 2—15 min so we
+            # still catch a host-side recovery (systemctl restart bluetooth /
+            # reboot) without hammering the wedged adapter.
+            return min(15 * 60, 120 + 60 * min(max(n - 1, 0), 13))
         if bonding_rejected:
             # 2 min, 3 min, 5 min max
             return min(5 * 60, 120 + 60 * min(n - 1, 3))
@@ -522,9 +543,15 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("BLE scan failed", exc_info=True)
                 return False
 
-        try:
-            from .ble_client import ScuBleClient, BleTransportError
+        # Imported before the try so the except clauses below can reference
+        # BleStaleChannelError even if construction/connect raises.
+        from .ble_client import (
+            ScuBleClient,
+            BleTransportError,
+            BleStaleChannelError,
+        )
 
+        try:
             self._ble_client = ScuBleClient(
                 scu_address=ble_address,
                 on_pia_response=self._on_ble_pia_response,
@@ -579,6 +606,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._ble_pairing_in_progress = False
 
             self._ble_connected = True
+            self._ble_write_degraded = False  # #24: a healthy connect clears the degraded flag
+            self._ble_degraded_reason = None
             self._connection_mode = "dual" if (self._signalr and self._signalr.connected) else "ble"
             _LOGGER.info("BLE direct path established to SCU %s (mode=%s)", ble_address, self._connection_mode)
 
@@ -601,6 +630,30 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 name=f"hymer_connect_ble_listen_{self.ble_address or 'scu'}",
             )
             return True
+        except BleStaleChannelError as err:
+            # #24: link came up but the write/notify channel is a stale BlueZ
+            # acquisition a fresh GATT session did not clear. Surface it (diagnostic
+            # binary_sensor + honest log) and let the caller back off hard instead
+            # of hammering an identical reconnect every 30s. Cloud path unaffected.
+            self._ble_write_degraded = True
+            self._ble_degraded_reason = str(err)
+            _LOGGER.warning(
+                "BLE degraded — the write/notify channel is a stale BlueZ "
+                "acquisition that a fresh GATT session did not clear; writes and "
+                "TLS will fail on this link. Recover with 'systemctl restart "
+                "bluetooth' on the Home Assistant host (or a host reboot). BLE "
+                "will retry slowly; the cloud path keeps working. Detail: %s",
+                err,
+            )
+            if self._ble_client:
+                try:
+                    await self._ble_client.disconnect()
+                except Exception:
+                    pass
+            self._ble_client = None
+            self._ble_connected = False
+            self._connection_mode = "cloud"
+            return False
         except Exception as err:
             _LOGGER.warning("BLE connection failed, will use cloud: %s", err)
             # Disconnect the BLE client to release GATT resources (notifications, etc.)
@@ -1228,13 +1281,16 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     is_bonding = ble_result == "bonding_rejected"
                     self._ble_consecutive_failures += 1
                     backoff = self._ble_backoff_seconds(
-                        bonding_rejected=is_bonding
+                        bonding_rejected=is_bonding,
+                        stale_channel=self._ble_write_degraded,
                     )
                     self._ble_next_attempt = time.monotonic() + backoff
                     _LOGGER.info(
                         "BLE failed %d times — next attempt in %ds%s",
                         self._ble_consecutive_failures, backoff,
-                        " (bonding rejected)" if is_bonding else "",
+                        " (bonding rejected)" if is_bonding
+                        else " (write channel degraded)" if self._ble_write_degraded
+                        else "",
                     )
             except asyncio.TimeoutError:
                 self._ble_consecutive_failures += 1

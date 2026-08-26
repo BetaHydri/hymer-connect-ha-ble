@@ -703,6 +703,17 @@ class BleTransportError(RuntimeError):
     """Raised when the BLE transport encounters an error."""
 
 
+class BleStaleChannelError(BleTransportError):
+    """Raised when the write/notify channel is still a leaked BlueZ acquisition.
+
+    Signals #24: even after a fresh GATT session the link comes back with a stale
+    ``[org.bluez.Error.NotPermitted] Write acquired`` and MTU pinned at 23, so
+    every write/TLS will fail. The daemon-held file descriptors only release on a
+    ``systemctl restart bluetooth`` or a host reboot — retrying an identical
+    reconnect is pointless, so the caller must back off and surface the state.
+    """
+
+
 class TlsTransportError(RuntimeError):
     """Raised when the TLS layer over BLE fails."""
 
@@ -1331,11 +1342,13 @@ class ScuBleClient:
 
             mtu = max(mtu, getattr(client, "mtu_size", DEFAULT_GATT_MTU))
             self._write_chunk_size = max(20, min(242, mtu - 3))
-            if mtu <= DEFAULT_GATT_MTU:
-                # Not an error: MTU 23 is a fully-supported fallback. Writes
-                # switch to 20-byte Write-With-Response chunks, which are
-                # reliable (just slightly slower). Logged at INFO so it does
-                # not surface in HA's custom-integration error panel.
+            if mtu <= DEFAULT_GATT_MTU and not stale_acquire_seen:
+                # Genuinely benign MTU 23 (e.g. a BLE proxy that never grants a
+                # larger MTU): writes switch to 20-byte Write-With-Response
+                # chunks, reliable just slightly slower. Logged at INFO so it
+                # does not surface in HA's custom-integration error panel. This
+                # reassurance is deliberately NOT shown when a stale acquisition
+                # forced the low MTU (#24) — there the link is actually dead.
                 _LOGGER.info(
                     "BLE MTU stayed at the %d-byte default; writes will use "
                     "20-byte Write-With-Response chunks (reliable, slightly "
@@ -1480,6 +1493,25 @@ class ScuBleClient:
                 return
 
             raise
+
+        # #24: the fresh-session recovery above did not help — the link is up but
+        # the write/notify channel is still a leaked BlueZ acquisition (MTU stuck
+        # at 23 + "Write acquired"), so every write/TLS would fail. Report a hard
+        # failure instead of declaring a healthy connect and hammering an
+        # identical reconnect every 30 s; the caller backs off and surfaces it.
+        if stale_acquire_seen and mtu <= DEFAULT_GATT_MTU:
+            try:
+                await asyncio.wait_for(
+                    client.disconnect(), timeout=DEFAULT_DISCONNECT_TIMEOUT
+                )
+            except Exception:
+                pass
+            raise BleStaleChannelError(
+                "BLE write channel still stale after a fresh GATT session "
+                "(MTU 23, Write acquired) — the host BlueZ daemon is holding a "
+                "leaked acquisition; 'systemctl restart bluetooth' or a host "
+                "reboot is required to recover"
+            )
 
         self._client = client
         self._connected = True
