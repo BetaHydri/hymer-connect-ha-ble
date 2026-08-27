@@ -189,7 +189,8 @@ After setup, check these items:
 Start here:
 
 - **BLE setup & pairing problems (Path A / adding BLE later):** [`docs/ble-troubleshooting.md`](docs/ble-troubleshooting.md)
-- **Moved HA to a new host and BLE stopped?** Re-pair via **Reconfigure** — tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+) and keep the pre-filled token: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup)
+- **Moved HA to a new host and BLE stopped?** Re-pair via **Reconfigure** — tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+); you don't need to touch the token fields: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup)
+- **BLE bond broken but cloud still fine?** Use **Configure → Reset BLE pairing only** (v2.91.5+) — it clears just the Bluetooth bond and keeps your EHG token/cloud: [Reset or re-pair BLE — which do I need?](docs/ble-troubleshooting.md#reset-or-re-pair-ble--which-do-i-need)
 - **Other troubleshooting:** [`README.md`](README.md#troubleshooting)
 - **Dashboard setup:** [`dashboards/README.md`](dashboards/README.md)
 - **Sensor reference:** [`docs/sensor-map.md`](docs/sensor-map.md)

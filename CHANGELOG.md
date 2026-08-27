@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.5] - 2026-08-27
+
+### Fixed
+
+- **"Clear BLE bond" no longer wipes your cloud connection / EHG refresh token.** The option in Settings -> the integration -> Configure used to remove the BlueZ bond **and** delete the stored EHG refresh token and SCU address, to "trigger re-pairing". That meant anyone who obtained their EHG token another way (e.g. captured via mitmproxy) lost their working **cloud** connection the moment they tried to reset a broken **Bluetooth** bond, and had to re-pair from scratch (and if that failed, cloud stayed broken). The BLE OS-level bond and the cloud EHG token are independent layers - a fresh Bluetooth bond never needs a new token - so the option now resets **only** the operating-system Bluetooth pairing. The EHG refresh token and SCU address are kept, the cloud/SignalR path keeps working throughout, and the next BLE connection simply re-bonds (press CONNECTION at the vehicle) and reuses the existing token (no re-mint). To deliberately mint a brand-new token, the **"Re-pair over BLE"** checkbox in Reconfigure still does that (and keeps the old token if pairing fails).
+
+### Changed
+
+- **Clearer, unambiguous config-flow wording.** The option is renamed to **"Reset BLE pairing only (keeps cloud connection / EHG token)"** with a description spelling out that it only touches the Bluetooth bond, keeps the cloud token, and how to re-pair at the vehicle. The **OAuth client header** field description was corrected: it **always persists** (leaving it empty keeps the current value) and is only overwritten when you paste a new value - e.g. if EHG rotates the OAuth client credentials; the bundled legacy default is used only if none was ever set. The missing OAuth-header entry was also added to the Options screen for consistency.
+
 ## [2.91.4] - 2026-08-27
 
 ### Changed

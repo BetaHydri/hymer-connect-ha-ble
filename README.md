@@ -316,18 +316,18 @@ keeps working in 12V standby and fully offline).
 **Steps** (full detail: [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup))
 
 1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Reconfigure**.
-2. Paste the **QR activation token** and leave **SCU Bluetooth address** empty (auto-scan). Your **EHG Remote
-   Access Refresh Token** is **pre-filled** from the cloud-only setup — tick **Re-pair over BLE (mint a new EHG
-   token)** (v2.84.0+) to keep it in place and still force a fresh pairing (recommended), **or** clear the token
-   field so pairing is triggered (leaving a token without the checkbox **skips** pairing).
+2. Paste the **QR activation token** and leave **SCU Bluetooth address** empty (auto-scan). The **EHG Remote
+   Access Refresh Token** field is **empty by default (v2.91.3+)** and an empty field keeps your current token —
+   just tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+) to force a fresh pairing (you don't need to
+   touch the token field).
 3. **Press CONNECTION** on the SCU panel, then **submit the form within ~25 s** (the pairing window can be as
    short as ~30 s) and don't close the dialog.
 4. On **BLE Pairing Complete** the host is bonded and has stored its own token — sensors now stream over BLE.
 
 > **Moved HA to a new host and lost the BLE bond?** (e.g. you restored a backup onto a fresh Raspberry Pi — the
 > cloud keeps working but the OS-level Bluetooth bond does not survive.) In **Reconfigure**, tick **Re-pair over
-> BLE (mint a new EHG token)** (v2.84.0+) and **leave** the pre-filled EHG token in place — it is ignored and a
-> fresh one is minted on success (the old token stays intact if pairing fails). See
+> BLE (mint a new EHG token)** (v2.84.0+) — no need to touch the token fields — press **CONNECTION**; a fresh
+> token is minted on success (the old token stays intact if pairing fails). See
 > [Add BLE to an existing cloud-only setup](docs/ble-troubleshooting.md#add-ble-to-an-existing-cloud-only-setup).
 
 Writes go **BLE-first with automatic cloud fallback** by default (v2.67.0+); toggle it under **⚙️ Configure →
@@ -668,8 +668,8 @@ The SCU rejected the `PairMobileRequest` because a device name is already in its
 v2.40.0-alpha.2 the integration uses a unique device name (`ha-{timestamp}`) per attempt, which largely eliminates
 this. If it persists, the SCU's pairing slots may be full.
 
-**Fix:** 1) Restart the SCU (12V off → 30 s → on). 2) Clear the BlueZ bond (HA: Configure → check "Clear BLE bond",
-or SSH `bluetoothctl remove <SCU_MAC>`). 3) Delete + re-add the integration. 4) Press **CONNECTION**, then submit the
+**Fix:** 1) Restart the SCU (12V off → 30 s → on). 2) Reset the BlueZ bond (HA: Configure → check "Reset BLE pairing
+only", or SSH `bluetoothctl remove <SCU_MAC>`). 3) Delete + re-add the integration. 4) Press **CONNECTION**, then submit the
 config flow.
 
 > **Important:** The EHG app has no UI to manage individual paired BLE devices. "Disconnect vehicle" removes the
@@ -734,9 +734,10 @@ it manually: `bluetoothctl remove <SCU_MAC_ADDRESS>`.
 
 ### Re-pairing after deleting and re-adding
 
-1. HA: Configure → check **"Clear BLE bond"** → Save. 2) Delete the integration. 3) Optionally restart the SCU. 4)
-Press **CONNECTION**. 5) Add the integration fresh (QR token + BLE address + BLE enabled). You do **not** need to
-change anything in the EHG app.
+1. HA: Configure → check **"Reset BLE pairing only"** → Save. 2) Delete the integration. 3) Optionally restart the
+SCU. 4) Press **CONNECTION**. 5) Add the integration fresh (QR token + BLE address + BLE enabled). You do **not** need
+to change anything in the EHG app. *(To just re-enroll a new EHG token without deleting the integration, use
+**Reconfigure → Re-pair over BLE** instead.)*
 
 ## Known Limitations
 

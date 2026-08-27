@@ -71,7 +71,7 @@ they do **different jobs**. The short rule:
 | **Send commands over BLE when connected (recommended)** | **On by default (v2.67.0+).** When BLE is connected, write commands (lights, switches, heater, fridge, …) are tried over the local BLE link first and **fall back to the cloud automatically** if the SCU doesn't acknowledge. If BLE is not connected, everything goes via the cloud anyway. Requires *Enable BLE direct path* + a completed pairing to take effect. Fixed in **v2.66.0** (subscription path in **v2.66.2**), confirmed on a Grand Canyon S 600 (fw 1.13.0.0). Untick to **force cloud-only**. Since **v2.67.2** each successful BLE command logs one `INFO` line — `Command sent over BLE (…, status=1)` — visible in the normal log without debug enabled. |
 | **SCU Bluetooth address** | Optional. Pin the SCU MAC so the host skips the auto-scan. Leave empty to auto-discover. |
 | **OAuth Basic auth header** | The HTTP `Authorization: Basic <b64>` header that identifies the integration as the **official EHG mobile app** to the OAuth token endpoint — without it, cloud login (and therefore the whole integration) does **not** work. **You normally leave this empty:** the integration ships a working default harvested from the Android app (`OAUTH2_BASIC_AUTH_LEGACY_DEFAULT` in `const.py`). Only fill it in to **override** that built-in value, e.g. if EHG ever rotates the app's client credentials and the default stops authenticating. |
-| **Clear BLE bond (unpair from SCU)** | Removes the BlueZ bond **and** wipes the stored token + BLE address, so the next Reconfigure re-pairs cleanly. See [Clear a stale BLE bond](#clear-a-stale-ble-bond). |
+| **Reset BLE pairing only (keeps cloud connection / EHG token)** *(v2.91.5+)* | Resets **only** the operating-system Bluetooth bond (BlueZ). The stored **EHG refresh token and BLE address are kept**, so the cloud/SignalR path keeps working and the next BLE connect simply re-bonds (press **CONNECTION**) and reuses the existing token — **no QR code needed**. Use it to fix a broken/stale bond. (Before v2.91.5 this also wiped the token + address.) See [Reset or re-pair BLE — which do I need?](#reset-or-re-pair-ble--which-do-i-need). |
 
 > **Key point:** the *Enable BLE direct path* checkbox here is just a toggle. It
 > flips a flag in the entry options — it **cannot** create a bond. A fresh
@@ -84,20 +84,19 @@ they do **different jobs**. The short rule:
 | --- | --- |
 | **QR code activation token** | The dealer QR token from your handover paperwork. Entering it **triggers the BLE pairing** (bond + confirmation-token exchange + mint of the host's own refresh token) and auto-sets the BLE-enabled flag. This is the field that makes BLE actually happen. |
 | **SCU Bluetooth address** | Optional. Same meaning as above — pin the MAC or leave empty to auto-scan. Setting it also auto-enables BLE. |
-| **EHG Remote Access Refresh Token** | Paste an existing cloud token here to **skip pairing** (cloud-only path). Leave it **empty** to force a fresh BLE pairing. If you set up cloud-only earlier, this field is **pre-filled with your existing token** — either **clear it** to trigger pairing, or (v2.84.0+) leave it in place and tick **Re-pair over BLE** below. |
+| **EHG Remote Access Refresh Token** | **Empty by default (v2.91.3+)** — an empty field **keeps your current token**. Paste a token here only to set/replace it manually (cloud-only path). To re-pair over BLE you do **not** touch this field — just tick **Re-pair over BLE** below. (Older builds pre-filled this with your stored token, which was tedious to clear on a phone.) |
 | **OAuth Basic auth header** | Same as in Configure — the built-in EHG-app `Basic` credentials are used by default; only paste a value here to **override** them. Leave empty otherwise. |
-| **Re-pair over BLE (mint a new EHG token)** *(v2.84.0+)* | A checkbox that forces a fresh BLE bond **without clearing the pre-filled EHG token**. Tick it, leave the token field as-is, press **CONNECTION** on the SCU, and submit within ~25 s — the pre-filled token is **ignored** and a new one is minted on success. Requires a **QR activation token** (entered now or already stored). The old token is **kept and only overwritten on a successful pair**, so a failed attempt never breaks your existing cloud connection. Built for the **host-migration** case (restore an HA backup onto a new Raspberry Pi → the OS-level Bluetooth bond does not survive, so the BLE path stays down until you re-pair). |
+| **Re-pair over BLE (mint a new EHG token)** *(v2.84.0+)* | A checkbox that forces a fresh BLE bond **and mints a brand-new EHG token**. Tick it (no need to touch the token fields), press **CONNECTION** on the SCU, and submit within ~25 s — a new token is minted on success. Requires a **QR activation token** (entered now or already stored). The old token is **kept and only overwritten on a successful pair**, so a failed attempt never breaks your existing cloud connection. Use it for **host migration** (restore an HA backup onto a new Raspberry Pi → the OS-level bond does not survive) **or to start over after you tapped “Disconnect vehicle” in the EHG app** (which invalidates the old token — this re-enrolls a fresh one **without deleting the integration**). |
 
 ![Reconfigure HYMER Connect dialog showing the "Re-pair over BLE (mint a new EHG token)" checkbox at the bottom](../images/reconfigure.png)
 
 > **Rule of thumb:** if you want the host to bond to the SCU and read over BLE, use
-> **Reconfigure** with the **QR token** and leave the EHG token empty. Use
-> **⚙️ Configure** afterwards only to turn that read path off/on, pin the MAC, or
-> clear the bond.
+> **Reconfigure** with the **QR token**. Use **⚙️ Configure** afterwards only to turn
+> that read path off/on, pin the MAC, or reset the bond.
 >
-> **Moved HA to a new host and lost the bond?** You don't have to clear anything —
-> just tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+), leave the
-> pre-filled token in place, press **CONNECTION**, and submit within ~25 s. See
+> **Moved HA to a new host and lost the bond?** Just tick **Re-pair over BLE (mint a
+> new EHG token)** (v2.84.0+) — no need to touch the token fields — press
+> **CONNECTION**, and submit within ~25 s. See
 > [Add BLE to an existing cloud-only setup](#add-ble-to-an-existing-cloud-only-setup).
 
 ### How the two BLE options interact (and what pairing sets)
@@ -613,17 +612,39 @@ explicit integration reload triggered a BLE attempt. Since v2.76.7 an independen
 watchdog drives BLE (re)connect regardless of cloud activity, and toggling the
 option on kicks an immediate attempt — no reload needed.
 
-## Clear a stale BLE bond
+## Reset or re-pair BLE — which do I need?
 
-If a previous pairing left a stale bond or a token that blocks re-pairing:
+There are **three** independent operations. Picking the right one avoids breaking
+your working cloud connection.
 
-1. Go to **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Configure**.
-2. Enable **"Clear BLE bond (unpair from SCU)"** and submit.
+| Situation | Do this | QR token? | Touches EHG token? |
+| --- | --- | --- | --- |
+| **BLE bond is broken/stale** (connects then `failed to discover services`, or `Write/Notify acquired`), cloud still works and you have a valid EHG token | **⚙️ Configure → Reset BLE pairing only** (v2.91.5+), then re-bond at the vehicle (press **CONNECTION**) | **No** | **No** — kept |
+| **You need a brand-new EHG token** (moved HA to a new host, or you tapped *Disconnect vehicle* in the EHG app so the old token is dead) | **⋮ → Reconfigure → tick “Re-pair over BLE”**, press **CONNECTION**, submit within ~25 s | **Yes** (entered or stored) | **Yes** — re-minted (old kept if it fails) |
+| **Full clean slate** (start from zero) | Delete the integration and add it again | Yes | Yes |
 
-This removes the BlueZ bond via `Adapter1.RemoveDevice()` **and** wipes the stored
-EHG refresh token and BLE address, so the next Reconfigure triggers a clean
-pairing. Also do this after you delete the Home Assistant pairing from the EHG
-app's Bluetooth settings.
+**Why this is safe:** the **OS-level Bluetooth bond** and the **cloud EHG refresh
+token** are **independent layers**. A fresh bond never needs a new token, and a new
+token is only minted by the pairing ceremony (`PairMobileRequest`), which runs
+**only** when no token is stored or when you tick *Re-pair over BLE*. So *Reset BLE
+pairing only* keeps your cloud working, and **you do not need to delete the
+integration** to enroll a new token — *Re-pair over BLE* does that and preserves the
+old token if the new pairing fails.
+
+### How to reset only the BLE bond (v2.91.5+)
+
+1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Configure**.
+2. Tick **“Reset BLE pairing only (keeps cloud connection / EHG token)”** and submit.
+3. At the vehicle, wake the SCU (ignition on for Mercedes-based models) and press
+   **CONNECTION** when BLE reconnects — the host re-bonds and reuses your existing
+   token. Nothing to re-enter, **no QR code**.
+
+### How to enroll a fresh EHG token (no delete needed)
+
+1. **⋮ → Reconfigure**, tick **Re-pair over BLE (mint a new EHG token)**.
+2. Make sure a **QR activation token** is present (entered or already stored).
+3. Press **CONNECTION** on the SCU, submit within ~25 s. On success a new token is
+   minted; on failure the old one is kept.
 
 ## See also
 

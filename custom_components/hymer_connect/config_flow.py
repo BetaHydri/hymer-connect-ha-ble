@@ -675,7 +675,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
                 # Strip from user_input so it does not pollute entry.options.
                 user_input.pop(CONF_OAUTH_BASIC_AUTH, None)
 
-                # Handle "Clear BLE Bond" checkbox
+                # Handle "Reset BLE pairing" checkbox — clears ONLY the OS-level
+                # BlueZ bond. The EHG refresh token and SCU address are KEPT so the
+                # cloud/SignalR path is never broken; the next BLE connect re-bonds
+                # (CONNECTION press) and reuses the existing token (no re-mint).
                 if user_input.pop("clear_ble_bond", False):
                     from .ble_client import async_clear_bluez_bond
                     ble_address = (
@@ -685,20 +688,14 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     if ble_address:
                         removed = await async_clear_bluez_bond(ble_address)
                         _LOGGER.info(
-                            "Clear BLE bond for %s: %s",
+                            "Reset BLE bond for %s: %s (EHG token + address kept — cloud unaffected)",
                             ble_address,
                             "success" if removed else "not found",
                         )
-                    # Also clear the stored EHG refresh token and BLE address
-                    # so re-pairing is triggered on next reload
-                    self.hass.config_entries.async_update_entry(
-                        self._config_entry,
-                        data={
-                            **self._config_entry.data,
-                            CONF_EHG_REFRESH_TOKEN: "",
-                            CONF_BLE_ADDRESS: "",
-                        },
-                    )
+                    else:
+                        _LOGGER.warning(
+                            "Reset BLE bond requested but no SCU address is stored"
+                        )
                 return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(
