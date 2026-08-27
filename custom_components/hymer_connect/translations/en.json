@@ -98,6 +98,14 @@
       "vehicle_vin": {
         "name": "VIN"
       },
+      "connection_mode": {
+        "name": "Connection mode",
+        "state": {
+          "ble": "BLE (local)",
+          "cloud": "Cloud",
+          "dual": "BLE + Cloud"
+        }
+      },
       "odometer": {
         "name": "Odometer"
       },

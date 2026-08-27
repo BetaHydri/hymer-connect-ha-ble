@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.93.0] - 2026-08-27
+
+### Added
+
+- **New "Connection mode" sensor showing at a glance which transport is live — BLE (local), Cloud, or BLE + Cloud (dual).** On a Home Assistant host with Bluetooth in the vehicle the integration runs a local BLE direct path and the cloud/SignalR path together; until now there was no first-class way to see which one was actually carrying the live SCU data. The new `sensor.*_connection_mode` (device class *enum*, states `BLE (local)` / `Cloud` / `BLE + Cloud`, with a matching icon) reads the coordinator's connection state directly, so a dashboard tile shows in one glance whether the fast local link is up. It is a **shipped entity**, so unlike a locally patched sensor it survives every HACS update. Cloud-only setups simply show `Cloud`.
+
 ## [2.92.0] - 2026-08-27
 
 ### Fixed

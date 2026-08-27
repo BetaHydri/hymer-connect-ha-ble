@@ -217,6 +217,10 @@ async def async_setup_entry(
         for desc in all_descriptions
     )
 
+    # Connection-mode status tile (BLE / cloud / dual) — reads coordinator
+    # state directly, so it is a shipped entity rather than a JSON slot.
+    async_add_entities([HymerConnectionModeSensor(coordinator, entry)])
+
     created_named: set[str] = {desc.key for desc in all_descriptions}
     discovered: set[str] = set()
 
@@ -405,3 +409,51 @@ class HymerDiscoveredSensor(
         if isinstance(value, (bytes, bytearray)):
             return value.hex()
         return value
+
+
+class HymerConnectionModeSensor(
+    CoordinatorEntity[HymerConnectCoordinator], SensorEntity
+):
+    """Status tile showing which transport currently carries SCU data.
+
+    Reads ``coordinator.connection_mode`` (``ble`` / ``cloud`` / ``dual``) so a
+    dashboard tile shows at a glance whether the live local BLE path is up, the
+    cloud is carrying data, or both. Shipped as a first-class entity so it
+    survives HACS updates (a locally patched sensor would be overwritten).
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "connection_mode"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["ble", "cloud", "dual"]
+
+    _MODE_ICONS = {
+        "ble": "mdi:bluetooth",
+        "cloud": "mdi:cloud-outline",
+        "dual": "mdi:transit-connection-variant",
+    }
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_connection_mode"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        mode = self.coordinator.connection_mode
+        return mode if mode in self._attr_options else None
+
+    @property
+    def icon(self) -> str:
+        return self._MODE_ICONS.get(
+            self.coordinator.connection_mode, "mdi:help-network-outline"
+        )
