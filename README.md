@@ -97,7 +97,7 @@ flowchart LR
   on by default) — faster and works without internet. If BLE is not connected or a command is not acknowledged, it
   falls back to the cloud / SignalR path automatically (see the note below).
 - **Seamless failover & offline operation.** Both paths run concurrently. Drive out of range → cloud continues;
-  park back → BLE reconnects. After the one-time online setup, the BLE read path also works fully offline.
+  park back → BLE reconnects. After the one-time online setup, the BLE read/write path also works fully offline.
 
 | | BLE Direct | Cloud / SignalR |
 |---|---|---|
@@ -240,7 +240,7 @@ New to Home Assistant or to this integration? Follow these four steps — the wh
 | **An EHG / HYMER Connect account** | Username + password authenticate the cloud connection | Create it in the official **HYMER Connect** mobile app (App Store / Play Store) and confirm the vehicle already shows up there |
 | **Your dealer QR activation token** | One-time proof of physical access, needed to obtain the long-lived refresh token | From your **dealer handover paperwork** (a paper document — *not* the QR sticker on the vehicle). See the [token note](#setup) |
 | **Physical access to the vehicle** *(one-time)* | You press **CONNECTION** on the SCU panel to pair | Only needed once, during initial setup |
-| **A Bluetooth adapter on your HA host** *(optional)* | Enables the fast local BLE read path | Any HA-supported BLE adapter. No BLE? A **cloud-only** setup works too (paths B–D) |
+| **A Bluetooth adapter on your HA host** *(optional)* | Enables the fast local BLE read/write path | Any HA-supported BLE adapter. No BLE? A **cloud-only** setup works too (paths B–D) |
 
 ## Installation
 
