@@ -140,9 +140,21 @@ fallback — no extra checkbox flip needed.
 
 The BLE dual-path has so far been confirmed working on **Raspberry Pi 4** hosts
 (by the maintainer and a handful of users), using the Pi's **built-in Bluetooth
-adapter** — no external USB BLE dongle needed. Other BLE-capable HA hosts
-(BlueZ-based) should work but are **unverified**; if you get BLE running on
-different hardware, a short report is very welcome.
+adapter** — no external USB BLE dongle needed.
+
+It is also confirmed working on a **virtualised Home Assistant OS VM under
+Proxmox with a USB-passthrough Bluetooth adapter** — but **only after host-side
+accommodation**. On a Proxmox host the host's own `bluetoothd`/`btusb` will fight
+the guest over the passed-through radio, causing BLE to drop or wedge (stale
+`Write acquired` channel, MTU stuck at 23, TLS timeouts). To make it stable the
+host must be stopped from claiming the adapter: **blacklist `btusb`
+(and `btintel` on Intel radios) on the Proxmox host**, `update-initramfs -u`,
+reboot, then map the USB device to the VM. See the *Virtualised hosts* note under
+the proxy section below and
+[home-assistant/core#132480](https://github.com/home-assistant/core/issues/132480).
+
+Other BlueZ-based HA hosts should also work but may need similar host-level
+tuning; a short report on different hardware is very welcome.
 
 ### ESP32 / ESPHome Bluetooth proxies do **not** work for the SCU
 
