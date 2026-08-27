@@ -453,10 +453,14 @@ case after a hiccup (e.g. a one-off `TLS handshake failed`) is a reconnect withi
 a **few minutes** — all automatic. If instead you see BLE go down and **stay down**
 until you reboot the host, work through the host-side checklist:
 
-- **Prefer an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html)**
-  placed near the SCU over a USB dongle passed into a VM. It sidesteps USB
-  passthrough and BlueZ-in-a-VM instability entirely and is the most robust option
-  for an in-vehicle host.
+- **Do *not* reach for an ESPHome Bluetooth proxy to fix this** — it **cannot**
+  drive the SCU BLE path (no OS-level JustWorks bonding; see
+  [ESP32 / ESPHome Bluetooth proxies do not work for the SCU](#esp32--esphome-bluetooth-proxies-do-not-work-for-the-scu)).
+  The SCU needs a **real local BlueZ adapter** on the HA host. If you run HA in a
+  VM (Proxmox/HAOS VM) with a passed-through USB dongle, the robust fix is to stop
+  the host fighting the guest for it — **blacklist `btusb`/`btintel` on the host**,
+  reboot, then map the USB device to the VM — or run HA on hardware without that
+  contention (e.g. a bare-metal Raspberry Pi 4 with its built-in radio).
 - **Set the adapter to *active* scanning** (not passive-only). A passive-only
   scanner may fail to re-discover the SCU after a drop; HA logs this as
   `Scanner hciX … is in passive-only mode but active scans have been requested`.
