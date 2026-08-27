@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.93.1] - 2026-08-27
+
+### Fixed
+
+- **A BLE TLS handshake that fails while *parsing the SCU's reply* (e.g. an `ASN1 lib` error) now gets the same one-shot wake-and-retry as a timed-out handshake, instead of falling straight through to backoff.** The handshake recovery in `establish_tls()` only caught the *timeout* case (`BleTransportError` — the SCU accepted the GATT link while its TLS stack was still asleep and silently dropped our ClientHello). But when the SCU actually *replies* and the reply cannot be completed — for example the transient `TLS handshake failed: [SSL] ASN1 lib (_ssl.c:1082)` seen once on-vehicle right after a restart — a separate `TlsTransportError` was raised that the retry did not catch, so BLE went straight to its escalating backoff (up to 15 min) with no second attempt. Both first-attempt failures now trigger exactly one wake nudge + a fresh handshake, which recovers a transient desync without waiting for the next backoff window. A leaked-channel `BleStaleChannelError` (#24) is explicitly *not* retried (it needs the backoff, not another identical attempt), and there is still only ever one retry — no new traffic on the healthy path. The post-retry warning now names both shapes (no reply vs. an unparseable/rejected reply) so the case stays diagnosable. Reported by a HYMER Proxmox user (Jos).
+
 ## [2.93.0] - 2026-08-27
 
 ### Added

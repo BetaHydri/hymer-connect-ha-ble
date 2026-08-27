@@ -1604,36 +1604,58 @@ class ScuBleClient:
     async def establish_tls(self) -> None:
         """Perform TLS handshake over the BLE GATT NUS channel.
 
-        A healthy SCU responds to the ClientHello immediately. If the handshake
-        stalls (``Timed out waiting for SCU BLE data``) the SCU likely accepted
-        the GATT connection while its NUS/TLS stack was still asleep, so we send
-        the EHG ``wakeScuUp`` nudge and retry the handshake once. The wake is
-        never sent on the common (already-awake) path.
+        A healthy SCU responds to the ClientHello immediately. If the first
+        attempt fails, we send the EHG ``wakeScuUp`` nudge and retry the
+        handshake ONCE with a fresh TLS session. Two distinct first-attempt
+        failures both warrant that single retry:
+
+        - ``BleTransportError`` (``Timed out waiting for SCU BLE data``): the SCU
+          accepted the GATT connection while its NUS/TLS stack was still asleep,
+          so the ClientHello was silently dropped.
+        - ``TlsTransportError`` (e.g. ``ASN1 lib`` on the SCU's reply): the SCU
+          DID answer but the handshake could not be parsed/completed on this
+          session. A fresh handshake after the wake nudge recovers a transient
+          desync (observed on-vehicle after a restart). Previously only the
+          timeout case was retried, so an ASN1-class failure fell straight
+          through to backoff without a second chance.
+
+        A ``BleStaleChannelError`` (#24, leaked BlueZ acquisition) is never
+        retried here — it needs the caller's escalating backoff, not another
+        identical attempt. The wake is never sent on the common already-awake
+        path (the first attempt simply succeeds).
         """
         if not self._connected:
             raise BleTransportError("Not connected to SCU")
 
         try:
             await self._run_tls_handshake()
-        except BleTransportError as err:
+        except BleStaleChannelError:
+            # Leaked BlueZ write/notify channel — a retry cannot help; let the
+            # caller back off (only systemctl restart bluetooth / reboot clears).
+            raise
+        except (BleTransportError, TlsTransportError) as err:
             _LOGGER.debug(
-                "BLE TLS handshake stalled (%s) — waking SCU and retrying once",
+                "BLE TLS handshake failed (%s) — waking SCU and retrying once",
                 err,
             )
             await self._wake_scu()
             try:
                 await self._run_tls_handshake()
-            except BleTransportError as err2:
-                # Both attempts (incl. the wake nudge) failed with no TLS reply.
-                # Most often deep standby, but it is ALSO how a firmware that
-                # dropped legacy TLS looks (ClientHello silently discarded, no
-                # alert). Name both causes so the case is diagnosable.
+            except BleStaleChannelError:
+                raise
+            except (BleTransportError, TlsTransportError) as err2:
+                # Both attempts (incl. the wake nudge) failed. Two shapes:
+                # no TLS reply (deep standby, or a firmware that dropped legacy
+                # TLS silently discards the ClientHello) OR a reply we cannot
+                # parse/complete (e.g. an ASN1 error, or a version/cipher
+                # rejection). Name the causes so the case stays diagnosable.
                 _LOGGER.warning(
                     "BLE TLS handshake still failing after wake retry (%s). Likely "
-                    "the SCU is in deep standby, OR its firmware no longer answers "
-                    "our TLS ClientHello. Our client offers TLS %s-%s (legacy ciphers "
-                    "%s); if a firmware update now requires TLS 1.2/1.3 this is "
-                    "expected until APP_TLS_MAX_VERSION is raised in ble_client.py.",
+                    "the SCU is in deep standby / does not answer our ClientHello, "
+                    "OR it replied with a handshake our client could not complete. "
+                    "Our client offers TLS %s-%s (legacy ciphers %s); if a firmware "
+                    "update now requires TLS 1.2/1.3 this is expected until "
+                    "APP_TLS_MAX_VERSION is raised in ble_client.py.",
                     err2,
                     APP_TLS_MIN_VERSION.name,
                     APP_TLS_MAX_VERSION.name,
