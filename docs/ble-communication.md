@@ -16,7 +16,7 @@ Technical documentation for the HYMER Connect SCU BLE communication layer.
 ┌─────────────┐     BLE GATT (NUS)       ┌─────────────┐
 │  RPi4 / HA  │◄────────────────────────►│     SCU     │
 │  (bleak)    │   TLS 1.1 over NUS       │ (firmware   │
-│             │   PIA Protobuf           │  1.13.0.0)  │
+│             │   PIA Protobuf           │  1.12.0.0)  │
 └─────────────┘                          └─────────────┘
       │                                        │
       │  Cloud (SignalR/HTTPS)                 │  LTE
@@ -312,7 +312,7 @@ for the OAuth2 handshake and `confirmationToken` API call during BLE pairing.
 ### Write Commands — historical (removed v2.62.24, restored v2.66.0/v2.67.0)
 
 **Current behavior:** BLE writes are **on by default since v2.67.0** (BLE-first with
-automatic cloud fallback), confirmed on a Grand Canyon S 600 (fw 1.13.0.0). The
+automatic cloud fallback), confirmed on a Grand Canyon S 600 (fw 1.12.0.0). The
 v2.62.24 "SCU silently drops BLE writes" verdict was a **client-side field-2 vs
 field-1 `BleProtocol` envelope bug** (found by Dan Simms), not a firmware limit —
 fixed in v2.66.0. Everything below is kept for archival reference only; expand it
@@ -363,8 +363,8 @@ itself never reached the SCU's command handler.
 > discarded it without an ACK. Root cause found by **Dan Simms**. The BLE write
 > path was re-enabled in v2.66.0 (field-1 rewrap + write-with-response +
 > request_id ACK) and **confirmed working on a Grand Canyon S 600 (SCU fw
-> 1.13.0.0)** — the same vehicle whose 1.12.0.0 firmware the text below calls
-> impossible. Because the root cause was our field-2 envelope (not the
+> 1.12.0.0)** — the very firmware the text below calls impossible. Because the
+> root cause was our field-2 envelope (not the
 > firmware), the write path works regardless of firmware version. As of
 > v2.67.0 it is on by default with automatic cloud fallback. The
 > "0/5 writes" test below failed because those builds were still emitting the
@@ -422,7 +422,7 @@ tag with the full BLE write code path was **`v2.62.23`** (commit `e0c0477`).
 | v2.62.25 | 2026-05-21 | Removed deprecated BLE-write constants from `const.py`; cosmetic log cleanup. |
 | v2.66.0  | 2026-08-22 | **BLE write path restored** behind an opt-in option. Root cause was the field-2 (cloud) vs field-1 (BLE) `BleProtocol` envelope — writes now rewrap to `BleProtocol.request` + write-with-response, judged on a real `request_id` ACK. Credit: Dan Simms. |
 | v2.66.2  | 2026-08-22 | Same field-1 rewrap applied to the BLE subscription/refresh path. |
-| v2.67.0  | 2026-08-23 | BLE write path **confirmed on a Grand Canyon S 600 (fw 1.13.0.0)** and turned **on by default** (opt-out), with automatic cloud fallback. |
+| v2.67.0  | 2026-08-23 | BLE write path **confirmed on a Grand Canyon S 600 (fw 1.12.0.0)** and turned **on by default** (opt-out), with automatic cloud fallback. |
 
 Configurable BLE write options that existed in v2.62.18 → v2.62.23:
 

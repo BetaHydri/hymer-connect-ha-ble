@@ -117,7 +117,7 @@ flowchart LR
 > cloud as before. You can force cloud-only via *Settings → Devices & Services → HYMER Connect BLE → **Configure** →
 > untick "Send commands over BLE when connected"*.
 >
-> ✅ **Confirmed on a Grand Canyon S 600 (SCU firmware 1.13.0.0)** — every write returned a real `status=1` ACK over
+> ✅ **Confirmed on a Grand Canyon S 600 (SCU firmware 1.12.0.0)** — every write returned a real `status=1` ACK over
 > BLE, and the automatic cloud fallback was observed working. A fully cloud-isolated (LTE-off) confirmation is still
 > pending, but because BLE writes only fire when BLE is connected and un-ACKed writes fall back to the cloud, the
 > worst case is identical to cloud-only. Deep dive: [`docs/ble-communication.md`](docs/ble-communication.md).
@@ -457,7 +457,7 @@ graph TB
     end
 
     subgraph "SCU — Smart Control Unit"
-        SCU["SCU / SIU<br/>Bus 45 · FW 1.13.0.0<br/>LTE modem + BLE + GPS"]
+        SCU["SCU / SIU<br/>Bus 45 · FW 1.12.0.0<br/>LTE modem + BLE + GPS"]
     end
 
     subgraph "CAN Bus"
@@ -761,7 +761,7 @@ to change anything in the EHG app. *(To just re-enroll a new EHG token without d
 | **Victron MultiPlus (bus 121) non-functional** | VE.Bus (RS-485) is incompatible with the vehicle CAN bus | Use a Victron Cerbo GX / VenusOS to monitor separately |
 | **12V OFF → no passive sensor updates via cloud** | SCU standby stops pushing doors/temps/water (commands still work) | Use the BLE path (works in standby) or keep 12V on |
 | **MTU stays at 23 on some HAOS setups** | BlueZ may not expose the D-Bus MTU property; writes are paced to compensate | No action needed — pacing handles it (slightly slower TLS handshake) |
-| **TLS 1.0/1.1 only** | SCU firmware 1.13.0.0 only supports legacy TLS (`AES128-SHA`/`AES256-SHA`) | No action needed — the integration lowers the OpenSSL security level automatically |
+| **TLS 1.0/1.1 only** | SCU firmware 1.12.0.0 only supports legacy TLS (`AES128-SHA`/`AES256-SHA`) | No action needed — the integration lowers the OpenSSL security level automatically |
 | **No iOS token capture** | mitmproxy capture and the extractor APK are Android-only | Use BLE pairing (Path A), or borrow an Android device for the one-time capture |
 | **Brand sensor maps may be incomplete** | Mappings are based on the Grand Canyon S 600/S 700 | Use Dynamic Slot Discovery and contribute findings — [contributing-overlays.md](docs/contributing-overlays.md) |
 

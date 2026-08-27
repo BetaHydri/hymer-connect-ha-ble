@@ -542,7 +542,7 @@ All new entities are read-only and metadata-derived (decompiled EHG app + `tools
 
 ## [2.67.0] - 2026-08-23
 
-> ✅ **BLE write path verified on-vehicle and now ON by default.** The v2.66.0 write path and v2.66.2 subscription path were confirmed working on a **Grand Canyon S 600 (SCU firmware 1.13.0.0)** — every `setValues` write returned a real `BLE setValues ACK … status=1`, and the automatic cloud fallback was also observed working when the BLE TLS session dropped. The option is now **on by default** (opt-out). A fully cloud-isolated (LTE-off) confirmation is still pending, but because BLE writes only fire when BLE is connected and any un-ACKed write falls back to the cloud, the worst case remains identical to cloud-only.
+> ✅ **BLE write path verified on-vehicle and now ON by default.** The v2.66.0 write path and v2.66.2 subscription path were confirmed working on a **Grand Canyon S 600 (SCU firmware 1.12.0.0)** — every `setValues` write returned a real `BLE setValues ACK … status=1`, and the automatic cloud fallback was also observed working when the BLE TLS session dropped. The option is now **on by default** (opt-out). A fully cloud-isolated (LTE-off) confirmation is still pending, but because BLE writes only fire when BLE is connected and any un-ACKed write falls back to the cloud, the worst case remains identical to cloud-only.
 
 ### Changed
 
@@ -551,7 +551,7 @@ All new entities are read-only and metadata-derived (decompiled EHG app + `tools
 
 ### Verified
 
-- On-vehicle confirmation: Grand Canyon S 600, SCU fw 1.13.0.0 — 11/11 BLE writes acknowledged with `status=1`, physical actuation confirmed, and BLE→cloud fallback observed after a mid-session TLS drop.
+- On-vehicle confirmation: Grand Canyon S 600, SCU fw 1.12.0.0 — 11/11 BLE writes acknowledged with `status=1`, physical actuation confirmed, and BLE→cloud fallback observed after a mid-session TLS drop.
 
 ### Credit
 
