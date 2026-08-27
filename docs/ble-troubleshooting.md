@@ -631,17 +631,40 @@ pairing only* keeps your cloud working, and **you do not need to delete the
 integration** to enroll a new token — *Re-pair over BLE* does that and preserves the
 old token if the new pairing fails.
 
+> **The one-line rule:** **Reset BLE pairing only** (Configure) = re-bond and **KEEP**
+> your existing token — **no QR, no Reconfigure**. **Re-pair over BLE** (Reconfigure)
+> = re-bond **and mint a NEW** token — needs a QR. **Never use Reconfigure if your
+> goal is to keep the token** (it always mints a new one).
+
 ### How to reset only the BLE bond (v2.91.5+)
+
+> **This re-bonds and KEEPS your existing EHG token. You do NOT need Reconfigure,
+> and NO new token is minted.** The coordinator re-bonds on its own and reuses the
+> stored token — the pairing ceremony (`PairMobileRequest`, which mints a token) is
+> **skipped** because a token already exists.
 
 1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Configure**.
 2. Tick **“Reset BLE pairing only (keeps cloud connection / EHG token)”** and submit.
    You do **not** need to touch the two BLE checkboxes above — the reset **re-enables
    BLE read + write automatically** (v2.91.6+). (They stay available to temporarily
    disable read/write later without deleting the bond.)
-3. At the vehicle, wake the SCU (ignition on for Mercedes-based models) and press
-   **CONNECTION** when BLE reconnects — the host re-bonds and reuses your existing
-   token. Nothing to re-enter, **no QR code**. If the SCU address was empty it is
-   **auto-discovered and stored** on this connection.
+3. **Force an immediate re-bond attempt so it lines up with your button press:**
+   **reload the integration** (⋮ → *Reload*) or restart Home Assistant. This is
+   recommended because the background reconnect watchdog is **not tightly
+   synchronised** with your press — after a few failed attempts it backs off to
+   several minutes, so a manual reload puts a fresh attempt right where you need it.
+4. At the vehicle, wake the SCU (ignition on for Mercedes-based models) and press
+   **CONNECTION** on the SCU. The host re-bonds (JustWorks) and **reuses your stored
+   EHG token** — the read + write BLE direct path comes back up. **No QR code, no
+   Reconfigure, no new token.** If the SCU address was empty it is auto-discovered
+   and stored on this connection.
+
+> **⚠️ Do NOT use Reconfigure if you want to keep your token.** The Reconfigure
+> pairing path (**Re-pair over BLE**) **always mints a brand-new EHG token** via
+> `PairMobileRequest` — it cannot “just re-bond and keep the old token”. Use
+> Reconfigure **only** when you actually need a new token (moved HA to a new host,
+> or you tapped *Disconnect vehicle* in the EHG app). For a plain re-bond that keeps
+> your token, use **Reset BLE pairing only** above.
 
 ### How to enroll a fresh EHG token (no delete needed)
 
