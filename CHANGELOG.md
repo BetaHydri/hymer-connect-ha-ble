@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.11] - 2026-08-27
+
+### Fixed
+
+- **A light could get stuck showing the wrong on/off state after a command that did not take effect.** When you toggle a light, the entity shows the commanded state immediately (optimistic) and then clears that once the SCU confirms it. But the confirmation only cleared the optimistic value when the SCU reported the **commanded** state — so if the command never actually took effect (for example a BLE write failed, fell back to cloud, and that command was dropped), the SCU kept reporting the **old** state and the entity stayed stuck on the wrong optimistic value indefinitely (observed across two HA instances sharing one vehicle: the BLE instance showed "off" while the cloud instance and the official app both correctly showed "on"). The optimistic light state now self-heals: if it is not confirmed within ~20 s, it is dropped and the real SCU readback wins. The normal case (command takes effect) still clears instantly on the confirming frame. The water-pump switch already had an equivalent self-heal via its active verification task and is unaffected.
+
+### Added
+
+- **Lights now re-send a command once if the SCU never confirms it.** Previously only the water-pump switch verified its commands; lights fired once and relied on the readback. With BLE writing enabled a command can be dropped (a failed BLE write falls back to cloud, and that cloud command is occasionally not applied), leaving the light in the wrong state. Each light command is now verified: if the SCU has not confirmed the commanded on/off state after ~8 s, the command is re-sent once (the coordinator escalates BLE→cloud automatically). The retry is skipped when it could not be confirmed anyway — 12V off / data silence or a frozen SCU — and a newer command cancels a pending verification. This edge only surfaced once BLE gained write support; cloud-only setups never hit it because command and readback shared one reliable channel.
+
 ## [2.91.10] - 2026-08-27
 
 ### Fixed

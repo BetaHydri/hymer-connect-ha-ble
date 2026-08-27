@@ -9,7 +9,9 @@ sid 3 = color_temp (uint 0-100%).
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -28,6 +30,19 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+
+# An optimistic value is normally cleared the moment the SCU confirms the
+# commanded state. If the command never takes effect (e.g. a BLE write failed,
+# fell back to cloud, and that command was dropped), the SCU keeps reporting the
+# OLD state, so a "confirm-only" clear would leave the entity stuck on the wrong
+# optimistic value forever. After this TTL we drop the unconfirmed optimistic
+# value and let the real SCU readback win.
+OPTIMISTIC_STATE_TTL = 20.0
+
+# After sending a light command, wait this long for a confirming SCU readback
+# before re-sending it once. A dropped command (failed BLE write that fell back
+# to cloud but was not applied) is otherwise only corrected visually by the TTL.
+LIGHT_VERIFY_DELAY = 8.0
 from .sensor import _resolve_path
 from .signalr_client import STALE_DATA_TIMEOUT  # noqa: F401  (kept for compat)
 
@@ -181,6 +196,8 @@ class HymerConnectLight(
         self._optimistic_on: bool | None = None
         self._optimistic_brightness: int | None = None
         self._optimistic_color_temp: int | None = None
+        self._optimistic_set_at: float = 0.0
+        self._verify_task: asyncio.Task | None = None
 
     @property
     def available(self) -> bool:
@@ -251,6 +268,7 @@ class HymerConnectLight(
         bus = self.entity_description.bus_id
         await self.coordinator.async_send_light_command(bus, 1, bool_value=True)
         self._optimistic_on = True
+        self._optimistic_set_at = time.monotonic()
         if ATTR_BRIGHTNESS in kwargs and self.entity_description.brightness_path:
             pct = min(100, max(0, int(kwargs[ATTR_BRIGHTNESS] * 100 / 255)))
             await self.coordinator.async_send_light_command(bus, 2, uint_value=pct)
@@ -261,15 +279,90 @@ class HymerConnectLight(
             await self.coordinator.async_send_light_command(bus, 3, uint_value=pct)
             self._optimistic_color_temp = kelvin
         self.async_write_ha_state()
+        self._schedule_verify(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         bus = self.entity_description.bus_id
         await self.coordinator.async_send_light_command(bus, 1, bool_value=False)
         self._optimistic_on = False
+        self._optimistic_set_at = time.monotonic()
         self.async_write_ha_state()
+        self._schedule_verify(False)
+
+    def _schedule_verify(self, expected_on: bool) -> None:
+        """(Re)start the verify-and-retry watchdog for the last command."""
+        if self._verify_task and not self._verify_task.done():
+            self._verify_task.cancel()
+        self._verify_task = asyncio.ensure_future(
+            self._verify_and_retry_light(expected_on)
+        )
+
+    def _real_on(self) -> bool | None:
+        """Return the SCU on/off readback, bypassing the optimistic value."""
+        if self.coordinator.data is None:
+            return None
+        val = _resolve_path(
+            self.coordinator.data, self.entity_description.on_off_path
+        )
+        return None if val is None else bool(val)
+
+    async def _verify_and_retry_light(self, expected_on: bool) -> None:
+        """Re-send the command once if the SCU never confirms the new state.
+
+        A dropped command (e.g. a BLE write that failed, fell back to cloud, and
+        was not applied) would otherwise leave the light on the wrong state until
+        the optimistic TTL expires. Skip retrying when the SCU cannot confirm
+        anyway (12V off / data silent) or is frozen.
+        """
+        try:
+            await asyncio.sleep(LIGHT_VERIFY_DELAY)
+            if self._optimistic_on != expected_on:
+                return  # superseded by a newer command
+            if self._real_on() == expected_on:
+                return  # confirmed by a real readback
+            if (
+                self.coordinator.data_silence_seconds
+                > self.coordinator.unavailable_silence_threshold
+                or self.coordinator.scu_frozen
+            ):
+                return  # 12V off or hung SCU — a retry could not be confirmed
+            _LOGGER.info(
+                "Light %s: %s not confirmed after %.0fs — re-sending once",
+                self.entity_description.key,
+                "ON" if expected_on else "OFF",
+                LIGHT_VERIFY_DELAY,
+            )
+            await self.coordinator.async_send_light_command(
+                self.entity_description.bus_id, 1, bool_value=expected_on
+            )
+            self._optimistic_set_at = time.monotonic()  # restart self-heal TTL
+            await asyncio.sleep(LIGHT_VERIFY_DELAY)
+            if self._optimistic_on == expected_on and self._real_on() != expected_on:
+                _LOGGER.info(
+                    "Light %s: still unconfirmed after retry — leaving the real "
+                    "SCU state to win",
+                    self.entity_description.key,
+                )
+        except asyncio.CancelledError:
+            pass
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._verify_task and not self._verify_task.done():
+            self._verify_task.cancel()
+        await super().async_will_remove_from_hass()
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state only when SCU confirms the commanded value."""
+        """Clear optimistic state once the SCU confirms it or the TTL expires."""
+        # Self-heal: drop an unconfirmed optimistic value after the TTL so a
+        # command that never took effect can't leave the entity stuck on a wrong
+        # state; the real SCU readback then wins.
+        if (
+            self._optimistic_set_at > 0
+            and time.monotonic() - self._optimistic_set_at > OPTIMISTIC_STATE_TTL
+        ):
+            self._optimistic_on = None
+            self._optimistic_brightness = None
+            self._optimistic_color_temp = None
         if self._optimistic_on is not None and self.coordinator.data:
             val = _resolve_path(
                 self.coordinator.data,
