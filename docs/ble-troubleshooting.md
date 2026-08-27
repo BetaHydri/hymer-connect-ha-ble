@@ -189,6 +189,25 @@ and during pairing:
   seconds after you submit, which lands it safely inside even a 30-second window.
   The integration then keeps retrying the bond, but the first attempt right after
   your press is the one most likely to succeed.
+- **"CONNECTION" may be a physical button, not the touch menu.** Per HYMER's help
+  center, the connection control (*Verbindungsknopf*) is a **white button on the
+  left side of the grey-black SCU** itself (exact position in your vehicle
+  manual); vehicles with a **7" touch display** can instead use **Settings →
+  Verbindung → Verbinden**. If pairing via the touch menu bonds but never
+  completes TLS, try the **physical white button on the SCU** — it tends to
+  wake/activate the unit more completely than the menu.
+  ([HYMER: Wo finde ich den Verbindungsknopf](https://helpcenter.hymer.com/hc/de/articles/13194031995037-Wo-finde-ich-den-Verbindungsknopf-des-HYMER-Connect-Systems))
+- **Wake the SCU fully before pairing — a deep-standby SCU bonds but never
+  answers TLS.** If you see `BLE bonding SUCCESSFUL` followed by
+  `Timed out waiting for SCU BLE data` on an otherwise **healthy link (MTU 247)**,
+  the SCU is most likely asleep at the TLS layer: the host's ClientHello arrives
+  before the SCU's TLS stack is listening. Wake it **actively** first and keep it
+  awake through pairing. On **Mercedes-based** vehicles (e.g. ML-T on Sprinter)
+  turn on the **ignition** or briefly **start the engine** — HYMER states both
+  wake the system immediately; otherwise press the 7" display or use the HYMER
+  Connect app's **"Aufwachen"** button. HYMER notes passive auto-wake can take
+  **up to 8 hours**, so do not rely on it.
+  ([HYMER: Fahrzeug aufwecken](https://helpcenter.hymer.com/hc/de/articles/13193970651677-Wie-kann-ich-das-Fahrzeug-aufwecken-HYMER-Connect-System))
 - **Do not pair while the phone/EHG app is actively connected over BLE** to the
   same SCU — a competing active connection can block the host's bond.
 - **Legacy TLS 1.0/1.1 must be permitted by the host's OpenSSL.** The SCU only
