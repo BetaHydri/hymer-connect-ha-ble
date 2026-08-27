@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.8] - 2026-08-27
+
+### Fixed
+
+- **BLE bonding/pairing now works when the SCU is connected through a second Bluetooth adapter (e.g. a USB dongle).** The integration's D-Bus calls to BlueZ (pair, disconnect, clear-bond, MTU read, bond-state check) hardcoded the first controller path (`/org/bluez/hci0/dev_...`). On hosts with more than one Bluetooth adapter — for example a Raspberry Pi with its built-in radio **plus** a USB dongle — Home Assistant may reach the SCU through the second controller (`hci1`, ...). `Device1.Pair()` was then called on a device object that does not exist under `hci0`, so BlueZ rejected it with `org.freedesktop.DBus.Error.UnknownObject` ("Method 'Pair' ... doesn't exist"), and the integration **misreported this as "CONNECTION not pressed"** — so pressing CONNECTION at the vehicle could never help. The real device object path is now resolved live from BlueZ's ObjectManager (matching the SCU address across **any** controller), with the old hci0 path kept as a fallback (so single-adapter hosts are unaffected). The pairing error handler also now recognises the `UnknownObject` case and logs that the SCU is likely on a different adapter, instead of blaming a missing button press. Reported from an ML-T 570 running a Pi with an added USB Bluetooth dongle.
+
 ## [2.91.7] - 2026-08-27
 
 ### Added

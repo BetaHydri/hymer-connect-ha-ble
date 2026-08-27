@@ -117,6 +117,38 @@ DEFAULT_GATT_MTU = 23
 APP_PIA_VERSION = "v0.32.0"
 
 
+async def _resolve_bluez_device_path(bus: Any, address: str) -> str | None:
+    """Return the real BlueZ device object path for ``address`` on ANY adapter.
+
+    BlueZ nests each device under its controller (e.g.
+    ``/org/bluez/hci1/dev_AA_BB_...``), so a hardcoded ``hci0`` path breaks when
+    the SCU is reached through a second adapter (a USB dongle / different
+    controller) — Device1 calls then fail with
+    ``org.freedesktop.DBus.Error.UnknownObject``. Resolved live via ObjectManager;
+    returns ``None`` if the device is not currently known to BlueZ (callers fall
+    back to the hci0 path).
+    """
+    from dbus_fast import Message, MessageType
+    suffix = ("dev_" + address.replace(":", "_")).upper()
+    try:
+        reply = await bus.call(
+            Message(
+                destination="org.bluez",
+                path="/",
+                interface="org.freedesktop.DBus.ObjectManager",
+                member="GetManagedObjects",
+            )
+        )
+        if reply.message_type == MessageType.ERROR or not reply.body:
+            return None
+        for path, interfaces in reply.body[0].items():
+            if "org.bluez.Device1" in interfaces and str(path).upper().endswith(suffix):
+                return str(path)
+    except Exception as err:
+        _LOGGER.debug("Resolve BlueZ device path for %s failed: %s", address, err)
+    return None
+
+
 async def async_clear_bluez_bond(address: str) -> bool:
     """Remove a BlueZ bonding record for the given BLE address.
 
@@ -129,10 +161,13 @@ async def async_clear_bluez_bond(address: str) -> bool:
         from dbus_fast.aio import MessageBus
         from dbus_fast import BusType, Message, MessageType
         bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-        dev_path = f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+        dev_path = await _resolve_bluez_device_path(bus, address) or (
+            f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+        )
+        adapter_path = dev_path.rsplit("/", 1)[0]  # the controller that owns the device
         msg = Message(
             destination="org.bluez",
-            path="/org/bluez/hci0",
+            path=adapter_path,
             interface="org.bluez.Adapter1",
             member="RemoveDevice",
             signature="o",
@@ -168,7 +203,9 @@ async def async_dbus_disconnect(address: str) -> bool:
         from dbus_fast import BusType, Message, MessageType
         bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
         try:
-            dev_path = f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+            dev_path = await _resolve_bluez_device_path(bus, address) or (
+                f"/org/bluez/hci0/dev_{address.replace(':', '_')}"
+            )
             msg = Message(
                 destination="org.bluez",
                 path=dev_path,
@@ -1152,7 +1189,9 @@ class ScuBleClient:
             from dbus_fast import BusType, Message, MessageType
             tmp_bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
             try:
-                dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                dev_path = await _resolve_bluez_device_path(tmp_bus, self._scu_address) or (
+                    f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+                )
                 try:
                     introspection = await tmp_bus.introspect("org.bluez", dev_path)
                     dev_obj = tmp_bus.get_proxy_object("org.bluez", dev_path, introspection)
@@ -1978,7 +2017,9 @@ class ScuBleClient:
             from dbus_fast.aio import MessageBus
             from dbus_fast import BusType, Message, MessageType, Variant
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-            dev_path = f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+            dev_path = await _resolve_bluez_device_path(bus, self._scu_address) or (
+                f"/org/bluez/hci0/dev_{self._scu_address.replace(':', '_')}"
+            )
             msg = Message(
                 destination="org.bluez",
                 path=dev_path,
@@ -2026,6 +2067,7 @@ class ScuBleClient:
 
         addr = self._scu_address
         agent_path = "/org/bluez/agent_hymer"
+        # Fallback; the real adapter path is resolved once the bus is connected.
         device_path = f"/org/bluez/hci0/dev_{addr.replace(':', '_')}"
 
         # Introspection XML for the agent — tells BlueZ what methods we support
@@ -2088,6 +2130,13 @@ class ScuBleClient:
         bus = None
         try:
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+
+            # Resolve the device's real object path — it may live under a USB
+            # dongle / non-hci0 controller; a hardcoded hci0 path makes Pair()
+            # fail with org.freedesktop.DBus.Error.UnknownObject.
+            resolved = await _resolve_bluez_device_path(bus, addr)
+            if resolved:
+                device_path = resolved
 
             # Handle ALL method calls to the agent path — including Introspect
             def agent_handler(msg: Message) -> bool:
@@ -2164,6 +2213,15 @@ class ScuBleClient:
                     if "AlreadyExists" in err_name:
                         _LOGGER.debug("D-Bus agent: already paired")
                         return True
+                    if "UnknownObject" in err_name or "doesn't exist" in err_body:
+                        _LOGGER.warning(
+                            "D-Bus agent: Pair failed — device object %s not found in "
+                            "BlueZ (%s). The SCU is likely connected via a different "
+                            "Bluetooth adapter (e.g. a USB dongle); this is NOT a "
+                            "missing CONNECTION press.",
+                            device_path, err_name,
+                        )
+                        return False
                     _LOGGER.warning("D-Bus agent: Pair failed: %s %s", err_name, err_body)
                     return False
                 _LOGGER.info("D-Bus agent: pairing successful with %s", addr)
