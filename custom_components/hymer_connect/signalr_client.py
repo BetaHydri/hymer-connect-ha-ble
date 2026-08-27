@@ -79,6 +79,10 @@ class HymerSignalRClient:
         self._signalr_token: str = ""
         self._connected_at: float = 0.0  # monotonic timestamp of connection
         self._last_data_received: float = 0.0  # monotonic timestamp of last data
+        # Last time data arrived over an alternate transport (BLE). In dual mode
+        # BLE carries the telemetry, so a telemetry-quiet cloud socket is a hot
+        # standby, not a dead link — this keeps needs_reconnect from churning.
+        self._last_alt_transport_data: float = 0.0
         self._last_send_failed: bool = False
         self._last_update_tokens: float = 0.0  # monotonic timestamp of last UpdateTokens
         self._scu_was_disconnected: bool = False  # tracks scu_connected false→true transitions
@@ -111,6 +115,15 @@ class HymerSignalRClient:
             return 0.0
         return time.monotonic() - self._last_data_received
 
+    def note_alt_transport_data(self) -> None:
+        """Record that fresh telemetry arrived over an alternate transport (BLE).
+
+        Called by the coordinator whenever any transport delivers data. In dual
+        mode this lets needs_reconnect treat a telemetry-quiet cloud socket as a
+        hot standby instead of a dead link.
+        """
+        self._last_alt_transport_data = time.monotonic()
+
     @property
     def needs_reconnect(self) -> bool:
         """Return True if the connection should be proactively recycled."""
@@ -140,11 +153,27 @@ class HymerSignalRClient:
             is_standby = main_switch == "Off"
             silent = now - self._last_data_received
             if silent > STALE_DATA_TIMEOUT and not is_standby:
-                _LOGGER.warning(
-                    "No SignalR data for %.0fs — connection likely dead",
-                    silent,
+                # In dual mode BLE carries the telemetry; a telemetry-quiet cloud
+                # socket is not dead. A genuinely broken socket is still caught by
+                # the WS keepalive in listen() and by MAX_CONNECTION_AGE, so only
+                # recycle when the alternate transport is ALSO silent.
+                alt_silent = (
+                    now - self._last_alt_transport_data
+                    if self._last_alt_transport_data > 0
+                    else None
                 )
-                return True
+                if alt_silent is not None and alt_silent < STALE_DATA_TIMEOUT:
+                    _LOGGER.debug(
+                        "No cloud data for %.0fs but BLE delivered %.0fs ago — "
+                        "keeping cloud connection as hot standby",
+                        silent, alt_silent,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "No SignalR data for %.0fs — connection likely dead",
+                        silent,
+                    )
+                    return True
             if silent > STANDBY_MAX_SILENCE and is_standby:
                 _LOGGER.warning(
                     "No data for %.0fs even in standby — forcing reconnect (safety cap)",
@@ -609,7 +638,13 @@ class HymerSignalRClient:
                     elif scu_now is False:
                         _LOGGER.info("SCU disconnected (scu_connected=false)")
 
-                if self._on_sensor_update:
+                # Only real SCU frames (decoded fields) advance the coordinator's
+                # data-silence clock. Empty keepalive PiaResponse frames keep
+                # arriving even while the SCU is silent (12V main off), so
+                # notifying on them would reset the 12V-off availability guard and
+                # leave requires_12v entities (lights, water pump) switchable while
+                # they are physically dead.
+                if self._on_sensor_update and sensor_data:
                     self._on_sensor_update(self._sensor_data)
 
     async def listen(self) -> None:

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.10] - 2026-08-27
+
+### Fixed
+
+- **12V-dependent entities (lights, water pump) now correctly go *unavailable* when the habitation 12V main is switched off.** Cutting habitation 12V does not power the SCU down — `main_switch` freezes at "On" and the SCU simply stops streaming — so the integration relies on **data-silence** to grey those entities out. The EHG cloud hub emits periodic **empty keepalive `PiaResponse` frames** (decoding to zero sensors), and these were resetting the data-silence clock, so lights and the water pump stayed *available* and switchable long after 12V-off (observed toggling ~90 s after a confirmed 12V-off). The coordinator callback now advances the data-silence clock **only for frames that actually carry sensor data**, so empty keepalives no longer keep those entities alive. All other entities (Truma, fridge, general control) remain available and controllable as before.
+- **No more spurious "No SignalR data — connection likely dead" reconnect churn on BLE (dual-mode) hosts.** On a Home Assistant host with Bluetooth in the vehicle, BLE carries the live telemetry while the cloud/SignalR socket is a quiet hot standby. The stale-data watchdog only tracked cloud frames, so it recycled the (perfectly healthy) cloud connection roughly every 3–4 minutes and spammed the log. The watchdog now treats fresh BLE telemetry as proof the link is alive and keeps the cloud socket as a hot standby; a genuinely dead socket is still caught by the WebSocket keepalive and the ~50-minute token-age reconnect. Cloud-only setups are unaffected.
+
 ## [2.91.9] - 2026-08-27
 
 ### Changed

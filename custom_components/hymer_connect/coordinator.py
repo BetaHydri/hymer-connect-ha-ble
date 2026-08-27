@@ -262,6 +262,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _on_signalr_update(self, sensor_data: dict[str, Any]) -> None:
         """Handle incoming SignalR sensor data."""
         self._last_data_monotonic = time.monotonic()
+        # BLE also flows through here; mark it so a telemetry-quiet cloud socket
+        # in dual mode is treated as a hot standby, not a dead link (no churn).
+        if self._signalr is not None:
+            self._signalr.note_alt_transport_data()
         _before = len(self._signalr_data)
         self._signalr_data.update(sensor_data)
         if len(self._signalr_data) > _before:
