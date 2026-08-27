@@ -696,6 +696,11 @@ class HymerConnectOptionsFlow(OptionsFlow):
                         _LOGGER.warning(
                             "Reset BLE bond requested but no SCU address is stored"
                         )
+                    # A bond reset targets a fully working BLE direct path, so
+                    # enable read + write. The checkboxes above stay available to
+                    # temporarily disable either later WITHOUT deleting the bond.
+                    user_input[CONF_BLE_ENABLED] = True
+                    user_input[CONF_BLE_WRITE_ENABLED] = True
                 return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(

@@ -71,7 +71,7 @@ they do **different jobs**. The short rule:
 | **Send commands over BLE when connected (recommended)** | **On by default (v2.67.0+).** When BLE is connected, write commands (lights, switches, heater, fridge, …) are tried over the local BLE link first and **fall back to the cloud automatically** if the SCU doesn't acknowledge. If BLE is not connected, everything goes via the cloud anyway. Requires *Enable BLE direct path* + a completed pairing to take effect. Fixed in **v2.66.0** (subscription path in **v2.66.2**), confirmed on a Grand Canyon S 600 (fw 1.13.0.0). Untick to **force cloud-only**. Since **v2.67.2** each successful BLE command logs one `INFO` line — `Command sent over BLE (…, status=1)` — visible in the normal log without debug enabled. |
 | **SCU Bluetooth address** | Optional. Pin the SCU MAC so the host skips the auto-scan. Leave empty to auto-discover. |
 | **OAuth Basic auth header** | The HTTP `Authorization: Basic <b64>` header that identifies the integration as the **official EHG mobile app** to the OAuth token endpoint — without it, cloud login (and therefore the whole integration) does **not** work. **You normally leave this empty:** the integration ships a working default harvested from the Android app (`OAUTH2_BASIC_AUTH_LEGACY_DEFAULT` in `const.py`). Only fill it in to **override** that built-in value, e.g. if EHG ever rotates the app's client credentials and the default stops authenticating. |
-| **Reset BLE pairing only (keeps cloud connection / EHG token)** *(v2.91.5+)* | Resets **only** the operating-system Bluetooth bond (BlueZ). The stored **EHG refresh token and BLE address are kept**, so the cloud/SignalR path keeps working and the next BLE connect simply re-bonds (press **CONNECTION**) and reuses the existing token — **no QR code needed**. Use it to fix a broken/stale bond. (Before v2.91.5 this also wiped the token + address.) See [Reset or re-pair BLE — which do I need?](#reset-or-re-pair-ble--which-do-i-need). |
+| **Reset BLE pairing only (keeps cloud connection / EHG token)** *(v2.91.5+)* | Resets **only** the operating-system Bluetooth bond (BlueZ). The stored **EHG refresh token and BLE address are kept**, so the cloud/SignalR path keeps working and the next BLE connect simply re-bonds (press **CONNECTION**) and reuses the existing token — **no QR code needed**. It also **re-enables BLE read + write automatically** (v2.91.6+), because the goal of a bond is a fully working direct path — the two BLE checkboxes above stay available to **temporarily** disable read/write **without** deleting the bond. If no SCU address is stored, the next connection **auto-discovers and stores it** (leave the address empty for auto-scan). Use it to fix a broken/stale bond. (Before v2.91.5 this also wiped the token + address.) See [Reset or re-pair BLE — which do I need?](#reset-or-re-pair-ble--which-do-i-need). |
 
 > **Key point:** the *Enable BLE direct path* checkbox here is just a toggle. It
 > flips a flag in the entry options — it **cannot** create a bond. A fresh
@@ -635,9 +635,13 @@ old token if the new pairing fails.
 
 1. **Settings → Devices & Services → HYMER Connect BLE → ⋮ → Configure**.
 2. Tick **“Reset BLE pairing only (keeps cloud connection / EHG token)”** and submit.
+   You do **not** need to touch the two BLE checkboxes above — the reset **re-enables
+   BLE read + write automatically** (v2.91.6+). (They stay available to temporarily
+   disable read/write later without deleting the bond.)
 3. At the vehicle, wake the SCU (ignition on for Mercedes-based models) and press
    **CONNECTION** when BLE reconnects — the host re-bonds and reuses your existing
-   token. Nothing to re-enter, **no QR code**.
+   token. Nothing to re-enter, **no QR code**. If the SCU address was empty it is
+   **auto-discovered and stored** on this connection.
 
 ### How to enroll a fresh EHG token (no delete needed)
 

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.6] - 2026-08-27
+
+### Changed
+
+- **"Reset BLE pairing only" now re-enables BLE read + write automatically.** The whole point of (re)establishing a BLE bond is a fully working local direct path, so ticking the reset now switches **Enable BLE direct path** and **Send commands over BLE** back on for you - you no longer have to remember to tick them separately. The two checkboxes stay available to **temporarily** disable reading and/or writing **without deleting the bond**. Resetting the bond still keeps your cloud connection and EHG refresh token (v2.91.5), and if no SCU address is stored the next connection **auto-discovers and stores it** by scanning (leave the address empty for auto-scan). The Options wording and the docs were clarified to match.
+
 ## [2.91.5] - 2026-08-27
 
 ### Fixed
