@@ -38,18 +38,20 @@
       },
       "reconfigure": {
         "title": "Reconfigure HYMER Connect",
-        "description": "Add or update the QR code activation token, SCU Bluetooth address, or EHG refresh token. Leave a field empty to keep the current value.\n\nTo re-pair over BLE (e.g. after moving Home Assistant to a new host): tick 'Re-pair over BLE', leave the QR token in place, press CONNECTION on the SCU FIRST and submit within ~25 seconds. The pre-filled EHG token is then ignored and a fresh one is minted on success (the old token stays intact if pairing fails).",
+        "description": "All fields start empty — leave a field empty to keep its current value, or type/paste a new value to change it (nothing to clear first).\n\nTo re-pair over BLE (e.g. after moving Home Assistant to a new host): tick 'Re-pair over BLE' (you do NOT need to touch the token fields), press CONNECTION on the SCU FIRST and submit within ~25 seconds. A fresh EHG token is minted on success; the old token stays intact if pairing fails.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
           "ehg_refresh_token": "EHG Remote Access Refresh Token",
+          "oauth_basic_auth": "OAuth client header",
           "force_repair": "Re-pair over BLE (mint a new EHG token)"
         },
         "data_description": {
-          "qr_activation_token": "Paste the text from the dealer-provided QR activation code (on the vehicle handover document) to link the vehicle and enable BLE pairing.",
-          "ble_scu_address": "Bluetooth MAC address of the SCU (e.g. AA:BB:CC:DD:EE:FF) to enable the BLE direct path.",
-          "ehg_refresh_token": "The long-lived remote-access refresh token. If you already have one from mitmproxy, paste it here.",
-          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token, even though the token field is pre-filled. Requires a QR activation token (entered here or already stored). Use this after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit within ~25 seconds."
+          "qr_activation_token": "Leave empty to keep the current token. To change it, paste the text from the dealer-provided QR activation code (no need to clear anything first).",
+          "ble_scu_address": "Leave empty for auto-scan. Optionally pin the SCU Bluetooth MAC (e.g. AA:BB:CC:DD:EE:FF) if the scan is slow.",
+          "ehg_refresh_token": "Leave empty to keep the current token. Only paste a value here if you are setting a token from mitmproxy manually. To re-pair over BLE, use the checkbox below instead — you do NOT need to clear or edit this field.",
+          "oauth_basic_auth": "The full 'Authorization: Basic …' header used on OAuth /token requests. Captured from your own EHG app traffic via mitmproxy. Leave empty to keep the current value (or to fall back to the deprecated bundled default if none was set).",
+          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token. This ignores the stored token automatically, so you do NOT need to clear any field. Requires a QR activation token (entered here or already stored). Use it after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit within ~25 seconds."
         }
       },
       "ble_pairing": {
@@ -78,7 +80,8 @@
     },
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
+      "ble_pairing_incomplete": "Settings were saved, but BLE pairing did NOT complete — the vehicle did not accept the bond this time. Your cloud connection is unchanged and keeps working. Make sure the SCU is awake (ignition on) and you pressed CONNECTION, then run Reconfigure again. The integration also retries automatically when near the vehicle."
     }
   },
   "entity": {

@@ -398,6 +398,15 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if is_reconfigure:
             reconfigure_entry = self._get_reconfigure_entry()
+            if self._ble_pairing_error:
+                # Persist any validated updates (QR/BLE address) but tell the
+                # user pairing did NOT complete — do not report "successful".
+                # The old EHG token is kept, so cloud keeps working.
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    data_updates=self._data,
+                    reason="ble_pairing_incomplete",
+                )
             return self.async_update_reload_and_abort(
                 reconfigure_entry,
                 data_updates=self._data,
@@ -608,21 +617,19 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_ble_pairing()
                 errors["base"] = "no_changes"
 
-        current_qr = reconfigure_entry.data.get(CONF_QR_TOKEN, "")
         current_ble = (
             reconfigure_entry.options.get(CONF_BLE_ADDRESS)
             or reconfigure_entry.data.get(CONF_BLE_ADDRESS, "")
         )
-        current_ehg = reconfigure_entry.data.get(CONF_EHG_REFRESH_TOKEN, "")
         current_oauth_basic = reconfigure_entry.data.get(CONF_OAUTH_BASIC_AUTH, "")
 
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(CONF_QR_TOKEN, default=current_qr): str,
+                    vol.Optional(CONF_QR_TOKEN, default=""): str,
                     vol.Optional(CONF_BLE_ADDRESS, default=current_ble): str,
-                    vol.Optional(CONF_EHG_REFRESH_TOKEN, default=current_ehg): str,
+                    vol.Optional(CONF_EHG_REFRESH_TOKEN, default=""): str,
                     vol.Optional(CONF_OAUTH_BASIC_AUTH, default=current_oauth_basic): str,
                     vol.Optional("force_repair", default=False): bool,
                 }

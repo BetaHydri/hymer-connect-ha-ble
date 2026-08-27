@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.3] - 2026-08-27
+
+### Fixed
+
+- **Reconfigure no longer says "successful" when BLE pairing actually failed.** When re-pairing over BLE from the Reconfigure dialog, the flow always ended with Home Assistant's generic "Re-configuration was successful" message — even if the SCU never accepted the bond (you only found out by reading the log). It now aborts with a distinct message when pairing did not complete, explaining that your cloud connection is unchanged, the old token was kept, and how to retry. A genuinely successful pair still reports success.
+
+### Changed
+
+- **Reconfigure form is easier to use on a phone.** The QR activation token and EHG refresh token fields no longer come pre-filled, so you no longer have to tediously clear a long pre-populated value (character by character) on a mobile keyboard before pasting a new one — an empty field simply keeps the current value. Field hints were rewritten to say exactly that, and to point out that re-pairing over BLE only needs the "Re-pair over BLE" checkbox (no need to clear or edit the token fields at all). Reported by ML-T owner Martin.
+
 ## [2.91.2] - 2026-08-27
 
 ### Fixed
