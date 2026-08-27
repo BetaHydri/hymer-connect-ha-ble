@@ -701,6 +701,14 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     # temporarily disable either later WITHOUT deleting the bond.
                     user_input[CONF_BLE_ENABLED] = True
                     user_input[CONF_BLE_WRITE_ENABLED] = True
+                    # Kick an active re-bond so it lines up with the CONNECTION
+                    # press (Path A only; a no-op when BLE is disabled). Consumed
+                    # by _async_options_updated once the new options are applied.
+                    coordinator = self.hass.data.get(DOMAIN, {}).get(
+                        self._config_entry.entry_id
+                    )
+                    if coordinator is not None:
+                        coordinator.request_ble_rebond()
                 return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(

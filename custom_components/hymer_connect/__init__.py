@@ -148,7 +148,10 @@ async def _async_options_updated(
     # self-guard, so they are safe no-ops in the wrong state.
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if coordinator is not None:
-        if coordinator.ble_enabled:
+        if getattr(coordinator, "_ble_rebond_pending", False):
+            # User reset the BLE bond — run an active re-bond burst (Path A only).
+            hass.async_create_task(coordinator.async_kick_ble_rebond())
+        elif coordinator.ble_enabled:
             hass.async_create_task(coordinator._async_try_ble_connect())
         else:
             hass.async_create_task(coordinator.stop_ble())

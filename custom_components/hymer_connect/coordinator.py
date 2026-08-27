@@ -72,6 +72,8 @@ _SCU_FROZEN_TIMEOUT = 900  # SCU clock (scu_internal_time) unchanged this long w
 _SCU_FROZEN_DATA_WINDOW = 180  # only judge frozen while frames still arrive; beyond this it's standby/12V-off, not a hung-but-connected SCU
 _SCU_FROZEN_WALLCLOCK_LAG = 900  # SCU's own UTC clock this far behind real time = hung (instant, survives restarts)
 _BLE_RX_LIVENESS_TIMEOUT = 60  # #24: BLE claims connected but no BLE frame for this long (while other data flows) = silently dead link
+_BLE_REBOND_BURST_SECONDS = 120  # active re-bond burst after a manual bond reset — matches the SCU pairing window
+_BLE_REBOND_BURST_INTERVAL = 8  # seconds between attempts during the active re-bond burst
 
 # Fuel consumption tracking
 _FUEL_REFUEL_THRESHOLD_PCT = 5  # fuel increase > 5% = refueling detected
@@ -129,6 +131,8 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_pending_cmd_key: str | None = None  # expected sensor name for ACK matching
         self._ble_listen_task: asyncio.Task | None = None  # background NUS listen loop; cancelled on teardown
         self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
+        self._ble_rebond_task: asyncio.Task | None = None  # active re-bond burst after a manual bond reset
+        self._ble_rebond_pending = False  # set by the options flow when the user resets the BLE bond
         self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
         self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
         self._signalr_last_growth_monotonic: float = 0.0  # #23 last time the merged set gained a new key
@@ -916,6 +920,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Proxmox VM) the adapter stays wedged until a full host reboot.
         """
         self._shutting_down = True
+        if self._ble_rebond_task is not None and not self._ble_rebond_task.done():
+            self._ble_rebond_task.cancel()
+            self._ble_rebond_task = None
         await self.stop_signalr()
         try:
             await asyncio.wait_for(self.stop_ble(), timeout=_BLE_CLEANUP_TIMEOUT)
@@ -1331,6 +1338,65 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_ble_watchdog(self, _now: Any = None) -> None:
         """Watchdog tick: (re)connect BLE independent of the push-starved poll."""
         await self._async_try_ble_connect()
+
+    def request_ble_rebond(self) -> None:
+        """Flag an active re-bond, set by the options flow after the user resets the
+        BLE bond. Consumed by the options-updated handler once the new options are
+        applied (so ``ble_enabled`` already reflects the reset)."""
+        self._ble_rebond_pending = True
+
+    async def async_kick_ble_rebond(self) -> None:
+        """Run an active BLE re-bond burst after a manual bond reset.
+
+        Tight retries that line up with the user's CONNECTION press at the vehicle,
+        reusing the existing EHG token (no re-mint — ``start_ble`` skips pairing when
+        a token is stored). No-op for cloud-only setups (BLE disabled), so it only
+        does anything for a HA host with BLE in the vehicle (Path A).
+        """
+        self._ble_rebond_pending = False
+        if not self.ble_enabled:
+            return
+        # Clear backoff + cold-start gate so attempts fire immediately and tightly.
+        self._ble_consecutive_failures = 0
+        self._ble_next_attempt = 0.0
+        self._ble_cold_start_gate_open = True
+        if self._ble_rebond_task is not None and not self._ble_rebond_task.done():
+            return  # a burst is already running
+        self._ble_rebond_task = self.hass.async_create_background_task(
+            self._ble_rebond_burst(), name="hymer_ble_rebond_burst"
+        )
+
+    async def _ble_rebond_burst(self) -> None:
+        """~2 minutes of tight BLE (re)connect attempts to catch the SCU pairing
+        window right after the user presses CONNECTION. Stops once BLE is up."""
+        deadline = time.monotonic() + _BLE_REBOND_BURST_SECONDS
+        _LOGGER.info(
+            "BLE re-bond burst started — press CONNECTION on the SCU now "
+            "(retrying ~%ds, reusing the existing token, no new pairing)",
+            _BLE_REBOND_BURST_SECONDS,
+        )
+        try:
+            while (
+                time.monotonic() < deadline
+                and self.ble_enabled
+                and not self._ble_connected
+            ):
+                self._ble_consecutive_failures = 0
+                self._ble_next_attempt = 0.0
+                await self._async_try_ble_connect()
+                if self._ble_connected:
+                    _LOGGER.info("BLE re-bond burst: bonded and connected")
+                    return
+                await asyncio.sleep(_BLE_REBOND_BURST_INTERVAL)
+            if not self._ble_connected:
+                _LOGGER.info(
+                    "BLE re-bond burst ended without a bond — the background watchdog "
+                    "will keep retrying; press CONNECTION near the vehicle"
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _LOGGER.debug("BLE re-bond burst error", exc_info=True)
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the REST API and merge with SignalR data."""

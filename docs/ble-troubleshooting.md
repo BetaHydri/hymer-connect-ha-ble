@@ -648,16 +648,13 @@ old token if the new pairing fails.
    You do **not** need to touch the two BLE checkboxes above — the reset **re-enables
    BLE read + write automatically** (v2.91.6+). (They stay available to temporarily
    disable read/write later without deleting the bond.)
-3. **Force an immediate re-bond attempt so it lines up with your button press:**
-   **reload the integration** (⋮ → *Reload*) or restart Home Assistant. This is
-   recommended because the background reconnect watchdog is **not tightly
-   synchronised** with your press — after a few failed attempts it backs off to
-   several minutes, so a manual reload puts a fresh attempt right where you need it.
+3. Submitting immediately starts an **active ~2-minute re-bond burst** (v2.91.7+) —
+   tight retries that line up with your button press, so **no reload is needed**.
 4. At the vehicle, wake the SCU (ignition on for Mercedes-based models) and press
-   **CONNECTION** on the SCU. The host re-bonds (JustWorks) and **reuses your stored
-   EHG token** — the read + write BLE direct path comes back up. **No QR code, no
-   Reconfigure, no new token.** If the SCU address was empty it is auto-discovered
-   and stored on this connection.
+   **CONNECTION** on the SCU right after you submit. The host re-bonds (JustWorks) and
+   **reuses your stored EHG token** — the read + write BLE direct path comes back up.
+   **No QR code, no Reconfigure, no new token.** If the SCU address was empty it is
+   auto-discovered and stored on this connection.
 
 > **⚠️ Do NOT use Reconfigure if you want to keep your token.** The Reconfigure
 > pairing path (**Re-pair over BLE**) **always mints a brand-new EHG token** via

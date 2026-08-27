@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.7] - 2026-08-27
+
+### Added
+
+- **"Reset BLE pairing only" now kicks off an active re-bond automatically.** After you tick it and submit, the integration immediately runs a ~2-minute burst of tight BLE (re)connect attempts - the same cadence as the pairing dialog - so it lines up with your **CONNECTION** button press at the vehicle. You no longer need to reload the integration or restart Home Assistant to force an attempt at the right moment. It **reuses your existing EHG token** (no new pairing, no new token) and is a **no-op for cloud-only setups** - it only does anything when BLE is enabled, i.e. a Home Assistant host with Bluetooth in the vehicle (Path A). The background watchdog still retries afterwards if the burst window is missed.
+
 ## [2.91.6] - 2026-08-27
 
 ### Changed
