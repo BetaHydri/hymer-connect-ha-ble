@@ -90,7 +90,15 @@ BONDING_STATE_UUID = "fff40004-13c9-42f3-9d46-e1d1aa2a7232"  # Bonding state che
 BLE_PIA_MAGIC = bytes((0xA0, 0xCB))
 BLE_PIA_HEADER_SIZE = 10
 
-# TLS configuration matching the EHG app's observable profile
+# TLS configuration matching the EHG app's observable profile.
+# The SCU firmware currently speaks ONLY TLS 1.0/1.1 with these legacy CBC
+# ciphers. The range is kept deliberately narrow so the ClientHello stays small
+# (~169 B); widening it adds cipher suites/extensions, enlarges the ClientHello,
+# and risks the NUS RX buffer overflow at MTU 23 that we fought hard to avoid.
+# FUTURE: if HYMER ships a firmware that requires TLS >= 1.2, raise
+# APP_TLS_MAX_VERSION (and add modern ciphers to APP_TLS_CIPHERS). The handshake
+# diagnostics below (SSLError classification + post-wake warning) are designed to
+# name exactly this situation in the log so the switch-over is obvious.
 APP_TLS_CIPHERS = "AES128-SHA:AES256-SHA"
 APP_TLS_MIN_VERSION = ssl.TLSVersion.TLSv1
 APP_TLS_MAX_VERSION = ssl.TLSVersion.TLSv1_1
@@ -760,6 +768,33 @@ class _TlsOverBle:
             except ssl.SSLWantReadError:
                 pass
             except ssl.SSLError as err:
+                # Classify a TLS version/cipher rejection so a future SCU
+                # firmware that drops legacy TLS is obvious in the log instead
+                # of looking like a generic handshake error.
+                haystack = f"{getattr(err, 'reason', '') or ''} {err}".upper()
+                if any(
+                    marker in haystack
+                    for marker in (
+                        "PROTOCOL_VERSION",
+                        "WRONG_VERSION",
+                        "UNSUPPORTED_PROTOCOL",
+                        "NO_PROTOCOLS_AVAILABLE",
+                        "VERSION_TOO_LOW",
+                        "VERSION_TOO_HIGH",
+                        "NO_SHARED_CIPHER",
+                        "HANDSHAKE_FAILURE",
+                    )
+                ):
+                    _LOGGER.warning(
+                        "BLE TLS handshake REJECTED by SCU (%s). Our client offers "
+                        "only TLS %s-%s with legacy ciphers %s. If the SCU firmware "
+                        "was updated to require TLS 1.2/1.3, raise APP_TLS_MAX_VERSION "
+                        "(and add modern ciphers) in ble_client.py.",
+                        err,
+                        APP_TLS_MIN_VERSION.name,
+                        APP_TLS_MAX_VERSION.name,
+                        APP_TLS_CIPHERS,
+                    )
                 raise TlsTransportError(f"TLS handshake failed: {err}") from err
         return self._drain_outgoing()
 
@@ -1547,7 +1582,25 @@ class ScuBleClient:
                 err,
             )
             await self._wake_scu()
-            await self._run_tls_handshake()
+            try:
+                await self._run_tls_handshake()
+            except BleTransportError as err2:
+                # Both attempts (incl. the wake nudge) failed with no TLS reply.
+                # Most often deep standby, but it is ALSO how a firmware that
+                # dropped legacy TLS looks (ClientHello silently discarded, no
+                # alert). Name both causes so the case is diagnosable.
+                _LOGGER.warning(
+                    "BLE TLS handshake still failing after wake retry (%s). Likely "
+                    "the SCU is in deep standby, OR its firmware no longer answers "
+                    "our TLS ClientHello. Our client offers TLS %s-%s (legacy ciphers "
+                    "%s); if a firmware update now requires TLS 1.2/1.3 this is "
+                    "expected until APP_TLS_MAX_VERSION is raised in ble_client.py.",
+                    err2,
+                    APP_TLS_MIN_VERSION.name,
+                    APP_TLS_MAX_VERSION.name,
+                    APP_TLS_CIPHERS,
+                )
+                raise
 
         self._tls_established = True
         _LOGGER.info("BLE TLS session established with SCU %s", self._scu_address)

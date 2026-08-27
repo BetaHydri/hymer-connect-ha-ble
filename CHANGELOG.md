@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.4] - 2026-08-27
+
+### Changed
+
+- **BLE TLS handshake failures now name a possible SCU firmware TLS-version change in the log (future-proofing, diagnostics only).** The integration speaks the SCU's legacy TLS 1.0/1.1 profile. If a future SCU firmware update dropped legacy TLS and required TLS 1.2/1.3, the handshake would fail in one of two ways that were previously hard to tell apart from the normal deep-standby timeout: the SCU either sends a TLS `protocol_version` alert, or it silently discards our ClientHello. The BLE client now (1) classifies an SSL version/cipher rejection and logs a clear warning that the SCU may now require a newer TLS version (with exactly what our client offered), and (2) after the wake-retry also fails with no TLS reply, logs a warning naming both deep standby **and** a possible firmware TLS-version change as causes. The successful path already logs the negotiated TLS version and cipher, so an upgraded SCU that still accepts our offer is visible too. No change to the handshake itself — the ClientHello, TLS version range (1.0/1.1) and ciphers are unchanged, keeping the ClientHello small for reliable delivery at MTU 23; a code comment documents exactly what to raise (`APP_TLS_MAX_VERSION` + ciphers) if the day comes.
+
 ## [2.91.3] - 2026-08-27
 
 ### Fixed
