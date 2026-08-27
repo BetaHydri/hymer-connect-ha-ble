@@ -107,6 +107,14 @@ sensors on one BLE bus are separated into per-device entities; see
 - Clear `OP_NO_TLSv1` and `OP_NO_TLSv1_1` flags
 - SCU sends ServerHello + Certificate + ServerHelloDone
 - RPi sends ClientKeyExchange + ChangeCipherSpec + Finished
+- **One-shot wake-and-retry (v2.79.0, broadened v2.93.1).** If the first handshake
+  fails, the client sends the EHG `wakeScuUp` nudge (`0x0A` → Power Control) and
+  retries the handshake **once** with a fresh TLS session. This now covers **both**
+  a timeout (`BleTransportError` — SCU accepted GATT while its TLS stack was still
+  asleep, ClientHello dropped) **and** a parse failure of the SCU's reply
+  (`TlsTransportError`, e.g. a transient `ASN1 lib` error seen once after a
+  restart). A leaked-channel `BleStaleChannelError` (#24) is never retried — it
+  needs the caller's backoff, not another identical attempt.
 
 ### 3. PIA Protobuf over TLS
 All data after TLS handshake is encrypted. PIA frames use:
@@ -244,6 +252,11 @@ ignored by the SCU (20s timeout). Bonding is mandatory for TLS.
 
 ## Token Delivery (confirmed via Hermes analysis)
 
+> The user-facing token model (which token is which, how each setup path obtains
+> the refresh token, per-device minting, pairing-slot limits) lives in
+> [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md). This section only
+> documents the **wire-level** delivery confirmed from the decompiled app.
+
 The EHG refresh token is delivered in the BLE `PairMobileResponse`, NOT via
 a cloud API call. Confirmed by string analysis of the Hermes JS bundle
 (`index.android.bundle`, 13.4 MB):
@@ -296,7 +309,17 @@ BLE can operate fully offline — sensor streaming and control commands work
 without any cloud connectivity.  A fresh installation always requires internet
 for the OAuth2 handshake and `confirmationToken` API call during BLE pairing.
 
-### Write Commands (removed in v2.62.24, restored in v2.66.0/v2.67.0)
+### Write Commands — historical (removed v2.62.24, restored v2.66.0/v2.67.0)
+
+**Current behavior:** BLE writes are **on by default since v2.67.0** (BLE-first with
+automatic cloud fallback), confirmed on a Grand Canyon S 600 (fw 1.13.0.0). The
+v2.62.24 "SCU silently drops BLE writes" verdict was a **client-side field-2 vs
+field-1 `BleProtocol` envelope bug** (found by Dan Simms), not a firmware limit —
+fixed in v2.66.0. Everything below is kept for archival reference only; expand it
+if you need the investigation history.
+
+<details>
+<summary>Historical BLE write-path investigation (v2.62.16 → v2.67.0)</summary>
 
 > ⚠️ **Historical only — superseded by v2.66.0/v2.67.0.** BLE writes were
 > removed in v2.62.24 (cloud-only), then **restored in v2.66.0 and turned on by
@@ -426,6 +449,8 @@ Code still present in the codebase that would help a future restoration:
 
 Restoration cost is a localised change in `coordinator._send_with_retry`
 plus re-adding the two Options fields — ≈150 lines total.
+
+</details>
 
 ## Credits
 

@@ -32,7 +32,7 @@ A ready-to-use, mobile-friendly Lovelace dashboard is shipped with this integrat
 | **Vehicle** | Model info, fuel/AdBlue, odometer, distance to service, outside temperature, ignition, fuel consumption + range |
 | **Doors** | Driver/passenger door state, lock state, parking brake, chassis flags |
 | **Lights** | All 8 interior lights + LED bar + the two native SCU group lights |
-| **GPS** | Map, coordinates, altitude, satellites, signal quality, heading |
+| **GPS** | Map, coordinates, SCU connectivity (LTE signal, SCU voltage, BT device counts) |
 | **System** | SCU + Truma firmware, LTE/BT telemetry, tyre pressure, **SCU restart button** |
 
 ## Light Entities (provided by the integration)

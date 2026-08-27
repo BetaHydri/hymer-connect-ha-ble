@@ -20,6 +20,7 @@
   to the **phone** and **cannot be reused by the Home Assistant host** for BLE —
   the HA host must do its **own** pairing to bond and mint its **own** token. See
   [Add BLE to an existing cloud-only setup](#add-ble-to-an-existing-cloud-only-setup).
+  Full token model: [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md).
 
 ## Does BLE keep delivering data when the vehicle's LTE is offline?
 
@@ -359,6 +360,7 @@ token**. The message that stops tells you which host dependency to fix:
 | `BLE scan found no SCU devices` (`ble_no_scu_found`) | Scan | Out of range, 12 V off, or Bluetooth integration/adapter not working |
 | `BLE TLS session established with SCU …` | TLS | Legacy-TLS handshake OK |
 | *(pairing hangs, then times out after TLS starts)* | TLS | Host OpenSSL likely rejects TLS 1.0/1.1 — see [What to watch out for](#what-to-watch-out-for-on-the-ble-direct-path) |
+| `BLE TLS handshake still failing after wake retry …` | TLS | Both the first attempt **and** the one-shot wake-and-retry failed. Names both causes: deep standby (no reply) **or** a reply the client couldn't complete (e.g. a firmware TLS-version change). |
 | `Cloud did not return a confirmation token` (`ble_no_confirmation_token`) | Cloud | Cloud API did not return a confirmation token — check account/network |
 | `BLE pairing response received from SCU …` | Pair | SCU answered the pairing request |
 | `BLE pairing … did not contain a refresh token` (`ble_no_refresh_token`) | Pair | SCU answered but returned no token (pairing slot rejected) — clear the bond and retry |
@@ -366,6 +368,14 @@ token**. The message that stops tells you which host dependency to fix:
 
 The GATT-level chatter (MTU negotiation, `ATT error: 0x0e`, write pacing) is
 explained in [`ble-communication.md`](ble-communication.md#gatt-write-pacing-v2610).
+
+> **A one-off `TLS handshake failed: [SSL] ASN1 lib` right after a restart is
+> self-recovering (v2.93.1).** The SCU replied but the reply couldn't be parsed on
+> that session — the client now sends the wake nudge and retries the handshake
+> once (previously only a *timeout* was retried, so an ASN1 failure fell straight
+> to the escalating backoff). If the next attempt succeeds you simply see
+> `BLE TLS session established`; if it repeats every attempt, capture a debug log
+> (from BLE connect through the failure) before rebooting.
 
 ## Did my command go over BLE or the cloud?
 
@@ -684,6 +694,6 @@ old token if the new pairing fails.
 ## See also
 
 - [`../quick-start.md`](../quick-start.md) — the four setup paths (A–D)
-- [README → Obtaining the EHG Refresh Token](../README.md#obtaining-the-ehg-refresh-token)
+- [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md) — which token is which, how each path obtains it
 - [README → Enable debug logging](../README.md#option-3-enable-debug-logging) — full logger reference
 - [`ble-communication.md`](ble-communication.md) — BLE protocol internals (bonding, TLS-over-NUS, PIA)

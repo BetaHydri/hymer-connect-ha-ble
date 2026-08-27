@@ -71,6 +71,11 @@ After step 6, the SCU starts pushing `PiaResponse` messages with sensor data.
 
 ## Token Types
 
+> User-facing token/pairing overview (which token is which, how each setup path
+> obtains the refresh token, per-device minting) lives in
+> [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md). The table below is the
+> maintainer-focused view with the SignalR-specific timing.
+
 The integration manages **4 different tokens** — confusing them causes silent failures:
 
 | Token | Source | Lifetime | Used For |
@@ -241,6 +246,30 @@ attempt 2: ensure_healthy → send → fail? → raise HomeAssistantError
 
 This means **a single transient connection drop never causes a visible command failure** —
 the user just sees a slightly delayed response.
+
+### Entity-level verify-and-retry (v2.92.0)
+
+Separate from the transport-level `_send_with_retry` above, each **commandable
+entity** verifies its own command against the SCU readback. Every entity sets an
+OPTIMISTIC value immediately, then reconciles it:
+
+- **TTL self-heal** — an optimistic value the SCU never confirms is dropped after
+  ~20 s (`OPTIMISTIC_STATE_TTL`) so the real readback wins. Without this, a
+  command that was dropped downstream (e.g. a BLE write that fell back to cloud
+  but was not applied) would leave the entity stuck on the wrong value forever,
+  because the SCU keeps reporting the OLD value and a clear-only-on-match never
+  fires.
+- **One-shot re-send** — after a command, the entity waits ~8 s
+  (`COMMAND_VERIFY_DELAY`) for a confirming readback; if none arrives it re-sends
+  the exact same command once (the coordinator escalates BLE→cloud). The retry is
+  **skipped** when it could not be confirmed anyway (12V-off / data silence or a
+  frozen SCU), and a newer user command cancels a pending verification.
+
+This is centralised in `optimistic.py` (`OptimisticCommandMixin`) and applied to
+the **climate, cover, number and select** platforms. The **water-pump switch**
+keeps its own equivalent verification task (`_verify_send`) and is unchanged. The
+safety motivation is concrete: turning the water pump OFF, or the diesel heater
+OFF, must not be silently lost. Lights gained the same protection in v2.91.11.
 
 ## Traffic Budget
 

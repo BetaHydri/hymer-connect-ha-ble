@@ -166,6 +166,15 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 | **Fuel (computed)** | tank liters, consumption (L/100km), estimated range | Derived from CAN odometer + fuel %; tank capacity configurable (default 93 L) |
 | **Device tracker** | GPS location on the HA map | Requires **"Find-My-RV"** enabled in the EHG app (Mehr → Services und Abonnements) |
 
+> **Commands self-verify and re-send once (v2.92.0).** Every commandable entity
+> (lights, the Truma/A-C climates, awning cover, number sliders, and the fridge /
+> boiler / heater-energy / stepped selects) checks the SCU readback after a
+> command; if the SCU has not confirmed it within ~8 s the command is re-sent once
+> (BLE→cloud escalation), and an unconfirmed optimistic value self-heals after
+> ~20 s so the real readback wins. The water-pump switch already had this via its
+> own verification task. This makes a **dropped BLE-then-cloud command** (e.g. a
+> "water pump off" or "diesel heater off") reliable instead of silently lost.
+
 ### Real-time sensors (via SignalR, requires EHG Refresh Token)
 
 | Category | Sensors |
@@ -182,7 +191,7 @@ All Erwin Hymer Group brands equipped with a **Smart Interface Unit (SIU)**:
 | **Heating** | Truma connected/status/firmware, fan speed, fuel type, electric power (0/900/1800W), setpoint, operating mode |
 | **Fridge** | Mode (cooling step), door status, ECO/Quiet mode, power on/off |
 | **Lights** | 8 interior lights, LED bar, Wohnen group, Privat group |
-| **System** | SCU connected/firmware, Truma firmware, LTE connected, paired BT devices, SCU restart button |
+| **System** | SCU connected/firmware, Truma firmware, LTE connected, paired BT devices, **connection mode** (BLE / Cloud / dual, v2.93.0), SCU restart button |
 | **Diagnostics** (device class *problem*) | `binary_sensor` **BLE degraded** — BLE write channel wedged (v2.90.0); **SCU frozen** — SCU firmware hung / clock stuck (v2.91.0). Reason + recovery step in each sensor's attributes; see [Troubleshooting](#troubleshooting) |
 | **Victron** | Inverter/charger, voltages, currents (bus 121 — disabled, **non-functional**: VE.Bus incompatible with vehicle CAN) |
 | **Total** | **~130 entities** (sensors, binary sensors, lights, switches, climate, selects) |
@@ -288,7 +297,7 @@ cloud-only setup, and first checks — lives in **[quick-start.md](quick-start.m
 > the long-lived token the integration stores for cloud data — and it is **obtained for you** by the pairing, never
 > pasted from the QR code. Every BLE pairing mints its **own** personal token; in cloud-only paths you reuse a token
 > from a helper device (uninstall the token-extractor APK once HA has it). Full explanation:
-> [quick-start.md](quick-start.md#which-token-is-which-read-this-first).
+> [EHG token & BLE pairing](docs/ehg-token-and-pairing.md).
 
 | Path | How the refresh token is obtained |
 |---|---|
@@ -377,11 +386,13 @@ sequenceDiagram
 
 ### Token types
 
-| Token | `ett` | Expiry | Source | Purpose |
-|-------|-------|--------|--------|---------|
-| OAuth2 access | — | 15 min | Login API | API authentication |
-| **Remote access refresh** | **`access-refresh`** | **Never** | **BLE pairing** | **Exchange for access token (this is what you capture)** |
-| Remote access | `access` | 15 min | `/remoteAccessToken` API | SignalR UpdateTokens |
+The integration handles several tokens, but the only one **you** obtain and keep
+is the long-lived **EHG refresh token**. The full four-token model, how each
+setup path obtains the refresh token, per-device pairing, and SCU pairing-slot
+limits are documented in one place:
+
+> 🔑 **[EHG token & BLE pairing](docs/ehg-token-and-pairing.md)** — the single,
+> authoritative token/pairing reference.
 
 > **Deep dive:** connection lifecycle, token refresh, reconnection logic, traffic budgets — [docs/signalr-connection.md](docs/signalr-connection.md).
 
@@ -495,7 +506,7 @@ graph TB
 |--------|--------------|-------------|--------|-------------|
 | 1 | `can0` | **CAN** | Mercedes Sprinter chassis | Odometer, fuel, doors, ignition, engine, AdBlue, VIN, temperature |
 | 3 | `lin1` | **LIN** | CBE EBL402 | 12V main switch, battery V/A/SOC, water tanks, charge phase, shore power |
-| 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — read-only (v2.64.7) |
+| 5 | — | PIA | Alde 3030 heater (BMC I 680) | Inside/outside temp, setpoint, energy priority (Gas/EL), heating on/active — **read + writable** (setpoint slider, energy/hot-water/booster selects; confirmed BMC I 680 + B-ML I 780) |
 | 8 | `lin2` | **LIN** | Votronic MPPT 260 CI | Solar voltage, current, power, charger status, error flags |
 | 10 | — | PIA | TenHaaft satellite dish (BMC I 680) | Selected satellite (writable select, v2.64.9), dish status, signal strength |
 | 11–21 | — | PIA | Interior lights | Ceiling, ambient, kitchen, bathroom, nightlight (on/off, brightness; color temp on ambient lights only) |
@@ -506,7 +517,7 @@ graph TB
 | 24 | — | PIA | Wohnen light group | Hardware group toggle for all living area lights |
 | 25 | — | PIA | Outside LED bar | On/off, brightness |
 | 27 | — | PIA | Privat light group | Hardware group toggle for all private area lights |
-| 30 | — | PIA | SCU telemetry | GPS coordinates, altitude, heading, satellites, LTE, Bluetooth |
+| 30 | — | PIA | SCU telemetry | GPS coordinates (slot 1), LTE signal, SCU voltage, paired/connected BT device counts |
 | 32 | — | PIA | Thetford N4142E+ absorber fridge (BMC I 680) | Power, cooling step 1–5 + power source (Auto/Gas/12V/AC) writable selects, door |
 | 34 | `heat_ctrl` | PIA | Thetford fridge (control) | Power, ECO, cooling step, setpoint |
 | 37 | `fridge` | PIA | Thetford fridge (status) | Operating mode, door state |

@@ -6,6 +6,10 @@
 Findings from reverse-engineering the HYMER Connect (EHG) Android app v2.10.14.  
 Source: `source/androidapp/com.ehg.hymerconnect/` (APK) and `_jadx_output/` (decompiled).
 
+> This file documents the **wire format** of the pairing ceremony. The user-facing
+> token lifecycle (which token is which, per-device minting, pairing-slot limits)
+> lives in [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md).
+
 ## App Architecture
 
 | Layer | Technology | Location | Responsibility |

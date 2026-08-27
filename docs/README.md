@@ -10,6 +10,7 @@ understanding the protocol internals.
 
 | Document | What it covers | Audience |
 | --- | --- | --- |
+| [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md) | **The single, authoritative token/pairing reference** — which token is which (dealer QR vs. EHG refresh token), the full four-token model, how each setup path obtains the refresh token, per-device token minting, and the SCU's pairing-slot limits. | Users setting up · anyone confused by tokens |
 | [`sensor-map.md`](sensor-map.md) | The **canonical bus/slot reference** — current meaning of every known `(bus_id, sensor_id)` slot per vehicle, units, transforms, plus the pinned-mapping and auto-slot `{n}` template rules for multi-device buses. Includes a **[Bus coverage by vehicle](sensor-map.md#bus-coverage-by-vehicle)** table and a **[Complete bus index](sensor-map.md#complete-bus-index-mapped-buses)** of all mapped buses. | Users looking up a sensor · contributors mapping a new vehicle |
 | [`contributing-overlays.md`](contributing-overlays.md) | **How to map a new vehicle** — discovering your `(bus, slot)` pairs (converter, discovery tool, debug logging, log reading) and adding entries to the shared `base.json` / `lights.json` (or, rarely, a brand-specific `sensor_maps/<brand>.json` overlay) step by step (field reference, decision matrix, worked examples, common mistakes). | Contributors adding a brand/model |
 | [`translations.md`](translations.md) | When (and when not) to edit `strings.json` and `translations/en.json` after adding an entity to a sensor map — translation-key style vs. the direct-name stepped-switch select driver. | Contributors editing sensor maps / opening PRs |
@@ -36,6 +37,6 @@ understanding the protocol internals.
 - [`../README.md`](../README.md) — full project overview, setup paths, and troubleshooting
 - [`../quick-start.md`](../quick-start.md) — shortest path to a working setup
 - [`../tools/README.md`](../tools/README.md) — token capture, sensor discovery, and contributor tooling
-- [**EHG token-extractor APK**](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) — sideload-only Android helper (unsigned) to read your EHG refresh token for the cloud-only path; uninstall it again once the token is saved. See [`../README.md`](../README.md#obtaining-the-ehg-refresh-token).
+- [**EHG token-extractor APK**](https://github.com/BetaHydri/hymer-connect-ha-ble/releases/latest/download/ehg-token-extractor.apk) — sideload-only Android helper (unsigned) to read your EHG refresh token for the cloud-only path; uninstall it again once the token is saved. See [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md).
 - [`../dashboards/README.md`](../dashboards/README.md) — dashboard import and required helpers
 - [`../CHANGELOG.md`](../CHANGELOG.md) — release history

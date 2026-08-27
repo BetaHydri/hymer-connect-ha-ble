@@ -30,41 +30,21 @@ Two different tokens are involved, and confusing them is the most common setup
 mistake. **The dealer QR activation token is NOT the EHG refresh token.**
 
 - **Dealer QR activation token** — a code from your **dealer handover paperwork**
-  (a paper document, *not* a sticker on the vehicle). You provide it during BLE
-  pairing (Path A) or the Android app (Path C) to prove physical access to the
-  vehicle. It *is* saved in the config entry and reused automatically on a
-  re-pair, but it only bootstraps the pairing — it is **not** the token that
-  authenticates the cloud / SignalR connection. **Since v2.91.3 the Reconfigure
-  form no longer pre-fills it, so you cannot read the code back there** — keep
-  your handover paperwork.
-- **EHG refresh token** — the long-lived token the integration actually stores
-  and uses for cloud / SignalR data. You never paste the QR code as the refresh
-  token; the refresh token is **obtained for you** by BLE pairing (Path A),
-  captured with mitmproxy (Path B), or extracted by the Android app (Path C).
+  (a paper document, *not* a sticker on the vehicle). It proves physical access
+  and only **bootstraps** the pairing (Path A / Path C).
+- **EHG refresh token** — the long-lived token (`ett=access-refresh`, no expiry)
+  the integration stores for cloud / SignalR data. You never paste the QR code as
+  the refresh token; it is **obtained for you** by BLE pairing (Path A), mitmproxy
+  (Path B), or the Android app (Path C).
 
 **In short: the QR code helps *obtain* the refresh token — it is not the refresh
-token itself.** For the full explanation, see
-[README → Obtaining the EHG Refresh Token](README.md#obtaining-the-ehg-refresh-token).
+token itself.** This is why the config flow treats the QR token as **optional**:
+it is only enforced when you enable the BLE data path (Path A); cloud-only setups
+(Paths B and D) supply the refresh token directly.
 
-This is why the config flow treats the QR token as **optional**: it is only
-required (and only enforced) when you enable the BLE data path (Path A). Cloud-only
-setups (Paths B and D) supply the refresh token directly, so the flow lets you
-leave the QR field empty and falls back to cloud-only mode.
-
-> **Every BLE pairing mints its own personal refresh token**, bound to the
-> pairing device's BLE identity, so the EHG app on your phone holds a different
-> token than Home Assistant. In the cloud-only paths you pair a helper device
-> (the token-extractor APK, Path C, or a mitmproxy capture, Path B) and **reuse
-> that same token** in Home Assistant. Best practice: don't run one extracted
-> token on more than one device at once — uninstall the APK once HA has the token.
-> With Path A (a HA host in the vehicle with BLE hardware + the Bluetooth
-> integration), Home Assistant pairs directly and mints its **own** token, so no
-> reuse is involved. The BLE dual-path is verified on **Raspberry Pi 4** hardware
-> using the Pi's built-in Bluetooth adapter (no external dongle required). **Since
-> v2.91.8 an external USB Bluetooth dongle / any second adapter (`hci1`, …) also
-> works** — the integration resolves the SCU's BlueZ device path across all
-> adapters instead of assuming `hci0`. Other BLE-capable HA hosts should work but
-> are unverified.
+> 📖 **Full explanation** — the four token types, why every pairing mints its own
+> token, and the SCU's pairing-slot limits are documented in one place:
+> [**EHG token & BLE pairing**](docs/ehg-token-and-pairing.md).
 
 ## Pick your setup path
 
@@ -136,7 +116,7 @@ Use this if your HA host has no BLE hardware.
 
 For the detailed capture workflow, see:
 
-- [`README.md`](README.md#obtaining-the-ehg-refresh-token)
+- [`docs/ehg-token-and-pairing.md`](docs/ehg-token-and-pairing.md)
 - [`tools/README.md`](tools/README.md)
 
 ## Path C — Cloud-only with Android app

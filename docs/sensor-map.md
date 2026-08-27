@@ -40,6 +40,18 @@ easier to use as a reference:
 - translation-file update rules → [`translations.md`](translations.md)
 - deep BLE / SignalR / reverse-engineering notes → the other files in `docs/`
 
+## Coordinator-derived entities (no bus/slot)
+
+A few entities are **not** backed by a PIA `(bus, slot)` — they are computed by the
+integration itself and so do not appear in the bus tables below:
+
+| Entity | Source | Notes |
+|--------|--------|-------|
+| `sensor.*_connection_mode` | `coordinator.connection_mode` | Which transport is live: **BLE (local)** / **Cloud** / **BLE + Cloud** (dual). Shipped entity (v2.93.0), device class *enum*. Survives HACS updates. |
+| `sensor.*_solar_power` | `solar_voltage × solar_current` | Computed from bus 8 rather than read from slot (8,7). |
+| `sensor.*_fuel_level_liters` / `_fuel_consumption` / `_fuel_range_estimated` | odometer + fuel % deltas | Computed; tank capacity is configurable. |
+| `binary_sensor.*_solar_active` | `solar_current > 0` | Computed from bus 8. |
+
 ## Practical notes for contributors
 
 - Keep entries here focused on the **current bus meaning**.
