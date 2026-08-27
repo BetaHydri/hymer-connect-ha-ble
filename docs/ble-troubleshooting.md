@@ -147,10 +147,20 @@ Proxmox with a USB-passthrough Bluetooth adapter** — but **only after host-sid
 accommodation**. On a Proxmox host the host's own `bluetoothd`/`btusb` will fight
 the guest over the passed-through radio, causing BLE to drop or wedge (stale
 `Write acquired` channel, MTU stuck at 23, TLS timeouts). To make it stable the
-host must be stopped from claiming the adapter: **blacklist `btusb`
-(and `btintel` on Intel radios) on the Proxmox host**, `update-initramfs -u`,
-reboot, then map the USB device to the VM. See the *Virtualised hosts* note under
-the proxy section below and
+host must be stopped from claiming the adapter. The most direct method is to
+**mask the host's Bluetooth service** on the Proxmox shell so it can never start
+and grab the radio:
+
+```bash
+systemctl stop bluetooth
+systemctl mask bluetooth      # undo later with: systemctl unmask bluetooth
+```
+
+For a belt-and-braces fix also **blacklist the kernel modules** so the driver
+never binds the adapter on the host — create `/etc/modprobe.d/blacklist-bt.conf`
+with `blacklist btusb` (add `blacklist btintel` on Intel radios), run
+`update-initramfs -u`, reboot, then map the USB device to the VM. See the
+*Virtualised hosts* note under the proxy section below and
 [home-assistant/core#132480](https://github.com/home-assistant/core/issues/132480).
 
 Other BlueZ-based HA hosts should also work but may need similar host-level
@@ -169,8 +179,10 @@ ignores the TLS handshake). The integration also pairs the SCU via **BlueZ
 - An ESP32 proxy is still fine for **passive third-party BLE sensors** (Mopeka,
   Ruuvi, tank/gas pucks, etc.) — just not for the SCU.
 - **Virtualised hosts (Proxmox/HAOS VM):** a proxy will *not* fix SCU BLE drops.
-  If the host's own `bluetoothd`/`btusb` fights the passed-through adapter, either
-  blacklist `btusb` on the host, or run HA on hardware without that contention.
+  If the host's own `bluetoothd`/`btusb` fights the passed-through adapter, mask
+  the host Bluetooth service (`systemctl mask bluetooth` on the Proxmox shell)
+  and/or blacklist `btusb` on the host, or run HA on hardware without that
+  contention.
 
 ## What to watch out for on the BLE-direct path
 
