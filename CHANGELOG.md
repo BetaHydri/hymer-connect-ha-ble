@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.2] - 2026-08-27
+
+### Fixed
+
+- **Removed a blocking file write from the event loop that Home Assistant flagged as a warning.** When a new device was assigned an auto-slot number (e.g. a freshly seen SIU temperature/tyre sensor), the integration persisted its hex→slot map by writing `sensor_maps/_auto_slots.json` synchronously from inside the PIA decode path, which runs on the Home Assistant event loop. HA's loop-protection logged `Detected blocking call to open ... _auto_slots.json.tmp` with a request to file a bug report. The write is now offloaded to an executor thread (with a synchronous fallback when no event loop is running, e.g. during tests), so the decode path never blocks the loop. No behavior change; the warning is gone.
+
 ## [2.91.1] - 2026-08-26
 
 ### Changed

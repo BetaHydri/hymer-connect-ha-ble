@@ -11,6 +11,7 @@ and an optional brand-specific overlay (e.g. ``eriba.json``).
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -203,20 +204,35 @@ def _load_auto_slot_store() -> None:
             }
 
 
-def _save_auto_slot_store() -> None:
-    """Persist the current hex→slot assignments to disk (best-effort)."""
+def _write_auto_slot_store(serializable: dict) -> None:
+    """Write the auto-slot store to disk (runs in an executor thread)."""
     try:
-        serializable = {
-            str(bus): dict(sorted(mapping.items(), key=lambda kv: kv[1]))
-            for bus, mapping in AUTO_SLOT_ASSIGN.items()
-            if mapping
-        }
         tmp = _AUTO_SLOT_STORE.with_suffix(".json.tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
         tmp.replace(_AUTO_SLOT_STORE)
     except OSError as exc:
         _LOGGER.warning("Could not write auto-slot store: %s", exc)
+
+
+def _save_auto_slot_store() -> None:
+    """Persist the current hex→slot assignments to disk (best-effort).
+
+    ``decode_pia_payload`` runs on the HA event loop, so the disk write is
+    offloaded to an executor thread to avoid blocking it.  Falls back to a
+    synchronous write when no running loop exists (e.g. unit tests).
+    """
+    serializable = {
+        str(bus): dict(sorted(mapping.items(), key=lambda kv: kv[1]))
+        for bus, mapping in AUTO_SLOT_ASSIGN.items()
+        if mapping
+    }
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        _write_auto_slot_store(serializable)
+        return
+    loop.run_in_executor(None, _write_auto_slot_store, serializable)
 
 
 def _make_auto_name_template(name: str, group: str) -> str:
