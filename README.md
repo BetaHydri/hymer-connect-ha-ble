@@ -307,8 +307,9 @@ keeps working in 12V standby and fully offline).
 
 **What you need**
 
-- A **BLE adapter** on the HA host (a **Raspberry Pi 4**'s built-in Bluetooth is the verified setup) and the
-  Home Assistant **Bluetooth** integration enabled.
+- A **BLE adapter** on the HA host (a **Raspberry Pi 4**'s built-in Bluetooth is the verified setup; since
+  **v2.91.8** an external **USB Bluetooth dongle / second adapter** works too, as the integration resolves the
+  SCU's BlueZ path across all adapters) and the Home Assistant **Bluetooth** integration enabled.
 - The host **in Bluetooth range** of the SCU with the vehicle's **12 V on**.
 - Your **dealer QR activation token** (handover paperwork). The host mints its **own** BLE-bound refresh token
   during pairing — the phone/APK token does **not** work for the host's BLE path.
@@ -320,8 +321,9 @@ keeps working in 12V standby and fully offline).
    Access Refresh Token** field is **empty by default (v2.91.3+)** and an empty field keeps your current token —
    just tick **Re-pair over BLE (mint a new EHG token)** (v2.84.0+) to force a fresh pairing (you don't need to
    touch the token field).
-3. **Press CONNECTION** on the SCU panel, then **submit the form within ~25 s** (the pairing window can be as
-   short as ~30 s) and don't close the dialog.
+3. **Press CONNECTION** on the SCU panel and **submit the form** (don't close the dialog). The integration then
+   **auto-retries the bond about every 8 s for ~90 s (12 attempts)**; if the SCU's own window (as short as ~30 s)
+   lapses, **press CONNECTION again** during the retries.
 4. On **BLE Pairing Complete** the host is bonded and has stored its own token — sensors now stream over BLE.
 
 > **Moved HA to a new host and lost the BLE bond?** (e.g. you restored a backup onto a fresh Raspberry Pi — the

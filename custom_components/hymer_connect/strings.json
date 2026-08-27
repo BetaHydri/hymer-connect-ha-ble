@@ -16,7 +16,7 @@
       },
       "vehicle": {
         "title": "Vehicle Activation",
-        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ Order matters: press the CONNECTION button on the SCU control panel FIRST, then submit this form within ~25 seconds. Some SCUs hold the pairing window open for only ~30 seconds. This is the same button you pressed when pairing the EHG app.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
+        "description": "Recommended: enter the QR code and SCU Bluetooth address to enable BLE pairing. The integration will obtain the EHG refresh token automatically during the first connection — no mitmproxy needed.\n\n⚠️ Order matters: press the CONNECTION button on the SCU control panel FIRST, then submit this form. The integration auto-retries the bond for ~90 seconds (about every 8 s); if the SCU's pairing window (only ~30 seconds on some SCUs) lapses, press CONNECTION again. This is the same button you pressed when pairing the EHG app.\n\nIf you don't have BLE hardware, leave both fields empty and provide the EHG refresh token from Step 1 instead.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -38,7 +38,7 @@
       },
       "reconfigure": {
         "title": "Reconfigure HYMER Connect",
-        "description": "All fields start empty — leave a field empty to keep its current value, or type/paste a new value to change it (nothing to clear first).\n\nTo re-pair over BLE (e.g. after moving Home Assistant to a new host): tick 'Re-pair over BLE' (you do NOT need to touch the token fields), press CONNECTION on the SCU FIRST and submit within ~25 seconds. A fresh EHG token is minted on success; the old token stays intact if pairing fails.",
+        "description": "All fields start empty — leave a field empty to keep its current value, or type/paste a new value to change it (nothing to clear first).\n\nTo re-pair over BLE (e.g. after moving Home Assistant to a new host): tick 'Re-pair over BLE' (you do NOT need to touch the token fields), press CONNECTION on the SCU FIRST and submit. The integration auto-retries for ~90 seconds; press CONNECTION again if the SCU's short window lapses. A fresh EHG token is minted on success; the old token stays intact if pairing fails.",
         "data": {
           "qr_activation_token": "QR code activation token",
           "ble_scu_address": "SCU Bluetooth address",
@@ -51,12 +51,12 @@
           "ble_scu_address": "Leave empty for auto-scan. Optionally pin the SCU Bluetooth MAC (e.g. AA:BB:CC:DD:EE:FF) if the scan is slow.",
           "ehg_refresh_token": "Leave empty to keep the current token. Only paste a value here if you are setting a token from mitmproxy manually. To re-pair over BLE, use the checkbox below instead — you do NOT need to clear or edit this field.",
           "oauth_basic_auth": "The full 'Authorization: Basic …' header used on OAuth /token requests. Captured from your own EHG app traffic via mitmproxy. Leave empty to keep the current value (or to fall back to the deprecated bundled default if none was set).",
-          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token. This ignores the stored token automatically, so you do NOT need to clear any field. Requires a QR activation token (entered here or already stored). Use it after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit within ~25 seconds."
+          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token. This ignores the stored token automatically, so you do NOT need to clear any field. Requires a QR activation token (entered here or already stored). Use it after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit; the bond auto-retries for ~90 seconds (press CONNECTION again if needed)."
         }
       },
       "ble_pairing": {
         "title": "BLE Pairing with SCU",
-        "description": "If you haven't already, press the **CONNECTION** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. It retries for up to 2 minutes, but some SCUs hold the pairing window open only ~30 seconds — so press CONNECTION right as you submit.\n\nDo NOT close this dialog."
+        "description": "If you haven't already, press the **CONNECTION** (connection) button on the SCU control panel in your vehicle now.\n\nThe integration is connecting via Bluetooth and waiting for the SCU to accept the pairing request. It retries for ~90 seconds (about every 8 s), but some SCUs hold the pairing window open only ~30 seconds — so press CONNECTION as you submit, and again if the first tries miss the window.\n\nDo NOT close this dialog."
       },
       "ble_result": {
         "title": "BLE Pairing Complete",
@@ -64,7 +64,7 @@
       }
     },
     "progress": {
-      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press CONNECTION on the vehicle control panel now. Retrying for up to 2 minutes."
+      "ble_pairing": "Waiting for SCU to accept BLE pairing... Press CONNECTION on the vehicle control panel now. Retrying for ~90 seconds — press CONNECTION again if the SCU's window lapses."
     },
     "error": {
       "cannot_connect": "Failed to connect to HYMER Connect API",

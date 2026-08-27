@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.9] - 2026-08-27
+
+### Changed
+
+- **Corrected the BLE pairing-timing guidance in the setup dialogs and docs.** The Vehicle-activation, Reconfigure and BLE-pairing screens (and `quick-start.md`, `README.md`, `docs/ble-troubleshooting.md`) told you to "submit within ~25 seconds". The pairing flow actually **auto-retries the bond about every 8 seconds for ~90 seconds (12 attempts)**, so the guidance now says to press **CONNECTION**, submit, and **press CONNECTION again during the retries** if the SCU's short window (~30 s on some SCUs) lapses — no need to hit a 25-second deadline.
+- **Documentation fixes around the EHG token and BLE bonding.** Removed the outdated claim that the QR activation token can be "viewed again via Reconfigure" (the Reconfigure form no longer pre-fills it since v2.91.3) and the outdated "clear the pre-filled EHG token field" step (all Reconfigure fields are empty by default and an empty field keeps the current token). Documented that a **USB Bluetooth dongle / second adapter (`hci1`, …)** now works (v2.91.8). Clarified the **Configure vs Reconfigure** rule: *Reset BLE pairing only* (Configure) re-bonds reusing your token, while *Reconfigure* is the only place that mints a new token.
+
 ## [2.91.8] - 2026-08-27
 
 ### Fixed

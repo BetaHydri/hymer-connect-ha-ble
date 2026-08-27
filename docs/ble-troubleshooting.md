@@ -58,9 +58,12 @@ Both menus sit under **Settings → Devices & Services → HYMER Connect BLE**, 
 they do **different jobs**. The short rule:
 
 - **⚙️ Configure** (the gear / ⋮ → *Configure*) = **tweak an already-running
-  setup**. It only writes flags — it **never pairs**.
-- **⋮ → Reconfigure** = **add or redo the BLE pairing**, or paste new tokens. This
-  is the **only** place that actually bonds to the SCU and mints a token.
+  setup**, and **reset/re-bond** the existing BLE pairing — **Reset BLE pairing
+  only** clears the OS bond and **re-bonds reusing your existing token**. It
+  **never mints a new EHG token**.
+- **⋮ → Reconfigure** = **add or redo the BLE pairing and mint a NEW EHG token**
+  (via *Re-pair over BLE*), or paste a token manually. This is the **only** place
+  that **mints a token**.
 
 ### ⚙️ Configure (Options) — `async_step_init`
 
@@ -86,7 +89,7 @@ they do **different jobs**. The short rule:
 | **SCU Bluetooth address** | Optional. Same meaning as above — pin the MAC or leave empty to auto-scan. Setting it also auto-enables BLE. |
 | **EHG Remote Access Refresh Token** | **Empty by default (v2.91.3+)** — an empty field **keeps your current token**. Paste a token here only to set/replace it manually (cloud-only path). To re-pair over BLE you do **not** touch this field — just tick **Re-pair over BLE** below. (Older builds pre-filled this with your stored token, which was tedious to clear on a phone.) |
 | **OAuth Basic auth header** | Same as in Configure — the built-in EHG-app `Basic` credentials are used by default; only paste a value here to **override** them. Leave empty otherwise. |
-| **Re-pair over BLE (mint a new EHG token)** *(v2.84.0+)* | A checkbox that forces a fresh BLE bond **and mints a brand-new EHG token**. Tick it (no need to touch the token fields), press **CONNECTION** on the SCU, and submit within ~25 s — a new token is minted on success. Requires a **QR activation token** (entered now or already stored). The old token is **kept and only overwritten on a successful pair**, so a failed attempt never breaks your existing cloud connection. Use it for **host migration** (restore an HA backup onto a new Raspberry Pi → the OS-level bond does not survive) **or to start over after you tapped “Disconnect vehicle” in the EHG app** (which invalidates the old token — this re-enrolls a fresh one **without deleting the integration**). |
+| **Re-pair over BLE (mint a new EHG token)** *(v2.84.0+)* | A checkbox that forces a fresh BLE bond **and mints a brand-new EHG token**. Tick it (no need to touch the token fields), press **CONNECTION** on the SCU, and submit — the bond **auto-retries about every 8 s for ~90 s** (press CONNECTION again if the first attempts miss the SCU's window), and a new token is minted on success. Requires a **QR activation token** (entered now or already stored). The old token is **kept and only overwritten on a successful pair**, so a failed attempt never breaks your existing cloud connection. Use it for **host migration** (restore an HA backup onto a new Raspberry Pi → the OS-level bond does not survive) **or to start over after you tapped “Disconnect vehicle” in the EHG app** (which invalidates the old token — this re-enrolls a fresh one **without deleting the integration**). |
 
 ![Reconfigure HYMER Connect dialog showing the "Re-pair over BLE (mint a new EHG token)" checkbox at the bottom](../images/reconfigure.png)
 
@@ -96,7 +99,7 @@ they do **different jobs**. The short rule:
 >
 > **Moved HA to a new host and lost the bond?** Just tick **Re-pair over BLE (mint a
 > new EHG token)** (v2.84.0+) — no need to touch the token fields — press
-> **CONNECTION**, and submit within ~25 s. See
+> **CONNECTION**, and submit (the bond auto-retries ~90 s). See
 > [Add BLE to an existing cloud-only setup](#add-ble-to-an-existing-cloud-only-setup).
 
 ### How the two BLE options interact (and what pairing sets)
@@ -140,6 +143,14 @@ fallback — no extra checkbox flip needed.
 The BLE dual-path has so far been confirmed working on **Raspberry Pi 4** hosts
 (by the maintainer and a handful of users), using the Pi's **built-in Bluetooth
 adapter** — no external USB BLE dongle needed.
+
+Since **v2.91.8** the integration resolves the SCU's BlueZ device path across
+**any** local adapter (via the BlueZ ObjectManager) instead of assuming `hci0`,
+so an **external USB Bluetooth dongle or a second adapter (`hci1`, …)** works too.
+Earlier builds could only bond when the SCU happened to connect via the first
+controller (`hci0`); with a dongle present that failed with a D-Bus
+`UnknownObject` (“Method ‘Pair’ … doesn't exist”) which was **misreported as a
+missing CONNECTION press**.
 
 It is also confirmed working on a **virtualised Home Assistant OS VM under
 Proxmox with a USB-passthrough Bluetooth adapter** — but **only after host-side
@@ -207,11 +218,11 @@ and during pairing:
   accepts the bond while it is in pairing mode. On some vehicles this window is
   **~2 minutes**, but on others (e.g. B-MC I 680, SCU 1.13.0.0) it closes after
   only **~30 seconds** and a second CONNECTION press is ignored until it lapses.
-  The most reliable sequence: **press CONNECTION, then submit the Reconfigure
-  form within ~25 seconds** — the actual `Device1.Pair()` fires a couple of
-  seconds after you submit, which lands it safely inside even a 30-second window.
-  The integration then keeps retrying the bond, but the first attempt right after
-  your press is the one most likely to succeed.
+  After you submit the form the integration **auto-retries the bond about every
+  8 seconds for ~90 seconds (12 attempts)** — the first `Device1.Pair()` fires a
+  couple of seconds after you submit. So **press CONNECTION, submit, and if the
+  early attempts fail press CONNECTION again** during the retries so one attempt
+  lands inside the SCU's open window.
 - **"CONNECTION" may be a physical button, not the touch menu.** Per HYMER's help
   center, the connection control (*Verbindungsknopf*) is a **white button on the
   left side of the grey-black SCU** itself (exact position in your vehicle
@@ -261,26 +272,25 @@ pairing and mint its **own** Pi-bound token. (For how this differs from the
    - **QR code activation token** — paste your dealer QR activation token (from the
      handover paperwork). This is required to enable BLE pairing.
    - **SCU Bluetooth address** — optional; leave empty to **auto-scan** for the SCU.
-   - **Trigger the pairing** in one of two ways:
-     - **Easiest (v2.84.0+):** tick **Re-pair over BLE (mint a new EHG token)** and
-       **leave** the pre-filled EHG token in place — it is ignored and a fresh one
-       is minted on success (the old token stays intact if pairing fails).
-     - **Or:** **clear the EHG Remote Access Refresh Token** field so a fresh BLE
-       pairing is triggered. Because you set up cloud-only before, this field is
-       **pre-filled with your existing token** — it must be **emptied** (if you
-       leave a token here without the checkbox, pairing is skipped). Copy it
-       somewhere first as a cloud-only fallback.
-5. **Press CONNECTION** on the SCU touch panel, then **submit the form within
-   ~25 seconds** and **do not close the dialog**. The pairing window can be as
-   short as ~30 seconds on some SCUs, so submit promptly after the press rather
-   than pressing CONNECTION only once the dialog is already waiting.
+   - **Trigger the pairing:** tick **Re-pair over BLE (mint a new EHG token)**
+     (v2.84.0+). The **EHG Remote Access Refresh Token** field is **empty by
+     default (v2.91.3+)** and an empty field **keeps your current token**, so you
+     do **not** touch it — a fresh token is minted on success and the old one
+     stays intact if pairing fails.
+5. **Press CONNECTION** on the SCU touch panel and **submit the form**; **do not
+   close the dialog**. After you submit, the integration **auto-retries the bond
+   about every 8 seconds for ~90 seconds (12 attempts)**. If the SCU's own pairing
+   window (as short as ~30 s on some SCUs) lapses before a retry lands, **press
+   CONNECTION again** during the retries.
 6. On success you see **BLE Pairing Complete** — the host has bonded and stored its
    own refresh token.
 
 > **The phone/APK token does not work for the host's BLE path.** The APK token is
 > bound to the phone's BLE identity; the host must mint its own during the pairing
-> above. If a previously stored token is blocking a fresh pairing, clear it first —
-> see [Clear a stale BLE bond](#clear-a-stale-ble-bond).
+> above. Ticking **Re-pair over BLE (mint a new EHG token)** forces a fresh bond
+> even when a token is already stored — you no longer need to clear the token
+> field first (it is empty by default since v2.91.3 and an empty field keeps your
+> current token).
 
 ## Enable debug logging
 
@@ -620,7 +630,7 @@ your working cloud connection.
 | Situation | Do this | QR token? | Touches EHG token? |
 | --- | --- | --- | --- |
 | **BLE bond is broken/stale** (connects then `failed to discover services`, or `Write/Notify acquired`), cloud still works and you have a valid EHG token | **⚙️ Configure → Reset BLE pairing only** (v2.91.5+), then re-bond at the vehicle (press **CONNECTION**) | **No** | **No** — kept |
-| **You need a brand-new EHG token** (moved HA to a new host, or you tapped *Disconnect vehicle* in the EHG app so the old token is dead) | **⋮ → Reconfigure → tick “Re-pair over BLE”**, press **CONNECTION**, submit within ~25 s | **Yes** (entered or stored) | **Yes** — re-minted (old kept if it fails) |
+| **You need a brand-new EHG token** (moved HA to a new host, or you tapped *Disconnect vehicle* in the EHG app so the old token is dead) | **⋮ → Reconfigure → tick “Re-pair over BLE”**, press **CONNECTION**, submit (auto-retries ~90 s) | **Yes** (entered or stored) | **Yes** — re-minted (old kept if it fails) |
 | **Full clean slate** (start from zero) | Delete the integration and add it again | Yes | Yes |
 
 **Why this is safe:** the **OS-level Bluetooth bond** and the **cloud EHG refresh
@@ -667,8 +677,9 @@ old token if the new pairing fails.
 
 1. **⋮ → Reconfigure**, tick **Re-pair over BLE (mint a new EHG token)**.
 2. Make sure a **QR activation token** is present (entered or already stored).
-3. Press **CONNECTION** on the SCU, submit within ~25 s. On success a new token is
-   minted; on failure the old one is kept.
+3. Press **CONNECTION** on the SCU and submit; the bond **auto-retries for ~90 s**
+   (press CONNECTION again if needed). On success a new token is minted; on failure
+   the old one is kept.
 
 ## See also
 

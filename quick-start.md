@@ -32,9 +32,11 @@ mistake. **The dealer QR activation token is NOT the EHG refresh token.**
 - **Dealer QR activation token** — a code from your **dealer handover paperwork**
   (a paper document, *not* a sticker on the vehicle). You provide it during BLE
   pairing (Path A) or the Android app (Path C) to prove physical access to the
-  vehicle. It *is* saved in the config entry (you can view it again later via
-  **Reconfigure**), but it only bootstraps the pairing — it is **not** the token
-  that authenticates the cloud / SignalR connection.
+  vehicle. It *is* saved in the config entry and reused automatically on a
+  re-pair, but it only bootstraps the pairing — it is **not** the token that
+  authenticates the cloud / SignalR connection. **Since v2.91.3 the Reconfigure
+  form no longer pre-fills it, so you cannot read the code back there** — keep
+  your handover paperwork.
 - **EHG refresh token** — the long-lived token the integration actually stores
   and uses for cloud / SignalR data. You never paste the QR code as the refresh
   token; the refresh token is **obtained for you** by BLE pairing (Path A),
@@ -57,9 +59,12 @@ leave the QR field empty and falls back to cloud-only mode.
 > token on more than one device at once — uninstall the APK once HA has the token.
 > With Path A (a HA host in the vehicle with BLE hardware + the Bluetooth
 > integration), Home Assistant pairs directly and mints its **own** token, so no
-> reuse is involved. The BLE dual-path has only been tested on **Raspberry Pi 4**
-> hardware so far, using the Pi's built-in Bluetooth adapter (no external USB BLE
-> dongle needed); other BLE-capable HA hosts should work but are unverified.
+> reuse is involved. The BLE dual-path is verified on **Raspberry Pi 4** hardware
+> using the Pi's built-in Bluetooth adapter (no external dongle required). **Since
+> v2.91.8 an external USB Bluetooth dongle / any second adapter (`hci1`, …) also
+> works** — the integration resolves the SCU's BlueZ device path across all
+> adapters instead of assuming `hci0`. Other BLE-capable HA hosts should work but
+> are unverified.
 
 ## Pick your setup path
 
@@ -98,12 +103,13 @@ This is the recommended setup when your HA host is inside the vehicle or otherwi
 6. **Close the EHG app on your phone first** — do not pair while the phone is
    actively connected over BLE to the same SCU, as a competing connection can
    block the host's bond
-7. **Press CONNECTION** on the SCU touch panel, then **submit the pairing step
-   within ~25 seconds** and **do not close the dialog**. The pairing window can be
-   as short as **~30 seconds** on some SCUs (e.g. B-MC I 680, SCU 1.13.0.0) — so
-   press CONNECTION and submit promptly, rather than pressing CONNECTION only once
-   the dialog is already waiting. The integration keeps retrying, but the attempt
-   right after your press is the one most likely to succeed.
+7. **Press CONNECTION** on the SCU touch panel and **submit the pairing step**;
+   **do not close the dialog**. After you submit, the integration **auto-retries
+   the bond about every 8 seconds for ~90 seconds (12 attempts)**, so you get
+   several chances. On some SCUs the vehicle's own pairing window is short
+   (**~30 seconds**, e.g. B-MC I 680, SCU 1.13.0.0) and a single press only keeps
+   it open briefly — if the first attempts fail, **press CONNECTION again** during
+   the retries so one attempt lands inside the SCU's open window.
 8. Wait for pairing and token exchange to finish
 
 > The host's built-in pairing agent is **device-locked** to your SCU and handles
