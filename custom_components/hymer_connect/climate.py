@@ -7,7 +7,10 @@ is found, the climate entity is not created.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -25,6 +28,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+from .optimistic import OptimisticCommandMixin
 from .sensor import _resolve_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,7 +126,7 @@ async def async_setup_entry(
 
 
 class HymerHeaterClimate(
-    CoordinatorEntity[HymerConnectCoordinator], ClimateEntity
+    CoordinatorEntity[HymerConnectCoordinator], ClimateEntity, OptimisticCommandMixin
 ):
     """Truma heater climate entity."""
 
@@ -158,6 +162,7 @@ class HymerHeaterClimate(
         }
         self._optimistic_mode: HVACMode | None = None
         self._optimistic_temp: float | None = None
+        self._init_optimistic()
         # Bus/slot IDs from JSON
         self._bus = heater_def.get("heater_bus", 58)
         self._setpoint_sid = heater_def.get("setpoint_sid", 8)
@@ -235,10 +240,11 @@ class HymerHeaterClimate(
             if temp <= HEATER_OFF_SETPOINT:
                 temp = 20.0
             fuel = self._get_fuel_type()
-            await self.coordinator.async_send_multi_sensor_command([
+            cmds = [
                 {"bus_id": self._bus, "sensor_id": self._setpoint_sid, "float_value": temp},
                 {"bus_id": self._bus, "sensor_id": self._fuel_type_2_sid, "str_value": fuel},
-            ])
+            ]
+            await self.coordinator.async_send_multi_sensor_command(cmds)
             self._optimistic_mode = HVACMode.HEAT
             self._optimistic_temp = temp
         else:
@@ -247,14 +253,16 @@ class HymerHeaterClimate(
                 "Climate → OFF (bus=%d, fuel=%s)",
                 self._bus, fuel,
             )
-            await self.coordinator.async_send_multi_sensor_command([
+            cmds = [
                 {"bus_id": self._bus, "sensor_id": self._setpoint_sid, "float_value": HEATER_OFF_SETPOINT},
                 {"bus_id": self._bus, "sensor_id": self._fuel_type_2_sid, "str_value": fuel},
-            ])
+            ]
+            await self.coordinator.async_send_multi_sensor_command(cmds)
             self._optimistic_mode = HVACMode.OFF
             self._optimistic_temp = None
 
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set target temperature."""
@@ -267,16 +275,39 @@ class HymerHeaterClimate(
             "Climate setpoint → %.1f°C (bus=%d, fuel=%s)",
             float(temp), self._bus, fuel,
         )
-        await self.coordinator.async_send_multi_sensor_command([
+        cmds = [
             {"bus_id": self._bus, "sensor_id": self._setpoint_sid, "float_value": float(temp)},
             {"bus_id": self._bus, "sensor_id": self._fuel_type_2_sid, "str_value": fuel},
-        ])
+        ]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self._optimistic_mode = HVACMode.HEAT
         self._optimistic_temp = float(temp)
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic_mode is not None or self._optimistic_temp is not None
+
+    def _command_confirmed(self) -> bool:
+        setpoint = self._get_setpoint()
+        if setpoint is None:
+            return False
+        if self._optimistic_mode == HVACMode.OFF:
+            return setpoint <= HEATER_OFF_SETPOINT
+        if self._optimistic_mode == HVACMode.HEAT and setpoint > HEATER_OFF_SETPOINT:
+            if self._optimistic_temp is not None:
+                return abs(setpoint - self._optimistic_temp) < 0.5
+            return True
+        return False
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic_mode = None
+        self._optimistic_temp = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state when SCU confirms."""
+        """Clear optimistic state when SCU confirms or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self.coordinator.data and self._optimistic_mode is not None:
             setpoint = self._get_setpoint()
             if setpoint is not None:
@@ -288,6 +319,10 @@ class HymerHeaterClimate(
                         self._optimistic_mode = None
                         self._optimistic_temp = None
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
 
 
 # Wire values (from the decompiled EHG app) -> HA HVAC / fan modes.
@@ -345,7 +380,7 @@ def _setup_air_conditioners(
     entry.async_on_unload(coordinator.async_add_listener(_discover))
 
 
-class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity, OptimisticCommandMixin):
     """Single-zone air-conditioner climate (target/current/mode/fan).
 
     JSON-driven from ``"climate"."air_conditioners"``.  All writes are
@@ -395,6 +430,7 @@ class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
         self._optimistic_mode: HVACMode | None = None
         self._optimistic_temp: float | None = None
         self._optimistic_fan: str | None = None
+        self._init_optimistic()
 
     def _sensor(self, name: str) -> Any:
         if not name or self.coordinator.data is None:
@@ -454,33 +490,66 @@ class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
         wire = _AC_HVAC_TO_MODE.get(hvac_mode)
         if wire is None:
             return
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire},
-        ])
+        cmds = [{"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self._optimistic_mode = hvac_mode
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": float(temp)},
-        ])
+        cmds = [{"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": float(temp)}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self._optimistic_temp = float(temp)
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         if fan_mode not in _AC_FAN_MODES:
             return
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._fan_sid, "str_value": fan_mode},
-        ])
+        cmds = [{"bus_id": self._bus, "sensor_id": self._fan_sid, "str_value": fan_mode}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self._optimistic_fan = fan_mode
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
+
+    def _has_pending_optimistic(self) -> bool:
+        return (
+            self._optimistic_mode is not None
+            or self._optimistic_temp is not None
+            or self._optimistic_fan is not None
+        )
+
+    def _command_confirmed(self) -> bool:
+        if not self.coordinator.data:
+            return False
+        if self._optimistic_mode is not None:
+            raw = self._sensor(self._mode_sensor)
+            if not (isinstance(raw, str) and _AC_MODE_TO_HVAC.get(raw.upper()) == self._optimistic_mode):
+                return False
+        if self._optimistic_fan is not None:
+            if self._sensor(self._fan_sensor) != self._optimistic_fan:
+                return False
+        if self._optimistic_temp is not None:
+            raw = self._sensor(self._target_sensor)
+            try:
+                if raw is None or abs(float(raw) - self._optimistic_temp) >= 0.5:
+                    return False
+            except (ValueError, TypeError):
+                return False
+        return True
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic_mode = None
+        self._optimistic_temp = None
+        self._optimistic_fan = None
 
     def _handle_coordinator_update(self) -> None:
-        # Clear optimistic flags once the SCU readback matches.
+        # Clear optimistic flags once the SCU readback matches or the TTL heals.
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self.coordinator.data:
             raw_mode = self._sensor(self._mode_sensor)
             if (
@@ -500,6 +569,10 @@ class HymerACClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
                 except (ValueError, TypeError):
                     pass
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
 
 
 try:  # ATTR_TARGET_TEMP_LOW/HIGH moved across HA cores
@@ -575,7 +648,7 @@ def _setup_gated_climate(
     entry.async_on_unload(coordinator.async_add_listener(_discover))
 
 
-class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity, OptimisticCommandMixin):
     """Airxcel dual-zone A/C climate with separate heat/cool targets."""
 
     _attr_has_entity_name = True
@@ -617,11 +690,23 @@ class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEnt
             HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT,
             _HEAT_COOL_MODE, HVACMode.FAN_ONLY,
         ]
+        # This A/C reads state directly (no optimistic display); the mixin is
+        # used in retry-only mode via a pending-confirmation closure so a
+        # dropped command is still re-sent once.
+        self._init_optimistic()
+        self._pending_confirm: Callable[[], bool] | None = None
 
     def _sensor(self, name: str) -> Any:
         if not name or self.coordinator.data is None:
             return None
         return _resolve_path(self.coordinator.data, f"signalr_sensors.{name}")
+
+    def _temp_matches(self, sensor: str, target: float) -> bool:
+        val = self._sensor(sensor)
+        try:
+            return val is not None and abs(float(val) - target) < 0.5
+        except (ValueError, TypeError):
+            return False
 
     def _temp(self, name: str) -> float | None:
         val = self._sensor(name)
@@ -681,26 +766,38 @@ class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEnt
         wire = _AIRXCEL_HVAC_TO_MODE.get(hvac_mode)
         if wire is None:
             return
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire},
-        ])
+        cmds = [{"bus_id": self._bus, "sensor_id": self._mode_sid, "str_value": wire}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self.async_write_ha_state()
+        self._pending_confirm = lambda m=hvac_mode: self.hvac_mode == m
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         cmds: list[dict[str, Any]] = []
         if low is not None and high is not None:
-            cmds.append({"bus_id": self._bus, "sensor_id": self._heat_sid, "float_value": float(low)})
-            cmds.append({"bus_id": self._bus, "sensor_id": self._cool_sid, "float_value": float(high)})
+            lo, hi = float(low), float(high)
+            cmds.append({"bus_id": self._bus, "sensor_id": self._heat_sid, "float_value": lo})
+            cmds.append({"bus_id": self._bus, "sensor_id": self._cool_sid, "float_value": hi})
+            self._pending_confirm = lambda: (
+                self._temp_matches(self._heat_sensor, lo)
+                and self._temp_matches(self._cool_sensor, hi)
+            )
         else:
             temp = kwargs.get(ATTR_TEMPERATURE)
             if temp is None:
                 return
-            sid = self._cool_sid if self.hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY) else self._heat_sid
-            cmds.append({"bus_id": self._bus, "sensor_id": sid, "float_value": float(temp)})
+            t = float(temp)
+            if self.hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY):
+                sid, sensor = self._cool_sid, self._cool_sensor
+            else:
+                sid, sensor = self._heat_sid, self._heat_sensor
+            cmds.append({"bus_id": self._bus, "sensor_id": sid, "float_value": t})
+            self._pending_confirm = lambda s=sensor, tt=t: self._temp_matches(s, tt)
         await self.coordinator.async_send_multi_sensor_command(cmds)
         self.async_write_ha_state()
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         if fan_mode not in _AIRXCEL_FAN_MODES:
@@ -714,9 +811,33 @@ class HymerAirxcelClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEnt
             ]
         await self.coordinator.async_send_multi_sensor_command(cmds)
         self.async_write_ha_state()
+        self._pending_confirm = lambda fm=fan_mode: self.fan_mode == fm
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._pending_confirm is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._pending_confirm is not None and self._pending_confirm()
+
+    def _clear_optimistic(self) -> None:
+        self._pending_confirm = None
+
+    def _handle_coordinator_update(self) -> None:
+        # Retry-only: no optimistic display, but drop the pending marker on TTL
+        # or once the readback confirms the last command.
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
+        elif self._has_pending_optimistic() and self._command_confirmed():
+            self._clear_optimistic()
+        super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
 
 
-class HymerModernHeaterClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity):
+class HymerModernHeaterClimate(CoordinatorEntity[HymerConnectCoordinator], ClimateEntity, OptimisticCommandMixin):
     """Modern enum-based heater climate (int mode slot + float target)."""
 
     _attr_has_entity_name = True
@@ -752,11 +873,21 @@ class HymerModernHeaterClimate(CoordinatorEntity[HymerConnectCoordinator], Clima
         if HVACMode.OFF not in modes:
             modes.insert(0, HVACMode.OFF)
         self._attr_hvac_modes = modes or [HVACMode.OFF, HVACMode.HEAT]
+        # Retry-only (no optimistic display), like the Airxcel A/C.
+        self._init_optimistic()
+        self._pending_confirm: Callable[[], bool] | None = None
 
     def _sensor(self, name: str) -> Any:
         if not name or self.coordinator.data is None:
             return None
         return _resolve_path(self.coordinator.data, f"signalr_sensors.{name}")
+
+    def _temp_matches(self, target: float) -> bool:
+        val = self._sensor(self._target_sensor)
+        try:
+            return val is not None and abs(float(val) - target) < 0.5
+        except (ValueError, TypeError):
+            return False
 
     def _mode_index(self) -> int | None:
         raw = self._sensor(self._mode_sensor)
@@ -810,16 +941,40 @@ class HymerModernHeaterClimate(CoordinatorEntity[HymerConnectCoordinator], Clima
         if target_opt is None:
             return
         idx = self._options.index(target_opt)
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._mode_sid, "uint_value": idx},
-        ])
+        cmds = [{"bus_id": self._bus, "sensor_id": self._mode_sid, "uint_value": idx}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self.async_write_ha_state()
+        self._pending_confirm = lambda m=hvac_mode: self.hvac_mode == m
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
-        await self.coordinator.async_send_multi_sensor_command([
-            {"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": float(temp)},
-        ])
+        t = float(temp)
+        cmds = [{"bus_id": self._bus, "sensor_id": self._target_sid, "float_value": t}]
+        await self.coordinator.async_send_multi_sensor_command(cmds)
         self.async_write_ha_state()
+        self._pending_confirm = lambda tt=t: self._temp_matches(tt)
+        self._note_command(lambda c=cmds: self.coordinator.async_send_multi_sensor_command(c))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._pending_confirm is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._pending_confirm is not None and self._pending_confirm()
+
+    def _clear_optimistic(self) -> None:
+        self._pending_confirm = None
+
+    def _handle_coordinator_update(self) -> None:
+        # Retry-only: drop the pending marker on TTL or once confirmed.
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
+        elif self._has_pending_optimistic() and self._command_confirmed():
+            self._clear_optimistic()
+        super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()

@@ -9,7 +9,9 @@ command path (the same path the Truma climate setpoint uses).  See
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -20,6 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+from .optimistic import OptimisticCommandMixin
 from .sensor import _resolve_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -107,7 +110,7 @@ def _number_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
     return tuple(name for name in names if isinstance(name, str) and name)
 
 
-class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
+class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity, OptimisticCommandMixin):
     """Generic JSON-driven writable float slot (v2.65.5+).
 
     Reads its current value from a backing sensor and writes changes to the
@@ -176,6 +179,7 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
         # slots (e.g. battery capacity Ah, Truma NEO target temperature).
         self._write_type: str = str(defn.get("write_type", "float")).lower()
         self._optimistic: float | None = None
+        self._init_optimistic()
 
     @property
     def native_value(self) -> float | None:
@@ -208,9 +212,29 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
         await self.coordinator.async_send_multi_sensor_command([payload])
         self._optimistic = float(value)
         self.async_write_ha_state()
+        self._note_command(lambda p=payload: self.coordinator.async_send_multi_sensor_command([p]))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic is not None
+
+    def _command_confirmed(self) -> bool:
+        if self._optimistic is None or not self.coordinator.data or not self._value_sensor:
+            return False
+        raw = _resolve_path(
+            self.coordinator.data, f"signalr_sensors.{self._value_sensor}"
+        )
+        try:
+            return raw is not None and abs(float(raw) - self._optimistic) < 0.05
+        except (TypeError, ValueError):
+            return False
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state once the coordinator confirms it."""
+        """Clear optimistic state once confirmed or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic is not None and self.coordinator.data:
             raw = _resolve_path(
                 self.coordinator.data, f"signalr_sensors.{self._value_sensor}"
@@ -221,3 +245,7 @@ class HymerNumber(CoordinatorEntity[HymerConnectCoordinator], NumberEntity):
             except (TypeError, ValueError):
                 pass
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()

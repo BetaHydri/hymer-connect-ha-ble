@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.92.0] - 2026-08-27
+
+### Fixed
+
+- **Optimistic state for climate, cover, number and select could stick on a wrong value, and a dropped command was never re-sent.** These entities show the commanded value immediately (optimistic) and then clear it once the SCU confirms it — but the confirmation only cleared on a match, so a command that never took effect (e.g. a BLE write failed, fell back to cloud, and that cloud command was dropped) left the entity stuck on the wrong optimistic value indefinitely and the command was never re-issued. This is the same bug class fixed for lights in v2.91.11, extended to every remaining commandable entity: the Truma heater and A/C climates, the awning/cover, writable number sliders (e.g. Alde setpoints), and the fridge / boiler / heater-energy / stepped selects. The optimistic value now self-heals after ~20 s so the real SCU readback wins, and the dropped command is re-sent once automatically. The safety motivation is the same as for lights and the water-pump switch: e.g. turning the water pump OFF must not be silently lost, or the pump can run dry and be destroyed. The water-pump switch already had this protection via its own verification task and is unchanged.
+
+### Added
+
+- **Shared verify-and-retry mixin (`OptimisticCommandMixin`) so dual-path (BLE + cloud) behaviour is consistent across all commandable entities.** The TTL self-heal and one-shot verify-and-retry first proven in the light platform are now centralised in a single `optimistic.py` module and applied to the climate, cover, number and select platforms. After each command the entity waits ~8 s for a confirming SCU readback; if none arrives the exact same command is re-sent once (the coordinator escalates BLE→cloud automatically), then left to the real readback. The retry is skipped when it could not be confirmed anyway (12V off / data silence or a frozen SCU) and a newer user command cancels a pending verification, so there are no retry storms. The Airxcel and modern enum-heater climates, which read their state directly with no optimistic display, gain the dropped-command re-send only (their display is unchanged). The water-pump switch keeps its own battle-tested verification and is untouched.
+
 ## [2.91.11] - 2026-08-27
 
 ### Fixed

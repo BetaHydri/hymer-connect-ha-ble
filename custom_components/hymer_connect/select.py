@@ -7,7 +7,9 @@ the corresponding select entity is not created.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +23,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+from .optimistic import OptimisticCommandMixin
 from .sensor import _resolve_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -205,7 +208,7 @@ def _stepped_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
 
 
 class HymerFridgeSelect(
-    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity, OptimisticCommandMixin
 ):
     """Fridge mode select entity — Off / 1-5 / ECO."""
 
@@ -230,6 +233,7 @@ class HymerFridgeSelect(
             "model": "Smart Interface Unit",
         }
         self._optimistic: str | None = None
+        self._init_optimistic()
         # Bus/slot IDs from JSON
         self._bus = fridge_def.get("control_bus", 34)
         self._power_sid = fridge_def.get("power_sid", 1)
@@ -243,6 +247,10 @@ class HymerFridgeSelect(
         """Return the current fridge mode."""
         if self._optimistic is not None:
             return self._optimistic
+        return self._read_option()
+
+    def _read_option(self) -> str | None:
+        """Resolve the fridge mode from the SCU readback (no optimistic)."""
         if self.coordinator.data is None:
             return None
 
@@ -270,35 +278,51 @@ class HymerFridgeSelect(
 
         return None
 
-    async def async_select_option(self, option: str) -> None:
-        """Set the fridge mode."""
-        import asyncio
-
+    async def _send_option(self, option: str) -> None:
+        """Issue the SCU writes for ``option`` (no optimistic/verify)."""
         if option == "Off":
             await self.coordinator.async_send_light_command(self._bus, self._power_sid, bool_value=False)
-        elif option in ("1", "2", "3", "4", "5"):
+        else:  # "1"-"5"
             # Power on first, wait, then set cooling step
             await self.coordinator.async_send_light_command(self._bus, self._power_sid, bool_value=True)
             await asyncio.sleep(0.5)
             await self.coordinator.async_send_light_command(self._bus, self._step_sid, uint_value=int(option))
-        else:
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the fridge mode."""
+        if option not in ("Off", "1", "2", "3", "4", "5"):
             _LOGGER.warning("Unknown fridge option: %s", option)
             return
-
+        await self._send_option(option)
         self._optimistic = option
         self.async_write_ha_state()
+        self._note_command(lambda o=option: self._send_option(o))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._optimistic is not None and self._read_option() == self._optimistic
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state when confirmed."""
+        """Clear optimistic state when confirmed or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic is not None and self.coordinator.data:
-            actual = self.current_option
-            if actual == self._optimistic:
+            if self._read_option() == self._optimistic:
                 self._optimistic = None
         super()._handle_coordinator_update()
 
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
+
 
 class HymerBoilerSelect(
-    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity, OptimisticCommandMixin
 ):
     """Boiler mode select entity — Off / ECO / Turbo."""
 
@@ -323,6 +347,7 @@ class HymerBoilerSelect(
             "model": "Smart Interface Unit",
         }
         self._optimistic: str | None = None
+        self._init_optimistic()
         self._bus = heater_def.get("heater_bus", 58)
         self._boiler_sid = heater_def.get("boiler_sid", 5)
         self._fuel_type_sid = heater_def.get("fuel_type_sid", 4)
@@ -342,6 +367,10 @@ class HymerBoilerSelect(
         """Return the current boiler mode."""
         if self._optimistic is not None:
             return self._optimistic
+        return self._read_option()
+
+    def _read_option(self) -> str | None:
+        """Resolve the boiler mode from the SCU readback (no optimistic)."""
         if self.coordinator.data is None:
             return None
 
@@ -359,34 +388,51 @@ class HymerBoilerSelect(
             return "Turbo"
         return "Off"
 
-    async def async_select_option(self, option: str) -> None:
-        """Set the boiler mode."""
+    async def _send_option(self, option: str) -> None:
+        """Issue the SCU writes for ``option`` (no optimistic/verify)."""
         mode_map = {"Off": "OFF", "ECO": "ECO", "Turbo": "HOT"}
-        mode_str = mode_map.get(option)
-        if mode_str is None:
-            _LOGGER.warning("Unknown boiler option: %s", option)
-            return
-
+        mode_str = mode_map[option]
         fuel = self._get_fuel_type()
         await self.coordinator.async_send_multi_sensor_command([
             {"bus_id": self._bus, "sensor_id": self._boiler_sid, "str_value": mode_str},
             {"bus_id": self._bus, "sensor_id": self._fuel_type_sid, "str_value": fuel},
         ])
 
+    async def async_select_option(self, option: str) -> None:
+        """Set the boiler mode."""
+        if option not in ("Off", "ECO", "Turbo"):
+            _LOGGER.warning("Unknown boiler option: %s", option)
+            return
+        await self._send_option(option)
         self._optimistic = option
         self.async_write_ha_state()
+        self._note_command(lambda o=option: self._send_option(o))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._optimistic is not None and self._read_option() == self._optimistic
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state when confirmed."""
+        """Clear optimistic state when confirmed or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic is not None and self.coordinator.data:
-            actual = self.current_option
-            if actual == self._optimistic:
+            if self._read_option() == self._optimistic:
                 self._optimistic = None
         super()._handle_coordinator_update()
 
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
+
 
 class HymerHeaterEnergySelect(
-    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity, OptimisticCommandMixin
 ):
     """Heater energy source select matching Truma Combi panel modes.
 
@@ -429,6 +475,7 @@ class HymerHeaterEnergySelect(
             "model": "Smart Interface Unit",
         }
         self._optimistic: str | None = None
+        self._init_optimistic()
         self._bus = heater_def.get("heater_bus", 58)
         self._fuel_type_sid = heater_def.get("fuel_type_sid", 4)
         self._fuel_type_2_sid = heater_def.get("fuel_type_2_sid", 6)
@@ -441,6 +488,10 @@ class HymerHeaterEnergySelect(
         """Return the current heater energy source."""
         if self._optimistic is not None:
             return self._optimistic
+        return self._read_option()
+
+    def _read_option(self) -> str | None:
+        """Resolve the energy source from the SCU readback (no optimistic)."""
         if self.coordinator.data is None:
             return None
 
@@ -473,8 +524,8 @@ class HymerHeaterEnergySelect(
             return f"Mix {w}W"
         return "Diesel"
 
-    async def async_select_option(self, option: str) -> None:
-        """Set the heater energy source."""
+    async def _send_option(self, option: str) -> None:
+        """Issue the SCU writes for ``option`` (no optimistic/verify)."""
         b = self._bus
         ft = self._fuel_type_sid
         ft2 = self._fuel_type_2_sid
@@ -509,20 +560,38 @@ class HymerHeaterEnergySelect(
                 {"bus_id": b, "sensor_id": ft2, "str_value": "Both"},
                 {"bus_id": b, "sensor_id": ep, "uint_value": 1800},
             ])
-        else:
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the heater energy source."""
+        if option not in HEATER_ENERGY_OPTIONS:
             _LOGGER.warning("Unknown heater energy option: %s", option)
             return
-
+        await self._send_option(option)
         self._optimistic = option
         self.async_write_ha_state()
+        self._note_command(lambda o=option: self._send_option(o))
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._optimistic is not None and self._read_option() == self._optimistic
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state when confirmed."""
+        """Clear optimistic state when confirmed or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic is not None and self.coordinator.data:
-            actual = self.current_option
-            if actual == self._optimistic:
+            if self._read_option() == self._optimistic:
                 self._optimistic = None
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
 
 
 # Note: a HymerHeaterAirModeSelect for slot 58:11 (heater_air_mode) was
@@ -536,7 +605,7 @@ class HymerHeaterEnergySelect(
 
 
 class HymerSteppedSelect(
-    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity, OptimisticCommandMixin
 ):
     """Generic JSON-driven stepped-switch select (v2.63.0+).
 
@@ -610,12 +679,17 @@ class HymerSteppedSelect(
         self._value_sensor: str | None = read.get("value_sensor")
         self._writes_option: list[dict[str, Any]] = list(writes.get("option", []))
         self._optimistic: str | None = None
+        self._init_optimistic()
 
     @property
     def current_option(self) -> str | None:
         """Resolve the active option from coordinator data."""
         if self._optimistic is not None:
             return self._optimistic
+        return self._read_option()
+
+    def _read_option(self) -> str | None:
+        """Resolve the active option from the SCU readback (no optimistic)."""
         if self.coordinator.data is None:
             return None
 
@@ -659,12 +733,20 @@ class HymerSteppedSelect(
 
     async def async_select_option(self, option: str) -> None:
         """Execute the JSON-defined write recipe for ``option``."""
-        import asyncio
-
         if option not in self._attr_options:
             _LOGGER.warning("Unknown option '%s' for stepped select '%s'", option, self._key)
             return
+        if not await self._send_option(option):
+            return
+        self._optimistic = option
+        self.async_write_ha_state()
+        self._note_command(lambda o=option: self._send_option(o))
 
+    async def _send_option(self, option: str) -> bool:
+        """Run the SCU write recipe for ``option`` (no optimistic/verify).
+
+        Returns True when a command was issued, False when there was no recipe.
+        """
         # String-valued select: run the single "option" recipe with "$option".
         if self._writes_option:
             for step in self._writes_option:
@@ -706,9 +788,7 @@ class HymerSteppedSelect(
                             "String select '%s': cannot coerce uint value %r",
                             self._key, step.get("uint"),
                         )
-            self._optimistic = option
-            self.async_write_ha_state()
-            return
+            return True
 
         is_off = option == "Off"
         recipe = self._writes_off if is_off else self._writes_step
@@ -717,7 +797,7 @@ class HymerSteppedSelect(
                 "Stepped select '%s' has no '%s' write recipe — ignoring",
                 self._key, "off" if is_off else "step",
             )
-            return
+            return False
 
         if self._option_values is not None:
             try:
@@ -777,13 +857,26 @@ class HymerSteppedSelect(
                     self._key, step,
                 )
 
-        self._optimistic = option
-        self.async_write_ha_state()
+        return True
+
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic is not None
+
+    def _command_confirmed(self) -> bool:
+        return self._optimistic is not None and self._read_option() == self._optimistic
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic = None
 
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic state once the coordinator confirms it."""
+        """Clear optimistic state once confirmed or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic is not None and self.coordinator.data:
-            actual = self.current_option
-            if actual == self._optimistic:
+            if self._read_option() == self._optimistic:
                 self._optimistic = None
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()

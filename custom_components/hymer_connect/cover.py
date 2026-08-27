@@ -8,7 +8,9 @@ sensors of one component (bus). See ``docs/sensor-map.md`` for the schema.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -23,6 +25,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+from .optimistic import OptimisticCommandMixin
 from .sensor import _resolve_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,7 +100,7 @@ def _cover_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
     return tuple(name for name in names if isinstance(name, str) and name)
 
 
-class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
+class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity, OptimisticCommandMixin):
     """Generic JSON-driven cover (v2.73.0+).
 
     Drives a moving component that exposes momentary open/close write slots, an
@@ -156,6 +159,7 @@ class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
         self._attr_supported_features = features
 
         self._optimistic_state: str | None = None
+        self._init_optimistic()
 
     def _read_int(self, sensor: str | None) -> int | None:
         if not sensor or self.coordinator.data is None:
@@ -213,6 +217,11 @@ class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
         )
         self._optimistic_state = "opening"
         self.async_write_ha_state()
+        self._note_command(
+            lambda: self.coordinator.async_send_light_command(
+                self._bus, int(self._open_sid), bool_value=True
+            )
+        )
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Retract the cover (momentary write)."""
@@ -223,26 +232,38 @@ class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
         )
         self._optimistic_state = "closing"
         self.async_write_ha_state()
+        self._note_command(
+            lambda: self.coordinator.async_send_light_command(
+                self._bus, int(self._close_sid), bool_value=True
+            )
+        )
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         sid = self._stop.get("sid")
         if sid is None:
             return
-        if "str" in self._stop:
-            await self.coordinator.async_send_light_command(
-                self._bus, int(sid), str_value=str(self._stop["str"])
-            )
-        elif "uint" in self._stop:
-            await self.coordinator.async_send_light_command(
-                self._bus, int(sid), uint_value=int(self._stop["uint"])
-            )
-        else:
-            await self.coordinator.async_send_light_command(
-                self._bus, int(sid), bool_value=True
-            )
+
+        async def _send_stop() -> None:
+            if "str" in self._stop:
+                await self.coordinator.async_send_light_command(
+                    self._bus, int(sid), str_value=str(self._stop["str"])
+                )
+            elif "uint" in self._stop:
+                await self.coordinator.async_send_light_command(
+                    self._bus, int(sid), uint_value=int(self._stop["uint"])
+                )
+            else:
+                await self.coordinator.async_send_light_command(
+                    self._bus, int(sid), bool_value=True
+                )
+
+        await _send_stop()
+        # Stop clears any pending movement; _note_command also cancels the
+        # open/close verify watchdog so there is no retry after an explicit stop.
         self._optimistic_state = None
         self.async_write_ha_state()
+        self._note_command(_send_stop)
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a target position (0-100)."""
@@ -254,8 +275,28 @@ class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
         )
         self.async_write_ha_state()
 
+    def _has_pending_optimistic(self) -> bool:
+        return self._optimistic_state is not None
+
+    def _command_confirmed(self) -> bool:
+        if self._optimistic_state is None:
+            return True
+        if not self._direction_sensor:
+            return True  # no movement feedback — can't verify; rely on TTL self-heal
+        direction = self._direction()
+        if self._optimistic_state == "opening":
+            return direction == self._extend_token
+        if self._optimistic_state == "closing":
+            return direction == self._retract_token
+        return True
+
+    def _clear_optimistic(self) -> None:
+        self._optimistic_state = None
+
     def _handle_coordinator_update(self) -> None:
-        """Clear optimistic movement once the SCU reports a settled direction."""
+        """Clear optimistic movement once settled or the TTL self-heals it."""
+        if self._optimistic_ttl_expired():
+            self._clear_optimistic()
         if self._optimistic_state is not None:
             direction = self._direction()
             if direction is not None and direction not in (
@@ -264,3 +305,7 @@ class HymerCover(CoordinatorEntity[HymerConnectCoordinator], CoverEntity):
             ):
                 self._optimistic_state = None
         super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        await self._cancel_verify()
+        await super().async_will_remove_from_hass()
