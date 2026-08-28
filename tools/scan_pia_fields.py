@@ -1,25 +1,27 @@
-"""Brute-force PIA protobuf field number scanner for HYMER Connect SCU.
+"""Single-shot PIA protobuf field PROBE for HYMER Connect SCU.
 
-Connects to the EHG cloud via SignalR and sends trial PIA requests using
-different protobuf field numbers inside the UserRequestTopic (field 8) and
-CommandRequestTopic (field 9) envelopes.  Logs all SCU responses to identify
-which field numbers correspond to undocumented commands like:
+Connects to the EHG cloud via SignalR and sends ONE trial PIA request carrying
+a single operator-chosen sub-field of the UserRequestTopic (Request field 8) or
+CommandRequestTopic (field 9) envelope, then captures the SCU's response. Used
+to identify undocumented commands such as:
 
-    - getPairedMobileDevices
-    - deleteMobileDevices
-    - deleteAllUsers
-    - deleteUser
+    - getPairedMobileDevices   (read-only, the ONLY reasonably safe target)
+    - deleteMobileDevices      (destructive: removes a paired device)
+    - deleteAllUsers / deleteUser  (DESTRUCTIVE: can wipe the account)
 
 Known field numbers (confirmed):
-    UserRequestTopic (field 8):
-        4 = pairMobileDevice
-        6 = pairMobileDeviceConfirmation
-    CommandRequestTopic (field 9):
-        2 = restart
+    UserRequestTopic (field 8):  4 = pairMobileDevice, 6 = pairMobileDeviceConfirmation
+    CommandRequestTopic (field 9): 2 = restart
 
-This tool scans fields 1-15 in both envelopes, sending an empty payload for
-each, and captures whatever the SCU returns.  The SCU typically responds with
-a status code for valid fields and ignores invalid ones.
+SAFETY (why this is single-shot, not a sweep)
+---------------------------------------------
+The field numbers of deleteUser / deleteAllUsers are UNKNOWN. A blind 1-15 sweep
+would therefore eventually send one of them and could wipe your account/pairings.
+This tool follows the safe model used by dan-simms1/hymer-connect-ha's
+`scu-user-topic` probe: it sends exactly ONE deliberately chosen field per run,
+refuses to send without an explicit acknowledgement, refuses the pairing ceremony
+fields (4/6) and restart (command 2), and NEVER accepts a range. Prefer probing
+`getPairedMobileDevices` (read-only, empty payload) first.
 
 Usage:
     Set environment variables:
@@ -27,8 +29,9 @@ Usage:
         HYMER_PASSWORD=yourpassword
         HYMER_EHG_REFRESH_TOKEN=eyJraWQ...
 
-    Then run:
-        python scan_pia_fields.py [--timeout 10] [--envelope user] [--fields 1-15]
+    Then probe ONE field, e.g. a candidate for getPairedMobileDevices:
+        python scan_pia_fields.py --envelope user --field 5 \
+            --i-understand-may-be-destructive
 
 .AUTHOR Jan Tiedemann
 .DATE 2026
@@ -196,6 +199,38 @@ USER_TOPIC_KNOWN = {
 COMMAND_TOPIC_KNOWN = {
     2: "restart",
 }
+
+# Read-only sub-fields that are safe to probe with an empty payload. Everything
+# else in these topics is either a write or an unknown (possibly destructive)
+# command, so it must be chosen deliberately, one at a time.
+SAFE_USAGE_NOTICE = """\
+Nothing sent. This is a single-shot probe, not a scanner.
+
+The field numbers for deleteUser / deleteAllUsers are UNKNOWN, so a blind sweep
+could wipe your account. Choose ONE field deliberately and send it explicitly.
+
+Known UserRequestTopic (Request field 8) sub-fields:
+    4 = pairMobileDevice          (refused here - use the BLE pairing path)
+    6 = pairMobileDeviceConfirmation (refused here)
+    ? = getPairedMobileDevices    (read-only - the SAFE thing to hunt for)
+    ? = deleteMobileDevices       (destructive - needs a mobileDeviceMac payload)
+    ? = deleteUser / deleteAllUsers (DESTRUCTIVE - do not guess blindly)
+
+Example (probe a candidate for the read-only getPairedMobileDevices):
+    python scan_pia_fields.py --envelope user --field 5 \\
+        --i-understand-may-be-destructive
+
+Start with likely candidates near the known pairing fields (5, 7, 8, 10, 11) and
+probe ONE at a time, with an EMPTY payload, watching for a response that carries
+a repeated mobileDevices list.
+"""
+
+DESTRUCTIVE_REFUSAL = """\
+Refusing to send. Some UserRequestTopic sub-fields are destructive
+(deleteUser, deleteAllUsers) and their field numbers are UNKNOWN. Pass
+--i-understand-may-be-destructive once you have chosen a single field
+deliberately. Never sweep a range.
+"""
 
 
 def build_user_topic_probe(field_number: int, payload: bytes = b"") -> str:
@@ -442,44 +477,81 @@ def decode_pia_response(b64_payload: str) -> dict[str, Any]:
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Scan PIA protobuf field numbers to discover undocumented SCU commands"
+        description=(
+            "Probe ONE PIA UserRequestTopic/CommandRequestTopic sub-field to identify "
+            "an undocumented SCU command. Single-shot by design: it never sweeps a range, "
+            "because the destructive delete* field numbers are unknown and a blind sweep "
+            "could wipe the account."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--timeout", type=float, default=10.0,
-        help="Seconds to wait for SCU response per probe (default: 10)"
+        "--field", type=int, default=None,
+        help="The SINGLE sub-field number to probe (e.g. 5). Required to send anything."
     )
     parser.add_argument(
         "--envelope", type=str, default="user",
-        choices=["user", "command", "toplevel", "both", "all"],
-        help="Which envelope to scan: user (field 8), command (field 9), toplevel (direct), both (user+command), all"
+        choices=["user", "command", "toplevel"],
+        help="Envelope the field lives in: user (Request field 8), command (field 9), toplevel (direct). Default: user"
     )
     parser.add_argument(
-        "--fields", type=str, default="1-15",
-        help="Field number range to scan, e.g. '1-15' or '1,3,5,7' (default: 1-15)"
+        "--payload-hex", type=str, default="",
+        help="Optional hex payload for the sub-field (e.g. an encoded mobileDeviceMac). Default: empty = read-only probe."
+    )
+    parser.add_argument(
+        "--i-understand-may-be-destructive", dest="ack_destructive",
+        action="store_true", default=False,
+        help="Required acknowledgement. Some sub-fields (deleteUser/deleteAllUsers) are destructive and their numbers are UNKNOWN."
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=10.0,
+        help="Seconds to wait for the SCU response (default: 10)"
     )
     parser.add_argument(
         "--brand", type=str, default="hymer",
         help="Vehicle brand (default: hymer)"
     )
     parser.add_argument(
-        "--skip-known", action="store_true", default=False,
-        help="Skip known/confirmed fields (4,6 for user; 2 for command)"
-    )
-    parser.add_argument(
         "--output", type=str, default="",
-        help="Export raw results to a JSON file"
+        help="Export the raw result to a JSON file"
     )
     args = parser.parse_args()
 
-    # Parse field range
-    field_numbers: list[int] = []
-    for part in args.fields.split(","):
-        part = part.strip()
-        if "-" in part:
-            start, end = part.split("-", 1)
-            field_numbers.extend(range(int(start), int(end) + 1))
-        else:
-            field_numbers.append(int(part))
+    # --- Safety gate 1: no field -> print guidance and exit without sending ---
+    if args.field is None:
+        print(SAFE_USAGE_NOTICE)
+        return
+
+    # --- Safety gate 2: refuse the pairing ceremony (use the BLE pairing path) ---
+    if args.envelope == "user" and args.field in USER_TOPIC_KNOWN:
+        print(
+            f"Refusing: UserRequestTopic field {args.field} is "
+            f"{USER_TOPIC_KNOWN[args.field]} (the pairing ceremony). Use the "
+            "integration's BLE pairing path, not this probe."
+        )
+        sys.exit(2)
+
+    # --- Safety gate 3: refuse restart ---
+    if args.envelope == "command" and args.field == 2:
+        print(
+            "Refusing: CommandRequestTopic field 2 is restart (reboots the SCU). "
+            "Use button.hymer_restart_scu if that is what you want."
+        )
+        sys.exit(2)
+
+    # --- Safety gate 4: require explicit acknowledgement for every real send ---
+    if not args.ack_destructive:
+        print(DESTRUCTIVE_REFUSAL)
+        sys.exit(2)
+
+    # Decode the optional payload (empty = read-only probe, the only safe kind)
+    try:
+        payload = bytes.fromhex(args.payload_hex) if args.payload_hex else b""
+    except ValueError:
+        print(f"ERROR: --payload-hex is not valid hex: {args.payload_hex!r}")
+        sys.exit(2)
+
+    field_numbers = [args.field]  # kept for the JSON export block below
 
     # Credentials
     username = os.environ.get("HYMER_USERNAME", "")
@@ -504,12 +576,12 @@ async def main():
         sys.exit(1)
 
     print("=" * 80)
-    print("  HYMER Connect PIA Field Scanner")
+    print("  HYMER Connect PIA Field Probe (single-shot)")
     print("=" * 80)
-    print(f"  Envelope(s): {args.envelope}")
-    print(f"  Fields: {field_numbers}")
-    print(f"  Timeout per probe: {args.timeout}s")
-    print(f"  Skip known fields: {args.skip_known}")
+    print(f"  Envelope: {args.envelope}")
+    print(f"  Field: {args.field}")
+    print(f"  Payload: {args.payload_hex or 'empty (read-only)'}")
+    print(f"  Timeout: {args.timeout}s")
     print()
 
     results: dict[str, dict] = {}
@@ -556,110 +628,55 @@ async def main():
         await scanner.listen_for_responses(timeout=3.0)
         print()
 
-        # Scan UserRequestTopic (field 8)
-        if args.envelope in ("user", "both"):
-            print("─" * 80)
-            print("  Scanning UserRequestTopic (Request.field_8) sub-fields")
-            print("─" * 80)
+        # --- Send exactly ONE probe (single-shot by design) ---
+        if args.envelope == "user":
+            b64, msg_id = build_user_topic_probe(args.field, payload)
+            envelope_label = "UserRequestTopic (Request.field_8)"
+            label = USER_TOPIC_KNOWN.get(args.field, "???")
+        elif args.envelope == "command":
+            b64, msg_id = build_command_topic_probe(args.field, payload)
+            envelope_label = "CommandRequestTopic (Request.field_9)"
+            label = COMMAND_TOPIC_KNOWN.get(args.field, "???")
+        else:
+            b64, msg_id = build_toplevel_topic_probe(args.field, payload)
+            envelope_label = "Request top-level"
+            label = "???"
 
-            for field_num in field_numbers:
-                label = USER_TOPIC_KNOWN.get(field_num, "???")
-                if args.skip_known and field_num in USER_TOPIC_KNOWN:
-                    print(f"  Field {field_num:2d} ({label}) — SKIPPED (known)")
-                    continue
+        print("─" * 80)
+        print(f"  Probing {envelope_label} sub-field {args.field} ({label})")
+        print(f"  payload={args.payload_hex or 'empty (read-only)'}  request_id={msg_id}")
+        print("─" * 80)
 
-                b64, msg_id = build_user_topic_probe(field_num)
-                print(f"  Field {field_num:2d} ({label}) — sending probe (request_id={msg_id})...", end="", flush=True)
+        await scanner.send_pia_request(b64)
+        responses = await scanner.listen_for_responses(timeout=args.timeout)
 
-                await scanner.send_pia_request(b64)
-                responses = await scanner.listen_for_responses(timeout=args.timeout)
+        matched = []
+        for resp in responses:
+            resp_args = resp.get("arguments", [])
+            if resp_args and isinstance(resp_args[0], str):
+                decoded = decode_pia_response(resp_args[0])
+                if decoded.get("request_id") == msg_id:
+                    matched.append(decoded)
 
-                # Filter for responses matching our request_id
-                matched = []
-                unmatched = []
-                for resp in responses:
-                    resp_args = resp.get("arguments", [])
-                    if resp_args and isinstance(resp_args[0], str):
-                        decoded = decode_pia_response(resp_args[0])
-                        if decoded.get("request_id") == msg_id:
-                            matched.append(decoded)
-                        else:
-                            unmatched.append(decoded)
-
-                if matched:
-                    print(f" ✅ RESPONSE!")
-                    key = f"user_field_{field_num}"
-                    results[key] = {
-                        "envelope": "UserRequestTopic",
-                        "field": field_num,
-                        "label": label,
-                        "responses": matched,
-                    }
-                    for m in matched:
-                        status = m.get("status", "?")
-                        print(f"       Status: {status}")
-                        for k, v in m.items():
-                            if k.startswith("response_field_"):
-                                print(f"       {k}: {json.dumps(v, indent=8, default=str)[:500]}")
-                elif unmatched:
-                    print(f" ⚡ {len(unmatched)} responses (different request_id — background data)")
-                else:
-                    print(f" ❌ no response")
-
-            print()
-
-        # Scan CommandRequestTopic (field 9)
-        if args.envelope in ("command", "both"):
-            print("─" * 80)
-            print("  Scanning CommandRequestTopic (Request.field_9) sub-fields")
-            print("  ⚠️  WARNING: This may trigger SCU actions (restart, factory reset)!")
-            print("  ⚠️  Only empty payloads are sent — most commands need parameters.")
-            print("─" * 80)
-
-            for field_num in field_numbers:
-                label = COMMAND_TOPIC_KNOWN.get(field_num, "???")
-                if args.skip_known and field_num in COMMAND_TOPIC_KNOWN:
-                    print(f"  Field {field_num:2d} ({label}) — SKIPPED (known)")
-                    continue
-
-                # SAFETY: skip restart (field 2) by default to avoid rebooting SCU
-                if field_num == 2 and not args.skip_known:
-                    print(f"  Field {field_num:2d} (restart) — SKIPPED (safety: would reboot SCU)")
-                    continue
-
-                b64, msg_id = build_command_topic_probe(field_num)
-                print(f"  Field {field_num:2d} ({label}) — sending probe (request_id={msg_id})...", end="", flush=True)
-
-                await scanner.send_pia_request(b64)
-                responses = await scanner.listen_for_responses(timeout=args.timeout)
-
-                matched = []
-                for resp in responses:
-                    resp_args = resp.get("arguments", [])
-                    if resp_args and isinstance(resp_args[0], str):
-                        decoded = decode_pia_response(resp_args[0])
-                        if decoded.get("request_id") == msg_id:
-                            matched.append(decoded)
-
-                if matched:
-                    print(f" ✅ RESPONSE!")
-                    key = f"command_field_{field_num}"
-                    results[key] = {
-                        "envelope": "CommandRequestTopic",
-                        "field": field_num,
-                        "label": label,
-                        "responses": matched,
-                    }
-                    for m in matched:
-                        status = m.get("status", "?")
-                        print(f"       Status: {status}")
-                        for k, v in m.items():
-                            if k.startswith("response_field_"):
-                                print(f"       {k}: {json.dumps(v, indent=8, default=str)[:500]}")
-                else:
-                    print(f" ❌ no response")
-
-            print()
+        if matched:
+            print("  ✅ RESPONSE (matching request_id):")
+            results[f"{args.envelope}_field_{args.field}"] = {
+                "envelope": envelope_label,
+                "field": args.field,
+                "label": label,
+                "payload_hex": args.payload_hex,
+                "responses": matched,
+            }
+            for m in matched:
+                print(f"       Status: {m.get('status', '?')}")
+                for k, v in m.items():
+                    if k.startswith("response_field_"):
+                        print(f"       {k}: {json.dumps(v, indent=8, default=str)[:800]}")
+        else:
+            print(
+                "  ❌ no response with our request_id "
+                "(SCU may be in standby, token invalid, or the field is a no-op)"
+            )
 
         await scanner.close()
 

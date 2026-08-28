@@ -213,12 +213,35 @@ it does NOT selectively remove a single paired BLE device.
 ## Extracting Unknown Field Numbers
 
 The protobuf field numbers for `deleteMobileDevices`, `getPairedMobileDevices`, etc.
-are embedded in compiled Hermes bytecode. Three approaches to extract:
+are embedded in compiled Hermes bytecode and are **still unresolved** — in this repo
+*and* in the independent [`dan-simms1/hymer-connect-ha`](https://github.com/dan-simms1/hymer-connect-ha)
+fork, which built the same kind of probe (`scu-user-topic` / `build_user_topic_probe_frame`)
+and documents them the same way: *"field numbers are not known from the decompiled app."*
+Both repos agree on the surrounding envelope (UserRequestTopic = Request field 8;
+`pairMobileDevice` = 4, confirmation = 6; `Response.mobilePair` = 9).
 
-1. **Hermes decompiler** — use `hbcdump` or `hermes-dec` on `index.android.bundle`
-   - **Done:** the decompiled bundle now lives at `source/androidapp/_archive_old_app/_hermes_decompiled/index.js` and was used to extract the full `(componentId, slot)` catalog (labels/modes/datatypes/enums) — see [`ehg-app-metadata.md`](ehg-app-metadata.md). The device-management field numbers (`deleteMobileDevices` / `getPairedMobileDevices`) were still not pinned down from it.
-2. **MITM capture** — intercept BLE traffic while the EHG app performs an unpair
-3. **Brute-force** — try field numbers 1–15 systematically (protobuf fields are small integers)
+Three approaches to extract, in order of safety:
+
+1. **MITM capture (definitive & safest)** — intercept BLE traffic while the EHG app
+   performs a real unpair. This captures the exact field number **and** payload shape
+   (`deleteMobileDevices(mobileDeviceMac)`) from live traffic, with no risk of sending a
+   destructive command yourself. Requires BLE + internet + the SCU active (12 V on).
+2. **Read-only probe (safe-ish)** — probe candidate numbers for `getPairedMobileDevices`
+   (read-only, empty payload) **one at a time** with [`tools/scan_pia_fields.py`](../tools/scan_pia_fields.py),
+   watching for a response that carries a repeated `mobileDevices` list. Likely candidates sit
+   near the known pairing fields (5, 7, 8, 10, 11).
+3. **Hermes decompiler** — `hbcdump` / `hermes-dec` on `index.android.bundle`.
+   - **Done:** the decompiled bundle now lives at `source/androidapp/_archive_old_app/_hermes_decompiled/index.js`
+     and was used to extract the full `(componentId, slot)` catalog (labels/modes/datatypes/enums) —
+     see [`ehg-app-metadata.md`](ehg-app-metadata.md). The device-management field numbers
+     (`deleteMobileDevices` / `getPairedMobileDevices`) were still not pinned down from it.
+
+> ⚠️ **Do NOT blindly sweep field numbers 1–15.** The `deleteUser` / `deleteAllUsers`
+> commands live in the same `UserRequestTopic` and their numbers are unknown, so a range
+> sweep could delete users or wipe the account. `tools/scan_pia_fields.py` is therefore
+> **single-shot**: it sends exactly one deliberately-chosen field, refuses without
+> `--i-understand-may-be-destructive`, and blocks the pairing (4/6) and restart (command 2)
+> fields — the same guardrails Dan Simms' `scu-user-topic` enforces.
 
 ## Other BLE Module Files (jadx output)
 
