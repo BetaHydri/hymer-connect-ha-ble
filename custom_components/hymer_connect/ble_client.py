@@ -511,7 +511,11 @@ def decode_mobile_devices_response(frame: bytes) -> dict:
     frame was an unrelated sensor push).
     """
     payload = decode_ble_pia_frame(frame)
+    return _decode_mobile_devices_from_payload(payload)
 
+
+def _decode_mobile_devices_from_payload(payload: bytes) -> dict:
+    """Decode a getPairedMobileDevices reply from an already-unframed payload."""
     response_payload: bytes | None = None
     offset = 0
     while offset < len(payload):
@@ -1123,6 +1127,8 @@ class ScuBleClient:
         self._write_chunk_size = 20
         # request_id -> Future[int] for BLE write-command ACK correlation.
         self._pending_writes: dict[int, asyncio.Future] = {}
+        # request_id -> Future[list[MobileDevice]] for getPairedMobileDevices.
+        self._pending_device_lists: dict[int, asyncio.Future] = {}
 
     @property
     def connected(self) -> bool:
@@ -1843,6 +1849,16 @@ class ScuBleClient:
         if future is not None and not future.done():
             future.set_result(status if status is not None else PIA_STATUS_SUCCESS)
 
+    def _resolve_pending_device_list(self, payload: bytes) -> None:
+        """Resolve a waiting getPairedMobileDevices future from a response."""
+        result = _decode_mobile_devices_from_payload(payload)
+        request_id = result["request_id"]
+        if request_id is None:
+            return
+        future = self._pending_device_lists.get(request_id)
+        if future is not None and not future.done():
+            future.set_result(result["devices"])
+
     async def send_setvalue_with_ack(
         self, b64_payload: str, *, timeout: float
     ) -> int | None:
@@ -1920,6 +1936,8 @@ class ScuBleClient:
                             )
                         if self._pending_writes:
                             self._resolve_pending_write(payload)
+                        if self._pending_device_lists:
+                            self._resolve_pending_device_list(payload)
                         if self._on_pia_response:
                             self._on_pia_response(base64.b64encode(payload).decode())
                     except BleTransportError as err:
@@ -2038,8 +2056,9 @@ class ScuBleClient:
         timeout.
 
         This is a read-only diagnostic — it never writes to or deletes a pairing
-        slot. Requires an established bonded BLE/TLS session; over cloud the SCU
-        rejects this call with ACCESS_DENIED (status 5).
+        slot. Requires an established bonded BLE/TLS session with the background
+        ``listen()`` loop running (normal coordinator operation), which resolves
+        the reply. Over cloud the SCU rejects this call with ACCESS_DENIED.
         """
         if not self._tls_established:
             raise BleTransportError(
@@ -2047,61 +2066,30 @@ class ScuBleClient:
             )
 
         frame, request_id = build_get_paired_mobile_devices_frame()
-        _LOGGER.debug(
-            "BLE getPairedMobileDevices SEND %s: request_id=%d framed=%d B",
-            self._scu_address, request_id, len(frame),
-        )
-        encrypted = self._tls.encrypt(frame)
-        await self._write_to_scu(encrypted, force_response=True)
-
-        deadline = self._loop.time() + timeout
-        acc = _FrameAccumulator()
-        while True:
-            remaining = deadline - self._loop.time()
-            if remaining <= 0:
-                _LOGGER.warning(
-                    "BLE getPairedMobileDevices: no matching reply within %.1fs "
-                    "(request_id=%d)", timeout, request_id,
-                )
-                return []
-            try:
-                incoming = await asyncio.wait_for(
-                    self._uart_queue.get(), timeout=remaining,
-                )
-            except asyncio.TimeoutError:
-                _LOGGER.warning(
-                    "BLE getPairedMobileDevices: timed out after %.1fs (request_id=%d)",
-                    timeout, request_id,
-                )
-                return []
-
-            outbound, plaintext_chunks = self._tls.feed_encrypted(incoming)
-            if outbound:
-                await self._write_to_scu(outbound)
-
-            for chunk in plaintext_chunks:
-                for reply_frame in acc.feed(chunk):
-                    result = decode_mobile_devices_response(reply_frame)
-                    reply_id = result["request_id"]
-                    # Skip unrelated responses; keep waiting through sensor
-                    # pushes (reply_id is None).
-                    if reply_id not in (None, request_id):
-                        continue
-                    if result["devices"]:
-                        _LOGGER.info(
-                            "BLE getPairedMobileDevices: %d device(s) (status=%s)",
-                            len(result["devices"]), result["status"],
-                        )
-                        return result["devices"]
-                    if reply_id == request_id:
-                        status = result["status"]
-                        status_name = _PIA_STATUS_NAMES.get(status, "UNKNOWN")
-                        _LOGGER.info(
-                            "BLE getPairedMobileDevices: empty reply "
-                            "(status=%s %s, request_id=%d) — SCU returned no "
-                            "MobileDevices", status, status_name, request_id,
-                        )
-                        return []
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        self._pending_device_lists[request_id] = future
+        try:
+            _LOGGER.debug(
+                "BLE getPairedMobileDevices SEND %s: request_id=%d framed=%d B",
+                self._scu_address, request_id, len(frame),
+            )
+            encrypted = self._tls.encrypt(frame)
+            await self._write_to_scu(encrypted, force_response=True)
+            devices = await asyncio.wait_for(future, timeout=timeout)
+            _LOGGER.info(
+                "BLE getPairedMobileDevices: %d device(s) (request_id=%d)",
+                len(devices), request_id,
+            )
+            return devices
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "BLE getPairedMobileDevices: no reply within %.1fs (request_id=%d) "
+                "— SCU may be BLE-gated/empty or asleep", timeout, request_id,
+            )
+            return []
+        finally:
+            self._pending_device_lists.pop(request_id, None)
 
     async def disconnect(self) -> None:
         """Disconnect from the SCU."""

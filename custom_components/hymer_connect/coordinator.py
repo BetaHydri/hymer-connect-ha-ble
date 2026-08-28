@@ -1188,6 +1188,39 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_send_pia_request(payload)
         _LOGGER.warning("SCU restart command sent — the SCU will reboot")
 
+    async def async_log_paired_ble_devices(self) -> list:
+        """Read the SCU's paired mobile devices over BLE and log them.
+
+        Read-only diagnostic (getPairedMobileDevices, field 5). Requires an
+        active bonded BLE session; over the cloud path the SCU replies
+        ACCESS_DENIED. Returns the device list (empty on any failure).
+        """
+        client = self._ble_client
+        if client is None or not self._ble_connected or not client.connected:
+            _LOGGER.warning(
+                "Paired-BLE-devices: BLE not connected — cannot query the SCU "
+                "(this command is bond-gated and cloud-rejected)"
+            )
+            return []
+        try:
+            devices = await client.get_paired_mobile_devices()
+        except Exception:
+            _LOGGER.warning("Paired-BLE-devices: query raised", exc_info=True)
+            return []
+        if not devices:
+            _LOGGER.info(
+                "Paired-BLE-devices: SCU returned no devices (empty list, "
+                "ACCESS_DENIED, or no reply — SCU may be asleep)"
+            )
+            return []
+        _LOGGER.info("Paired-BLE-devices: SCU reports %d paired device(s):", len(devices))
+        for i, d in enumerate(devices, 1):
+            _LOGGER.info(
+                "  [%d] name=%r mac=%s userUuid=%s",
+                i, d.name, d.mac, d.user_uuid,
+            )
+        return devices
+
     async def _async_try_ble_connect(self) -> None:
         """Attempt the BLE direct path if enabled and not already connected.
 
