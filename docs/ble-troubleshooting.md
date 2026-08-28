@@ -498,11 +498,13 @@ until you reboot the host, work through the host-side checklist:
 - **Reset only the adapter instead of the whole host** to confirm the diagnosis —
   on the host run `bluetoothctl power off` then `power on`. On **Supervised /
   Proxmox host / container** installs with a real host shell you can also restart
-  the `bluetooth` service (`systemctl restart bluetooth`). **On Home Assistant OS
-  this does not exist** — HAOS has no host `systemd`, so the SSH add-on can run
-  `bluetoothctl` but cannot recycle the host daemon; there a **full host reboot**
-  (`ha host reboot`) is the recovery. If any of these restores BLE, the USB adapter
-  / BlueZ was the cause, not Home Assistant.
+  the `bluetooth` service (`systemctl restart bluetooth`). **On Home Assistant OS**
+  the `systemctl` binary is not shipped in the SSH add-on, but the add-on has
+  `host_dbus` access, so you can still recycle the host `bluetooth` daemon through
+  systemd's D‑Bus API **without a full reboot** (see the `dbus-send` command under
+  [Recovering a wedged channel](#ble-goes-silently-dead-or-a-write-channel-wedges-improved-v2900));
+  a **full host reboot** (`ha host reboot`) also works. If any of these restores
+  BLE, the USB adapter / BlueZ was the cause, not Home Assistant.
 - **Check USB power management** for the dongle (disable autosuspend) and, on
   Proxmox, pass the **physical USB port** through rather than the device ID so a
   re-enumeration after a reset still maps into the VM.
@@ -541,8 +543,31 @@ own `bluetoothd` keeps re-claiming the adapter — are handled better since v2.9
 
 | Install | How to recover a leaked BlueZ acquisition |
 | --- | --- |
-| **Home Assistant OS** (incl. HAOS as a Proxmox VM) | A **full host reboot** (`ha host reboot`). HAOS has no host `systemd`, so `systemctl restart bluetooth` is **not** available; the SSH add-on can run `bluetoothctl` but cannot recycle the host daemon. |
+| **Home Assistant OS** (incl. HAOS as a Proxmox VM) | The `systemctl` binary is not shipped in the SSH add-on, but the **Terminal & SSH** add-on has `host_dbus` access, so you can restart the host `bluetooth` daemon through systemd's D‑Bus API **without a full reboot** (see the `dbus-send` command below). A **full host reboot** (`ha host reboot`) also works. |
 | **Supervised / Proxmox host / container** (real host shell) | `systemctl restart bluetooth` on the host releases the leaked descriptors without a reboot. |
+
+On **Home Assistant OS**, open the **Terminal & SSH** add-on's terminal and run
+(it reaches the host's own `systemd` over D‑Bus even though `systemctl` itself is
+not installed):
+
+```bash
+dbus-send --system --print-reply --dest=org.freedesktop.systemd1 \
+  /org/freedesktop/systemd1 org.freedesktop.systemd1.Manager.RestartUnit \
+  string:bluetooth.service string:replace
+```
+
+This recycles the host `bluetoothd` and releases the leaked descriptors in a
+couple of seconds — a **confirmed** HAOS-as-Proxmox-VM recovery that cleared a
+multi-hour cloud-only outage in ~2 minutes without a reboot. Two caveats: it
+briefly drops **every** active-GATT BLE connection on that host (other
+integrations that hold a live connection reconnect on their own; passive
+advertisement sensors are barely affected), and the SCU **connected**
+`binary_sensor` may not visibly blip even when this restart is what actually
+restores the link — watch for the connection mode returning to **BLE + Cloud**
+instead. You can automate it: trigger a `shell_command` that SSHes into the
+add-on and runs the command above when the connection-mode sensor has been stuck
+on cloud for several minutes (gate it to at most once per hour, since it disturbs
+all other BLE connections).
 
 > **Proxmox tip:** the durable cure for the passthrough case is to stop the
 > **Proxmox host** from touching the adapter at all — blacklist / `mask` the host's
