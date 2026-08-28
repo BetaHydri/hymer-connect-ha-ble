@@ -121,9 +121,9 @@ yet confirmed against a live SCU** (the app never calls them, so there was no re
 |---------|---------|---------|--------|
 | 1 | `deleteUser` | `User` message | Resolved (codec) — unverified live |
 | 2 | `deleteAllUsers` | `google.protobuf.Empty` | Resolved — app's "Remove all users" sends this |
-| 3 | `deleteMobileDevices` | `User` message (targets in `User.devices`) | Resolved (codec) — unverified live |
+| 3 | `deleteMobileDevices` | `User` message (targets in `User.devices`) | **Implemented** (gated HA unpair UI) — live-verify pending |
 | 4 | `pairMobileDevice` | activation_token(1), confirmation_token(2), mobile_device_name(3), wait_for_confirmation(4) | **Confirmed & implemented** |
-| 5 | `getPairedMobileDevices` | `google.protobuf.Empty` (no args) — read-only | Resolved (codec) — unverified live |
+| 5 | `getPairedMobileDevices` | `google.protobuf.Empty` (no args) — read-only | **Confirmed & implemented** (live-verified 2026-08-28) |
 | 6 | `pairMobileDeviceConfirmation` | success(1) | **Confirmed & implemented** |
 
 ### CommandRequestTopic (Request field 9) — All Known Commands
@@ -240,6 +240,13 @@ have zero call-sites), so there is no in-app path, hidden or otherwise.
 "Verbindung trennen" removes the **entire vehicle** from the user's account —
 it does NOT selectively remove a single paired BLE device.
 
+> **This integration now provides the per-device UI the app lacks.** Since
+> v2.94.0 a read-only "Log paired BLE devices" button + `sensor.*_paired_ble_devices`
+> expose the list, and since v2.95.0 a two-step **`select` (pick) + `button`
+> (approve)** performs a gated single-device `deleteMobileDevices` over BLE to free
+> one pairing slot — all BLE-only (cloud replies `ACCESS_DENIED`). See
+> [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md#paired-ble-device-management-in-home-assistant).
+
 ## Device-Management Field Numbers — RESOLVED (2026-08-28)
 
 The `getPairedMobileDevices` / `deleteMobileDevices` (and `deleteUser` / `deleteAllUsers`)
@@ -264,10 +271,12 @@ The `getPairedMobileDevices` reply comes back in **`Response.mobileDevices` (fie
 > **MITM capture is no longer needed for these two.** Because the app never calls
 > `getPairedMobileDevices` / `deleteMobileDevices` (schema-only, zero call-sites), a traffic
 > capture of the EHG app could never have revealed them anyway — the numbers came from the
-> compiled schema. What is still **unconfirmed is live SCU behavior**: we have never sent
-> field 5 or 3 to a real SCU. Confirm the read-only `getPairedMobileDevices` first with
-> [`tools/scan_pia_fields.py --getpaired`](../tools/scan_pia_fields.py) on a vehicle before
-> building anything on top of it.
+> compiled schema. **Live status (2026-08-28):** `getPairedMobileDevices` (field 5) is now
+> **confirmed on a real SCU** — it returned the full paired list (`Response.mobileDevices`,
+> field 10) over BLE, and is shipped as the "Log paired BLE devices" button +
+> `sensor.*_paired_ble_devices`. `deleteMobileDevices` (field 3) is **implemented** behind the
+> gated `select` + `button` unpair UI but its live SUCCESS is still to be confirmed on a full
+> slot table. Both are BLE-only; over cloud the SCU replies `ACCESS_DENIED` (status 5).
 
 > ⚠️ **Do NOT blindly sweep field numbers 1–15.** `deleteUser` (1) and `deleteAllUsers` (2)
 > live in the same `UserRequestTopic`, so a range sweep will delete users / wipe the account.

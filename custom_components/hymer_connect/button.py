@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,6 +13,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import HymerConnectCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -23,6 +27,7 @@ async def async_setup_entry(
     async_add_entities([
         HymerRestartButton(coordinator, entry),
         HymerLogPairedBleDevicesButton(coordinator, entry),
+        HymerUnpairSelectedBleDeviceButton(coordinator, entry),
     ])
 
 
@@ -112,4 +117,59 @@ class HymerLogPairedBleDevicesButton(
     async def async_press(self) -> None:
         """Query and log the SCU's paired mobile devices."""
         await self.coordinator.async_log_paired_ble_devices()
+
+
+class HymerUnpairSelectedBleDeviceButton(
+    CoordinatorEntity[HymerConnectCoordinator], ButtonEntity
+):
+    """Approve + execute the BLE unpair of the device chosen in the select.
+
+    Two-step, deliberate: the 'BLE device to unpair' select only records the
+    target; this button performs the DESTRUCTIVE deleteMobileDevices over BLE,
+    freeing a pairing slot. Disabled by default and only available while a
+    bonded BLE session is up AND a device is selected — so it cannot fire by
+    accident. BLE-only (cloud is refused with ACCESS_DENIED).
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:bluetooth-off"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the unpair-approve button."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unpair_selected_ble_device"
+        self._attr_name = "Unpair selected BLE device"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def available(self) -> bool:
+        """Available only with live BLE AND a device selected in the picker."""
+        coord = self.coordinator
+        return (
+            coord._ble_connected
+            and coord._ble_client is not None
+            and coord.unpair_selected_mac is not None
+        )
+
+    async def async_press(self) -> None:
+        """Unpair the currently selected device (destructive)."""
+        mac = self.coordinator.unpair_selected_mac
+        if not mac:
+            _LOGGER.warning(
+                "Unpair button pressed with no device selected — choose one in "
+                "the 'BLE device to unpair' picker first"
+            )
+            return
+        await self.coordinator.async_unpair_ble_device(mac)
 

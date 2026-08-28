@@ -18,6 +18,7 @@ from homeassistant.components.select import SelectEntity, SelectEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -127,6 +128,10 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("Select platform: no immediate fridge, heater, or stepped definitions")
 
+    # Unpair-target picker (disabled by default). Selecting only RECORDS the
+    # choice — the destructive delete happens on the separate button press.
+    async_add_entities([HymerUnpairBleDeviceSelect(coordinator, entry)])
+
     if not gated:
         return
 
@@ -205,6 +210,68 @@ def _stepped_read_sensors(defn: dict[str, Any]) -> tuple[str, ...]:
         read.get("power_sensor"),
     ]
     return tuple(name for name in names if isinstance(name, str) and name)
+
+
+class HymerUnpairBleDeviceSelect(
+    CoordinatorEntity[HymerConnectCoordinator], SelectEntity
+):
+    """Picker for which paired device to unpair — RECORDS the choice only.
+
+    Selecting an option never touches the SCU; it just stores the target MAC in
+    the coordinator. The destructive unpair happens on the separate
+    'Unpair selected BLE device' button. Disabled by default. Options come from
+    the last paired-devices fetch (getPairedMobileDevices).
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:cellphone-remove"
+
+    _NONE = "— none —"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unpair_ble_device"
+        self._attr_name = "BLE device to unpair"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    def _label(self, device: dict) -> str:
+        name = device.get("name") or "(unnamed)"
+        return f"{name} ({device['mac']})"
+
+    @property
+    def options(self) -> list[str]:
+        return [self._NONE] + [
+            self._label(d) for d in self.coordinator.paired_ble_devices
+        ]
+
+    @property
+    def current_option(self) -> str:
+        mac = self.coordinator.unpair_selected_mac
+        if mac:
+            for d in self.coordinator.paired_ble_devices:
+                if d["mac"].lower() == mac:
+                    return self._label(d)
+        return self._NONE
+
+    async def async_select_option(self, option: str) -> None:
+        """Record the chosen device — no SCU action here (button does that)."""
+        if option == self._NONE:
+            self.coordinator.set_unpair_selected_mac(None)
+        else:
+            mac = option.rsplit("(", 1)[-1].rstrip(")").strip()
+            self.coordinator.set_unpair_selected_mac(mac)
+        self.async_write_ha_state()
 
 
 class HymerFridgeSelect(

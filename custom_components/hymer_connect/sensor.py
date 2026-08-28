@@ -219,7 +219,10 @@ async def async_setup_entry(
 
     # Connection-mode status tile (BLE / cloud / dual) — reads coordinator
     # state directly, so it is a shipped entity rather than a JSON slot.
-    async_add_entities([HymerConnectionModeSensor(coordinator, entry)])
+    async_add_entities([
+        HymerConnectionModeSensor(coordinator, entry),
+        HymerPairedBleDevicesSensor(coordinator, entry),
+    ])
 
     created_named: set[str] = {desc.key for desc in all_descriptions}
     discovered: set[str] = set()
@@ -457,3 +460,48 @@ class HymerConnectionModeSensor(
         return self._MODE_ICONS.get(
             self.coordinator.connection_mode, "mdi:help-network-outline"
         )
+
+
+class HymerPairedBleDevicesSensor(
+    CoordinatorEntity[HymerConnectCoordinator], SensorEntity
+):
+    """Diagnostic sensor listing the SCU's paired mobile devices.
+
+    State is the device count; the full list (name / MAC / userUuid) is in
+    ``extra_state_attributes.devices``. Populated over BLE by getPairedMobileDevices
+    (read-only, BLE-only). Disabled by default; refresh via the 'Log paired BLE
+    devices' button or automatically shortly after a BLE connect.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:cellphone-link"
+
+    def __init__(
+        self,
+        coordinator: HymerConnectCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_paired_ble_devices"
+        self._attr_name = "Paired BLE devices"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "HYMER",
+            "manufacturer": MANUFACTURER,
+            "model": "Smart Interface Unit",
+        }
+
+    @property
+    def native_value(self) -> int | None:
+        if not self.coordinator.paired_ble_devices_updated:
+            return None
+        return len(self.coordinator.paired_ble_devices)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "devices": self.coordinator.paired_ble_devices,
+            "last_updated": self.coordinator.paired_ble_devices_updated,
+        }

@@ -105,11 +105,59 @@ request). This has practical consequences:
 
 There is no UI in the EHG app to list or delete the SCU's individual paired BLE
 devices. "Verbindung trennen" in the app removes the **entire vehicle** from the
-account (all users, all devices) — it is not a per-device unpair. The protocol
-does expose `getPairedMobileDevices` (UserRequestTopic field 5, read-only) and
-`deleteMobileDevices` (field 3) commands; their field numbers are now **resolved**
-from the decompiled codec — though the app itself never calls them and they are
-not yet confirmed against a live SCU. See
+account (all users, all devices) — it is not a per-device unpair. This integration
+fills that gap over BLE (see below).
+
+## Paired BLE device management (in Home Assistant)
+
+The integration exposes the SCU's internal paired-device table — which the EHG app
+never shows — through three entities (all **BLE-only**; over the cloud path the SCU
+replies `ACCESS_DENIED`, so they only work while a bonded BLE session is up with the
+SCU awake / 12V on). All are **disabled by default** — enable them in the entity
+settings when you need them.
+
+| Entity | Type | What it does |
+| --- | --- | --- |
+| `sensor.*_paired_ble_devices` | sensor (diagnostic) | State = **count** of paired devices; `attributes.devices` = the full list (`name` / `mac` / `uuid`). Auto-populates a few seconds after a BLE connect. |
+| `button.*_log_paired_ble_devices` | button (diagnostic) | Read-only refresh — re-reads the list (`getPairedMobileDevices`) and writes it to the log and the sensor. Never changes anything. |
+| `select.*_ble_device_to_unpair` | select (config) | **Records** which device you want to remove. Picking an option does **not** touch the SCU. |
+| `button.*_unpair_selected_ble_device` | button (config) | **Approves + executes** the removal of the selected device (`deleteMobileDevices`). **Destructive** — frees one pairing slot. |
+
+**Two-step unpair (deliberate by design).** Removing a device is split so it cannot
+happen by accident: the **select only records** the target, and the separate
+**"Unpair selected BLE device" button** performs the actual deletion. That button is
+disabled by default and only becomes *available* when BLE is connected **and** a
+device is selected. To free a slot: enable the entities → make sure BLE is connected
+(SCU awake) → pick the device in the select → press **Unpair selected BLE device**.
+The list refreshes automatically and the freed slot is then available for a new
+pairing. This is the intended way to clear a stale `ha-xxxxx` entry when the SCU's
+pairing table is full and rejects new pairings.
+
+**Where to use them — no template needed.** These are ordinary entities, not
+template helpers. After you enable them you can operate them straight from the
+**device page** (Settings → Devices & Services → your HYMER device) or from
+**Settings → Entities** — the select shows a dropdown and the button has a press
+action there. Putting them on a dashboard is **optional**; if you want a card, add a
+standard **Entities** (or **Tile**) card — no YAML templating and no Jinja. The
+select's option list is filled by the integration, not by a template. Example card:
+
+```yaml
+type: entities
+title: HYMER — paired BLE devices
+entities:
+  - entity: sensor.hymer_paired_ble_devices
+  - entity: button.hymer_log_paired_ble_devices
+  - entity: select.hymer_ble_device_to_unpair
+  - entity: button.hymer_unpair_selected_ble_device
+```
+
+> Adjust the entity IDs to match your install (they are prefixed with your device
+> name). The unpair button stays greyed-out until BLE is connected **and** a device
+> is selected in the dropdown.
+
+The underlying protocol commands are `getPairedMobileDevices` (UserRequestTopic
+field 5, read-only — **live-confirmed 2026-08-28**) and `deleteMobileDevices`
+(field 3, a `User{devices:[…]}` payload). See
 [`ehg-app-ble-protocol.md`](ehg-app-ble-protocol.md).
 
 ## Verified BLE hardware

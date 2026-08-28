@@ -145,6 +145,11 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._fuel_ref_odo: float | None = None  # odometer at trip start (km)
         self._fuel_ref_level: float | None = None  # fuel level at trip start (%)
         self._fuel_consumption_l100: float | None = None  # current L/100km
+        # Paired BLE devices (getPairedMobileDevices) — populated on demand.
+        self._paired_ble_devices: list[dict] = []
+        self._paired_ble_devices_updated: str | None = None
+        self._paired_ble_user_uuid: str | None = None
+        self._unpair_selected_mac: str | None = None  # target chosen in the select
         super().__init__(
             hass,
             _LOGGER,
@@ -162,6 +167,25 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def connection_mode(self) -> str:
         """Return the current connection mode: 'ble' or 'cloud'."""
         return self._connection_mode
+
+    @property
+    def paired_ble_devices(self) -> list[dict]:
+        """Last-fetched paired mobile devices [{name, mac, uuid}]. Empty until fetched."""
+        return self._paired_ble_devices
+
+    @property
+    def paired_ble_devices_updated(self) -> str | None:
+        """ISO timestamp of the last successful paired-devices fetch, or None."""
+        return self._paired_ble_devices_updated
+
+    @property
+    def unpair_selected_mac(self) -> str | None:
+        """MAC currently selected for unpairing (set by the select entity)."""
+        return self._unpair_selected_mac
+
+    def set_unpair_selected_mac(self, mac: str | None) -> None:
+        """Record the device MAC chosen in the unpair select entity."""
+        self._unpair_selected_mac = mac.strip().lower() if mac else None
 
     @property
     def unavailable_silence_threshold(self) -> int:
@@ -725,6 +749,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._ble_listen_loop(),
                 name=f"hymer_connect_ble_listen_{self.ble_address or 'scu'}",
             )
+            # Best-effort: populate the paired-devices list once so the
+            # diagnostic sensor/select have data without a manual refresh.
+            if not self._paired_ble_devices:
+                self.hass.async_create_background_task(
+                    self._async_autofetch_paired_devices(),
+                    name="hymer_connect_ble_paired_autofetch",
+                )
             return True
         except BleStaleChannelError as err:
             # #24: link came up but the write/notify channel is a stale BlueZ
@@ -1188,12 +1219,22 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_send_pia_request(payload)
         _LOGGER.warning("SCU restart command sent — the SCU will reboot")
 
+    async def _async_autofetch_paired_devices(self) -> None:
+        """One-shot best-effort paired-devices fetch shortly after BLE connects."""
+        await asyncio.sleep(5)  # let the listen loop + SCU settle
+        if self._ble_connected and not self._paired_ble_devices:
+            try:
+                await self.async_log_paired_ble_devices()
+            except Exception:
+                _LOGGER.debug("Paired-devices autofetch failed", exc_info=True)
+
     async def async_log_paired_ble_devices(self) -> list:
-        """Read the SCU's paired mobile devices over BLE and log them.
+        """Read the SCU's paired mobile devices over BLE, store and log them.
 
         Read-only diagnostic (getPairedMobileDevices, field 5). Requires an
         active bonded BLE session; over the cloud path the SCU replies
-        ACCESS_DENIED. Returns the device list (empty on any failure).
+        ACCESS_DENIED. Stores the result for the sensor/select entities and
+        returns the device list (empty on any failure).
         """
         client = self._ble_client
         if client is None or not self._ble_connected or not client.connected:
@@ -1207,19 +1248,94 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             _LOGGER.warning("Paired-BLE-devices: query raised", exc_info=True)
             return []
-        if not devices:
+
+        stored = [
+            {"name": (d.name or "").strip(), "mac": d.mac, "uuid": d.user_uuid}
+            for d in devices
+        ]
+        self._paired_ble_devices = stored
+        self._paired_ble_devices_updated = datetime.now(timezone.utc).isoformat()
+        if devices:
+            self._paired_ble_user_uuid = devices[0].user_uuid or self._paired_ble_user_uuid
+        # Drop a stale selection if the chosen device is no longer paired.
+        if self._unpair_selected_mac and not any(
+            d["mac"].lower() == self._unpair_selected_mac for d in stored
+        ):
+            self._unpair_selected_mac = None
+        self.async_update_listeners()
+
+        if not stored:
             _LOGGER.info(
                 "Paired-BLE-devices: SCU returned no devices (empty list, "
                 "ACCESS_DENIED, or no reply — SCU may be asleep)"
             )
             return []
-        _LOGGER.info("Paired-BLE-devices: SCU reports %d paired device(s):", len(devices))
-        for i, d in enumerate(devices, 1):
+        _LOGGER.info("Paired-BLE-devices: SCU reports %d paired device(s):", len(stored))
+        for i, d in enumerate(stored, 1):
             _LOGGER.info(
-                "  [%d] name=%r mac=%s userUuid=%s",
-                i, d.name, d.mac, d.user_uuid,
+                "  [%d] name=%r mac=%s userUuid=%s", i, d["name"], d["mac"], d["uuid"],
             )
-        return devices
+        return stored
+
+    async def async_unpair_ble_device(self, mac: str) -> bool:
+        """Unpair one paired mobile device over BLE by MAC (DESTRUCTIVE).
+
+        Frees a pairing slot on the SCU. BLE-only and bond-gated. Looks the
+        device up in the last-fetched paired list (for its name + userUuid),
+        sends deleteMobileDevices, and on SUCCESS re-reads the list. Returns
+        True only on a SUCCESS ACK.
+        """
+        target = (mac or "").strip().lower()
+        if not target:
+            _LOGGER.warning("Unpair BLE device: no MAC given")
+            return False
+        client = self._ble_client
+        if client is None or not self._ble_connected or not client.connected:
+            _LOGGER.warning(
+                "Unpair BLE device %s: BLE not connected — refusing (bond-gated, "
+                "cloud-rejected)", target,
+            )
+            return False
+
+        from .ble_client import MobileDevice
+        match = next(
+            (d for d in self._paired_ble_devices if d["mac"].lower() == target), None,
+        )
+        if match is None:
+            _LOGGER.warning(
+                "Unpair BLE device %s: not in the last-fetched paired list — press "
+                "'Log paired BLE devices' first to refresh", target,
+            )
+            return False
+
+        device = MobileDevice(
+            mac=match["mac"], name=match["name"], user_uuid=match.get("uuid", ""),
+        )
+        user_uuid = match.get("uuid") or self._paired_ble_user_uuid or ""
+        _LOGGER.warning(
+            "Unpair BLE device: removing %r (%s) from SCU pairing slots",
+            device.name, device.mac,
+        )
+        try:
+            status = await client.delete_mobile_device(device, user_uuid=user_uuid)
+        except Exception:
+            _LOGGER.warning("Unpair BLE device %s: raised", target, exc_info=True)
+            return False
+
+        if status in (0, 1):  # 1 SUCCESS, 0 NO_STATUS (treated as success)
+            _LOGGER.warning(
+                "Unpair BLE device: SCU accepted removal of %s (status=%s) — slot freed",
+                device.mac, status,
+            )
+            if self._unpair_selected_mac == target:
+                self._unpair_selected_mac = None
+            await self.async_log_paired_ble_devices()  # refresh list + push update
+            return True
+        _LOGGER.warning(
+            "Unpair BLE device %s: SCU rejected (status=%s) — slot NOT freed",
+            device.mac, status,
+        )
+        return False
 
     async def _async_try_ble_connect(self) -> None:
         """Attempt the BLE direct path if enabled and not already connected.

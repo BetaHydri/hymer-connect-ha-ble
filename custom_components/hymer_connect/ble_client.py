@@ -277,6 +277,12 @@ _MOBILE_DEVICE_MAC_FIELD = 1
 _MOBILE_DEVICE_NAME_FIELD = 2
 _MOBILE_DEVICE_USER_UUID_FIELD = 3
 
+# deleteMobileDevices (UserRequestTopic field 3, payload = User). DESTRUCTIVE:
+# removes a paired device, freeing a pairing slot. BLE-only, bond-gated.
+_USER_DELETE_MOBILE_DEVICES_FIELD = 3
+_USER_MSG_UUID_FIELD = 1
+_USER_MSG_DEVICES_FIELD = 4  # repeated MobileDevice
+
 # PairMobileResponse fields
 _PAIR_RESP_ACCESS_TOKEN_FIELD = 1
 _PAIR_RESP_REFRESH_TOKEN_FIELD = 2
@@ -468,6 +474,45 @@ def build_get_paired_mobile_devices_frame() -> tuple[bytes, int]:
     timestamp = round(time.time())
 
     user_topic = _encode_bytes_field(_USER_GET_PAIRED_MOBILE_DEVICES_FIELD, b"")
+    request_msg = b"".join((
+        _encode_varint_field(_REQUEST_ID_FIELD, request_id),
+        _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
+        _encode_varint_field(_REQUEST_TIMESTAMP_FIELD, timestamp),
+        _encode_bytes_field(_REQUEST_USER_FIELD, user_topic),
+    ))
+    ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+    return encode_ble_pia_frame(ble_protocol), request_id
+
+
+def build_delete_mobile_devices_frame(
+    devices: list[MobileDevice], *, user_uuid: str = "",
+) -> tuple[bytes, int]:
+    """Build a BLE PIA frame for deleteMobileDevices (DESTRUCTIVE).
+
+    Protobuf nesting:
+      BleProtocol.request(1) → Request → User(8) → deleteMobileDevices(3, User)
+      User{uuid=1, devices=4 repeated MobileDevice{mac=1, name=2, userUuid=3}}
+
+    Returns (frame, request_id) for ACK correlation.
+    """
+    request_id = math.ceil(random.random() * 1_000_000) + 1
+    timestamp = round(time.time())
+
+    device_msgs = b""
+    for d in devices:
+        md = b"".join((
+            _encode_string_field(_MOBILE_DEVICE_MAC_FIELD, d.mac),
+            _encode_string_field(_MOBILE_DEVICE_NAME_FIELD, d.name),
+            _encode_string_field(_MOBILE_DEVICE_USER_UUID_FIELD, d.user_uuid),
+        ))
+        device_msgs += _encode_bytes_field(_USER_MSG_DEVICES_FIELD, md)
+    user_parts = []
+    if user_uuid:
+        user_parts.append(_encode_string_field(_USER_MSG_UUID_FIELD, user_uuid))
+    user_parts.append(device_msgs)
+    user_msg = b"".join(user_parts)
+
+    user_topic = _encode_bytes_field(_USER_DELETE_MOBILE_DEVICES_FIELD, user_msg)
     request_msg = b"".join((
         _encode_varint_field(_REQUEST_ID_FIELD, request_id),
         _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
@@ -2090,6 +2135,50 @@ class ScuBleClient:
             return []
         finally:
             self._pending_device_lists.pop(request_id, None)
+
+    async def delete_mobile_device(
+        self, device: MobileDevice, *, user_uuid: str = "",
+        timeout: float = DEFAULT_NOTIFY_TIMEOUT,
+    ) -> int | None:
+        """Unpair one mobile device over BLE (DESTRUCTIVE, frees a slot).
+
+        Sends ``UserRequestTopic.deleteMobileDevices`` (field 3, User) and waits
+        for the matching ``Response`` status via the write-ACK path. Returns the
+        PIA status (1 = SUCCESS), or ``None`` on timeout. BLE-only and
+        bond-gated; over cloud the SCU replies ACCESS_DENIED (status 5).
+        """
+        if not self._tls_established:
+            raise BleTransportError(
+                "TLS not established — call connect() and establish_tls() first"
+            )
+
+        frame, request_id = build_delete_mobile_devices_frame(
+            [device], user_uuid=user_uuid,
+        )
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        self._pending_writes[request_id] = future
+        try:
+            _LOGGER.warning(
+                "BLE deleteMobileDevices SEND %s: request_id=%d mac=%s name=%r",
+                self._scu_address, request_id, device.mac, device.name,
+            )
+            encrypted = self._tls.encrypt(frame)
+            await self._write_to_scu(encrypted, force_response=True)
+            status = await asyncio.wait_for(future, timeout=timeout)
+            _LOGGER.warning(
+                "BLE deleteMobileDevices ACK: request_id=%d status=%s",
+                request_id, status,
+            )
+            return status
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "BLE deleteMobileDevices: no ACK within %.1fs (request_id=%d)",
+                timeout, request_id,
+            )
+            return None
+        finally:
+            self._pending_writes.pop(request_id, None)
 
     async def disconnect(self) -> None:
         """Disconnect from the SCU."""

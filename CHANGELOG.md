@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.0] - 2026-08-28
+
+### Added
+
+- **A paired-BLE-devices diagnostic sensor.** Following the live confirmation that `getPairedMobileDevices` works over BLE (v2.94.0), the SCU's paired-device list is now a first-class entity: `sensor.*_paired_ble_devices` (disabled by default, *diagnostic*). Its state is the **count** of paired devices and `attributes.devices` holds the full list (`name` / `mac` / `uuid`), so a dashboard or template can read it without grepping the log. It is populated automatically a few seconds after a BLE connect, and refreshed by the existing "Log paired BLE devices" button. Read-only and BLE-only (the cloud path returns `ACCESS_DENIED`).
+- **A two-step, deliberately-gated way to unpair a single paired device — freeing an SCU pairing slot from Home Assistant.** The SCU only holds ~4–5 paired devices, and once full it rejects new pairings (see v2.93.2); until now the only remedy was the app's "Verbindung trennen", which wipes **all** users and devices. This adds a **select** `select.*_ble_device_to_unpair` that lists the paired devices and **only records** your choice (picking an option never touches the SCU — unlike the Truma stepped selects), plus a separate **button** `button.*_unpair_selected_ble_device` that performs the actual, destructive `deleteMobileDevices` over BLE. The button is disabled by default and is only *available* while a bonded BLE session is up **and** a device is selected, so it cannot fire by accident. Both are BLE-only (cloud is refused with `ACCESS_DENIED`) and log at `WARNING` around the removal. This is the intended path to clear a stale `ha-xxxxx` slot for owners (e.g. a HYMER ML-T) whose SCU pairing table is full. The underlying `deleteMobileDevices` uses `UserRequestTopic` field 3 with a `User{devices:[MobileDevice{mac,name,userUuid}]}` payload (resolved from the decompiled EHG codec).
+
 ## [2.94.0] - 2026-08-28
 
 ### Added

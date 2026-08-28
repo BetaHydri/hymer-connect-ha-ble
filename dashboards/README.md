@@ -70,6 +70,58 @@ When the **12V main switch** is turned off, all light entities and the water pum
 
 > The fridge, boiler, and heater operate independently of the habitation 12V circuit.
 
+## Paired BLE device management card (optional)
+
+Since **v2.95.0** the integration exposes the SCU's internal paired-device table over BLE
+through four **disabled-by-default** entities (enable them under **Settings → Devices &
+Services → your HYMER device**). They only work while a **bonded BLE session** is up with the
+SCU awake (12V on) — over the cloud path the SCU refuses them with `ACCESS_DENIED`.
+
+| Entity | Role |
+|--------|------|
+| `sensor.hymer_paired_ble_devices` | State = **count** of paired devices; `attributes.devices` = full list (`name` / `mac` / `uuid`). Auto-fills a few seconds after a BLE connect. |
+| `button.hymer_log_paired_ble_devices` | Read-only refresh — re-reads the list and writes it to the log + sensor. |
+| `select.hymer_ble_device_to_unpair` | **Records** which device to remove — picking an option does **not** touch the SCU. |
+| `button.hymer_unpair_selected_ble_device` | **Approves + executes** the removal (`deleteMobileDevices`). **Destructive** — frees one pairing slot. |
+
+Removing a device is deliberately **two steps** (pick in the select, then press the button) so
+it cannot happen by accident. Use it to free a slot when the SCU's pairing table is full and
+rejects new pairings. A simple **Entities** card is enough:
+
+```yaml
+type: entities
+title: HYMER — paired BLE devices
+entities:
+  - entity: sensor.hymer_paired_ble_devices
+  - entity: button.hymer_log_paired_ble_devices
+  - entity: select.hymer_ble_device_to_unpair
+  - entity: button.hymer_unpair_selected_ble_device
+```
+
+For an extra guard, expose the destructive button as a **tile with a confirmation dialog**
+(the same pattern the Restart-SCU tile uses):
+
+```yaml
+type: tile
+entity: button.hymer_unpair_selected_ble_device
+name: Unpair selected BLE device
+icon: mdi:bluetooth-off
+color: red
+tap_action:
+  action: perform-action
+  confirmation:
+    text: >-
+      Remove the selected device from the SCU's pairing table? This frees a
+      pairing slot and cannot be undone from here.
+  perform_action: button.press
+  target:
+    entity_id: button.hymer_unpair_selected_ble_device
+```
+
+> Adjust the entity IDs to your device-name prefix. The unpair button/tile stays greyed-out
+> until BLE is connected **and** a device is selected in the dropdown. See
+> [`../docs/ehg-token-and-pairing.md`](../docs/ehg-token-and-pairing.md#paired-ble-device-management-in-home-assistant).
+
 ## Energy Dashboard Integration
 
 The HA [Energy dashboard](https://www.home-assistant.io/docs/energy/) requires sensors with specific attributes ([FAQ](https://www.home-assistant.io/docs/energy/faq/#troubleshooting-missing-entities)):
