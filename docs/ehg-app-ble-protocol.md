@@ -205,6 +205,15 @@ message MobileDevices {
 3. **Internet required** — possibly for cloud-side cleanup
 4. `deleteMobileDevices` (UserRequestTopic field 3) takes a **`User`** message whose `devices` list holds the `MobileDevice{mobileDeviceMac, mobileDeviceName, userUuid}` entries to remove — **not** a bare MAC string
 
+> **Catch-22 for full-table SCUs.** Because unpair runs *over* BLE (no cloud
+> fallback), it needs a **stable** bonded session. If the pairing table is already
+> full and the SCU **rejects/drops the BLE session within seconds**, you can't use
+> the in-HA unpair to free a slot — freeing the slot needs the very link the full
+> table is refusing. Same for deep-standby / weak-signal drops. Work-arounds: wake
+> the SCU fully and retry close-up (one delete may squeeze through), unpair from an
+> already-paired phone via the EHG app, or a HYMER support/factory pairing reset. See
+> [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md#paired-ble-device-management-in-home-assistant).
+
 ### SCU Pairing Behavior
 
 - SCU remembers paired device **names** (not just MAC addresses)

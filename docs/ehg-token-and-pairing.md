@@ -133,6 +133,29 @@ The list refreshes automatically and the freed slot is then available for a new
 pairing. This is the intended way to clear a stale `ha-xxxxx` entry when the SCU's
 pairing table is full and rejects new pairings.
 
+> [!WARNING]
+> **This needs a *stable* bonded BLE session — it can't fix itself when BLE won't
+> hold.** Unpairing runs *over* the BLE link (there is no cloud fallback — the SCU
+> answers `ACCESS_DENIED` on the cloud path). So it only works if a bonded session
+> stays up long enough to send `deleteMobileDevices` and read the refreshed list.
+> If your BLE **never completes or drops within seconds** — e.g. the SCU is in deep
+> standby, the signal is weak, or a **full pairing table makes the SCU reject/drop
+> the session before you can act** — then the in-HA unpair **cannot help you**, by
+> design: freeing a slot needs BLE, but BLE is exactly what's failing (a
+> chicken-and-egg). The `sensor`/select/button will simply stay empty or greyed out.
+>
+> **Work-arounds when the in-HA unpair can't get a stable link:**
+> 1. Wake the SCU fully first (12V on, **ignition on** on Mercedes-based ML-T, and/or
+>    the physical **CONNECTION** button on the SCU) and try again close to the SCU —
+>    a longer-lived session may be enough to fire one delete.
+> 2. Free a slot from a phone that is **already paired**, using the official EHG app's
+>    unpair flow, or unpair a device you no longer use.
+> 3. As a last resort, a HYMER **support / factory pairing reset** clears the table.
+>
+> This is the situation for full-table SCUs whose BLE only holds for a few seconds:
+> the feature exists, but it can't be the escape hatch for the very condition
+> (full table) that is dropping the link.
+
 **Where to use them — no template needed.** These are ordinary entities, not
 template helpers. After you enable them you can operate them straight from the
 **device page** (Settings → Devices & Services → your HYMER device) or from
