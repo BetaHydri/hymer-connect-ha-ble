@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.94.0] - 2026-08-28
+
+### Added
+
+- **New diagnostic button that lists the SCU's paired mobile devices in the Home Assistant log.** The SCU keeps a small table of paired mobile devices (phones and Home Assistant instances) and only holds ~4–5 of them; when those slots fill with stale entries a new pairing is rejected (see v2.93.2), but until now there was no way to *see* what is actually in that table. The new disabled-by-default `button.*_log_paired_ble_devices` ("Log paired BLE devices", category *diagnostic*) sends the SCU's `getPairedMobileDevices` request over the local BLE link and writes each paired device — name, Bluetooth MAC and user UUID — to the log at `INFO`. It is **read-only**: nothing is ever unpaired or written. The command is **BLE-only** — over the cloud path the SCU refuses it with `ACCESS_DENIED`, so the button is available only while a bonded BLE session is up (SCU awake / 12V on). The `getPairedMobileDevices`/`getPaired` field numbers (UserRequestTopic field 5, reply `mobileDevices` field 10) were resolved from the decompiled EHG app schema and confirmed on-vehicle. This is the first step toward freeing a full pairing slot from Home Assistant; motivated by a HYMER ML-T owner (Martin) whose SCU rejected pairing because its slots were full of stale `ha-…` entries.
+
 ## [2.93.2] - 2026-08-28
 
 ### Fixed
