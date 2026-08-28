@@ -280,6 +280,14 @@ _REQUEST_CONNECTED_COMPONENT_FIELD = 4
 # 0 NO_STATUS, 1 SUCCESS, 5 ACCESS_DENIED, 15 SCU_IS_NOT_ONLINE, ...
 PIA_STATUS_SUCCESS = 1
 
+# Human-readable names for the status codes we surface in pairing diagnostics.
+_PIA_STATUS_NAMES = {
+    0: "NO_STATUS",
+    1: "SUCCESS",
+    5: "ACCESS_DENIED",
+    15: "SCU_IS_NOT_ONLINE",
+}
+
 
 def _encode_varint(value: int) -> bytes:
     """Encode a non-negative integer as a protobuf varint."""
@@ -644,7 +652,24 @@ def decode_pair_mobile_response(frame: bytes) -> PairMobileResponse:
         else:
             offset = _skip_field(response_payload, offset, wt)
     if mobile_pair_payload is None:
-        raise BleTransportError("Response does not contain mobilePair field")
+        # A bare Response (status only, no mobilePair field) means the SCU
+        # actively REJECTED the PairMobileRequest — it did not mint a token.
+        # Per docs/ehg-app-ble-protocol.md this happens when the device name is
+        # already paired, the SCU's pairing slots are full (~4–5 device limit),
+        # or the activation (QR) token is rejected. Surface the status code so
+        # the reason is diagnosable instead of an opaque "no mobilePair field".
+        status_name = _PIA_STATUS_NAMES.get(status, "UNKNOWN") if status is not None else "MISSING"
+        _LOGGER.warning(
+            "BLE pairing REJECTED by SCU: bare Response, no mobilePair field "
+            "(status=%s %s, request_id=%s, %d-byte frame). Likely cause: device "
+            "name already paired, pairing slots full (~4–5 device limit), or the "
+            "activation/QR token was rejected. Raw Response: %s",
+            status, status_name, request_id, len(frame), response_payload.hex(),
+        )
+        raise BleTransportError(
+            f"SCU rejected pairing (status={status} {status_name}) — no mobilePair "
+            "field in response (already paired, pairing slots full, or QR token rejected)"
+        )
 
     # Unwrap mobilePair → tokens
     access_token = ""

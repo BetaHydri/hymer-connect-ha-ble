@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.93.2] - 2026-08-28
+
+### Fixed
+
+- **When the SCU *rejects* a BLE pairing request it is now reported with the actual reason instead of an opaque "Response does not contain mobilePair field".** Once the SCU accepts the GATT bond and completes the TLS handshake, it can still refuse to mint a pairing token — it replies with a short *bare* `Response` (a status code but no `mobilePair` field). This happens when the device name is already in the SCU's paired list, its pairing slots are full (the SCU holds only ~4–5 devices), or the activation (QR) token is rejected. Previously that reply produced a generic error that gave no clue which of these it was. The pairing decoder now logs the SCU's PIA `status` code and name (e.g. `5 ACCESS_DENIED`), the request id, the frame size and the raw response bytes at `WARNING`, and raises an error naming the status and the likely causes. No protocol behaviour changed — this is diagnostics only — but a rejected pairing is now actionable from the log. Surfaced by a HYMER ML-T owner (Martin) whose SCU, once woken so TLS finally completed, answered the pairing request with an immediate rejection.
+
 ## [2.93.1] - 2026-08-27
 
 ### Fixed
