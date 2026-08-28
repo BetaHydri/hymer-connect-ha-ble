@@ -103,23 +103,28 @@ message Response {
     uint64 timestamp = 3;
     // field 4-8: other fields
     PairMobileResponse mobilePair = 9;
-    // field ??: mobileDevices (response to getPairedMobileDevices)
+    MobileDevices mobileDevices = 10;   // reply to getPairedMobileDevices (UserRequestTopic field 5)
     // field ??: nonCommunicatingComponents
     // field ??: fotaState
     // field ??: metadata
 }
 ```
 
-### UserRequestTopic (Request field 8) — All Known Commands
+### UserRequestTopic (Request field 8) — All Commands
 
-| Field # | Command | Sub-fields | Status |
-|---------|---------|------------|--------|
+All field numbers below were **resolved from the decompiled protobuf codec** (`UserRequestTopic.encode()`
+wire tags, `field = tag >> 3`), self-validated by the three already-known values (4, 6, and
+`Response.mobilePair` = 9). "Resolved" = schema-verified; the `delete*` / `getPaired*` commands are **not
+yet confirmed against a live SCU** (the app never calls them, so there was no reference implementation).
+
+| Field # | Command | Payload | Status |
+|---------|---------|---------|--------|
+| 1 | `deleteUser` | `User` message | Resolved (codec) — unverified live |
+| 2 | `deleteAllUsers` | `google.protobuf.Empty` | Resolved — app's "Remove all users" sends this |
+| 3 | `deleteMobileDevices` | `User` message (targets in `User.devices`) | Resolved (codec) — unverified live |
 | 4 | `pairMobileDevice` | activation_token(1), confirmation_token(2), mobile_device_name(3), wait_for_confirmation(4) | **Confirmed & implemented** |
+| 5 | `getPairedMobileDevices` | `google.protobuf.Empty` (no args) — read-only | Resolved (codec) — unverified live |
 | 6 | `pairMobileDeviceConfirmation` | success(1) | **Confirmed & implemented** |
-| ?? | `getPairedMobileDevices` | (none?) | Found in app, field # unknown |
-| ?? | `deleteMobileDevices` | mobileDeviceMac (string) | Found in app, field # unknown |
-| ?? | `deleteUser` | (unknown) | Found in app, field # unknown |
-| ?? | `deleteAllUsers` | (unknown) | Found in app, field # unknown |
 
 ### CommandRequestTopic (Request field 9) — All Known Commands
 
@@ -139,6 +144,29 @@ message PairMobileResponse {
     string remote_access_token = 1;          // short-lived
     string remote_access_refresh_token = 2;  // LONG-LIVED (the EHG token)
     bool confirmation_required = 3;
+}
+```
+
+### Device-management message shapes (resolved from decompiled codec)
+
+```protobuf
+// Payload of deleteUser (field 1) and deleteMobileDevices (field 3)
+message User {
+    string uuid = 1;
+    bool   isMainUser = 2;
+    string expireDate = 3;
+    repeated MobileDevice devices = 4;   // for deleteMobileDevices: the device(s) to remove
+}
+
+message MobileDevice {
+    string mobileDeviceMac  = 1;
+    string mobileDeviceName = 2;         // e.g. "ha-12345"
+    string userUuid         = 3;
+}
+
+// Reply carried in Response.mobileDevices (field 10), from getPairedMobileDevices (field 5)
+message MobileDevices {
+    repeated MobileDevice values = 1;
 }
 ```
 
@@ -175,7 +203,7 @@ message PairMobileResponse {
 1. **BLE connection required** — cannot unpair via cloud/SignalR alone
 2. **SCU must be active** (12V on, not in standby)
 3. **Internet required** — possibly for cloud-side cleanup
-4. `deleteMobileDevices` takes a `mobileDeviceMac` (string) parameter
+4. `deleteMobileDevices` (UserRequestTopic field 3) takes a **`User`** message whose `devices` list holds the `MobileDevice{mobileDeviceMac, mobileDeviceName, userUuid}` entries to remove — **not** a bare MAC string
 
 ### SCU Pairing Behavior
 
@@ -204,44 +232,48 @@ message PairMobileResponse {
 
 The SCU's internal paired BLE device list (e.g. "homeassistant", "ha-xxxxx") is
 **not visible anywhere** in the EHG app. There is no UI to selectively delete
-individual paired BLE devices. The only way to access it is via the PIA protobuf
-`getPairedMobileDevices` / `deleteMobileDevices` commands (field numbers unknown).
+individual paired BLE devices. The only way to reach it is via the PIA protobuf
+`getPairedMobileDevices` (UserRequestTopic field 5) / `deleteMobileDevices` (field 3)
+commands — which **the app itself never calls** (they exist in its protobuf schema but
+have zero call-sites), so there is no in-app path, hidden or otherwise.
 
 "Verbindung trennen" removes the **entire vehicle** from the user's account —
 it does NOT selectively remove a single paired BLE device.
 
-## Extracting Unknown Field Numbers
+## Device-Management Field Numbers — RESOLVED (2026-08-28)
 
-The protobuf field numbers for `deleteMobileDevices`, `getPairedMobileDevices`, etc.
-are embedded in compiled Hermes bytecode and are **still unresolved** — in this repo
-*and* in the independent [`dan-simms1/hymer-connect-ha`](https://github.com/dan-simms1/hymer-connect-ha)
-fork, which built the same kind of probe (`scu-user-topic` / `build_user_topic_probe_frame`)
-and documents them the same way: *"field numbers are not known from the decompiled app."*
-Both repos agree on the surrounding envelope (UserRequestTopic = Request field 8;
-`pairMobileDevice` = 4, confirmation = 6; `Response.mobilePair` = 9).
+The `getPairedMobileDevices` / `deleteMobileDevices` (and `deleteUser` / `deleteAllUsers`)
+field numbers were **resolved by reading the protobuf codec directly** out of the decompiled
+Hermes bundle (`source/androidapp/_archive_old_app/_hermes_decompiled/index.js`). The
+`UserRequestTopic.encode()` function writes each sub-field's wire tag; `field = tag >> 3`.
+The extraction is self-validating — the three already-known values (`pairMobileDevice` = 4,
+`pairMobileDeviceConfirmation` = 6, `Response.mobilePair` = 9) all came out correct.
 
-Three approaches to extract, in order of safety:
+| Command | field | wire tag | payload |
+|---------|-------|----------|---------|
+| `deleteUser` | 1 | 10 | `User` |
+| `deleteAllUsers` | 2 | 18 | `Empty` |
+| `deleteMobileDevices` | 3 | 26 | `User` (targets in `User.devices`) |
+| `pairMobileDevice` | 4 | 34 | `PairMobileRequest` |
+| `getPairedMobileDevices` | 5 | 42 | `Empty` (no args) |
+| `pairMobileDeviceConfirmation` | 6 | 50 | `PairMobileConfirmation` |
 
-1. **MITM capture (definitive & safest)** — intercept BLE traffic while the EHG app
-   performs a real unpair. This captures the exact field number **and** payload shape
-   (`deleteMobileDevices(mobileDeviceMac)`) from live traffic, with no risk of sending a
-   destructive command yourself. Requires BLE + internet + the SCU active (12 V on).
-2. **Read-only probe (safe-ish)** — probe candidate numbers for `getPairedMobileDevices`
-   (read-only, empty payload) **one at a time** with [`tools/scan_pia_fields.py`](../tools/scan_pia_fields.py),
-   watching for a response that carries a repeated `mobileDevices` list. Likely candidates sit
-   near the known pairing fields (5, 7, 8, 10, 11).
-3. **Hermes decompiler** — `hbcdump` / `hermes-dec` on `index.android.bundle`.
-   - **Done:** the decompiled bundle now lives at `source/androidapp/_archive_old_app/_hermes_decompiled/index.js`
-     and was used to extract the full `(componentId, slot)` catalog (labels/modes/datatypes/enums) —
-     see [`ehg-app-metadata.md`](ehg-app-metadata.md). The device-management field numbers
-     (`deleteMobileDevices` / `getPairedMobileDevices`) were still not pinned down from it.
+The `getPairedMobileDevices` reply comes back in **`Response.mobileDevices` (field 10)** =
+`MobileDevices { repeated MobileDevice values = 1 }`.
 
-> ⚠️ **Do NOT blindly sweep field numbers 1–15.** The `deleteUser` / `deleteAllUsers`
-> commands live in the same `UserRequestTopic` and their numbers are unknown, so a range
-> sweep could delete users or wipe the account. `tools/scan_pia_fields.py` is therefore
-> **single-shot**: it sends exactly one deliberately-chosen field, refuses without
-> `--i-understand-may-be-destructive`, and blocks the pairing (4/6) and restart (command 2)
-> fields — the same guardrails Dan Simms' `scu-user-topic` enforces.
+> **MITM capture is no longer needed for these two.** Because the app never calls
+> `getPairedMobileDevices` / `deleteMobileDevices` (schema-only, zero call-sites), a traffic
+> capture of the EHG app could never have revealed them anyway — the numbers came from the
+> compiled schema. What is still **unconfirmed is live SCU behavior**: we have never sent
+> field 5 or 3 to a real SCU. Confirm the read-only `getPairedMobileDevices` first with
+> [`tools/scan_pia_fields.py --getpaired`](../tools/scan_pia_fields.py) on a vehicle before
+> building anything on top of it.
+
+> ⚠️ **Do NOT blindly sweep field numbers 1–15.** `deleteUser` (1) and `deleteAllUsers` (2)
+> live in the same `UserRequestTopic`, so a range sweep will delete users / wipe the account.
+> `tools/scan_pia_fields.py` is single-shot: it sends exactly one deliberately-chosen field,
+> refuses without `--i-understand-may-be-destructive` (except the read-only `--getpaired`
+> shortcut), and blocks the pairing (4/6) and restart (command 2) fields.
 
 ## Other BLE Module Files (jadx output)
 

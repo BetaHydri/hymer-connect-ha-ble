@@ -9,19 +9,27 @@ to identify undocumented commands such as:
     - deleteMobileDevices      (destructive: removes a paired device)
     - deleteAllUsers / deleteUser  (DESTRUCTIVE: can wipe the account)
 
-Known field numbers (confirmed):
-    UserRequestTopic (field 8):  4 = pairMobileDevice, 6 = pairMobileDeviceConfirmation
+Field numbers (RESOLVED 2026-08-28 from the decompiled protobuf codec):
+    UserRequestTopic (Request field 8):
+        1 = deleteUser (User)           2 = deleteAllUsers (Empty)
+        3 = deleteMobileDevices (User)  4 = pairMobileDevice
+        5 = getPairedMobileDevices (Empty, read-only)
+        6 = pairMobileDeviceConfirmation
     CommandRequestTopic (field 9): 2 = restart
+    getPairedMobileDevices reply = Response.mobileDevices (field 10) =
+        MobileDevices{ values:[ MobileDevice{ mobileDeviceMac, mobileDeviceName, userUuid } ] }
 
 SAFETY (why this is single-shot, not a sweep)
 ---------------------------------------------
-The field numbers of deleteUser / deleteAllUsers are UNKNOWN. A blind 1-15 sweep
-would therefore eventually send one of them and could wipe your account/pairings.
-This tool follows the safe model used by dan-simms1/hymer-connect-ha's
-`scu-user-topic` probe: it sends exactly ONE deliberately chosen field per run,
-refuses to send without an explicit acknowledgement, refuses the pairing ceremony
-fields (4/6) and restart (command 2), and NEVER accepts a range. Prefer probing
-`getPairedMobileDevices` (read-only, empty payload) first.
+deleteUser (1) and deleteAllUsers (2) are DESTRUCTIVE and share this topic, so a
+blind 1-15 sweep could wipe your account/pairings. This tool sends exactly ONE
+deliberately chosen field per run, refuses without an explicit acknowledgement,
+refuses the pairing fields (4/6) and restart (command 2), and NEVER accepts a
+range. The only read-only command is getPairedMobileDevices (field 5, Empty),
+exposed via the safe `--getpaired` shortcut (no ack needed).
+
+NOTE: the delete*/getPaired* numbers are schema-verified but NOT yet confirmed
+against a live SCU (the app itself never calls them). Confirm read-only first.
 
 Usage:
     Set environment variables:
@@ -29,9 +37,8 @@ Usage:
         HYMER_PASSWORD=yourpassword
         HYMER_EHG_REFRESH_TOKEN=eyJraWQ...
 
-    Then probe ONE field, e.g. a candidate for getPairedMobileDevices:
-        python scan_pia_fields.py --envelope user --field 5 \
-            --i-understand-may-be-destructive
+    List paired devices (safe, read-only):
+        python scan_pia_fields.py --getpaired
 
 .AUTHOR Jan Tiedemann
 .DATE 2026
@@ -206,30 +213,26 @@ COMMAND_TOPIC_KNOWN = {
 SAFE_USAGE_NOTICE = """\
 Nothing sent. This is a single-shot probe, not a scanner.
 
-The field numbers for deleteUser / deleteAllUsers are UNKNOWN, so a blind sweep
-could wipe your account. Choose ONE field deliberately and send it explicitly.
+For a safe read-only listing of the SCU's paired BLE devices, use:
+    python scan_pia_fields.py --getpaired
 
-Known UserRequestTopic (Request field 8) sub-fields:
-    4 = pairMobileDevice          (refused here - use the BLE pairing path)
+UserRequestTopic (Request field 8) sub-fields (RESOLVED from the decompiled codec):
+    1 = deleteUser              (DESTRUCTIVE, payload: User)
+    2 = deleteAllUsers          (DESTRUCTIVE, payload: Empty)
+    3 = deleteMobileDevices     (removes a paired device; payload: User{devices:[MobileDevice]})
+    4 = pairMobileDevice        (refused here - use the BLE pairing path)
+    5 = getPairedMobileDevices  (READ-ONLY, payload: Empty)  <- use --getpaired
     6 = pairMobileDeviceConfirmation (refused here)
-    ? = getPairedMobileDevices    (read-only - the SAFE thing to hunt for)
-    ? = deleteMobileDevices       (destructive - needs a mobileDeviceMac payload)
-    ? = deleteUser / deleteAllUsers (DESTRUCTIVE - do not guess blindly)
 
-Example (probe a candidate for the read-only getPairedMobileDevices):
-    python scan_pia_fields.py --envelope user --field 5 \\
-        --i-understand-may-be-destructive
-
-Start with likely candidates near the known pairing fields (5, 7, 8, 10, 11) and
-probe ONE at a time, with an EMPTY payload, watching for a response that carries
-a repeated mobileDevices list.
+To send any non-read-only field you must choose it explicitly and pass
+--i-understand-may-be-destructive. Never sweep a range.
 """
 
 DESTRUCTIVE_REFUSAL = """\
-Refusing to send. Some UserRequestTopic sub-fields are destructive
-(deleteUser, deleteAllUsers) and their field numbers are UNKNOWN. Pass
+Refusing to send. This UserRequestTopic sub-field can be destructive
+(deleteUser=1, deleteAllUsers=2, deleteMobileDevices=3). Pass
 --i-understand-may-be-destructive once you have chosen a single field
-deliberately. Never sweep a range.
+deliberately, or use --getpaired for the safe read-only listing. Never sweep.
 """
 
 
@@ -471,6 +474,44 @@ def decode_pia_response(b64_payload: str) -> dict[str, Any]:
     return result
 
 
+MOBILE_DEVICES_RESPONSE_FIELD = 10  # Response.mobileDevices (reply to getPairedMobileDevices)
+
+
+def decode_mobile_devices_from_response(b64_payload: str) -> list[dict[str, str]]:
+    """Decode the getPairedMobileDevices reply from a full PiaResponse payload.
+
+    Response.mobileDevices (field 10) = MobileDevices{ repeated MobileDevice values = 1 };
+    MobileDevice = { mobileDeviceMac=1(str), mobileDeviceName=2(str), userUuid=3(str) }.
+    Parses from the full raw payload (not the truncated hex in decode_pia_response).
+    """
+    devices: list[dict[str, str]] = []
+    try:
+        raw = base64.b64decode(b64_payload)
+    except Exception:
+        return devices
+    for _fn, wt, val in _decode_protobuf(raw):          # outer envelope
+        if wt != 2 or not isinstance(val, bytes):
+            continue
+        for ifn, iwt, ival in _decode_protobuf(val):    # Response fields
+            if ifn != MOBILE_DEVICES_RESPONSE_FIELD or iwt != 2 or not isinstance(ival, bytes):
+                continue
+            for vfn, vwt, vval in _decode_protobuf(ival):   # MobileDevices.values (1, repeated)
+                if vfn != 1 or vwt != 2 or not isinstance(vval, bytes):
+                    continue
+                dev: dict[str, str] = {}
+                for dfn, dwt, dval in _decode_protobuf(vval):   # MobileDevice fields
+                    if dwt == 2 and isinstance(dval, bytes):
+                        text = _try_decode_string(dval) or dval.hex()
+                        if dfn == 1:
+                            dev["mac"] = text
+                        elif dfn == 2:
+                            dev["name"] = text
+                        elif dfn == 3:
+                            dev["userUuid"] = text
+                devices.append(dev)
+    return devices
+
+
 # ---------------------------------------------------------------------------
 # Main scanner
 # ---------------------------------------------------------------------------
@@ -488,6 +529,11 @@ async def main():
     parser.add_argument(
         "--field", type=int, default=None,
         help="The SINGLE sub-field number to probe (e.g. 5). Required to send anything."
+    )
+    parser.add_argument(
+        "--getpaired", action="store_true", default=False,
+        help="Safe read-only shortcut: send getPairedMobileDevices (UserRequestTopic field 5, "
+             "empty payload) and decode the paired-device list from Response field 10. No ack needed."
     )
     parser.add_argument(
         "--envelope", type=str, default="user",
@@ -516,6 +562,14 @@ async def main():
         help="Export the raw result to a JSON file"
     )
     args = parser.parse_args()
+
+    # --getpaired: safe read-only shortcut for getPairedMobileDevices (UserRequestTopic
+    # field 5, Empty payload). Read-only, so it bypasses the destructive-ack gate.
+    if args.getpaired:
+        args.envelope = "user"
+        args.field = 5
+        args.payload_hex = ""
+        args.ack_destructive = True
 
     # --- Safety gate 1: no field -> print guidance and exit without sending ---
     if args.field is None:
@@ -651,12 +705,14 @@ async def main():
         responses = await scanner.listen_for_responses(timeout=args.timeout)
 
         matched = []
+        matched_raw = []
         for resp in responses:
             resp_args = resp.get("arguments", [])
             if resp_args and isinstance(resp_args[0], str):
                 decoded = decode_pia_response(resp_args[0])
                 if decoded.get("request_id") == msg_id:
                     matched.append(decoded)
+                    matched_raw.append(resp_args[0])
 
         if matched:
             print("  ✅ RESPONSE (matching request_id):")
@@ -672,6 +728,21 @@ async def main():
                 for k, v in m.items():
                     if k.startswith("response_field_"):
                         print(f"       {k}: {json.dumps(v, indent=8, default=str)[:800]}")
+            if args.getpaired:
+                devices: list[dict[str, str]] = []
+                for raw in matched_raw:
+                    found = decode_mobile_devices_from_response(raw)
+                    if found:
+                        devices = found
+                print()
+                if devices:
+                    print(f"  Paired mobile devices ({len(devices)}):")
+                    for d in devices:
+                        print(f"    - name={d.get('name', '?')!r}  mac={d.get('mac', '?')}  uuid={d.get('userUuid', '?')}")
+                    results["paired_mobile_devices"] = devices
+                else:
+                    print("  (Response carried no MobileDevices in field 10 — the SCU may not "
+                          "implement getPairedMobileDevices, or the list is empty)")
         else:
             print(
                 "  ❌ no response with our request_id "

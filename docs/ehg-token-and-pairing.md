@@ -106,8 +106,10 @@ request). This has practical consequences:
 There is no UI in the EHG app to list or delete the SCU's individual paired BLE
 devices. "Verbindung trennen" in the app removes the **entire vehicle** from the
 account (all users, all devices) — it is not a per-device unpair. The protocol
-does expose `getPairedMobileDevices` / `deleteMobileDevices` commands, but their
-field numbers are not yet mapped; see
+does expose `getPairedMobileDevices` (UserRequestTopic field 5, read-only) and
+`deleteMobileDevices` (field 3) commands; their field numbers are now **resolved**
+from the decompiled codec — though the app itself never calls them and they are
+not yet confirmed against a live SCU. See
 [`ehg-app-ble-protocol.md`](ehg-app-ble-protocol.md).
 
 ## Verified BLE hardware
