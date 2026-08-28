@@ -1323,18 +1323,28 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("Unpair BLE device %s: raised", target, exc_info=True)
             return False
 
-        if status in (0, 1):  # 1 SUCCESS, 0 NO_STATUS (treated as success)
+        if status not in (0, 1):  # anything but SUCCESS/NO_STATUS is an outright reject
             _LOGGER.warning(
-                "Unpair BLE device: SCU accepted removal of %s (status=%s) — slot freed",
+                "Unpair BLE device %s: SCU rejected (status=%s) — slot NOT freed",
                 device.mac, status,
             )
-            if self._unpair_selected_mac == target:
-                self._unpair_selected_mac = None
-            await self.async_log_paired_ble_devices()  # refresh list + push update
+            return False
+        # #26 (stbcgn): a SUCCESS ACK is NOT proof of removal. Some SCU firmware
+        # replies status=1 but silently keeps the device (same ack-then-discard as
+        # the bus-9 slot-2 Dometic write). Never claim "slot freed" on the ACK alone —
+        # re-read the table and confirm the entry is actually gone.
+        refreshed = await self.async_log_paired_ble_devices()  # refresh list + push update
+        if not any(d["mac"].lower() == target for d in refreshed):
+            _LOGGER.warning(
+                "Unpair BLE device: %s removed — slot freed (SCU status=%s, confirmed "
+                "by re-read)", device.mac, status,
+            )
             return True
         _LOGGER.warning(
-            "Unpair BLE device %s: SCU rejected (status=%s) — slot NOT freed",
-            device.mac, status,
+            "Unpair BLE device: SCU ACKed removal of %s (status=%s) but the device is "
+            "STILL paired after a re-read — the SCU accepted the request and silently "
+            "discarded it (known ack-then-discard behaviour on some firmware, #26). "
+            "Slot NOT freed.", device.mac, status,
         )
         return False
 

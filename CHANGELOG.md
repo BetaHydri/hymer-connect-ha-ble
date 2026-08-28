@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.95.1] - 2026-08-28
+## [2.95.2] - 2026-08-28
+
+### Fixed
+
+- **"Unpair selected BLE device" no longer reports "slot freed" when the SCU silently keeps the device.** The unpair path (`deleteMobileDevices`, v2.95.0) treated the SCU's `status=1` reply as proof of removal and logged *"slot freed"*. On some SCU firmware the SCU **acknowledges the request and then discards it** — byte-for-byte proof from a B-ML I 780 (ASW 1.49.7): the raw `getPairedMobileDevices` table was identical before and ~7 minutes after the unpair (three re-reads, still 7 devices), differing only in `request_id`/timestamp. This is the same ack-then-discard behaviour as the bus-9 slot-2 Dometic write that v2.92.0's verify-and-retry was built for, and the same misleading-reassurance class as the MTU-23 line fixed in v2.90.0. The button now **re-reads the paired-device table after the ACK and confirms the entry is actually gone** before reporting success: it only logs "slot freed" and returns `True` when the device has really disappeared; otherwise it logs that the SCU ACKed but silently discarded the removal (slot **not** freed) and returns `False`. No protocol change — the request frame is unchanged; only the success criterion is now verified. Reported with a full byte-level capture by @stbcgn (issue #26).
+
 
 ### Fixed
 
