@@ -27,6 +27,7 @@ for this driver-level test.
 from __future__ import annotations
 
 import asyncio
+import enum
 import importlib.util
 import sys
 import types
@@ -73,6 +74,17 @@ _exc = _mod("homeassistant.exceptions")
 _exc.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
 
 _mod("homeassistant.helpers")
+
+_he = _mod("homeassistant.helpers.entity")
+
+
+class EntityCategory(enum.StrEnum):  # minimal stand-in
+    CONFIG = "config"
+    DIAGNOSTIC = "diagnostic"
+
+
+_he.EntityCategory = EntityCategory
+
 _ep = _mod("homeassistant.helpers.entity_platform")
 _ep.AddEntitiesCallback = type("AddEntitiesCallback", (), {})
 
