@@ -27,6 +27,11 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 _CC = _ROOT / "custom_components" / "hymer_connect"
 
+# Windows consoles default to cp1252; force UTF-8 so the arrows/em-dashes in the
+# diagnostic prints below don't raise UnicodeEncodeError.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 
 def _load(name: str):
     spec = importlib.util.spec_from_file_location(name, _CC / f"{name}.py")
