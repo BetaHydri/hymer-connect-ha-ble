@@ -656,6 +656,27 @@ old token if the new pairing fails.
 > = re-bond **and mint a NEW** token — needs a QR. **Never use Reconfigure if your
 > goal is to keep the token** (it always mints a new one).
 
+### What each operation actually does (under the hood)
+
+| Internal step | ⚙️ Reset BLE pairing only | ⋮ Re-pair over BLE | 🗑️ Delete + re-add |
+| --- | --- | --- | --- |
+| Drop the live BLE link + release acquired write/notify FDs | ✅ | ✅ | ✅ |
+| Remove the OS-level BlueZ bond (`RemoveDevice`) | ✅ | ✅ | ✅ |
+| Mint a **new** EHG token (`PairMobileRequest`) | ❌ reuses the stored token | ✅ new token | ✅ new token |
+| Cloud / SignalR keeps working throughout | ✅ | ✅ (old token kept if pairing fails) | ❌ removed with the entry |
+| Needs a QR activation token | ❌ | ✅ | ✅ |
+| Needs the vehicle (press **CONNECTION**) | ✅ | ✅ | ✅ |
+| Re-enables BLE read + write automatically | ✅ (v2.91.6+) | ✅ | n/a (fresh setup) |
+
+**Ordering matters — and it is now guaranteed.** The reset always runs
+**disconnect → clear bond → fresh bond**, never the other way round. Since **v2.95.1**
+the clear is executed *inside the coordinator's BLE connect lock*, so it can no longer
+race the background watchdog and wipe a bond that has just succeeded. (That was the
+failure mode in issue #19: the log showed `BLE bonding successful` immediately followed
+by `Cleared BlueZ bond` / `Reset BLE bond: success`, leaving `connected=0`. The
+"Reset BLE pairing only" checkbox was always one-shot — it never stayed ticked — so
+the cause was ordering, not a sticky option.)
+
 ### How to reset only the BLE bond (v2.91.5+)
 
 > **This re-bonds and KEEPS your existing EHG token. You do NOT need Reconfigure,

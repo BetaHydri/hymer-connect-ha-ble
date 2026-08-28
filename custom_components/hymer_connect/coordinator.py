@@ -133,6 +133,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_connecting = False  # re-entrancy guard: poll + watchdog + option-toggle may all call connect
         self._ble_rebond_task: asyncio.Task | None = None  # active re-bond burst after a manual bond reset
         self._ble_rebond_pending = False  # set by the options flow when the user resets the BLE bond
+        self._ble_reset_pending = False  # #19: clear the bond inside the guarded connect (never racing the watchdog)
         self._startup_monotonic: float = time.monotonic()  # #23 cold-start cloud-first gate reference
         self._ble_cold_start_gate_open = False  # #23 latches True once cloud seeded or grace elapsed
         self._signalr_last_growth_monotonic: float = 0.0  # #23 last time the merged set gained a new key
@@ -1440,6 +1441,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         self._ble_connecting = True
         try:
+            # #19: apply a requested bond reset HERE, under the same guard as the
+            # connect, so it can never run concurrently with an in-flight bond and
+            # wipe one that just succeeded. Order is always disconnect -> clear ->
+            # fresh bond, never bond -> clear.
+            if self._ble_reset_pending:
+                self._ble_reset_pending = False
+                await self._async_reset_ble_bond()
             try:
                 ble_result = await asyncio.wait_for(
                     self.start_ble(), timeout=_BLE_STARTUP_TIMEOUT
@@ -1497,6 +1505,43 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         BLE bond. Consumed by the options-updated handler once the new options are
         applied (so ``ble_enabled`` already reflects the reset)."""
         self._ble_rebond_pending = True
+
+    def request_ble_reset_and_rebond(self) -> None:
+        """Flag a BLE bond reset + active re-bond (options flow, #19).
+
+        The clear itself is deferred to the guarded connect path so it cannot race
+        the watchdog and delete a bond that just succeeded. Only the flags are set
+        here; ``_async_options_updated`` then kicks the re-bond burst."""
+        self._ble_reset_pending = True
+        self._ble_rebond_pending = True
+
+    async def _async_reset_ble_bond(self) -> None:
+        """Clear the BlueZ bond from inside the connect guard (#19).
+
+        Drops any half-open link + acquired write/notify FDs, then removes the bond.
+        The EHG token and SCU address are kept, so the cloud path is untouched; the
+        very next connect re-bonds after the CONNECTION press."""
+        address = (self.ble_address or "").upper()
+        if not address:
+            _LOGGER.warning("BLE bond reset requested but no SCU address is stored")
+            return
+        from .ble_client import async_clear_bluez_bond, async_dbus_disconnect
+        if self._ble_client is not None:
+            try:
+                await self._ble_client.disconnect()
+            except Exception:
+                pass
+            self._ble_client = None
+            self._ble_connected = False
+        try:
+            await async_dbus_disconnect(address)  # release any acquired write/notify FDs first
+        except Exception:
+            pass
+        removed = await async_clear_bluez_bond(address)
+        _LOGGER.info(
+            "Reset BLE bond for %s under connect guard: %s (EHG token + address kept — cloud unaffected)",
+            address, "cleared" if removed else "no existing bond",
+        )
 
     async def async_kick_ble_rebond(self) -> None:
         """Run an active BLE re-bond burst after a manual bond reset.

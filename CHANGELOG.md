@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.1] - 2026-08-28
+
+### Fixed
+
+- **"Reset BLE pairing only" no longer wipes a bond that just succeeded.** The reset (`RemoveDevice`) ran straight from the options dialog, outside the coordinator's BLE connect lock. If the independent 30 s BLE watchdog (or a re-bond burst from an earlier reset) happened to bond in the same moment — e.g. right after you pressed CONNECTION — the reset then deleted that fresh bond a second or two later, leaving `connected=0` and a following `BLE degraded` stale-channel error. Seen on a HYMER BMC I 680 (Frank, issue #19), where the log showed `BLE bonding successful` immediately followed by `Cleared BlueZ bond` / `Reset BLE bond: success`. The clear is now **deferred into the guarded connect path**: the options handler only sets a flag, and the coordinator performs *disconnect → drop acquired write/notify FDs → clear bond* at the start of the next connect attempt, under the same lock as the bond itself. The order is therefore always clear-then-bond, never bond-then-clear, so a reset can no longer race the watchdog. The checkbox was already one-shot (it never persisted); no user-facing behaviour changes beyond the reset now doing what it says. Cloud/EHG token untouched, as before.
+
 ## [2.95.0] - 2026-08-28
 
 ### Added

@@ -680,35 +680,37 @@ class HymerConnectOptionsFlow(OptionsFlow):
                 # cloud/SignalR path is never broken; the next BLE connect re-bonds
                 # (CONNECTION press) and reuses the existing token (no re-mint).
                 if user_input.pop("clear_ble_bond", False):
-                    from .ble_client import async_clear_bluez_bond
-                    ble_address = (
-                        self._config_entry.options.get(CONF_BLE_ADDRESS, "")
-                        or self._config_entry.data.get(CONF_BLE_ADDRESS, "")
-                    ).upper()
-                    if ble_address:
-                        removed = await async_clear_bluez_bond(ble_address)
-                        _LOGGER.info(
-                            "Reset BLE bond for %s: %s (EHG token + address kept — cloud unaffected)",
-                            ble_address,
-                            "success" if removed else "not found",
-                        )
-                    else:
-                        _LOGGER.warning(
-                            "Reset BLE bond requested but no SCU address is stored"
-                        )
                     # A bond reset targets a fully working BLE direct path, so
                     # enable read + write. The checkboxes above stay available to
                     # temporarily disable either later WITHOUT deleting the bond.
                     user_input[CONF_BLE_ENABLED] = True
                     user_input[CONF_BLE_WRITE_ENABLED] = True
-                    # Kick an active re-bond so it lines up with the CONNECTION
-                    # press (Path A only; a no-op when BLE is disabled). Consumed
-                    # by _async_options_updated once the new options are applied.
                     coordinator = self.hass.data.get(DOMAIN, {}).get(
                         self._config_entry.entry_id
                     )
                     if coordinator is not None:
-                        coordinator.request_ble_rebond()
+                        # #19: defer the actual clear into the coordinator's guarded
+                        # connect path so it can't race the watchdog and wipe a bond
+                        # that just succeeded. Consumed by _async_options_updated.
+                        coordinator.request_ble_reset_and_rebond()
+                    else:
+                        # Integration not loaded — no watchdog to race, so clear now.
+                        from .ble_client import async_clear_bluez_bond
+                        ble_address = (
+                            self._config_entry.options.get(CONF_BLE_ADDRESS, "")
+                            or self._config_entry.data.get(CONF_BLE_ADDRESS, "")
+                        ).upper()
+                        if ble_address:
+                            removed = await async_clear_bluez_bond(ble_address)
+                            _LOGGER.info(
+                                "Reset BLE bond for %s: %s (integration not loaded — cleared inline)",
+                                ble_address,
+                                "success" if removed else "not found",
+                            )
+                        else:
+                            _LOGGER.warning(
+                                "Reset BLE bond requested but no SCU address is stored"
+                            )
                 return self.async_create_entry(title="", data=user_input)
 
         current_capacity = self._config_entry.options.get(
