@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.5] - 2026-08-29
+
+### Fixed
+
+- **Lights and the water pump now grey out reliably when the SCU reports standby (12V off), even during a command-retry reconnect storm.** The `requires_12v` availability guard greyed out on either a `main_switch` readback of `"Off"` or prolonged data silence. A real 12V-off on a cloud-only host exposed a gap where neither fired: after an OFF command's 60 s readback-verify failed and forced a full re-auth + SignalR reconnect, the cached `main_switch` was momentarily reset to `None` (so the `== "Off"` fast path did not apply), while the SCU kept pushing non-empty `scu_connected=false` standby frames that reset the data-silence clock (so the silence threshold was never crossed) — leaving the lights and water pump switchable while 12V was actually off. Both `switch.py` (for `requires_12v` entities) and `light.py` now add a **double-bottom guard**: an *explicit* `scu_connected=False` (SCU standby) also marks the entity unavailable. Only an explicit `False` greys out — `None` (never observed / mid-reconnect) and `True` (12V still on, including the ~60 s command-verify window) do not, so the normal ON path and the command window are unaffected.
+
 ## [2.95.4] - 2026-08-28
 
 ### Added

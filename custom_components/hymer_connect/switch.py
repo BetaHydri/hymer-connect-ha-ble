@@ -433,6 +433,16 @@ class HymerConnectSwitch(
             # still caught by the data-silence check below.
             if isinstance(main, str) and main == "Off":
                 return False
+            # Double bottom: an explicit SCU standby (scu_connected=False) means
+            # 12V is off even when the main_switch readback was momentarily reset
+            # to None during a SignalR reconnect and the standby frames keep the
+            # data-silence clock alive. Only an explicit False greys out - None
+            # (never observed / mid-reconnect) and True (12V still on, incl. the
+            # ~60s command-verify window) must NOT.
+            if _resolve_path(
+                self.coordinator.data, "signalr_sensors.scu_connected"
+            ) is False:
+                return False
             # 12V-off freezes the main_switch readback on some vehicles while
             # the SCU stops streaming. Prolonged data silence (from ANY
             # transport - SignalR or BLE) = 12V physically off. Transport-aware
