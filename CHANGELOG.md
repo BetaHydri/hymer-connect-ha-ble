@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.3] - 2026-08-28
+
+### Added
+
+- **The outgoing `deleteMobileDevices` request frame is now hex-logged at `DEBUG`.** The unpair path already logged the decoded mac/name at `WARNING` and the SCU's reply was visible via the generic `BLE PIA RECV` path, but the exact bytes we put on the wire for the delete request were never dumped — so a captured session could show the reply without the request. It now emits a `BLE PIA SEND … deleteMobileDevices … hex=…` line (mirroring the existing subscription-send hex dump), making the request frame capturable for byte-level comparison against the EHG app's own request. Diagnostics only — no protocol or behaviour change. Requested by @stbcgn (issue #26).
+
 ## [2.95.2] - 2026-08-28
 
 ### Fixed

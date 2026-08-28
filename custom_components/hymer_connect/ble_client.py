@@ -2163,6 +2163,11 @@ class ScuBleClient:
                 "BLE deleteMobileDevices SEND %s: request_id=%d mac=%s name=%r",
                 self._scu_address, request_id, device.mac, device.name,
             )
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                _LOGGER.debug(
+                    "BLE PIA SEND %s: deleteMobileDevices request_id=%d framed=%d B hex=%s",
+                    self._scu_address, request_id, len(frame), frame.hex(),
+                )
             encrypted = self._tls.encrypt(frame)
             await self._write_to_scu(encrypted, force_response=True)
             status = await asyncio.wait_for(future, timeout=timeout)
