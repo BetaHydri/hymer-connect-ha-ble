@@ -152,16 +152,16 @@ message PairMobileResponse {
 ```protobuf
 // Payload of deleteUser (field 1) and deleteMobileDevices (field 3)
 message User {
-    string uuid = 1;
+    string uuid = 1;                     // EHG USER ACCOUNT id (not a device id)
     bool   isMainUser = 2;
     string expireDate = 3;
     repeated MobileDevice devices = 4;   // for deleteMobileDevices: the device(s) to remove
 }
 
 message MobileDevice {
-    string mobileDeviceMac  = 1;
+    string mobileDeviceMac  = 1;         // ha-xxxxx entries: = host BT controller (hci0) address, not random
     string mobileDeviceName = 2;         // e.g. "ha-12345"
-    string userUuid         = 3;
+    string userUuid         = 3;         // the OWNING user account — MANY devices can share one uuid
 }
 
 // Reply carried in Response.mobileDevices (field 10), from getPairedMobileDevices (field 5)
@@ -218,7 +218,8 @@ message MobileDevices {
 
 - SCU remembers paired device **names** (not just MAC addresses)
 - Re-sending `PairMobileRequest` with an already-paired name → empty response (no `mobilePair` field) or timeout
-- SCU has limited pairing slots (likely 4–5 devices)
+- SCU has limited pairing slots — a small table; **at least 7 confirmed on firmware ASW 1.49.7** ([issue #25](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/25); no rejection seen to mark the ceiling, so the earlier "4–5" was only an estimate). A **full** table rejects new pairings
+- `userUuid` identifies the **EHG user account**, not the device — one account can hold several slots, and a second enrolled account (guest access) carries a different uuid. Unpair by device (MAC/name), not by uuid
 - Each paired device gets its **own personal refresh token** — pairing a new device (e.g. the token-extractor APK alongside the official EHG app) does not invalidate the tokens of the others. The extracted token is portable and is reused in Home Assistant, but keep one token live on only one device at a time
 - Fix: use unique device name per attempt (`ha-{timestamp}`)
 

@@ -98,10 +98,14 @@ request). This has practical consequences:
   device at a time — uninstall the APK once HA has the token.
 - **Path A mints its own token.** A HA host in the vehicle with BLE hardware pairs
   directly and mints its **own** token, so no reuse is involved.
-- **The SCU has a limited number of pairing slots** (typically ~4–5 devices) and
-  remembers paired device **names**, not just MAC addresses. Re-sending a pairing
-  request with an already-paired name returns an empty response; the integration
-  uses a unique device name per attempt to avoid this.
+- **The SCU has a limited number of pairing slots** — a *small* table, but the exact
+  ceiling is **firmware-dependent** and not well-calibrated. **At least 7** slots were
+  confirmed on firmware **ASW 1.49.7** ([issue #25](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/25)),
+  with no rejection observed to mark the true limit; the earlier "~4–5" was only an
+  estimate. A **full** table rejects new pairings. The SCU remembers paired device
+  **names**, not just MAC addresses; re-sending a pairing request with an
+  already-paired name returns an empty response, so the integration uses a unique
+  device name per attempt.
 
 There is no UI in the EHG app to list or delete the SCU's individual paired BLE
 devices. "Verbindung trennen" in the app removes the **entire vehicle** from the
@@ -122,6 +126,18 @@ settings when you need them.
 | `button.*_log_paired_ble_devices` | button (diagnostic) | Read-only refresh — re-reads the list (`getPairedMobileDevices`) and writes it to the log and the sensor. Never changes anything. |
 | `select.*_ble_device_to_unpair` | select (config) | **Records** which device you want to remove. Picking an option does **not** touch the SCU. |
 | `button.*_unpair_selected_ble_device` | button (config) | **Approves + executes** the removal of the selected device (`deleteMobileDevices`). **Destructive** — frees one pairing slot. |
+
+> **What the `uuid` column means.** `uuid` identifies the **EHG user account**, not
+> the device — one account can occupy several slots, and a second account (e.g. a
+> family member added via *Gastzugänge*) shows a **different** `uuid`. On
+> [issue #25](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/25)'s SCU, 6
+> of 7 slots shared one account uuid and 1 belonged to a second account. So unpair by
+> **device** (MAC / name), **not** by uuid — but the uuid is handy to see at a glance
+> which slots are yours vs. a partner's. Two hints for spotting your own slot: an
+> `ha-xxxxx` entry's MAC is the **host's Bluetooth controller address** (e.g. the
+> Pi's `hci0`), not a random value, so you can match it with certainty; and a
+> token-extraction helper permanently occupies a slot (it can even appear literally
+> as `ehg-token-extractor`), making it a prime unpair candidate.
 
 **Two-step unpair (deliberate by design).** Removing a device is split so it cannot
 happen by accident: the **select only records** the target, and the separate
