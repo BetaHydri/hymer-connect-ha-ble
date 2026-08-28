@@ -250,6 +250,7 @@ _REQUEST_USER_FIELD = 8
 
 # UserRequestTopic branches
 _USER_PAIR_MOBILE_DEVICE_FIELD = 4
+_USER_GET_PAIRED_MOBILE_DEVICES_FIELD = 5  # Empty payload, read-only
 _USER_PAIR_MOBILE_CONFIRMATION_FIELD = 6
 
 # PairMobileRequest fields
@@ -266,6 +267,15 @@ _RESPONSE_ID_FIELD = 1
 _RESPONSE_STATUS_FIELD = 2
 _RESPONSE_TIMESTAMP_FIELD = 3
 _RESPONSE_MOBILE_PAIR_FIELD = 9
+_RESPONSE_MOBILE_DEVICES_FIELD = 10  # MobileDevices (getPairedMobileDevices reply)
+
+# MobileDevice / MobileDevices (getPairedMobileDevices reply). Field numbers
+# resolved from the decompiled EHG app schema (2026-08-28), validated live: the
+# SCU replies ACCESS_DENIED over cloud, SUCCESS + this payload over bonded BLE.
+_MOBILE_DEVICES_VALUES_FIELD = 1  # repeated MobileDevice
+_MOBILE_DEVICE_MAC_FIELD = 1
+_MOBILE_DEVICE_NAME_FIELD = 2
+_MOBILE_DEVICE_USER_UUID_FIELD = 3
 
 # PairMobileResponse fields
 _PAIR_RESP_ACCESS_TOKEN_FIELD = 1
@@ -435,6 +445,115 @@ def build_pair_mobile_confirmation_frame(success: bool = True) -> bytes:
     ))
     ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
     return encode_ble_pia_frame(ble_protocol)
+
+
+@dataclass
+class MobileDevice:
+    """A single paired mobile device from getPairedMobileDevices."""
+
+    mac: str
+    name: str
+    user_uuid: str
+
+
+def build_get_paired_mobile_devices_frame() -> tuple[bytes, int]:
+    """Build a BLE PIA frame for getPairedMobileDevices (read-only).
+
+    Protobuf nesting:
+      BleProtocol.request(1) → Request → User(8) → getPairedMobileDevices(5, Empty)
+
+    Returns (frame, request_id) so the caller can correlate the reply.
+    """
+    request_id = math.ceil(random.random() * 1_000_000) + 1
+    timestamp = round(time.time())
+
+    user_topic = _encode_bytes_field(_USER_GET_PAIRED_MOBILE_DEVICES_FIELD, b"")
+    request_msg = b"".join((
+        _encode_varint_field(_REQUEST_ID_FIELD, request_id),
+        _encode_string_field(_REQUEST_VERSION_FIELD, APP_PIA_VERSION),
+        _encode_varint_field(_REQUEST_TIMESTAMP_FIELD, timestamp),
+        _encode_bytes_field(_REQUEST_USER_FIELD, user_topic),
+    ))
+    ble_protocol = _encode_bytes_field(_BLE_PROTOCOL_REQUEST_FIELD, request_msg)
+    return encode_ble_pia_frame(ble_protocol), request_id
+
+
+def _decode_mobile_device(data: bytes) -> MobileDevice:
+    """Decode one MobileDevice{mac=1, name=2, userUuid=3} sub-message."""
+    mac = name = user_uuid = ""
+    offset = 0
+    while offset < len(data):
+        key, offset = _decode_varint(data, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_LEN:
+            val, offset = _decode_len_delimited(data, offset)
+            text = val.decode("utf-8", "replace")
+            if fn == _MOBILE_DEVICE_MAC_FIELD:
+                mac = text
+            elif fn == _MOBILE_DEVICE_NAME_FIELD:
+                name = text
+            elif fn == _MOBILE_DEVICE_USER_UUID_FIELD:
+                user_uuid = text
+        else:
+            offset = _skip_field(data, offset, wt)
+    return MobileDevice(mac=mac, name=name, user_uuid=user_uuid)
+
+
+def decode_mobile_devices_response(frame: bytes) -> dict:
+    """Decode a getPairedMobileDevices reply.
+
+    Protobuf nesting:
+      BleProtocol.response(2) → Response → mobileDevices(10) → MobileDevices
+                              → values(1, repeated) → MobileDevice
+
+    Returns ``{request_id, status, devices}``. ``devices`` is empty when the
+    Response carries no field-10 payload (ACCESS_DENIED, empty list, or the
+    frame was an unrelated sensor push).
+    """
+    payload = decode_ble_pia_frame(frame)
+
+    response_payload: bytes | None = None
+    offset = 0
+    while offset < len(payload):
+        key, offset = _decode_varint(payload, offset)
+        fn, wt = key >> 3, key & 7
+        if fn == _BLE_PROTOCOL_RESPONSE_FIELD and wt == _WIRE_LEN:
+            response_payload, offset = _decode_len_delimited(payload, offset)
+        else:
+            offset = _skip_field(payload, offset, wt)
+    if response_payload is None:
+        return {"request_id": None, "status": None, "devices": []}
+
+    request_id = status = None
+    mobile_devices_payload: bytes | None = None
+    offset = 0
+    while offset < len(response_payload):
+        key, offset = _decode_varint(response_payload, offset)
+        fn, wt = key >> 3, key & 7
+        if wt == _WIRE_VARINT:
+            val, offset = _decode_varint(response_payload, offset)
+            if fn == _RESPONSE_ID_FIELD:
+                request_id = val
+            elif fn == _RESPONSE_STATUS_FIELD:
+                status = val
+        elif fn == _RESPONSE_MOBILE_DEVICES_FIELD and wt == _WIRE_LEN:
+            mobile_devices_payload, offset = _decode_len_delimited(response_payload, offset)
+        else:
+            offset = _skip_field(response_payload, offset, wt)
+
+    devices: list[MobileDevice] = []
+    if mobile_devices_payload is not None:
+        offset = 0
+        while offset < len(mobile_devices_payload):
+            key, offset = _decode_varint(mobile_devices_payload, offset)
+            fn, wt = key >> 3, key & 7
+            if fn == _MOBILE_DEVICES_VALUES_FIELD and wt == _WIRE_LEN:
+                device_payload, offset = _decode_len_delimited(mobile_devices_payload, offset)
+                devices.append(_decode_mobile_device(device_payload))
+            else:
+                offset = _skip_field(mobile_devices_payload, offset, wt)
+
+    return {"request_id": request_id, "status": status, "devices": devices}
 
 
 def _rewrap_cloud_payload_as_ble_request(raw: bytes) -> tuple[bytes, int | None]:
@@ -1906,6 +2025,83 @@ class ScuBleClient:
                 frames = acc.feed(chunk)
                 if frames:
                     return frames[0]
+
+    async def get_paired_mobile_devices(
+        self, *, timeout: float = DEFAULT_NOTIFY_TIMEOUT
+    ) -> list[MobileDevice]:
+        """Read the SCU's paired-mobile-device list over BLE (read-only).
+
+        Sends ``UserRequestTopic.getPairedMobileDevices`` (field 5, Empty) and
+        waits for the matching ``Response`` carrying ``mobileDevices`` (field
+        10). Returns the decoded device list, or ``[]`` when the SCU replies
+        ACCESS_DENIED, an empty list, or no matching frame arrives before the
+        timeout.
+
+        This is a read-only diagnostic — it never writes to or deletes a pairing
+        slot. Requires an established bonded BLE/TLS session; over cloud the SCU
+        rejects this call with ACCESS_DENIED (status 5).
+        """
+        if not self._tls_established:
+            raise BleTransportError(
+                "TLS not established — call connect() and establish_tls() first"
+            )
+
+        frame, request_id = build_get_paired_mobile_devices_frame()
+        _LOGGER.debug(
+            "BLE getPairedMobileDevices SEND %s: request_id=%d framed=%d B",
+            self._scu_address, request_id, len(frame),
+        )
+        encrypted = self._tls.encrypt(frame)
+        await self._write_to_scu(encrypted, force_response=True)
+
+        deadline = self._loop.time() + timeout
+        acc = _FrameAccumulator()
+        while True:
+            remaining = deadline - self._loop.time()
+            if remaining <= 0:
+                _LOGGER.warning(
+                    "BLE getPairedMobileDevices: no matching reply within %.1fs "
+                    "(request_id=%d)", timeout, request_id,
+                )
+                return []
+            try:
+                incoming = await asyncio.wait_for(
+                    self._uart_queue.get(), timeout=remaining,
+                )
+            except asyncio.TimeoutError:
+                _LOGGER.warning(
+                    "BLE getPairedMobileDevices: timed out after %.1fs (request_id=%d)",
+                    timeout, request_id,
+                )
+                return []
+
+            outbound, plaintext_chunks = self._tls.feed_encrypted(incoming)
+            if outbound:
+                await self._write_to_scu(outbound)
+
+            for chunk in plaintext_chunks:
+                for reply_frame in acc.feed(chunk):
+                    result = decode_mobile_devices_response(reply_frame)
+                    reply_id = result["request_id"]
+                    # Skip unrelated responses; keep waiting through sensor
+                    # pushes (reply_id is None).
+                    if reply_id not in (None, request_id):
+                        continue
+                    if result["devices"]:
+                        _LOGGER.info(
+                            "BLE getPairedMobileDevices: %d device(s) (status=%s)",
+                            len(result["devices"]), result["status"],
+                        )
+                        return result["devices"]
+                    if reply_id == request_id:
+                        status = result["status"]
+                        status_name = _PIA_STATUS_NAMES.get(status, "UNKNOWN")
+                        _LOGGER.info(
+                            "BLE getPairedMobileDevices: empty reply "
+                            "(status=%s %s, request_id=%d) — SCU returned no "
+                            "MobileDevices", status, status_name, request_id,
+                        )
+                        return []
 
     async def disconnect(self) -> None:
         """Disconnect from the SCU."""
