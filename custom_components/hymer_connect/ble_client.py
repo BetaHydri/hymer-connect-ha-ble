@@ -485,13 +485,18 @@ def build_get_paired_mobile_devices_frame() -> tuple[bytes, int]:
 
 
 def build_delete_mobile_devices_frame(
-    devices: list[MobileDevice], *, user_uuid: str = "",
+    devices: list[MobileDevice], *, user_uuid: str = "", minimal: bool = False,
 ) -> tuple[bytes, int]:
     """Build a BLE PIA frame for deleteMobileDevices (DESTRUCTIVE).
 
     Protobuf nesting:
       BleProtocol.request(1) → Request → User(8) → deleteMobileDevices(3, User)
       User{uuid=1, devices=4 repeated MobileDevice{mac=1, name=2, userUuid=3}}
+
+    With ``minimal=True`` each device carries only its MAC (no name, no userUuid)
+    and the command-level ``User.uuid`` is omitted — a #26 experiment to test
+    whether the SCU's ack-then-discard is caused by matching the stored entry on
+    more than the MAC.
 
     Returns (frame, request_id) for ACK correlation.
     """
@@ -500,14 +505,17 @@ def build_delete_mobile_devices_frame(
 
     device_msgs = b""
     for d in devices:
-        md = b"".join((
-            _encode_string_field(_MOBILE_DEVICE_MAC_FIELD, d.mac),
-            _encode_string_field(_MOBILE_DEVICE_NAME_FIELD, d.name),
-            _encode_string_field(_MOBILE_DEVICE_USER_UUID_FIELD, d.user_uuid),
-        ))
+        if minimal:
+            md = _encode_string_field(_MOBILE_DEVICE_MAC_FIELD, d.mac)
+        else:
+            md = b"".join((
+                _encode_string_field(_MOBILE_DEVICE_MAC_FIELD, d.mac),
+                _encode_string_field(_MOBILE_DEVICE_NAME_FIELD, d.name),
+                _encode_string_field(_MOBILE_DEVICE_USER_UUID_FIELD, d.user_uuid),
+            ))
         device_msgs += _encode_bytes_field(_USER_MSG_DEVICES_FIELD, md)
     user_parts = []
-    if user_uuid:
+    if user_uuid and not minimal:
         user_parts.append(_encode_string_field(_USER_MSG_UUID_FIELD, user_uuid))
     user_parts.append(device_msgs)
     user_msg = b"".join(user_parts)
@@ -2137,7 +2145,7 @@ class ScuBleClient:
             self._pending_device_lists.pop(request_id, None)
 
     async def delete_mobile_device(
-        self, device: MobileDevice, *, user_uuid: str = "",
+        self, device: MobileDevice, *, user_uuid: str = "", minimal: bool = False,
         timeout: float = DEFAULT_NOTIFY_TIMEOUT,
     ) -> int | None:
         """Unpair one mobile device over BLE (DESTRUCTIVE, frees a slot).
@@ -2146,6 +2154,9 @@ class ScuBleClient:
         for the matching ``Response`` status via the write-ACK path. Returns the
         PIA status (1 = SUCCESS), or ``None`` on timeout. BLE-only and
         bond-gated; over cloud the SCU replies ACCESS_DENIED (status 5).
+
+        With ``minimal=True`` the request carries only the MAC (no name/userUuid,
+        no command-level uuid) — the #26 ack-then-discard experiment.
         """
         if not self._tls_established:
             raise BleTransportError(
@@ -2153,15 +2164,16 @@ class ScuBleClient:
             )
 
         frame, request_id = build_delete_mobile_devices_frame(
-            [device], user_uuid=user_uuid,
+            [device], user_uuid=user_uuid, minimal=minimal,
         )
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
         self._pending_writes[request_id] = future
         try:
             _LOGGER.warning(
-                "BLE deleteMobileDevices SEND %s: request_id=%d mac=%s name=%r",
+                "BLE deleteMobileDevices SEND %s: request_id=%d mac=%s name=%r%s",
                 self._scu_address, request_id, device.mac, device.name,
+                " [minimal: MAC-only]" if minimal else "",
             )
             if _LOGGER.isEnabledFor(logging.DEBUG):
                 _LOGGER.debug(

@@ -1340,11 +1340,36 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "by re-read)", device.mac, status,
             )
             return True
+        # #26 experiment (stbcgn): the full device record (MAC + name + userUuid +
+        # command-level uuid) was ACKed but discarded. Retry once with a MAC-only
+        # frame to test whether the SCU rejects the removal because it matches the
+        # stored entry on more than the MAC. Harmless — removal is inert either way.
         _LOGGER.warning(
-            "Unpair BLE device: SCU ACKed removal of %s (status=%s) but the device is "
-            "STILL paired after a re-read — the SCU accepted the request and silently "
-            "discarded it (known ack-then-discard behaviour on some firmware, #26). "
-            "Slot NOT freed.", device.mac, status,
+            "Unpair BLE device: %s still paired after full-record delete — retrying "
+            "MAC-only (#26 experiment)", device.mac,
+        )
+        try:
+            status2 = await client.delete_mobile_device(device, minimal=True)
+        except Exception:
+            _LOGGER.warning(
+                "Unpair BLE device %s: MAC-only retry raised", target, exc_info=True,
+            )
+            status2 = None
+        if status2 in (0, 1):
+            refreshed2 = await self.async_log_paired_ble_devices()
+            if not any(d["mac"].lower() == target for d in refreshed2):
+                _LOGGER.warning(
+                    "Unpair BLE device: %s removed by MAC-only delete — slot freed "
+                    "(SCU status=%s). #26 SOLVED: the SCU rejects the full device "
+                    "record but accepts a MAC-only removal.", device.mac, status2,
+                )
+                return True
+        _LOGGER.warning(
+            "Unpair BLE device: SCU ACKed removal of %s (full-record status=%s, "
+            "MAC-only status=%s) but the device is STILL paired after both re-reads — "
+            "the SCU accepted the request and silently discarded it (known "
+            "ack-then-discard behaviour on some firmware, #26). Slot NOT freed.",
+            device.mac, status, status2,
         )
         return False
 

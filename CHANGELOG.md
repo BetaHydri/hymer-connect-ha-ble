@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.4] - 2026-08-28
+
+### Added
+
+- **The unpair path now automatically retries a MAC-only `deleteMobileDevices` when the full-record delete is silently discarded.** Issue #26 established that on some SCU firmware (B-ML I 780, ASW 1.49.7) `deleteMobileDevices` returns `status=1` but keeps the device — and @stbcgn's byte-level capture showed our request carries the **full device record** (MAC + name + userUuid, plus the command-level `User.uuid`). His hypothesis: if the SCU matches its stored entry on more than the MAC and any field disagrees, a well-formed ACK followed by a silent no-op is exactly what results. To test that directly (no EHG-app capture needed), when the verify-after-delete re-read finds the device still present, the unpair button now sends a **second, MAC-only** delete (`MobileDevice{mac}` only — no name, no `userUuid`, no command-level `uuid`) and re-verifies. If that frees the slot, the log says *"#26 SOLVED: the SCU rejects the full device record but accepts a MAC-only removal"* and returns success; if both are discarded it reports the ack-then-discard as before. The `build_delete_mobile_devices_frame` / `delete_mobile_device` helpers gained a `minimal=True` mode for this. Removal is provably inert on the affected firmware, so the extra attempt is harmless. Experiment proposed by @stbcgn (issue #26).
+
 ## [2.95.3] - 2026-08-28
 
 ### Added
