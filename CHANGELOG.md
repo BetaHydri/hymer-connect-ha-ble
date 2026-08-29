@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.96.0] - 2026-08-29
+
+### Added
+
+- **18 previously-unmapped EHG interior-light buses are now scaffolded as gated + disabled provisional lights, so no user sees a phantom or mislabeled entity.** The EHG catalogue exposes many `LightCircuit` / `LightGroup` buses (20, 23, 26, 38, 39, 40, 41, 42, 67, 78, 80, 81, 82, 83, 84, 85, 86, 94) that the integration did not map. They are now defined in `lights.json` with **default names from the EHG catalogue** (e.g. `light_toilet`, `light_garage`, `light_staircase`, `light_bedroom_wall`, `light_installation_group`), following the `sid1`=on/off, `sid2`=brightness, `sid3`=color-temp convention, plus matching `binary_sensor` (on/off status) and `sensor` (brightness) entries and full `strings.json` / `en.json` translations. Every new entity is **double-protected**: it is **gated** (`require_observed: true`, so it is only created when that bus is actually seen on the vehicle — no phantom entities on vehicles that lack the bus) **and disabled by default** (`enabled: false`, so even on vehicles that *do* have the bus, the unverified floorplan name never auto-appears mislabeled). Users enable and rename them in the HA entity settings. This is strictly **add-only** — no existing, shipped light was renamed or touched (existing names remain frozen so no one's dashboard breaks). Names are provisional catalogue guesses, not confirmed against a specific floorplan; `LightCircuit21` is intentionally excluded (no such light bus exists — bus 65 is an A/C). Docs updated in `ehg-app-metadata.md` and `sensor-map.md`.
+
 ## [2.95.6] - 2026-08-29
 
 ### Changed

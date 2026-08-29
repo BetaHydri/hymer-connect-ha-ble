@@ -256,6 +256,54 @@
       "light_bedroom_furniture_brightness": {
         "name": "Bedroom furniture brightness"
       },
+      "light_sink_ambient_brightness": {
+        "name": "Sink ambient brightness"
+      },
+      "light_floor_front_brightness": {
+        "name": "Floor front brightness"
+      },
+      "light_installation_group_brightness": {
+        "name": "Installation group brightness"
+      },
+      "light_seating_table_brightness": {
+        "name": "Seating table brightness"
+      },
+      "light_entrance_brightness": {
+        "name": "Entrance brightness"
+      },
+      "light_seating_wall_brightness": {
+        "name": "Seating wall brightness"
+      },
+      "light_bedroom_wall_brightness": {
+        "name": "Bedroom wall brightness"
+      },
+      "light_bedroom_floor_brightness": {
+        "name": "Bedroom floor brightness"
+      },
+      "light_staircase_brightness": {
+        "name": "Staircase brightness"
+      },
+      "light_toilet_brightness": {
+        "name": "Toilet brightness"
+      },
+      "light_sink_brightness": {
+        "name": "Sink brightness"
+      },
+      "light_garage_brightness": {
+        "name": "Garage brightness"
+      },
+      "light_lift_bed_brightness": {
+        "name": "Lift bed brightness"
+      },
+      "light_storage_brightness": {
+        "name": "Storage brightness"
+      },
+      "light_wall_brightness": {
+        "name": "Wall lighting brightness"
+      },
+      "light_toilet_ambient_brightness": {
+        "name": "Toilet ambient brightness"
+      },
       "scu_firmware": {
         "name": "SCU firmware"
       },
@@ -494,6 +542,60 @@
       },
       "light_bedroom_furniture": {
         "name": "Bedroom furniture"
+      },
+      "light_sink_ambient": {
+        "name": "Sink ambient"
+      },
+      "light_floor_front": {
+        "name": "Floor front"
+      },
+      "light_installation_group": {
+        "name": "Installation all lights"
+      },
+      "light_seating_table": {
+        "name": "Seating table"
+      },
+      "light_entrance": {
+        "name": "Entrance"
+      },
+      "light_seating_wall": {
+        "name": "Seating wall"
+      },
+      "light_bedroom_wall": {
+        "name": "Bedroom wall"
+      },
+      "light_bedroom_floor": {
+        "name": "Bedroom floor"
+      },
+      "light_staircase": {
+        "name": "Staircase"
+      },
+      "light_outside": {
+        "name": "Outside"
+      },
+      "light_toilet": {
+        "name": "Toilet"
+      },
+      "light_sink": {
+        "name": "Sink"
+      },
+      "light_garage": {
+        "name": "Garage"
+      },
+      "light_lift_bed": {
+        "name": "Lift bed"
+      },
+      "light_storage": {
+        "name": "Storage"
+      },
+      "light_wall": {
+        "name": "Wall lighting"
+      },
+      "light_toilet_ambient": {
+        "name": "Toilet ambient"
+      },
+      "light_nightlight_2": {
+        "name": "Night light 2"
       }
     },
     "binary_sensor": {
@@ -580,6 +682,60 @@
       },
       "light_led_bar": {
         "name": "LED bar"
+      },
+      "light_sink_ambient": {
+        "name": "Sink ambient light"
+      },
+      "light_floor_front": {
+        "name": "Floor front light"
+      },
+      "light_installation_group": {
+        "name": "Installation all lights"
+      },
+      "light_seating_table": {
+        "name": "Seating table light"
+      },
+      "light_entrance": {
+        "name": "Entrance light"
+      },
+      "light_seating_wall": {
+        "name": "Seating wall light"
+      },
+      "light_bedroom_wall": {
+        "name": "Bedroom wall light"
+      },
+      "light_bedroom_floor": {
+        "name": "Bedroom floor light"
+      },
+      "light_staircase": {
+        "name": "Staircase light"
+      },
+      "light_outside": {
+        "name": "Outside light"
+      },
+      "light_toilet": {
+        "name": "Toilet light"
+      },
+      "light_sink": {
+        "name": "Sink light"
+      },
+      "light_garage": {
+        "name": "Garage light"
+      },
+      "light_lift_bed": {
+        "name": "Lift bed light"
+      },
+      "light_storage": {
+        "name": "Storage light"
+      },
+      "light_wall": {
+        "name": "Wall lighting"
+      },
+      "light_toilet_ambient": {
+        "name": "Toilet ambient light"
+      },
+      "light_nightlight_2": {
+        "name": "Night light 2"
       },
       "door_driver": {
         "name": "Driver door"

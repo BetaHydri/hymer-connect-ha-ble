@@ -182,6 +182,40 @@ Notes:
 | 125 | `TimberlineHeaterZone` | Timberline air/furnace heater zone | base | metadata (unverified) |
 | 127 | `ThetfordIndusToiletEco` | Thetford iNDUS toilet ECO | base | metadata (unverified) |
 
+### Provisional interior-light scaffolds (v2.96.0)
+
+These 18 EHG `LightCircuit` / `LightGroup` buses are mapped as **gated + disabled**
+scaffolds. They are **never auto-shown**: the entity is only created when the bus is
+actually observed on the vehicle (`require_observed: true`), and even then it stays
+**disabled by default** (`enabled: false`) so the unverified floorplan name never
+appears mislabeled. Users enable and rename them in the HA entity settings. Names are
+default guesses from the EHG catalogue and are **not** confirmed against a specific
+floorplan — treat them as provisional until verified on a real vehicle.
+
+| Bus | EHG type | Entity name | HA display | Brightness | Color temp |
+|-----|----------|-------------|------------|:----------:|:----------:|
+| 20 | `LightCircuit10` | `light_sink_ambient` | Sink ambient | ✓ | ✗ |
+| 23 | `LightCircuit13` | `light_floor_front` | Floor front | ✓ | ✓ |
+| 26 | `LightGroup03` | `light_installation_group` | Installation all lights | ✓ | ✗ (sid3=night_mode) |
+| 38 | `LightCircuit14` | `light_seating_table` | Seating table | ✓ | ✗ |
+| 39 | `LightCircuit15` | `light_entrance` | Entrance | ✓ | ✗ |
+| 40 | `LightCircuit16` | `light_seating_wall` | Seating wall | ✓ | ✓ |
+| 41 | `LightCircuit17` | `light_bedroom_wall` | Bedroom wall | ✓ | ✓ |
+| 42 | `LightCircuit18` | `light_bedroom_floor` | Bedroom floor | ✓ | ✓ |
+| 67 | `LightCircuit23` | `light_staircase` | Staircase | ✓ | ✗ |
+| 78 | `LightCircuit24` | `light_outside` | Outside | ✗ | ✗ |
+| 80 | `LightCircuit25` | `light_toilet` | Toilet | ✓ | ✗ |
+| 81 | `LightCircuit26` | `light_sink` | Sink | ✓ | ✗ |
+| 82 | `LightCircuit27` | `light_garage` | Garage | ✓ | ✗ |
+| 83 | `LightCircuit28` | `light_lift_bed` | Lift bed | ✓ | ✗ |
+| 84 | `LightCircuit29` | `light_storage` | Storage | ✓ | ✗ |
+| 85 | `LightCircuit30` | `light_wall` | Wall lighting | ✓ | ✗ |
+| 86 | `LightCircuit31` | `light_toilet_ambient` | Toilet ambient | ✓ | ✗ |
+| 94 | `LightCircuit33` | `light_nightlight_2` | Night light 2 | ✗ | ✗ |
+
+> `LightCircuit21` is intentionally **not** scaffolded — no such light bus exists in the
+> catalogue (bus 65 is `TrumaAventaComfortDirect`, an A/C, not a light).
+
 ## Pinned sensor mappings and auto-slot templates (v2.64.0+)
 
 ### The Problem: Shared Slots on Multi-Device Buses
