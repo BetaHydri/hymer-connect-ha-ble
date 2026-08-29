@@ -121,7 +121,7 @@ yet confirmed against a live SCU** (the app never calls them, so there was no re
 |---------|---------|---------|--------|
 | 1 | `deleteUser` | `User` message | Resolved (codec) — unverified live |
 | 2 | `deleteAllUsers` | `google.protobuf.Empty` | Resolved — app's "Remove all users" sends this |
-| 3 | `deleteMobileDevices` | `User` message (targets in `User.devices`) | **Implemented** (gated HA unpair UI) — live-verify pending |
+| 3 | `deleteMobileDevices` | `User` message (targets in `User.devices`) | **Implemented** (gated HA unpair UI) — SCU ACKs `status=1` but **silently discards** on every firmware tested so far (#26); no per-device removal yet |
 | 4 | `pairMobileDevice` | activation_token(1), confirmation_token(2), mobile_device_name(3), wait_for_confirmation(4) | **Confirmed & implemented** |
 | 5 | `getPairedMobileDevices` | `google.protobuf.Empty` (no args) — read-only | **Confirmed & implemented** (live-verified 2026-08-28) |
 | 6 | `pairMobileDeviceConfirmation` | success(1) | **Confirmed & implemented** |
@@ -221,7 +221,7 @@ message MobileDevices {
 - SCU has limited pairing slots — a small table; **at least 7 confirmed on firmware ASW 1.49.7** ([issue #25](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/25); no rejection seen to mark the ceiling, so the earlier "4–5" was only an estimate). A **full** table rejects new pairings
 - `userUuid` identifies the **EHG user account**, not the device — one account can hold several slots, and a second enrolled account (guest access) carries a different uuid. Unpair by device (MAC/name), not by uuid
 - Each paired device gets its **own personal refresh token** — pairing a new device (e.g. the token-extractor APK alongside the official EHG app) does not invalidate the tokens of the others. The extracted token is portable and is reused in Home Assistant, but keep one token live on only one device at a time
-- Fix: use unique device name per attempt (`ha-{timestamp}`)
+- Name strategy: **stable, reused device name** (`ha-xxxxx`) — since **v2.95.6** the name is generated once on the first successful pair, persisted in the config entry (`ble_pair_name`) and reused on every re-pair, so the SCU always sees the same `(MAC, name)` slot and recognises the returning host instead of piling up a new slot each time (before v2.95.6 a fresh random `ha-{timestamp}` was sent per attempt). This matters because per-device removal is not honoured on any tested firmware ([issue #26](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/26)), so orphaned slots cannot be cleaned up individually.
 
 ## EHG App UI — Vehicle Management
 
@@ -253,8 +253,10 @@ it does NOT selectively remove a single paired BLE device.
 > **This integration now provides the per-device UI the app lacks.** Since
 > v2.94.0 a read-only "Log paired BLE devices" button + `sensor.*_paired_ble_devices`
 > expose the list, and since v2.95.0 a two-step **`select` (pick) + `button`
-> (approve)** performs a gated single-device `deleteMobileDevices` over BLE to free
-> one pairing slot — all BLE-only (cloud replies `ACCESS_DENIED`). See
+> (approve)** sends a gated single-device `deleteMobileDevices` over BLE — intended to
+> free one pairing slot, though the SCU firmwares tested so far ACK it and silently
+> discard it (#26), so it does not yet actually remove a device. All BLE-only (cloud
+> replies `ACCESS_DENIED`). See
 > [`ehg-token-and-pairing.md`](ehg-token-and-pairing.md#paired-ble-device-management-in-home-assistant).
 
 ## Device-Management Field Numbers — RESOLVED (2026-08-28)
@@ -285,8 +287,12 @@ The `getPairedMobileDevices` reply comes back in **`Response.mobileDevices` (fie
 > **confirmed on a real SCU** — it returned the full paired list (`Response.mobileDevices`,
 > field 10) over BLE, and is shipped as the "Log paired BLE devices" button +
 > `sensor.*_paired_ble_devices`. `deleteMobileDevices` (field 3) is **implemented** behind the
-> gated `select` + `button` unpair UI but its live SUCCESS is still to be confirmed on a full
-> slot table. Both are BLE-only; over cloud the SCU replies `ACCESS_DENIED` (status 5).
+> gated `select` + `button` unpair UI, but its live result is now confirmed **negative**: on
+> two different vehicles/firmwares (retrofit ASW 1.49.7 in #26 and a factory Grand Canyon
+> S 600) the SCU returns `status=1` yet **silently keeps the device** — full-record and
+> MAC-only delete frames were both ACKed and discarded, table unchanged. v2.95.2 verifies
+> and reports "Slot NOT freed"; no firmware honouring per-device removal has been seen yet.
+> Both are BLE-only; over cloud the SCU replies `ACCESS_DENIED` (status 5).
 
 > ⚠️ **Do NOT blindly sweep field numbers 1–15.** `deleteUser` (1) and `deleteAllUsers` (2)
 > live in the same `UserRequestTopic`, so a range sweep will delete users / wipe the account.
