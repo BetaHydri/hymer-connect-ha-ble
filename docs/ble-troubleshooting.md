@@ -769,6 +769,13 @@ factory pairing reset. Afterwards, re-pair from scratch — the **stable device 
 (v2.95.6+) then maps every future re-pair back to the **same single slot** instead of
 piling up new ones.
 
+> **Untested narrower option (not implemented).** The SCU keys its table on `userUuid`, so a
+> `deleteUser`-by-uuid command *might* free slots where per-device delete is silently dropped —
+> potentially surgically, if the orphaned slots belong to a **different** uuid (old guest account) than
+> the one HA's token uses. It is codec-only and unverified (the SCU may discard it too), and deleting
+> your **own** uuid removes your token + all its devices. See the `deleteUser` experiment note in
+> [`ehg-app-ble-protocol.md`](ehg-app-ble-protocol.md#userrequesttopic-request-field-8--all-commands).
+
 ### How to enroll a fresh EHG token (no delete needed)
 
 1. **⋮ → Reconfigure**, tick **Re-pair over BLE (mint a new EHG token)**.

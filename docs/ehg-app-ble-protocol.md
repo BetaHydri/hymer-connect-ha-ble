@@ -114,8 +114,15 @@ message Response {
 
 All field numbers below were **resolved from the decompiled protobuf codec** (`UserRequestTopic.encode()`
 wire tags, `field = tag >> 3`), self-validated by the three already-known values (4, 6, and
-`Response.mobilePair` = 9). "Resolved" = schema-verified; the `delete*` / `getPaired*` commands are **not
-yet confirmed against a live SCU** (the app never calls them, so there was no reference implementation).
+`Response.mobilePair` = 9). **"Resolved (codec)" only means the message/field is *defined* in the
+decompiled codec — it does NOT imply the EHG app ever invokes it, nor that it was tested live.**
+App-invocation and live-SCU status differ per command (see the Status column):
+
+- **App call path exists:** `pairMobileDevice` (4) + `pairMobileDeviceConfirmation` (6) (pairing), and
+  `deleteAllUsers` (2) (the app's "Remove all users" / vehicle unlink).
+- **Implemented & exercised by *this* integration (no app path):** `getPairedMobileDevices` (5,
+  live-verified) and `deleteMobileDevices` (3, live-tested → ACKed but discarded, #26).
+- **Codec-only:** `deleteUser` (1) — no app call path, never sent live, not implemented here.
 
 | Field # | Command | Payload | Status |
 |---------|---------|---------|--------|
@@ -125,6 +132,22 @@ yet confirmed against a live SCU** (the app never calls them, so there was no re
 | 4 | `pairMobileDevice` | activation_token(1), confirmation_token(2), mobile_device_name(3), wait_for_confirmation(4) | **Confirmed & implemented** |
 | 5 | `getPairedMobileDevices` | `google.protobuf.Empty` (no args) — read-only | **Confirmed & implemented** (live-verified 2026-08-28) |
 | 6 | `pairMobileDeviceConfirmation` | success(1) | **Confirmed & implemented** |
+
+> **#26 open experiment — `deleteUser` (1) by `userUuid` as a coarser removal path.** Per-device
+> `deleteMobileDevices` (3) is ACKed (`status=1`) but silently kept on every firmware tested. Since the
+> SCU keys its pairing table on `userUuid` (one account can hold several device slots), `deleteUser` (1) —
+> which takes a `User{uuid}` and would remove that user *and* its device slots — is the next untested
+> hypothesis for freeing slots when per-device delete is inert. It is **codec-only** (no app call path,
+> never sent live) and **not implemented** in the integration. Trade-offs:
+>
+> - **Surgical, lower-risk:** `getPairedMobileDevices` (5) returns each entry's `userUuid`. If the
+>   orphaned slots belong to a *different* uuid (an old guest account / earlier enrollment), deleting
+>   *that* uuid could free exactly those slots **without** touching the account HA's token belongs to.
+> - **Destructive if it is your own uuid:** deleting your *own* user removes its token **and all** its
+>   devices (your phone's EHG app too, if the same account) — effectively a scoped "Verbindung trennen".
+> - **Unverified:** the SCU may ack-then-discard `deleteUser` too (same class as #26). Only
+>   `deleteAllUsers` (2) has a proven app path; `deleteUser` (1) does not — so treat it as an experiment,
+>   not a fix.
 
 ### CommandRequestTopic (Request field 9) — All Known Commands
 
