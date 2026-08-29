@@ -114,6 +114,14 @@ request). This has practical consequences:
   orphaned slots cannot be cleaned up individually. Existing installs adopt a stable name
   on their next pair. (Before v2.95.6 a new random `ha-<time>` name was sent per attempt.)
 
+> **The stable name only helps the SCU's slot table — not the Bluetooth link itself.**
+> The BLE bond is keyed on **MAC + Long-Term Key** (Bluetooth Core Spec / SMP); the
+> device name is keyed only into the SCU's `(MAC, name)` slot table and matters solely
+> during a token *mint*. A returning, already-bonded host re-connects with **no** name
+> at all (bond + stored token = BLE reads). See
+> [`ehg-app-ble-protocol.md`](ehg-app-ble-protocol.md#scu-pairing-behavior) for the
+> two-layer detail. So if BLE won't connect, chase the **bond**, not the name.
+
 There is no UI in the EHG app to list or delete the SCU's individual paired BLE
 devices. "Verbindung trennen" in the app removes the **entire vehicle** from the
 account (all users, all devices) — it is not a per-device unpair. This integration

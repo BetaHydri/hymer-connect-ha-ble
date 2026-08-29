@@ -729,6 +729,46 @@ the cause was ordering, not a sticky option.)
 > or you tapped *Disconnect vehicle* in the EHG app). For a plain re-bond that keeps
 > your token, use **Reset BLE pairing only** above.
 
+### Two different “broken BLE” states — don’t confuse them
+
+A BLE link can fail for two structurally different reasons that need different fixes.
+The Bluetooth pairing stores a **Long-Term Key (LTK)** on **both** sides, keyed on the
+SCU’s **MAC address**; the SCU *also* keeps a separate application-level slot keyed on
+**(MAC, name)** (the pairing table). These are independent layers.
+
+1. **Lost / one-sided bond (asymmetric LTK).** Only one side still holds the LTK, so
+   encryption cannot restart:
+   - **HA lost its key, the SCU still has it** — the classic case after you **restore an
+     HA backup onto a new host** (or wipe `/var/lib/bluetooth`). The BlueZ bond keys are
+     **not** part of the HA backup, so the cloud/EHG token survives but HA reports
+     `Paired: no / Bonded: no` (issue #19).
+   - **The SCU lost its key, HA still has it** — HA offers the stale key, the SCU refuses
+     → `AuthenticationFailed` / the SCU ignores the TLS handshake.
+   - **Fix:** **⚙️ Reset BLE pairing only** + press **CONNECTION**. A fresh JustWorks
+     bond writes a **new LTK** for that MAC and overwrites any leftover one. The token is
+     **kept**, **nothing is minted**, and **no pairing slot is consumed** — so the EHG-app
+     unlink below is **not** needed for this case.
+
+2. **Stale / wedged channel (#24).** The bond is intact on **both** sides, but a leaked
+   BlueZ `AcquireWrite`/`AcquireNotify` FD wedges the link (`Write acquired`, MTU pinned
+   at 23). This is a **host-side** problem — restart `bluetoothd` / reset the adapter /
+   reboot (see [above](#ble-goes-silently-dead-or-a-write-channel-wedges-improved-v2900)).
+   **No re-bond needed.**
+
+### When you must unlink the vehicle in the EHG app (#26)
+
+If you genuinely need to **mint a new token** (dead token **and** lost bond — e.g. a new
+host without the old token) but the SCU’s **pairing table is full**, the mint is rejected.
+This integration — like the EHG app — **cannot delete an individual paired device**: the
+SCU ACKs `deleteMobileDevices` with `status=1` but silently keeps the entry
+([issue #26](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/26); raw 7-entry
+table captured on firmware ASW 1.49.7). With no per-device cleanup, the only way to free
+slots is to **unlink the whole vehicle in the EHG app** (*Mein Fahrzeug → Verbindung
+trennen*), which removes **all** paired devices/users at once, or a HYMER support /
+factory pairing reset. Afterwards, re-pair from scratch — the **stable device name**
+(v2.95.6+) then maps every future re-pair back to the **same single slot** instead of
+piling up new ones.
+
 ### How to enroll a fresh EHG token (no delete needed)
 
 1. **⋮ → Reconfigure**, tick **Re-pair over BLE (mint a new EHG token)**.

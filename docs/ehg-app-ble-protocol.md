@@ -223,6 +223,29 @@ message MobileDevices {
 - Each paired device gets its **own personal refresh token** — pairing a new device (e.g. the token-extractor APK alongside the official EHG app) does not invalidate the tokens of the others. The extracted token is portable and is reused in Home Assistant, but keep one token live on only one device at a time
 - Name strategy: **stable, reused device name** (`ha-xxxxx`) — since **v2.95.6** the name is generated once on the first successful pair, persisted in the config entry (`ble_pair_name`) and reused on every re-pair, so the SCU always sees the same `(MAC, name)` slot and recognises the returning host instead of piling up a new slot each time (before v2.95.6 a fresh random `ha-{timestamp}` was sent per attempt). This matters because per-device removal is not honoured on any tested firmware ([issue #26](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/26)), so orphaned slots cannot be cleaned up individually.
 
+> **Two independent layers — the stable name does NOT fix a Bluetooth connection.**
+> There are two separate "known device" registers, and the `(MAC, name)` slot only
+> lives in the upper one:
+>
+> 1. **Bluetooth link-layer bond (BlueZ / SMP).** The actual radio pairing, defined by
+>    the Bluetooth Core Specification (Security Manager Protocol). It is keyed on the
+>    peer's **identity address (MAC) + the stored Long-Term Key (LTK)** only. The GAP
+>    device name plays **no** role here. Whether Home Assistant re-connects over BLE
+>    depends solely on MAC + a valid LTK on both sides — a stable name changes nothing,
+>    and it cannot repair a stale/broken bond (the `Write acquired` /
+>    `AuthenticationFailed` class → clear + re-bond, see
+>    [`ble-troubleshooting.md`](ble-troubleshooting.md)).
+> 2. **SCU `PairedMobileDevices` table (EHG application layer).** Keyed on **(MAC, name)**.
+>    This is the *only* place the stable name matters, and only during a **mint**
+>    (`PairMobileRequest`): it lets the SCU map a returning host to its existing slot
+>    instead of allocating a new one.
+>
+> Practical consequence: a plain **re-connect of an already-bonded host** sends **no**
+> device name at all — it just re-uses the BlueZ bond + the stored EHG token (bond +
+> token = BLE reads, no mint). The name (and v2.95.6's stability fix) only comes into
+> play if a brand-new token has to be minted. So if BLE won't connect, look at the bond
+> (link layer), not the name.
+
 ## EHG App UI — Vehicle Management
 
 ### "Mein Fahrzeug" Menu
