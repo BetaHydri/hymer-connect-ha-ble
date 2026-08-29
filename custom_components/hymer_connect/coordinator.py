@@ -24,6 +24,7 @@ from .const import (
     CONF_BLE_ADDRESS,
     CONF_BLE_ENABLED,
     CONF_BLE_WRITE_ENABLED,
+    CONF_BLE_PAIR_NAME,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
@@ -698,19 +699,28 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         if not confirmation_token:
                             _LOGGER.warning("Cloud did not return a confirmation token")
                         else:
+                            # Reuse a stable, persisted pairing name so re-pairs
+                            # present the same (MAC, name) slot to the SCU instead
+                            # of a fresh random "ha-<time>" each time.
+                            pair_name = (
+                                self.config_entry.data.get(CONF_BLE_PAIR_NAME)
+                                or f"ha-{int(time.time()) % 100000}"
+                            )
                             pair_result = await self._ble_client.pair_mobile(
                                 activation_token=qr_token,
                                 confirmation_token=confirmation_token,
-                                mobile_device_name=f"ha-{int(time.time()) % 100000}",
+                                mobile_device_name=pair_name,
                             )
                             if pair_result.remote_access_refresh_token:
                                 self._ehg_refresh_token = pair_result.remote_access_refresh_token
                                 # Persist to config entry so it survives restarts
+                                # (both the token and the stable pairing name).
                                 self.hass.config_entries.async_update_entry(
                                     self.config_entry,
                                     data={
                                         **self.config_entry.data,
                                         CONF_EHG_REFRESH_TOKEN: self._ehg_refresh_token,
+                                        CONF_BLE_PAIR_NAME: pair_name,
                                     },
                                 )
                                 _LOGGER.info(

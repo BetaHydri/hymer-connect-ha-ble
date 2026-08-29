@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.95.6] - 2026-08-29
+
+### Changed
+
+- **BLE pairing now presents a stable, reused device name to the SCU instead of a fresh random one on every pair.** Until now each pair attempt sent `mobile_device_name="ha-<time%100000>"`, so every re-pair created a *new* name for the *same* Home Assistant host MAC. The SCU keys its `PairedMobileDevices` table on the (MAC, name) pair, so a returning host with a changed name looks like a different device — which, on top of the ack-then-discard `deleteMobileDevices` bug (issue #26, per-device removal is provably inert on affected firmware), risks the SCU rejecting the re-pair or silently piling up slots that can never be cleared. The chosen name is now generated **once** on the first successful pair and persisted in the config entry (`ble_pair_name`); every subsequent re-pair — whether via the coordinator's auto-pair path or the reconfigure dialog — **reuses that exact name**, so the SCU always sees the same (MAC, name) slot and recognises the returning host. Existing installs adopt a stable name on their next pair. Best-effort and non-blocking: if no name is stored yet, a one-time `ha-<time>` is generated and then frozen. No protocol change — only the name we send is now stable. Preventive hardening flagged during the issue #26 / #27 pairing analysis.
+
 ## [2.95.5] - 2026-08-29
 
 ### Fixed

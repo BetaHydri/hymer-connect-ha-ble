@@ -103,9 +103,16 @@ request). This has practical consequences:
   confirmed on firmware **ASW 1.49.7** ([issue #25](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/25)),
   with no rejection observed to mark the true limit; the earlier "~4–5" was only an
   estimate. A **full** table rejects new pairings. The SCU remembers paired device
-  **names**, not just MAC addresses; re-sending a pairing request with an
-  already-paired name returns an empty response, so the integration uses a unique
-  device name per attempt.
+  **names**, not just MAC addresses — it keys its `PairedMobileDevices` table on the
+  **(MAC, name)** pair. Since **v2.95.6** the integration presents a **stable, reused**
+  device name (`ha-xxxxx`): the name is generated **once** on the first successful pair,
+  persisted in the config entry (`ble_pair_name`), and **reused on every subsequent
+  re-pair** (both the automatic coordinator path and the reconfigure dialog). So a
+  returning Home Assistant host always maps to the **same slot** and is recognised,
+  instead of consuming a new slot with a fresh random name each time — which matters
+  because per-device removal is not honoured on any tested firmware (see #26 below), so
+  orphaned slots cannot be cleaned up individually. Existing installs adopt a stable name
+  on their next pair. (Before v2.95.6 a new random `ha-<time>` name was sent per attempt.)
 
 There is no UI in the EHG app to list or delete the SCU's individual paired BLE
 devices. "Verbindung trennen" in the app removes the **entire vehicle** from the
@@ -115,17 +122,33 @@ fills that gap over BLE (see below).
 ## Paired BLE device management (in Home Assistant)
 
 The integration exposes the SCU's internal paired-device table — which the EHG app
-never shows — through three entities (all **BLE-only**; over the cloud path the SCU
+never shows — through **four entities** (all **BLE-only**; over the cloud path the SCU
 replies `ACCESS_DENIED`, so they only work while a bonded BLE session is up with the
-SCU awake / 12V on). All are **disabled by default** — enable them in the entity
-settings when you need them.
+SCU awake / 12V on). **All four are disabled by default** (they are diagnostic / config
+entities) — enable them per entity under **Settings → Devices & Services → your HYMER
+device → the entity → ⚙ → *Enable***, or via **Settings → Entities**, when you need them.
+
+> [!IMPORTANT]
+> **Per-device removal does not currently free a slot on any SCU firmware tested so
+> far.** The SCU acknowledges `deleteMobileDevices` with `status=1` (SUCCESS) but then
+> **silently keeps the device** — the paired table is unchanged. This "ack-then-discard"
+> was confirmed on **two** different vehicles/firmwares: a retrofit kit (ASW 1.49.7,
+> [issue #26](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/26)) **and** a
+> factory Grand Canyon S 600 — the full-record *and* the MAC-only delete frame were both
+> ACKed and discarded, the table stayed unchanged. Since **v2.95.2** the unpair button
+> **verifies** the result and reports the truth (*"Slot NOT freed"*) instead of a false
+> success; **v2.95.4** adds an automatic MAC-only retry as a diagnostic. **Today the only
+> reliable way to clear the SCU's pairing table is the EHG app's "Verbindung trennen"**
+> (which wipes *all* paired devices at once); afterwards you re-pair Home Assistant (and
+> any phone) from scratch. Listing the table (`getPairedMobileDevices`) and the
+> diagnostics work fine — only the actual per-device *removal* is not honoured yet.
 
 | Entity | Type | What it does |
 | --- | --- | --- |
 | `sensor.*_paired_ble_devices` | sensor (diagnostic) | State = **count** of paired devices; `attributes.devices` = the full list (`name` / `mac` / `uuid`). Auto-populates a few seconds after a BLE connect. |
 | `button.*_log_paired_ble_devices` | button (diagnostic) | Read-only refresh — re-reads the list (`getPairedMobileDevices`) and writes it to the log and the sensor. Never changes anything. |
 | `select.*_ble_device_to_unpair` | select (config) | **Records** which device you want to remove. Picking an option does **not** touch the SCU. |
-| `button.*_unpair_selected_ble_device` | button (config) | **Approves + executes** the removal of the selected device (`deleteMobileDevices`). **Destructive** — frees one pairing slot. |
+| `button.*_unpair_selected_ble_device` | button (config) | **Approves + executes** the removal of the selected device (`deleteMobileDevices`). Intended to free one pairing slot — but **the SCU firmwares tested so far ACK the request and silently keep the device** (see the note above, #26). Since v2.95.2 it verifies and reports *"Slot NOT freed"* rather than a false success. |
 
 > **What the `uuid` column means.** `uuid` identifies the **EHG user account**, not
 > the device — one account can occupy several slots, and a second account (e.g. a
@@ -145,9 +168,12 @@ happen by accident: the **select only records** the target, and the separate
 disabled by default and only becomes *available* when BLE is connected **and** a
 device is selected. To free a slot: enable the entities → make sure BLE is connected
 (SCU awake) → pick the device in the select → press **Unpair selected BLE device**.
-The list refreshes automatically and the freed slot is then available for a new
-pairing. This is the intended way to clear a stale `ha-xxxxx` entry when the SCU's
-pairing table is full and rejects new pairings.
+The list refreshes automatically. **Note:** on every SCU firmware tested so far this does
+**not** actually free the slot — the SCU ACKs but discards the removal (see the important
+note at the top of this section, #26), and the button reports *"Slot NOT freed"*. It
+remains the intended mechanism for a stale `ha-xxxxx` entry and will start working the
+moment a firmware honours `deleteMobileDevices`, but **for now use the EHG app's
+"Verbindung trennen"** to clear a full table.
 
 > [!WARNING]
 > **This needs a *stable* bonded BLE session — it can't fix itself when BLE won't

@@ -96,6 +96,11 @@ CONF_QR_TOKEN = "qr_activation_token"
 CONF_BLE_ADDRESS = "ble_scu_address"
 CONF_BLE_ENABLED = "ble_enabled"
 CONF_BLE_REFRESH_TOKEN = "ble_refresh_token"
+# Stable mobile-device name presented to the SCU during BLE pairing. Generated
+# once on the first successful pair and reused on every subsequent re-pair, so
+# the SCU always sees the same (MAC, name) pairing slot instead of a fresh
+# random "ha-<time>" name each time (which the SCU may reject / duplicate).
+CONF_BLE_PAIR_NAME = "ble_pair_name"
 
 # Route WRITE commands over BLE first (field-1 BleProtocol.request +
 # write-with-response), falling back to cloud/SignalR on any BLE failure or

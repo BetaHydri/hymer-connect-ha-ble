@@ -26,6 +26,7 @@ from .const import (
     CONF_BLE_ENABLED,
     CONF_BLE_WRITE_ENABLED,
     CONF_BRAND,
+    CONF_BLE_PAIR_NAME,
     CONF_EHG_REFRESH_TOKEN,
     CONF_OAUTH_BASIC_AUTH,
     CONF_QR_TOKEN,
@@ -330,10 +331,18 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     return
 
                 # Step 4: PairMobileRequest → PairMobileResponse
+                # Reuse a stable, persisted pairing name so re-pairs present the
+                # same (MAC, name) slot to the SCU. Only generate a fresh name on
+                # the very first pair; it is then stored in the config entry
+                # (below) and seeded back into self._data on reconfigure.
+                pair_name = (
+                    self._data.get(CONF_BLE_PAIR_NAME)
+                    or f"ha-{int(time.time()) % 100000}"
+                )
                 pair_result = await client.pair_mobile(
                     activation_token=qr_token,
                     confirmation_token=confirmation_token,
-                    mobile_device_name=f"ha-{int(time.time()) % 100000}",
+                    mobile_device_name=pair_name,
                     timeout=120.0,
                 )
 
@@ -341,7 +350,12 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                     self._data[CONF_EHG_REFRESH_TOKEN] = (
                         pair_result.remote_access_refresh_token
                     )
-                    _LOGGER.info("BLE pairing successful — EHG refresh token obtained")
+                    # Persist the chosen name so every future re-pair reuses it.
+                    self._data[CONF_BLE_PAIR_NAME] = pair_name
+                    _LOGGER.info(
+                        "BLE pairing successful — EHG refresh token obtained "
+                        "(device name '%s')", pair_name,
+                    )
                 else:
                     self._ble_pairing_error = "ble_no_refresh_token"
             finally:
