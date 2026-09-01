@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.96.1] - 2026-09-01
+
+### Fixed
+
+- **The water pump (and interior lights) no longer falsely show as unavailable/off while 12V is still on and the SCU briefly drops into cloud standby.** The v2.95.5 "double-bottom" availability guard marked the `requires_12v` entities (water pump + lights, bus-3 habitation controller) unavailable whenever `scu_connected` read an explicit `False`. But the SCU flaps into cloud standby (`scu_connected=false`) many times per session **while 12V stays on and the pump keeps physically running** — so that guard greyed the running pump and it only recovered after an integration reload. This matches the EHG app, which greys **only** pump + lights at 12V-off (fridge/boiler/heater stay controllable) and keys purely on the 12V main state, never on a transient connection flag. The `scu_connected=False` availability trigger is removed from both `switch.py` (`requires_12v`) and `light.py`; availability now gates on the `main_switch == "Off"` readback (the app-equivalent 12V signal) with prolonged data silence retained as the fallback for vehicles whose `main_switch` freezes at `"On"` when 12V is cut (#20/#24). Standby push frames keep the data-silence clock alive, so that fallback does not false-fire during the reconnect flapping. Verified against a real ha_home log (12V `On→Off→On` reported cleanly) and the live dashboard (12V on, SCU connected, pump available).
+
 ## [2.96.0] - 2026-08-29
 
 ### Added

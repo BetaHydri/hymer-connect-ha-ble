@@ -426,27 +426,21 @@ class HymerConnectSwitch(
             if self.coordinator.data is None:
                 return False
             main = _resolve_path(self.coordinator.data, "signalr_sensors.main_switch")
-            # Only a properly mapped main_switch reports the string "On"/"Off"/
-            # "Changing". On vehicles without a bus-3 habitation controller, BLE
-            # slot discovery can surface a phantom raw bus-3 value (int 1) that
-            # must NOT be misread as "12V off" (#20, @stbcgn). Genuine 12V-off is
-            # still caught by the data-silence check below.
+            # App parity: water pump + lights sit on the bus-3 habitation
+            # controller and are the ONLY entities the EHG app greys out at
+            # 12V-off; gate purely on the 12V main state. Only a mapped
+            # main_switch reports the string "On"/"Off"/"Changing"; a phantom raw
+            # bus-3 int (vehicles without a bus-3 controller, #20) must NOT be
+            # misread as "Off".
             if isinstance(main, str) and main == "Off":
                 return False
-            # Double bottom: an explicit SCU standby (scu_connected=False) means
-            # 12V is off even when the main_switch readback was momentarily reset
-            # to None during a SignalR reconnect and the standby frames keep the
-            # data-silence clock alive. Only an explicit False greys out - None
-            # (never observed / mid-reconnect) and True (12V still on, incl. the
-            # ~60s command-verify window) must NOT.
-            if _resolve_path(
-                self.coordinator.data, "signalr_sensors.scu_connected"
-            ) is False:
-                return False
-            # 12V-off freezes the main_switch readback on some vehicles while
-            # the SCU stops streaming. Prolonged data silence (from ANY
-            # transport - SignalR or BLE) = 12V physically off. Transport-aware
-            # threshold: fast over BLE (sub-second cadence), headroom over cloud.
+            # SCU standby (scu_connected=False) is NOT 12V-off: the SCU can flap
+            # into cloud standby while 12V stays on, which previously greyed the
+            # running pump (v2.95.5 regression). Do NOT gate on scu_connected.
+            # Fallback for vehicles whose main_switch freezes at "On" when 12V is
+            # cut (#20/#24): prolonged data silence from ANY transport = 12V off.
+            # Standby push frames keep this clock alive, so it never false-fires
+            # during the reconnect flapping above.
             if self.coordinator.data_silence_seconds > self.coordinator.unavailable_silence_threshold:
                 return False
         return super().available
