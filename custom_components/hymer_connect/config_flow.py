@@ -63,6 +63,10 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         self._api: HymerConnectApi | None = None
         self._ble_pairing_task: asyncio.Task | None = None
         self._ble_pairing_error: str = ""
+        # Set when the user ticked "Re-pair over BLE": the pairing task then
+        # removes any leftover OS-level BlueZ bond up-front so a stale
+        # bonded-but-tokenless device cannot block the fresh pairing.
+        self._force_ble_bond_reset: bool = False
 
     @staticmethod
     def async_get_options_flow(
@@ -225,7 +229,12 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         Stores the EHG refresh token in self._data on success, or sets
         self._ble_pairing_error on failure.
         """
-        from .ble_client import ScuBleClient, BleTransportError
+        from .ble_client import (
+            ScuBleClient,
+            BleTransportError,
+            async_clear_bluez_bond,
+            async_dbus_disconnect,
+        )
 
         ble_address = self._data.get(CONF_BLE_ADDRESS, "")
         qr_token = self._data.get(CONF_QR_TOKEN, "")
@@ -251,6 +260,22 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 ble_address = devices[0]["address"]
                 self._data[CONF_BLE_ADDRESS] = ble_address
                 _LOGGER.info("BLE scan found SCU: %s", ble_address)
+
+            # Forced re-pair: clear any stale OS-level BlueZ bond first. An
+            # attempt aborted between bond and token leaves a bond but no
+            # token, and every later connect then fails as a "transient" GATT
+            # error ("bond preserved — will retry") that never mints a token,
+            # even with Re-pair ticked — until the bond is removed by hand.
+            # RemoveDevice here is safe because the user explicitly asked to
+            # re-pair (known-stale bond); habluetooth re-discovers the device.
+            if self._force_ble_bond_reset and ble_address:
+                _LOGGER.warning(
+                    "🔵 Re-pair requested — clearing any existing BlueZ bond for %s "
+                    "before pairing (releases leaked FDs, removes stale bond)",
+                    ble_address,
+                )
+                await async_dbus_disconnect(ble_address)
+                await async_clear_bluez_bond(ble_address)
 
             # Retry bonding up to 12 times over ~120 seconds.
             # The user needs time to press CONNECTION on the SCU after
@@ -576,6 +601,10 @@ class HymerConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 # token is kept and only overwritten on a successful pair, so a
                 # failed pairing does not break the existing cloud connection.
                 data_updates[CONF_BLE_ENABLED] = True
+                # A forced re-pair must start from a clean slate: drop any
+                # leftover OS bond so an aborted-between-bond-and-token attempt
+                # can pair on the first try (reported by @and0nna in #29).
+                self._force_ble_bond_reset = True
             elif ehg_refresh_token:
                 data_updates[CONF_EHG_REFRESH_TOKEN] = ehg_refresh_token
 

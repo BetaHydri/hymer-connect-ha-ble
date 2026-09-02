@@ -53,6 +53,12 @@ Thumbs.db
 # Memory bank (local only)
 .memory-bank/
 
+# Copilot / AI knowledge — local only, never pushed (kept on OneDrive)
+.github/copilot-instructions.md
+AGENTS.md
+.github/instructions/
+.github/prompts/
+
 # Personal secrets (QR codes, tokens, private data)
 secrets/
 private_*

@@ -1481,8 +1481,10 @@ class ScuBleClient:
                 _LOGGER.warning(
                     "Bonded device still unreachable after 3 attempts — keeping "
                     "the bond and falling back to cloud; BLE will be retried "
-                    "later: %s",
-                    connect_err,
+                    "later. If the signal is strong (the SCU is right here) the "
+                    "bond may be stale — use Configure -> 'Reset BLE pairing only', "
+                    "or remove it manually with 'bluetoothctl remove %s': %s",
+                    self._scu_address, connect_err,
                 )
                 raise BleTransportError(
                     f"SCU {self._scu_address} temporarily unreachable "

@@ -53,7 +53,7 @@
           "ble_scu_address": "Leave empty for auto-scan. Optionally pin the SCU Bluetooth MAC (e.g. AA:BB:CC:DD:EE:FF) if the scan is slow.",
           "ehg_refresh_token": "Leave empty to keep the current token. Only paste a value here if you are setting a token from mitmproxy manually. To re-pair over BLE, use the checkbox below instead — you do NOT need to clear or edit this field.",
           "oauth_basic_auth": "The full 'Authorization: Basic …' header used on OAuth /token requests. Captured from your own EHG app traffic via mitmproxy. Leave empty to keep the current value (or to fall back to the deprecated bundled default if none was set).",
-          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token. This ignores the stored token automatically, so you do NOT need to clear any field. Requires a QR activation token (entered here or already stored). Use it after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit; the bond auto-retries for ~90 seconds (press CONNECTION again if needed)."
+          "force_repair": "Tick this to force a fresh BLE bond and mint a new EHG token. This ignores the stored token automatically, so you do NOT need to clear any field. Any leftover operating-system Bluetooth bond is removed first, so an attempt that was aborted before the token was minted cannot block the re-pair. Requires a QR activation token (entered here or already stored). Use it after moving HA to a new host, where the OS-level Bluetooth bond was lost. Press CONNECTION on the SCU first, then submit; the bond auto-retries for ~90 seconds (press CONNECTION again if needed)."
         }
       },
       "ble_pairing": {

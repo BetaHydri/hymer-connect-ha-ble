@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.96.2] - 2026-09-02
+
+### Fixed
+
+- **"Re-pair over BLE" now clears a leftover OS-level Bluetooth bond first, so a pairing attempt that was aborted between the bond and the token no longer blocks every later re-pair.** When a first attempt created a BlueZ bond but never minted a token, the device was *bonded but tokenless*; every subsequent connect then failed as a **transient** GATT error and fell into the "Bonded device not reachable — bond preserved, will retry" path, so the token was never minted — **even with "Re-pair over BLE" ticked** — until the bond was removed by hand with `bluetoothctl remove <SCU-MAC>`. The forced re-pair path (`config_flow.py` `_async_do_ble_pairing`) now runs a D-Bus `Device1.Disconnect` + `Adapter1.RemoveDevice` up-front so the fresh pairing starts from a clean slate and succeeds on the first CONNECTION press. This only runs when the user explicitly ticks **Re-pair over BLE** (a known-stale bond — the one case where removing the bond is safe); the normal reconnect path is unchanged. The "bonded device still unreachable after 3 attempts" log now also hints that a strong-signal failure may be a stale bond and points at **Reset BLE pairing only** / `bluetoothctl remove`. Reported with a clear multi-attempt diagnosis by [@and0nna](https://github.com/and0nna) ([#29](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/29)).
+
 ## [2.96.1] - 2026-09-01
 
 ### Fixed
