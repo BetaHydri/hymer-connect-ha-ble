@@ -129,7 +129,7 @@ Notes:
 | 18 | `LightCircuit08` | Shower ambient light | lights | Eriba Car 602 |
 | 19 | `LightCircuit09` | Bathroom ceiling light | lights | S 600 / BMC I 680 |
 | 21 | `LightCircuit11` | Kitchen light | lights | S 600 / S 700 |
-| 22 | `LightCircuit12` | Outside LED bar (mirror of bus 25) | lights | S 600 |
+| 22 | `LightCircuit12` | Outside LED bar (`light.hymer_outside_led_bar`) | lights | S 600 |
 | 24 | `LightGroup01` | "Wohnen" light group | lights | S 600 / S 700 / ML-T 570 |
 | 25 | `LightGroup02` | Outside LED bar | lights | S 600 |
 | 27 | `LightGroup04` | "Privat" light group | lights | S 600 / ML-T 570 / BMC I 680 |
@@ -560,9 +560,11 @@ logs. Member of the bus 27 *Privat* group — toggling the group also drives thi
 
 Previously labelled as fresh water tank. Confirmed at vehicle 2026-04-23: both water tanks were empty but bus 22 showed 88%, matching LED bar brightness on bus 25. Bus 22 is the outside LED bar — same physical light as bus 25 (separate SCU component registration). Sensor entities disabled by default (bus 25 is the primary control channel).
 
+The controllable light entity for bus 22 is keyed `light_led_bar_outside` and named **"Outside LED bar"** → `light.hymer_outside_led_bar` (v2.97.0). It is `require_observed` + disabled by default. Before v2.97.0 this light was keyed `light_led_bar_duplicate` with **no translation**, so with `has_entity_name` HA fell back to the bare device name and registered it as `light.hymer` — which looked like a phantom "missing" entity on dashboards. Enable + repoint dashboards to `light.hymer_outside_led_bar`; the old `light.hymer` registry entry can be deleted.
+
 | Slot | Sensor Name | Unit | Notes |
 |------|------------|------|-------|
-| (22, 1) | `light_led_bar_2` | — | On/off (duplicate of bus 25) |
+| (22, 1) | `light_led_bar_2` | — | On/off (duplicate of bus 25). Gates the `light_led_bar_outside` light entity. |
 | (22, 2) | `light_led_bar_2_brightness` | % | Brightness (tracks bus 25 LED bar) |
 
 ## Bus 24 — All Wohnen light group

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.97.0] - 2026-09-13
+
+### Fixed
+
+- **12V-on interior lights / water pump no longer become uncontrollable ("missing or not currently available") until an integration reload, after a cloud reconnect leaves the SignalR socket alive but no longer delivering real SCU state.** Root cause was a keepalive-masked stale-routing state: after a proactive cloud reconnect the SCU can keep sending *empty* keepalive `PiaResponse` frames while it stops delivering real sensor frames (stale Azure hub→SCU routing). Those empty frames advanced the socket's internal data clock, so `needs_reconnect`'s stale-data detector never fired and the connection was never recycled — yet they did **not** advance the coordinator's data-silence clock, so the `requires_12v` availability guard tipped past its 60 s threshold and greyed the lights + water pump while 12V was actually on. The SignalR client now tracks a separate *real-sensor-frame* clock and, when the socket is up, the vehicle is not in 12V standby (`main_switch != "Off"`), and no real SCU frame has arrived for longer than `STALE_DATA_TIMEOUT` (3 min) while any BLE transport is also silent, it forces a reconnect — so the integration self-heals within ~3 min instead of requiring a manual reload. Diagnosed from a real ha_home cloud-only log (empty-keepalive window 21:18→21:30, recovered only by the eventual WebSocket drop).
+
+### Changed
+
+- **The outside LED bar (bus 22) now registers as `light.hymer_outside_led_bar` ("Outside LED bar") instead of the bare, unnamed `light.hymer`.** The bus-22 light was keyed `light_led_bar_duplicate` with no translation, so with `has_entity_name` Home Assistant fell back to just the device name and produced the confusing `light.hymer` entity id (which showed as a phantom "missing or not currently available" entity on dashboards). It is now keyed `light_led_bar_outside` with a proper name in `strings.json` / `en.json`. Because the unique id changed, this creates a **new** entity (still `require_observed` + disabled by default): enable it and repoint dashboards to `light.hymer_outside_led_bar`; the old `light.hymer` registry entry can be deleted. Docs updated in `sensor-map.md`.
+
 ## [2.96.2] - 2026-09-02
 
 ### Fixed

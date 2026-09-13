@@ -79,6 +79,10 @@ class HymerSignalRClient:
         self._signalr_token: str = ""
         self._connected_at: float = 0.0  # monotonic timestamp of connection
         self._last_data_received: float = 0.0  # monotonic timestamp of last data
+        # Last NON-EMPTY (real sensor) PiaResponse. _last_data_received also
+        # advances on empty keepalive frames, which can mask a socket that is
+        # alive but no longer delivering real SCU state (stale hub→SCU routing).
+        self._last_sensor_data_received: float = 0.0
         # Last time data arrived over an alternate transport (BLE). In dual mode
         # BLE carries the telemetry, so a telemetry-quiet cloud socket is a hot
         # standby, not a dead link — this keeps needs_reconnect from churning.
@@ -151,6 +155,29 @@ class HymerSignalRClient:
         if self._last_data_received > 0:
             main_switch = self._sensor_data.get("main_switch")
             is_standby = main_switch == "Off"
+            # Keepalive-masked stale routing: the socket keeps receiving empty
+            # keepalive PiaResponse frames (which advance _last_data_received)
+            # while the SCU has stopped delivering REAL sensor state. Because
+            # main_switch is still "On" this is NOT standby — the connection looks
+            # alive but is useless, and only a fresh reconnect (clean hub→SCU
+            # routing) recovers it. Detected via the real-frame clock so the empty
+            # keepalives that keep the 12V-off availability guard fed cannot hide
+            # it. Suppressed in dual mode while BLE still delivers telemetry.
+            if not is_standby and self._last_sensor_data_received > 0:
+                real_silent = now - self._last_sensor_data_received
+                if real_silent > STALE_DATA_TIMEOUT:
+                    alt_silent = (
+                        now - self._last_alt_transport_data
+                        if self._last_alt_transport_data > 0
+                        else None
+                    )
+                    if alt_silent is None or alt_silent >= STALE_DATA_TIMEOUT:
+                        _LOGGER.warning(
+                            "SignalR socket alive but no real SCU frame for %.0fs "
+                            "(keepalive-masked stale routing) — reconnect needed",
+                            real_silent,
+                        )
+                        return True
             silent = now - self._last_data_received
             if silent > STALE_DATA_TIMEOUT and not is_standby:
                 # In dual mode BLE carries the telemetry; a telemetry-quiet cloud
@@ -645,6 +672,7 @@ class HymerSignalRClient:
                 # leave requires_12v entities (lights, water pump) switchable while
                 # they are physically dead.
                 if self._on_sensor_update and sensor_data:
+                    self._last_sensor_data_received = time.monotonic()
                     self._on_sensor_update(self._sensor_data)
 
     async def listen(self) -> None:

@@ -114,7 +114,7 @@
     "17": { "name": "light_shower_ceiling", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
     "19": { "name": "light_bathroom_ceiling", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
     "21": { "name": "light_kitchen", "require_observed": true, "icon": "mdi:ceiling-light", "brightness": true, "color_temp": false },
-    "22": { "name": "light_led_bar_duplicate", "require_observed": true, "icon": "mdi:led-strip-variant", "brightness": true, "color_temp": false, "enabled": false },
+    "22": { "name": "light_led_bar_outside", "require_observed": true, "icon": "mdi:led-strip-variant", "brightness": true, "color_temp": false, "enabled": false },
     "24": { "name": "light_wohnen_group", "require_observed": true, "icon": "mdi:lightbulb-group-outline", "brightness": true, "color_temp": false },
     "25": { "name": "light_led_bar", "require_observed": true, "icon": "mdi:led-strip-variant", "brightness": true, "color_temp": false },
     "27": { "name": "light_privat_group", "require_observed": true, "icon": "mdi:lightbulb-group", "brightness": true, "color_temp": false },

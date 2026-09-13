@@ -528,6 +528,9 @@
       "light_led_bar": {
         "name": "LED bar"
       },
+      "light_led_bar_outside": {
+        "name": "Outside LED bar"
+      },
       "light_wohnen_group": {
         "name": "Wohnen all lights"
       },
