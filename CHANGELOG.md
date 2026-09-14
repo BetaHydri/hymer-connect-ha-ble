@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.98.0] - 2026-09-14
+
+### Fixed
+
+- **Cloud-only: the water pump and all interior lights no longer flap `unavailable` roughly 200×/day while 12V is on.** On some (retrofit) SCUs the cloud standby push cadence occasionally gaps just over the 60 s `UNAVAILABLE_SILENCE_CLOUD` threshold, so every `requires_12v` entity (water pump + all `light.*`) briefly greyed out and then restored a few seconds later when the next cloud frame arrived — with `main_switch` staying `on` the whole time and ~79 % of the episodes ending within 5 s. The cloud data-silence threshold is raised from 60 s to **180 s**, aligned with `STALE_DATA_TIMEOUT`: the v2.97.0 stale-routing detector already forces a reconnect at 3 min, so a genuine long stall is restored by that reconnect **before** the availability grey-out can fire, while a real 12V-off (frames never resume) still greys the pump/lights within ~3 min on the cloud path. BLE/dual mode is unchanged (sub-second frames + the fast `main_switch == "Off"` path keep the 15 s BLE threshold). Reported with a detailed recorder-DB analysis by [@stbcgn](https://github.com/stbcgn) ([#30](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/30)).
+
 ## [2.97.0] - 2026-09-13
 
 ### Fixed

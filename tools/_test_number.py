@@ -56,6 +56,7 @@ _ce.ConfigEntry = type("ConfigEntry", (), {})
 
 _core = _mod("homeassistant.core")
 _core.HomeAssistant = type("HomeAssistant", (), {})
+_core.callback = lambda func: func
 
 _mod("homeassistant.helpers")
 _ep = _mod("homeassistant.helpers.entity_platform")

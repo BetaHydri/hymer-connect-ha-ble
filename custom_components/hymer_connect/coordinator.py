@@ -194,9 +194,10 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Data-silence seconds before 12V-gated entities go unavailable.
 
         BLE-only mode streams every ~200-300ms, so 15s of silence conclusively
-        means 12V off. When the cloud is involved (cloud/dual) its ~30-40s push
-        cadence sets the floor for ``data_silence_seconds``, so use 60s to avoid
-        false flicker while the link is healthy.
+        means 12V off. When the cloud is involved (cloud/dual) some SCUs gap
+        their standby push just over a minute, so use 180s (aligned with the
+        stale-routing reconnect at STALE_DATA_TIMEOUT) to avoid false flicker
+        while the link is healthy (#30).
         """
         if self._connection_mode == "ble":
             return UNAVAILABLE_SILENCE_BLE
