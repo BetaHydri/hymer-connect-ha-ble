@@ -116,6 +116,18 @@ DEFAULT_BLE_WRITE_ENABLED = True
 # Seconds to wait for a matching BleProtocol.response ACK before cloud fallback.
 DEFAULT_BLE_WRITE_ACK_TIMEOUT = 3.0
 
+# Opt-in automatic recovery for the #24 stale BlueZ write/notify wedge. When BLE
+# comes up but its write/notify channel is a daemon-leaked acquisition (MTU
+# pinned at 23, "Write acquired"), a fresh GATT session cannot clear it — only a
+# host-side bluetooth restart does. With this ON, the integration power-cycles
+# the owning BlueZ adapter via D-Bus (Adapter1.Powered off→on), the in-process
+# equivalent of "systemctl restart bluetooth", at most once per hour. OFF by
+# default because the power-cycle briefly drops ALL BLE on that adapter.
+CONF_BLE_AUTO_RECOVER = "ble_auto_recover"
+DEFAULT_BLE_AUTO_RECOVER = False
+# Minimum seconds between two automatic adapter power-cycles (blast-radius guard).
+BLE_AUTO_RECOVER_MIN_INTERVAL = 3600
+
 # NOTE: CONF_CLOUD_FALLBACK / CONF_BLE_ACK_TIMEOUT / DEFAULT_/MIN_/MAX_BLE_ACK_TIMEOUT
 # existed up to v2.62.23 and were deprecated in v2.62.24 when the BLE write
 # path was removed (SCU firmware 1.12.0.0 silently drops all BLE setValues).

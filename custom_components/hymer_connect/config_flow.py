@@ -23,6 +23,7 @@ from .const import (
     BRANDS,
     CONF_ACCESS_TOKEN,
     CONF_BLE_ADDRESS,
+    CONF_BLE_AUTO_RECOVER,
     CONF_BLE_ENABLED,
     CONF_BLE_WRITE_ENABLED,
     CONF_BRAND,
@@ -34,6 +35,7 @@ from .const import (
     CONF_SCU_URN,
     CONF_TANK_CAPACITY,
     CONF_VEHICLE_URN,
+    DEFAULT_BLE_AUTO_RECOVER,
     DEFAULT_BLE_WRITE_ENABLED,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -773,6 +775,12 @@ class HymerConnectOptionsFlow(OptionsFlow):
                 CONF_BLE_WRITE_ENABLED, DEFAULT_BLE_WRITE_ENABLED
             ),
         )
+        current_ble_auto_recover = self._config_entry.options.get(
+            CONF_BLE_AUTO_RECOVER,
+            self._config_entry.data.get(
+                CONF_BLE_AUTO_RECOVER, DEFAULT_BLE_AUTO_RECOVER
+            ),
+        )
 
         return self.async_show_form(
             step_id="init",
@@ -793,6 +801,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_BLE_WRITE_ENABLED,
                         default=current_ble_write_enabled,
+                    ): bool,
+                    vol.Optional(
+                        CONF_BLE_AUTO_RECOVER,
+                        default=current_ble_auto_recover,
                     ): bool,
                     vol.Optional(
                         CONF_OAUTH_BASIC_AUTH,

@@ -228,8 +228,85 @@ async def async_dbus_disconnect(address: str) -> bool:
         _LOGGER.debug("D-Bus Device1.Disconnect failed for %s: %s", address, err)
         return False
 
-# ---------------------------------------------------------------------------
-# Protobuf wire format helpers (minimal, no external dependency)
+
+async def async_dbus_power_cycle_adapter(address: str, *, settle: float = 2.0) -> bool:
+    """Power-cycle the BlueZ adapter that owns ``address`` (Adapter1.Powered off→on).
+
+    This releases daemon-leaked AcquireWrite/AcquireNotify file descriptors that a
+    plain Device1.Disconnect cannot free (the #24 "Write acquired" wedge, MTU
+    pinned at 23). It is the in-process equivalent of ``systemctl restart
+    bluetooth``, but scoped to the one controller and needing no shell/systemd/
+    polkit privileges — so it works the same on native, Supervised and HAOS
+    installs. Blast radius: briefly drops every BLE link on that adapter. The bond
+    survives (it lives in ``/var/lib/bluetooth``, not in the controller power
+    state). Returns True if an adapter was toggled.
+    """
+    try:
+        from dbus_fast.aio import MessageBus
+        from dbus_fast import BusType, Message, MessageType, Variant
+
+        bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+        try:
+            adapter_paths: list[str] = []
+            if address:
+                dev_path = await _resolve_bluez_device_path(bus, address)
+                if dev_path:
+                    adapter_paths.append(dev_path.rsplit("/", 1)[0])
+            if not adapter_paths:
+                # Device not currently known to BlueZ — fall back to every
+                # controller so the wedged one is covered regardless.
+                reply = await bus.call(
+                    Message(
+                        destination="org.bluez",
+                        path="/",
+                        interface="org.freedesktop.DBus.ObjectManager",
+                        member="GetManagedObjects",
+                    )
+                )
+                if reply.message_type != MessageType.ERROR and reply.body:
+                    adapter_paths = [
+                        str(path)
+                        for path, interfaces in reply.body[0].items()
+                        if "org.bluez.Adapter1" in interfaces
+                    ]
+            if not adapter_paths:
+                _LOGGER.debug("No BlueZ adapter found to power-cycle for %s", address)
+                return False
+
+            toggled = False
+            for adapter_path in adapter_paths:
+                for powered in (False, True):
+                    set_msg = Message(
+                        destination="org.bluez",
+                        path=adapter_path,
+                        interface="org.freedesktop.DBus.Properties",
+                        member="Set",
+                        signature="ssv",
+                        body=["org.bluez.Adapter1", "Powered", Variant("b", powered)],
+                    )
+                    set_reply = await bus.call(set_msg)
+                    if set_reply.message_type == MessageType.ERROR:
+                        _LOGGER.debug(
+                            "Adapter1.Powered=%s on %s failed: %s",
+                            powered, adapter_path, set_reply.body,
+                        )
+                        break
+                    if powered is False:
+                        await asyncio.sleep(settle)  # let BlueZ tear down + release FDs
+                else:
+                    toggled = True
+                    _LOGGER.info(
+                        "Power-cycled BlueZ adapter %s (released any stale "
+                        "write/notify acquisition)",
+                        adapter_path,
+                    )
+            return toggled
+        finally:
+            bus.disconnect()
+    except Exception as err:
+        _LOGGER.debug("D-Bus adapter power-cycle failed for %s: %s", address, err)
+        return False
+
 # ---------------------------------------------------------------------------
 # Field numbers and nesting structure derived from Dan Simms'
 # hymer_token_tool (dan-simms1/hymer-connect-ha), which decoded them

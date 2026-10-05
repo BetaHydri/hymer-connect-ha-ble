@@ -21,13 +21,16 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
+    BLE_AUTO_RECOVER_MIN_INTERVAL,
     CONF_BLE_ADDRESS,
+    CONF_BLE_AUTO_RECOVER,
     CONF_BLE_ENABLED,
     CONF_BLE_WRITE_ENABLED,
     CONF_BLE_PAIR_NAME,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
+    DEFAULT_BLE_AUTO_RECOVER,
     DEFAULT_BLE_WRITE_ACK_TIMEOUT,
     DEFAULT_BLE_WRITE_ENABLED,
     DEFAULT_SCAN_INTERVAL,
@@ -141,6 +144,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_write_degraded = False  # #24 True when BLE is up but the write/notify channel is a stale BlueZ acquisition
         self._ble_degraded_reason: str | None = None  # #24 human-readable reason for the degraded state
         self._ble_last_rx_monotonic: float = 0.0  # #24 last time a BLE frame arrived (liveness; is_connected is not trustworthy)
+        self._ble_last_auto_recover_monotonic: float = 0.0  # #19/#24 last opt-in adapter power-cycle (rate-limit guard)
         self._scu_clock_value: Any = None  # last observed scu_internal_time value (frozen-SCU detection)
         self._scu_clock_last_change_monotonic: float = 0.0  # when the SCU clock last advanced
         # Fuel consumption tracking — reference point for trip calculation
@@ -242,6 +246,25 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     @property
+    def ble_auto_recover(self) -> bool:
+        """Return True if opt-in automatic adapter power-cycle recovery is on (#24).
+
+        When the BLE write/notify channel is a daemon-leaked BlueZ acquisition a
+        fresh GATT session cannot clear, this lets the integration power-cycle the
+        owning adapter via D-Bus (the in-process equivalent of a bluetooth restart)
+        at most once per hour. Default off: the power-cycle briefly drops all BLE
+        on that adapter.
+        """
+        return bool(
+            self.config_entry.options.get(
+                CONF_BLE_AUTO_RECOVER,
+                self.config_entry.data.get(
+                    CONF_BLE_AUTO_RECOVER, DEFAULT_BLE_AUTO_RECOVER
+                ),
+            )
+        )
+
+    @property
     def ble_write_degraded(self) -> bool:
         """Return True when BLE is up but its write/notify channel is dead (#24).
 
@@ -278,6 +301,49 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return 0  # rely on normal poll interval (60s)
         excess = n - 5
         return min(15 * 60, 5 * 60 * min(excess, 3))
+
+    async def _async_maybe_auto_recover_adapter(self) -> None:
+        """#19/#24: power-cycle the BlueZ adapter to clear a stale write channel.
+
+        Only runs when the user opted in (``ble_auto_recover``) and at most once
+        per hour (the power-cycle briefly drops all BLE on that adapter). On
+        success the degraded flag + failure counter are cleared so the next poll
+        retries promptly on the freshly reset controller instead of serving the
+        long stale-channel backoff.
+        """
+        if not self.ble_auto_recover:
+            return
+        now = time.monotonic()
+        if (
+            self._ble_last_auto_recover_monotonic
+            and now - self._ble_last_auto_recover_monotonic
+            < BLE_AUTO_RECOVER_MIN_INTERVAL
+        ):
+            return
+        self._ble_last_auto_recover_monotonic = now
+        _LOGGER.warning(
+            "BLE auto-recovery: power-cycling the BlueZ adapter to clear the stale "
+            "'Write acquired' channel (briefly drops all BLE on that adapter; "
+            "at most once per hour)"
+        )
+        from .ble_client import async_dbus_power_cycle_adapter
+
+        ok = await async_dbus_power_cycle_adapter(self.ble_address)
+        if ok:
+            self._ble_write_degraded = False
+            self._ble_degraded_reason = None
+            self._ble_consecutive_failures = 0
+            self._ble_next_attempt = 0.0
+            _LOGGER.info(
+                "BLE auto-recovery done — adapter reset; retrying the direct path "
+                "shortly on the fresh controller"
+            )
+        else:
+            _LOGGER.warning(
+                "BLE auto-recovery could not power-cycle the adapter via D-Bus — "
+                "a host-side 'systemctl restart bluetooth' (or reboot) is still "
+                "needed to clear the stale channel"
+            )
 
     @property
     def tank_capacity(self) -> int:
@@ -794,6 +860,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
+            # #19/#24: opt-in — power-cycle the owning BlueZ adapter via D-Bus to
+            # release the leaked FDs without a host reboot (≤1×/hour).
+            await self._async_maybe_auto_recover_adapter()
             return False
         except Exception as err:
             _LOGGER.warning("BLE connection failed, will use cloud: %s", err)

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0b1] - 2026-10-05
+
+### Added
+
+- **Opt-in automatic recovery for a stuck BLE adapter (issue [#24](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/24) / [#19](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/19)).** When the BLE link comes up but its write/notify channel is a daemon-leaked BlueZ `Write acquired` acquisition that a fresh GATT session cannot clear (MTU pinned at 23, so every write/TLS fails and the link only flickers), the integration can now **power-cycle the owning Bluetooth adapter over D-Bus** (`Adapter1.Powered` off → on) — the in-process equivalent of `systemctl restart bluetooth`, but scoped to the one controller and needing no shell/systemd/polkit privileges, so it behaves the same on native, Supervised, Container and HAOS installs. It runs at most **once per hour** and is **off by default** because the power-cycle briefly drops all BLE on that adapter (the bond and the cloud connection are kept). Enable it under **⚙️ Configure → "Auto-recover a stuck BLE adapter (power-cycle)"**. Pre-release for on-vehicle testing by [@FrankHae](https://github.com/FrankHae).
+
 ## [2.98.0] - 2026-09-14
 
 ### Fixed
