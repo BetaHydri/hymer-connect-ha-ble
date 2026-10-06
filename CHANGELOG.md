@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0b4] - 2026-10-06
+
+### Added
+
+- **Opt-in "cloud on demand": run BLE-primary and close the persistent cloud session while BLE is healthy.** On a BLE-capable install the integration normally keeps a 24/7 SignalR connection open alongside BLE (polling roughly every 60 s). With this new option on, once the BLE link has stayed healthy and non-degraded for ~120 s the coordinator **stops the SignalR session** and runs BLE-only, reconnecting to the cloud only when BLE **drops or its write channel degrades** (issue [#24](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/24)). This removes the constant background cloud connection for users who prefer BLE-primary operation. **Off by default.** It can **never** close the cloud on a cloud-only install — the gate also requires `ble_enabled` plus a live, non-degraded BLE link, so an install without BLE always keeps the cloud on — and it backs off automatically on vehicles whose BLE drops often via a 120 s stability window (there it would reconnect the cloud frequently, which is why it's opt-in and best left off on those). A one-time EHG sign-in at setup is still required like every BLE install; this only changes **runtime** behaviour. Enable it under **⚙️ Configure → "Use the cloud only when BLE is down"**. Pre-release for on-vehicle testing.
+
 ## [2.99.0b3] - 2026-10-06
 
 ### Fixed

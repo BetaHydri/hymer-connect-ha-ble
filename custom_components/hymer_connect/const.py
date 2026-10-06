@@ -129,6 +129,20 @@ DEFAULT_BLE_AUTO_RECOVER = False
 # Minimum seconds between two automatic bluetooth-stack recoveries (blast-radius guard).
 BLE_AUTO_RECOVER_MIN_INTERVAL = 3600
 
+# Opt-in "cloud on demand": on a BLE-capable (dual-path) enrollment, tear down
+# the persistent SignalR/cloud session while the BLE link is healthy and stable,
+# bringing it back only when BLE drops or degrades. Removes the always-on cloud
+# footprint (24/7 SignalR + 60s polling) for users who want BLE-primary. Default
+# OFF. NEVER suppresses cloud on a cloud-only enrollment — it is gated on
+# ble_enabled + a live, non-degraded BLE link — and backs off automatically on
+# flappy BLE via the stability grace window below (#19). Needs a one-time cloud
+# login at setup like every BLE install; this only changes RUNTIME behaviour.
+CONF_CLOUD_ON_DEMAND = "cloud_on_demand"
+DEFAULT_CLOUD_ON_DEMAND = False
+# BLE must hold a healthy, non-degraded link for this many seconds before the
+# cloud session is torn down — guards against flappy-BLE churn (#19).
+CLOUD_ON_DEMAND_BLE_STABLE_SECONDS = 120
+
 # NOTE: CONF_CLOUD_FALLBACK / CONF_BLE_ACK_TIMEOUT / DEFAULT_/MIN_/MAX_BLE_ACK_TIMEOUT
 # existed up to v2.62.23 and were deprecated in v2.62.24 when the BLE write
 # path was removed (SCU firmware 1.12.0.0 silently drops all BLE setValues).

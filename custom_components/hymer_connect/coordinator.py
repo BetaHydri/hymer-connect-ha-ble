@@ -22,17 +22,20 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import HymerConnectApi, HymerConnectApiError, HymerConnectAuthError
 from .const import (
     BLE_AUTO_RECOVER_MIN_INTERVAL,
+    CLOUD_ON_DEMAND_BLE_STABLE_SECONDS,
     CONF_BLE_ADDRESS,
     CONF_BLE_AUTO_RECOVER,
     CONF_BLE_ENABLED,
     CONF_BLE_WRITE_ENABLED,
     CONF_BLE_PAIR_NAME,
+    CONF_CLOUD_ON_DEMAND,
     CONF_EHG_REFRESH_TOKEN,
     CONF_QR_TOKEN,
     CONF_TANK_CAPACITY,
     DEFAULT_BLE_AUTO_RECOVER,
     DEFAULT_BLE_WRITE_ACK_TIMEOUT,
     DEFAULT_BLE_WRITE_ENABLED,
+    DEFAULT_CLOUD_ON_DEMAND,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
@@ -145,6 +148,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._ble_degraded_reason: str | None = None  # #24 human-readable reason for the degraded state
         self._ble_last_rx_monotonic: float = 0.0  # #24 last time a BLE frame arrived (liveness; is_connected is not trustworthy)
         self._ble_last_auto_recover_monotonic: float = 0.0  # #19/#24 last opt-in adapter power-cycle (rate-limit guard)
+        self._ble_healthy_since: float = 0.0  # cloud_on_demand: monotonic time the current healthy BLE link came up (0 = not healthy)
         self._scu_clock_value: Any = None  # last observed scu_internal_time value (frozen-SCU detection)
         self._scu_clock_last_change_monotonic: float = 0.0  # when the SCU clock last advanced
         # Fuel consumption tracking — reference point for trip calculation
@@ -263,6 +267,46 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ),
             )
         )
+
+    @property
+    def cloud_on_demand(self) -> bool:
+        """Return True if opt-in 'cloud on demand' is enabled.
+
+        When on, the persistent SignalR/cloud session is torn down while the BLE
+        link is healthy and stable, and reconnected only when BLE drops/degrades.
+        Only ever applies to BLE-capable (dual-path) enrollments — the gate in
+        ``_cloud_on_demand_active`` also requires ``ble_enabled`` + a live,
+        non-degraded BLE link, so a cloud-only install is never affected.
+        """
+        return bool(
+            self.config_entry.options.get(
+                CONF_CLOUD_ON_DEMAND,
+                self.config_entry.data.get(
+                    CONF_CLOUD_ON_DEMAND, DEFAULT_CLOUD_ON_DEMAND
+                ),
+            )
+        )
+
+    def _cloud_on_demand_active(self) -> bool:
+        """Return True only when cloud may be suppressed in favour of BLE.
+
+        All of: the opt-in is on; BLE is enabled AND currently connected AND not
+        degraded; and the link has held healthy for the stability grace window.
+        The ble_enabled + _ble_connected gates guarantee a cloud-only enrollment
+        (no BLE) can never enter this branch, so cloud stays always-on for it.
+        """
+        if not (
+            self.cloud_on_demand
+            and self.ble_enabled
+            and self._ble_connected
+            and not self._ble_write_degraded
+        ):
+            return False
+        if self._ble_healthy_since <= 0:
+            return False
+        return (
+            time.monotonic() - self._ble_healthy_since
+        ) >= CLOUD_ON_DEMAND_BLE_STABLE_SECONDS
 
     @property
     def ble_write_degraded(self) -> bool:
@@ -818,6 +862,7 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_write_degraded = False  # #24: a healthy connect clears the degraded flag
             self._ble_degraded_reason = None
             self._ble_last_rx_monotonic = time.monotonic()  # #24: reset liveness clock on a fresh connect
+            self._ble_healthy_since = time.monotonic()  # cloud_on_demand: start the stability grace clock
             self._connection_mode = "dual" if (self._signalr and self._signalr.connected) else "ble"
             _LOGGER.info("BLE direct path established to SCU %s (mode=%s)", ble_address, self._connection_mode)
 
@@ -1788,10 +1833,18 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # re-entrant-safe, so calling it from both is harmless.
         await self._async_try_ble_connect()
 
-        # --- SignalR connection management (always active) ---
-        # SignalR runs alongside BLE — BLE provides ~28 sensors at ~50ms,
-        # SignalR provides the full ~130 sensors. Both feed into the same
-        # _signalr_data dict. Commands route BLE-first (no duplicates).
+        # cloud_on_demand: the healthy-since clock only runs while BLE is actually
+        # connected and not degraded. Resetting it here (after the connect attempt
+        # reflects reality) covers every BLE teardown path with a single point.
+        if not self._ble_connected or self._ble_write_degraded:
+            self._ble_healthy_since = 0.0
+
+        # --- SignalR connection management ---
+        # SignalR normally runs alongside BLE (dual) — BLE pushes the full sensor
+        # set at ~50ms, cloud is the write fallback and backfill. Both feed the
+        # same _signalr_data dict. With opt-in cloud_on_demand and a stable BLE
+        # link, the cloud session is torn down and reconnected only on BLE
+        # drop/degrade (gated so cloud-only installs are never affected).
         signalr_connected = (
             self._signalr is not None and self._signalr.connected
         )
@@ -1799,7 +1852,17 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._signalr is not None and self._signalr.needs_reconnect
         )
 
-        if not signalr_connected or needs_reconnect:
+        if self._cloud_on_demand_active():
+            if self._signalr is not None:
+                _LOGGER.info(
+                    "cloud_on_demand: BLE stable for %.0fs — stopping SignalR; "
+                    "running BLE-only until BLE drops or degrades",
+                    now - self._ble_healthy_since,
+                )
+                await self.stop_signalr()
+                self._connection_mode = "ble"
+            # Cloud intentionally suppressed — skip reconnect/keepalive below.
+        elif not signalr_connected or needs_reconnect:
             # Apply exponential backoff between reconnection attempts
             since_last_attempt = now - self._last_reconnect_attempt
             if since_last_attempt >= self._reconnect_backoff:

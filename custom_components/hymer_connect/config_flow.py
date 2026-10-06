@@ -28,6 +28,7 @@ from .const import (
     CONF_BLE_WRITE_ENABLED,
     CONF_BRAND,
     CONF_BLE_PAIR_NAME,
+    CONF_CLOUD_ON_DEMAND,
     CONF_EHG_REFRESH_TOKEN,
     CONF_OAUTH_BASIC_AUTH,
     CONF_QR_TOKEN,
@@ -37,6 +38,7 @@ from .const import (
     CONF_VEHICLE_URN,
     DEFAULT_BLE_AUTO_RECOVER,
     DEFAULT_BLE_WRITE_ENABLED,
+    DEFAULT_CLOUD_ON_DEMAND,
     DEFAULT_TANK_CAPACITY_LITERS,
     DOMAIN,
 )
@@ -781,6 +783,12 @@ class HymerConnectOptionsFlow(OptionsFlow):
                 CONF_BLE_AUTO_RECOVER, DEFAULT_BLE_AUTO_RECOVER
             ),
         )
+        current_cloud_on_demand = self._config_entry.options.get(
+            CONF_CLOUD_ON_DEMAND,
+            self._config_entry.data.get(
+                CONF_CLOUD_ON_DEMAND, DEFAULT_CLOUD_ON_DEMAND
+            ),
+        )
 
         return self.async_show_form(
             step_id="init",
@@ -805,6 +813,10 @@ class HymerConnectOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_BLE_AUTO_RECOVER,
                         default=current_ble_auto_recover,
+                    ): bool,
+                    vol.Optional(
+                        CONF_CLOUD_ON_DEMAND,
+                        default=current_cloud_on_demand,
                     ): bool,
                     vol.Optional(
                         CONF_OAUTH_BASIC_AUTH,
