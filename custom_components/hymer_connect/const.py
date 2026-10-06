@@ -119,13 +119,14 @@ DEFAULT_BLE_WRITE_ACK_TIMEOUT = 3.0
 # Opt-in automatic recovery for the #24 stale BlueZ write/notify wedge. When BLE
 # comes up but its write/notify channel is a daemon-leaked acquisition (MTU
 # pinned at 23, "Write acquired"), a fresh GATT session cannot clear it — only a
-# host-side bluetooth restart does. With this ON, the integration power-cycles
-# the owning BlueZ adapter via D-Bus (Adapter1.Powered off→on), the in-process
-# equivalent of "systemctl restart bluetooth", at most once per hour. OFF by
-# default because the power-cycle briefly drops ALL BLE on that adapter.
+# host-side bluetooth restart does. With this ON, the integration restarts the
+# host bluetooth service via systemd D-Bus (RestartUnit bluetooth.service),
+# falling back to power-cycling the owning BlueZ adapter (Adapter1.Powered
+# off→on) where systemd is unavailable, at most once per hour. OFF by default
+# because recovery briefly drops ALL BLE on the host.
 CONF_BLE_AUTO_RECOVER = "ble_auto_recover"
 DEFAULT_BLE_AUTO_RECOVER = False
-# Minimum seconds between two automatic adapter power-cycles (blast-radius guard).
+# Minimum seconds between two automatic bluetooth-stack recoveries (blast-radius guard).
 BLE_AUTO_RECOVER_MIN_INTERVAL = 3600
 
 # NOTE: CONF_CLOUD_FALLBACK / CONF_BLE_ACK_TIMEOUT / DEFAULT_/MIN_/MAX_BLE_ACK_TIMEOUT

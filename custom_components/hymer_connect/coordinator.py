@@ -247,13 +247,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @property
     def ble_auto_recover(self) -> bool:
-        """Return True if opt-in automatic adapter power-cycle recovery is on (#24).
+        """Return True if opt-in automatic BLE-stack recovery is on (#24).
 
         When the BLE write/notify channel is a daemon-leaked BlueZ acquisition a
-        fresh GATT session cannot clear, this lets the integration power-cycle the
-        owning adapter via D-Bus (the in-process equivalent of a bluetooth restart)
-        at most once per hour. Default off: the power-cycle briefly drops all BLE
-        on that adapter.
+        fresh GATT session cannot clear, this lets the integration restart the host
+        ``bluetooth.service`` via systemd D-Bus (authoritative cure; falls back to
+        power-cycling the owning adapter where systemd is unavailable) at most once
+        per hour. Default off: recovery briefly drops all BLE on the host.
         """
         return bool(
             self.config_entry.options.get(
@@ -303,13 +303,15 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return min(15 * 60, 5 * 60 * min(excess, 3))
 
     async def _async_maybe_auto_recover_adapter(self) -> None:
-        """#19/#24: power-cycle the BlueZ adapter to clear a stale write channel.
+        """#19/#24: clear a stale BlueZ write channel without a host reboot.
 
         Only runs when the user opted in (``ble_auto_recover``) and at most once
-        per hour (the power-cycle briefly drops all BLE on that adapter). On
-        success the degraded flag + failure counter are cleared so the next poll
-        retries promptly on the freshly reset controller instead of serving the
-        long stale-channel backoff.
+        per hour. Escalates: first restarts the host ``bluetooth.service`` via
+        systemd D-Bus (the authoritative cure — it closes the daemon-leaked
+        AcquireWrite/AcquireNotify FD that a mere adapter power-cycle cannot), and
+        only if that is unavailable/denied falls back to power-cycling the owning
+        adapter (``Adapter1.Powered`` off→on). On success the degraded flag +
+        failure counter are cleared so the next poll retries promptly.
         """
         if not self.ble_auto_recover:
             return
@@ -322,21 +324,37 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         self._ble_last_auto_recover_monotonic = now
         _LOGGER.warning(
-            "BLE auto-recovery: power-cycling the BlueZ adapter to clear the stale "
-            "'Write acquired' channel (briefly drops all BLE on that adapter; "
-            "at most once per hour)"
+            "BLE auto-recovery: clearing the stale 'Write acquired' channel by "
+            "restarting the host bluetooth service (falls back to an adapter "
+            "power-cycle if systemd is unavailable); briefly drops all BLE on the "
+            "host, at most once per hour"
         )
-        from .ble_client import async_dbus_power_cycle_adapter
+        from .ble_client import (
+            async_dbus_power_cycle_adapter,
+            async_dbus_restart_bluetooth_service,
+        )
 
-        ok = await async_dbus_power_cycle_adapter(self.ble_address)
+        ok = await async_dbus_restart_bluetooth_service()
+        if not ok:
+            # systemd restart unavailable/denied (e.g. no host systemd reachable)
+            # — fall back to the scoped adapter power-cycle. It rarely frees a
+            # daemon-held FD, but costs nothing to try before giving up.
+            ok = await async_dbus_power_cycle_adapter(self.ble_address)
         if ok:
             self._ble_write_degraded = False
             self._ble_degraded_reason = None
             self._ble_consecutive_failures = 0
             self._ble_next_attempt = 0.0
             _LOGGER.info(
-                "BLE auto-recovery done — adapter reset; retrying the direct path "
-                "shortly on the fresh controller"
+                "BLE auto-recovery done — bluetooth stack reset; retrying the "
+                "direct path shortly on the fresh controller"
+            )
+        else:
+            _LOGGER.warning(
+                "BLE auto-recovery could not reset the bluetooth stack "
+                "automatically (systemd restart denied and adapter power-cycle "
+                "failed) — a host reboot or manual 'systemctl restart bluetooth' "
+                "is still required to clear the leaked channel"
             )
         else:
             _LOGGER.warning(
@@ -860,8 +878,9 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._ble_client = None
             self._ble_connected = False
             self._connection_mode = "cloud"
-            # #19/#24: opt-in — power-cycle the owning BlueZ adapter via D-Bus to
-            # release the leaked FDs without a host reboot (≤1×/hour).
+            # #19/#24: opt-in — restart the host bluetooth service via systemd
+            # D-Bus (fallback: adapter power-cycle) to release the leaked FDs
+            # without a host reboot (≤1×/hour).
             await self._async_maybe_auto_recover_adapter()
             return False
         except Exception as err:

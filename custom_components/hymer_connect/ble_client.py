@@ -232,14 +232,17 @@ async def async_dbus_disconnect(address: str) -> bool:
 async def async_dbus_power_cycle_adapter(address: str, *, settle: float = 2.0) -> bool:
     """Power-cycle the BlueZ adapter that owns ``address`` (Adapter1.Powered off→on).
 
-    This releases daemon-leaked AcquireWrite/AcquireNotify file descriptors that a
-    plain Device1.Disconnect cannot free (the #24 "Write acquired" wedge, MTU
-    pinned at 23). It is the in-process equivalent of ``systemctl restart
-    bluetooth``, but scoped to the one controller and needing no shell/systemd/
-    polkit privileges — so it works the same on native, Supervised and HAOS
-    installs. Blast radius: briefly drops every BLE link on that adapter. The bond
-    survives (it lives in ``/var/lib/bluetooth``, not in the controller power
-    state). Returns True if an adapter was toggled.
+    Scoped fallback recovery for the #24 "Write acquired" wedge (MTU pinned at 23)
+    when a full ``bluetooth.service`` restart is unavailable. NOTE: toggling the
+    controller power does NOT reliably close an AcquireWrite/AcquireNotify file
+    descriptor that a client leaked inside the ``bluetoothd`` daemon — that FD
+    lives in the daemon, not in the adapter power state (confirmed ineffective on
+    @FrankHae's host, #19). Prefer ``async_dbus_restart_bluetooth_service`` as the
+    authoritative cure; use this only where systemd ``RestartUnit`` is denied.
+    Needs no shell/systemd/polkit privileges. Blast radius: briefly drops every
+    BLE link on that adapter. The bond survives (it lives in
+    ``/var/lib/bluetooth``, not in the controller power state). Returns True if an
+    adapter was toggled.
     """
     try:
         from dbus_fast.aio import MessageBus
@@ -305,6 +308,56 @@ async def async_dbus_power_cycle_adapter(address: str, *, settle: float = 2.0) -
             bus.disconnect()
     except Exception as err:
         _LOGGER.debug("D-Bus adapter power-cycle failed for %s: %s", address, err)
+        return False
+
+
+async def async_dbus_restart_bluetooth_service(*, settle: float = 2.0) -> bool:
+    """Restart the host ``bluetooth.service`` via the systemd1 D-Bus manager.
+
+    Authoritative cure for a daemon-leaked AcquireWrite/AcquireNotify file
+    descriptor (the #24 "Write acquired" wedge): power-cycling the controller
+    (``Adapter1.Powered`` off→on) does NOT close an FD held open inside the
+    ``bluetoothd`` daemon, but restarting the service does. Equivalent to
+    ``systemctl restart bluetooth`` without a shell. Needs the HA process to reach
+    ``org.freedesktop.systemd1`` on the system bus and be authorised (polkit) to
+    ``RestartUnit`` — true on most native/Supervised installs; returns False
+    (caller falls back to the adapter power-cycle) where systemd is absent or the
+    call is denied. Blast radius: drops every BLE link on the host for a few
+    seconds; bonds survive (they live in ``/var/lib/bluetooth``). Returns True if
+    the restart job was accepted.
+    """
+    try:
+        from dbus_fast.aio import MessageBus
+        from dbus_fast import BusType, Message, MessageType
+
+        bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+        try:
+            reply = await bus.call(
+                Message(
+                    destination="org.freedesktop.systemd1",
+                    path="/org/freedesktop/systemd1",
+                    interface="org.freedesktop.systemd1.Manager",
+                    member="RestartUnit",
+                    signature="ss",
+                    body=["bluetooth.service", "replace"],
+                )
+            )
+            if reply is None or reply.message_type == MessageType.ERROR:
+                _LOGGER.debug(
+                    "systemd RestartUnit bluetooth.service failed: %s",
+                    getattr(reply, "body", None),
+                )
+                return False
+            _LOGGER.info(
+                "Restarted host bluetooth.service via systemd D-Bus (cleared any "
+                "daemon-leaked write/notify acquisition)"
+            )
+            await asyncio.sleep(settle)  # let bluetoothd come back up
+            return True
+        finally:
+            bus.disconnect()
+    except Exception as err:
+        _LOGGER.debug("D-Bus bluetooth.service restart failed: %s", err)
         return False
 
 # ---------------------------------------------------------------------------

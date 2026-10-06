@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0b2] - 2026-10-06
+
+### Changed
+
+- **The opt-in BLE auto-recovery now restarts the host `bluetooth.service` (systemd D-Bus) instead of only power-cycling the adapter (issue [#24](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/24) / [#19](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/19)).** On-vehicle testing by [@FrankHae](https://github.com/FrankHae) proved that the v2.99.0b1 approach — toggling `Adapter1.Powered` off→on — reports success but does **not** release a leaked `AcquireWrite`/`AcquireNotify` file descriptor: that FD is held open inside the `bluetoothd` daemon, not in the adapter power state, so the stale `Write acquired` channel (MTU 23) returned within ~15 s and the link kept flickering. The recovery now calls `RestartUnit bluetooth.service` over the systemd1 D-Bus manager — the authoritative cure that closes the daemon's leaked FDs, equivalent to `systemctl restart bluetooth` without a shell — and only falls back to the scoped adapter power-cycle where systemd is unavailable or the call is denied (e.g. some HAOS installs). Still **off by default**, still at most **once per hour**, still keeps the bond and the cloud connection; the blast radius is now the whole host's BLE for a few seconds rather than one adapter. Option relabelled **“Auto-recover a stuck BLE adapter (restart bluetooth)”**. Pre-release for continued on-vehicle testing by [@FrankHae](https://github.com/FrankHae).
+
 ## [2.99.0b1] - 2026-10-05
 
 ### Added
