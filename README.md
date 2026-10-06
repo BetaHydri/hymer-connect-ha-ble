@@ -796,28 +796,30 @@ Big thanks to everyone who contributed sensor mappings, debugging time, or APK m
 | **DataHub** | SignalR hub for real-time cloud communication |
 | **Connected Component** | Any device on the vehicle bus (heaters, fridges, sensors, etc.) |
 
-## ⚠️ Disclaimer & EHG terms-of-service notice
+## ⚠️ Disclaimer & important notes
 
 This is an **independent, community-built, open-source** project. It is **not affiliated with,
-authorized by, or endorsed by the Erwin Hymer Group (EHG)**. All product and brand names are the
-property of their respective owners and are used for identification only.
+authorized by, or endorsed by the Erwin Hymer Group (EHG)**. All product and brand names belong to
+their respective owners and are used here for identification only.
 
-**EHG considers third-party integrations a violation of its terms of use.** As of October 2026, EHG
-has begun emailing account holders whose accounts show third-party-integration activity, warning that
-continued use may lead to their EHG account being **restricted or deactivated**. By installing and
-using this integration you acknowledge that:
+**A heads-up about EHG's terms of use.** In October 2026 some users reported receiving emails from
+EHG noting that third-party integrations fall outside its intended, tested functionality and may not
+be covered by its terms of use, and asking them to use EHG's own apps. We can't speak for EHG — we
+just want you to have the full picture before you install:
 
-- You use it **entirely at your own risk**, including the risk of EHG limiting or disabling your account.
-- You authenticate with **your own EHG account credentials** (the same ones the official app uses); this
-  project never transmits them to any third party — they stay in your Home Assistant instance.
-- The **cloud/SignalR path is what EHG's backend can observe.** The **BLE direct path is local only** —
-  it talks to your own vehicle over your own Bluetooth adapter and does not contact EHG servers. Running
-  BLE-primary keeps your ongoing cloud footprint to a minimum (note: initial setup and token refresh still
-  require one EHG login).
-- Nothing here is legal advice. If account continuity matters to you, weigh this risk before installing.
+- Use this integration **at your own discretion and risk.** As with any unofficial tool, there is no
+  guarantee about how EHG may treat accounts that use it.
+- You sign in with **your own EHG account credentials** (the same ones the official app uses). They
+  stay in your Home Assistant instance — this project never sends them anywhere else.
+- The **BLE direct path is local**: it talks to your own vehicle over your own Bluetooth adapter and
+  does not contact EHG's servers. The **cloud path** does talk to EHG (initial setup and the optional
+  cloud fallback always need one EHG sign-in). If you prefer to keep cloud usage to a minimum, run
+  BLE-primary (optionally with the "Use the cloud only when BLE is down" option).
+- This is **not legal advice.** If this matters to you, please read EHG's current terms yourself and
+  decide what you are comfortable with.
 
-The maintainers provide this software "as is", without warranty of any kind, and accept no liability for
-account actions taken by EHG or for any damage, data loss, or malfunction arising from its use.
+The software is provided "as is", without warranty of any kind. The maintainers are not liable for any
+account actions taken by EHG, or for any damage, data loss, or malfunction arising from its use.
 
 ## License
 
