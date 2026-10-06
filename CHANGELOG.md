@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0b3] - 2026-10-06
+
+### Fixed
+
+- **v2.99.0b2 failed to load (`SyntaxError`).** The b2 auto-recovery change left a duplicate `else:` clause in `_async_maybe_auto_recover_adapter` (a leftover from the b1 adapter-power-cycle path), so `coordinator.py` could not be imported and the integration did not start at all. Removed the orphaned block. Anyone who installed the b2 pre-release should update to b3.
+
 ## [2.99.0b2] - 2026-10-06
 
 ### Changed

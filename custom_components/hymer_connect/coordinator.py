@@ -356,12 +356,6 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "failed) — a host reboot or manual 'systemctl restart bluetooth' "
                 "is still required to clear the leaked channel"
             )
-        else:
-            _LOGGER.warning(
-                "BLE auto-recovery could not power-cycle the adapter via D-Bus — "
-                "a host-side 'systemctl restart bluetooth' (or reboot) is still "
-                "needed to clear the stale channel"
-            )
 
     @property
     def tank_capacity(self) -> int:
