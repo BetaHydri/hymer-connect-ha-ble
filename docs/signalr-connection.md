@@ -324,6 +324,43 @@ after 4-5 hours of continuous operation.
 > server-side disconnects; sending nothing for 10 minutes causes the SCU to
 > go silent and triggers stale-data reconnects.
 
+### Field-Observed Steady-State Cadence (anonymized)
+
+A ~96-minute production `signalr_client` INFO log from a stationary vehicle
+(vehicle URN anonymized as `urn:ehg:vehicle:hy-xxxxxxxxxx`) confirms the budget
+above. It is **not** a per-sensor polling loop — the integration holds **one
+long-lived WebSocket** and the SCU pushes over it. The only recurring **outbound**
+activity is driven by two hard caps:
+
+| Outbound activity | Observed cadence | What it sends |
+|-------------------|------------------|---------------|
+| `UpdateTokens` refresh | ~every 15–16 min (900 s token TTL) | 1 `UpdateTokens` + 1 token `GET` |
+| Full reconnect | ~every 50 min (3000 s connection-age cap) | negotiate + handshake + `UpdateTokens` + **7 PiaRequest subscriptions** + 1 refresh |
+
+Everything else in the log is **inbound**: repeated
+`SCU disconnected (scu_connected=false)` lines are the SCU's own standby/keepalive
+push frames (~1 every 2–4 min), and the `listen loop ended after N messages`
+counters (e.g. 429 messages in a 36 min window, 1044 in a 52 min window) count
+**received** frames, not requests we make.
+
+Representative outbound events over the window (timestamps relative, `t0` = log start):
+
+```
+t0            UpdateTokens sent → SUCCESS
+t0 +16 min    UpdateTokens age 959s exceeds 900s — refreshing
+t0 +32 min    UpdateTokens age 959s exceeds 900s — refreshing
+t0 +36 min    SignalR connection age 3121s exceeds max 3000s — reconnect needed
+              → negotiate → handshake → UpdateTokens → 7 PiaRequest subscriptions → refresh
+...           (pattern repeats: ~4 token refreshes/hour, ~1.2 reconnects/hour)
+```
+
+So in steady state the integration issues roughly **~4 token refreshes/hour** plus
+**~1.2 full reconnects/hour** (each reconnect being the only burst of the 7
+subscriptions + refresh). The loud signal to the EHG/Azure backend is the
+**persistent 24/7 SignalR connection itself**, not request count — which is exactly
+what the opt-in `cloud_on_demand` option (v2.99.0b4) reduces on BLE-capable
+installs by dropping the cloud socket once BLE holds healthy.
+
 ## Troubleshooting
 
 ### Symptom: "SignalR connection lost" every ~50 minutes
