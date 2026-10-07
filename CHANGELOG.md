@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0] - 2026-10-07
+
+Consolidates the `2.99.0b1`–`2.99.0b5` pre-releases into a stable release; everything from `2.98.0` is included. As always after updating, **restart** Home Assistant.
+
+### Changed
+
+- **The persistent cloud session is no longer torn down and rebuilt every 50 minutes, cutting the integration's EHG-cloud reconnect churn by roughly 90 % (was `2.99.0b5`).** A 25 h cloud-only log showed the SignalR connection being proactively recycled ~30×/day on a fixed ~50 min cadence (mean measured lifetime 50.8 min), each a full `negotiate → WebSocket → UpdateTokens → 7 subscriptions → refresh` burst against the EHG datahub, with **zero** failures or backoff in between — pure clockwork. The only reason for the recycle was to pre-empt the Azure SignalR access-token JWT expiry (~1 h), but Azure SignalR validates that token **only at negotiate/connect time** and does not drop an already-established WebSocket when it expires; the datahub-level `ehgAccessToken` is already refreshed in-place over the open socket every 15 min (`UPDATE_TOKENS_INTERVAL`), and a genuinely dead socket is still caught within 90 s by the listen-loop keepalive (`KEEPALIVE_TIMEOUT`) and the 3 min stale-routing detector. `MAX_CONNECTION_AGE` is therefore raised from **50 min to 4 h**, reducing the proactive full reconnects (and their fresh-token fetches + subscription bursts) from ~30/day to ~6/day while leaving all reactive health checks unchanged — if Azure ever drops the socket near its ~1 h JWT lifetime it simply reconnects reactively, so the worst case is unchanged. This also makes the traffic pattern noticeably less machine-like. Confirmed on-vehicle holding past the old 50 min mark.
+
+### Added
+
+- **Opt-in "cloud on demand": run BLE-primary and close the persistent cloud session while BLE is healthy (was `2.99.0b4`). Off by default.** On a BLE-capable install the integration normally keeps a 24/7 SignalR connection open alongside BLE. With this option on, once the BLE link has stayed healthy and non-degraded for ~120 s the coordinator **stops the SignalR session** and runs BLE-only, reconnecting to the cloud only when BLE **drops or its write channel degrades** ([#24](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/24)). It can **never** close the cloud on a cloud-only install (the gate also requires `ble_enabled` plus a live, non-degraded BLE link), and it backs off on vehicles whose BLE drops often. Enable under **⚙️ Configure → "Use the cloud only when BLE is down"**; best left off on flaky-BLE vehicles — if it misbehaves, untick it and report.
+- **Opt-in automatic recovery for a stuck BLE adapter — restarts the host `bluetooth.service` over the systemd D-Bus manager (was `2.99.0b1`–`b3`). Off by default, at most once per hour.** For the daemon-leaked BlueZ `AcquireWrite`/`AcquireNotify` wedge (MTU pinned at 23, every write/TLS fails, link only flickers) that a fresh GATT session cannot clear — seen on **Proxmox/HAOS-VM + USB-passthrough** Bluetooth ([#24](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/24) / [#19](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/19)). Calls `RestartUnit bluetooth.service` (equivalent to `systemctl restart bluetooth` without a shell), falling back to a scoped `Adapter1.Powered` cycle where systemd is unavailable/denied. Keeps the bond and the cloud connection; blast radius is the host's BLE for a few seconds. Enable under **⚙️ Configure → "Auto-recover a stuck BLE adapter (restart bluetooth)"**.
+
 ## [2.99.0b5] - 2026-10-07
 
 ### Changed
