@@ -25,10 +25,16 @@ Home Assistant
     └── coordinator.py (DataUpdateCoordinator, polls every 60s)
             ├── ble_client.py (BLE direct path — sensor reads + BLE-first writes since v2.67.0)
             │       └── SCU in vehicle (via BLE GATT / TLS / PIA)
-            └── signalr_client.py (always active — full sensor coverage + write fallback)
+            └── signalr_client.py (always active* — full sensor coverage + write fallback)
                     └── Azure SignalR Service (ehg-prod-signalr.service.signalr.net)
                             └── SCU in vehicle (via LTE)
 ```
+
+> \* *Always active by default.* The opt-in **`cloud_on_demand`** option
+> (v2.99.0b4+, default **off**) tears the SignalR session down while BLE is
+> healthy and reconnects it only when BLE drops/degrades — see
+> [Cloud on Demand (opt-in)](#cloud-on-demand-opt-in). A cloud-only enrollment
+> is never affected.
 
 Both paths run concurrently. With BLE subscriptions, both paths can provide
 all ~130 sensors — BLE at ~50 ms latency, SignalR at ~500 ms–2 s. Both merge
@@ -360,6 +366,55 @@ subscriptions + refresh). The loud signal to the EHG/Azure backend is the
 **persistent 24/7 SignalR connection itself**, not request count — which is exactly
 what the opt-in `cloud_on_demand` option (v2.99.0b4) reduces on BLE-capable
 installs by dropping the cloud socket once BLE holds healthy.
+
+## Cloud on Demand (opt-in)
+
+`cloud_on_demand` (const `CONF_CLOUD_ON_DEMAND`, **default off**, added in
+**v2.99.0b4**) minimises how much the integration talks to the EHG/Azure cloud.
+Its motivation is the traffic observation above: the dominant backend footprint
+is the **persistent 24/7 SignalR connection itself** (plus the 60 s poll and
+15 min token refresh), not request volume. BLE is invisible to EHG, so a
+BLE-capable install can run almost entirely local.
+
+### Behaviour
+
+When enabled, once the BLE link has been **healthy and non-degraded for a
+stability grace window** (`CLOUD_ON_DEMAND_BLE_STABLE_SECONDS = 120 s`), the
+coordinator calls `stop_signalr()`, sets `connection_mode = "ble"`, and runs
+**BLE-only** — no SignalR socket, no token refresh, no resubscribe, no 60 s
+refresh to the cloud. The cloud session is **reconnected automatically** the
+moment BLE drops or its write channel degrades (`#24`), so there is no loss of
+coverage — only a short reconnect window on failover.
+
+### Safe-by-construction gate
+
+The suppression gate (`_cloud_on_demand_active()`) requires **all** of:
+
+| Condition | Why |
+|-----------|-----|
+| `cloud_on_demand` option is on | Opt-in only |
+| `ble_enabled` | BLE must be a usable transport |
+| `_ble_connected` | A live BLE link must currently exist |
+| not `_ble_write_degraded` | The BLE write/notify channel must be healthy (not the stale `Write acquired` wedge) |
+| `_ble_healthy_since` ≥ 120 s ago | The link must have held stable through the grace window |
+
+Because `ble_enabled` + `_ble_connected` are hard requirements, a **cloud-only
+enrollment can never enter this branch** — cloud stays always-on for it. The
+`_ble_healthy_since` clock is reset to `0` on every BLE teardown/degrade, so a
+flapping link can never suppress the cloud.
+
+### When to use it
+
+Ideal for a stationary vehicle with a reliable BLE link that holds for long
+stretches (e.g. a confirmed 30+ min hold). Leave it **off** if BLE is marginal
+(frequent ~90 s drops): the repeated cloud teardown/reconnect on each failover
+would add churn rather than remove it. One option change per log while testing,
+so the logs stay interpretable.
+
+> **Not a ToS-evasion measure.** It only drops the cloud socket while BLE is
+> genuinely carrying the data; it does not spoof, jitter, or throttle traffic.
+> Raising the poll interval was deliberately rejected (persistent SignalR is the
+> fingerprint, and a higher interval breaks live push for negligible gain).
 
 ## Troubleshooting
 
