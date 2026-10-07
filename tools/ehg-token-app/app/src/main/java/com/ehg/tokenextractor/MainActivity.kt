@@ -320,10 +320,11 @@ class MainActivity : AppCompatActivity() {
                             }
 
                             log("")
-                            log("🎉 SUCCESS! EHG Refresh Token extracted!")
-                            log("Token: ${extractedToken!!.take(20)}...")
+                            // Never print the token (not even partially) — it is the user's secret and
+                            // the log is shareable. Only the length is logged; use Copy for the value.
+                            log("🎉 SUCCESS! EHG Refresh Token extracted (${extractedToken!!.length} chars).")
                             log("")
-                            log("Copy this token and paste it into your")
+                            log("Tap 'Copy Token to Clipboard' and paste it into your")
                             log("Home Assistant HYMER Connect config.")
                             runOnUiThread {
                                 btnCopy.isEnabled = true
