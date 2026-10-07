@@ -722,7 +722,12 @@ within ~60–90 s (while the cloud proves the SCU is awake), plus a diagnostic
 `binary_sensor` **"BLE degraded"** and an escalating back-off for a genuinely wedged
 write channel (MTU 23 + `Write acquired`). Recovering a wedged channel is host-side: a
 **full host reboot** on HAOS (no host `systemctl`), or `systemctl restart bluetooth` on
-Supervised/Proxmox/container. Details:
+Supervised/Proxmox/container. **v2.99.0** adds an **opt-in automatic recovery** (off by
+default, under **⚙️ Configure → "Auto-recover a stuck BLE adapter (restart bluetooth)"**)
+that restarts the host `bluetooth.service` over the systemd D‑Bus manager for you — at most
+once per hour, keeping the bond and the cloud connection — for the Proxmox/HAOS-VM + USB
+passthrough wedge; it falls back to a scoped adapter power-cycle where systemd is
+unavailable. Details:
 [BLE goes silently dead, or a write channel wedges](docs/ble-troubleshooting.md#ble-goes-silently-dead-or-a-write-channel-wedges-improved-v2900).
 
 ### SCU frozen — dashboard unresponsive, 12 V stuck "on", commands ignored (v2.91.0)
@@ -815,6 +820,9 @@ just want you to have the full picture before you install:
   does not contact EHG's servers. The **cloud path** does talk to EHG (initial setup and the optional
   cloud fallback always need one EHG sign-in). If you prefer to keep cloud usage to a minimum, run
   BLE-primary (optionally with the "Use the cloud only when BLE is down" option).
+- **v2.99.0 lowers the cloud footprint** of the always-on cloud path: the persistent SignalR session is
+  now recycled every ~4 h instead of every ~50 min, cutting the recurring reconnect traffic toward the
+  EHG datahub by roughly 90 % (token refreshes and live data are unchanged).
 - This is **not legal advice.** If this matters to you, please read EHG's current terms yourself and
   decide what you are comfortable with.
 

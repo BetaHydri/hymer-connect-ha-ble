@@ -63,7 +63,8 @@ Refresh timing (managed for you):
 
 - **OAuth2 access token** — auto-refreshed on a 401 via the API retry path.
 - **SignalR negotiate JWT** — not refreshable; the connection is proactively
-  recycled at ~50 min before it expires.
+  recycled at ~4 h as a safety floor (Azure validates this JWT only at connect, so an
+  established socket survives its ~1 h expiry; v2.99.0 raised the cap from ~50 min).
 - **EHG remote-access token** — refreshed every ~15 min while connected.
 
 Once obtained, the **EHG refresh token** is stored in the config entry and

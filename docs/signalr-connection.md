@@ -196,7 +196,7 @@ because the hub's routing table points to the old SCU session.
 |---------|---------|---------|----------------|
 | WebSocket closed/error | `_on_connection_lost()` | Reset to 60s (or 5s cooldown after rapid drop) | No — connection only |
 | No WebSocket activity for 90s | Keepalive timeout in `listen()` | Reset to 60s | No — connection only |
-| Connection age > 50 min | `needs_reconnect` property | Immediate | No — connection only |
+| Connection age > 4 h | `needs_reconnect` property | Immediate | No — connection only |
 | Send failure | `_send_with_retry()` | Immediate (1 retry) | Only retries the user''s command |
 
 ### Backoff Strategy
@@ -345,7 +345,7 @@ activity is driven by two hard caps:
 | Outbound activity | Observed cadence | What it sends |
 |-------------------|------------------|---------------|
 | `UpdateTokens` refresh | ~every 15–16 min (900 s token TTL) | 1 `UpdateTokens` + 1 token `GET` |
-| Full reconnect | ~every 50 min (3000 s connection-age cap) | negotiate + handshake + `UpdateTokens` + **7 PiaRequest subscriptions** + 1 refresh |
+| Full reconnect | ~every 4 h (`MAX_CONNECTION_AGE`; was ~50 min / 3000 s before v2.99.0) | negotiate + handshake + `UpdateTokens` + **7 PiaRequest subscriptions** + 1 refresh |
 
 Everything else in the log is **inbound**: repeated
 `SCU disconnected (scu_connected=false)` lines are the SCU's own standby/keepalive
@@ -363,6 +363,11 @@ t0 +36 min    SignalR connection age 3121s exceeds max 3000s — reconnect neede
               → negotiate → handshake → UpdateTokens → 7 PiaRequest subscriptions → refresh
 ...           (pattern repeats: ~4 token refreshes/hour, ~1.2 reconnects/hour)
 ```
+
+> The sample above was captured on the pre-v2.99.0 build (50 min / 3000 s cap).
+> **v2.99.0 raised `MAX_CONNECTION_AGE` to 4 h**, so the full-reconnect row now fires
+> ~every 4 h (~0.25/hour) instead of ~1.2/hour — token refreshes are unchanged at
+> ~every 15 min. See *Why Proactive Connection Recycling?* below.
 
 So in steady state the integration issues roughly **~4 token refreshes/hour** plus
 **~1.2 full reconnects/hour** (each reconnect being the only burst of the 7
@@ -422,10 +427,11 @@ so the logs stay interpretable.
 
 ## Troubleshooting
 
-### Symptom: "SignalR connection lost" every ~50 minutes
+### Symptom: "SignalR connection lost" every ~4 hours
 
-**This is normal.** The connection is proactively recycled before the Azure JWT expires.
-Check that it''s followed by "SignalR connected for..." within a few seconds.
+**This is normal.** The connection is proactively recycled as a safety floor (every
+4 h since v2.99.0; it was ~50 min on older builds). Check that it''s followed by
+"SignalR connected for..." within a few seconds.
 
 ### Symptom: Connection drops and never reconnects
 
@@ -508,9 +514,14 @@ The connection is fully broken and automatic recovery failed. Actions:
 
 ### Why Proactive Connection Recycling?
 
-Azure SignalR JWTs expire after ~1 hour. Rather than waiting for a mid-command
-failure, we proactively disconnect at 50 minutes and reconnect with a fresh token.
-This ensures commands always have a valid connection.
+Azure SignalR JWTs expire after ~1 hour, but Azure validates that JWT **only at
+negotiate/connect time** and does not drop an already-established WebSocket when it
+expires. The datahub `ehgAccessToken` is refreshed in-place every ~15 min and a dead
+socket is caught within 90 s by the keepalive, so the proactive recycle is only a rare
+safety floor: **v2.99.0 raised it from 50 min to 4 h** (`MAX_CONNECTION_AGE = 4 * 60 * 60`),
+cutting the full-reconnect churn against the EHG datahub by ~90 %. If Azure ever does drop
+the socket near its ~1 h JWT lifetime it simply reconnects reactively, so the worst case is
+unchanged.
 
 ### Why Not Use the HA Poll Interval for Full Resubscribe?
 

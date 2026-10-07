@@ -574,6 +574,20 @@ all other BLE connections).
 > own Bluetooth stack so only the HA VM owns the dongle. The v2.90.0 auto-reconnect
 > is a second line of defence on top of that, not a replacement.
 
+**Opt-in automatic recovery (v2.99.0, off by default).** Instead of running the
+`dbus-send` command by hand, you can let the integration do it: enable **⚙️ Configure
+→ "Auto-recover a stuck BLE adapter (restart bluetooth)"**. When the write channel is
+detected as the wedged `Write acquired` state (MTU pinned at 23), it calls
+`RestartUnit bluetooth.service` over the systemd D‑Bus manager — exactly the command
+above, no shell needed — falling back to a scoped `Adapter1.Powered` off→on cycle where
+systemd is unavailable or the call is denied (e.g. some HAOS installs). It runs **at most
+once per hour**, keeps the bond and the cloud connection, and its blast radius is the
+host's BLE for a couple of seconds (same caveat as the manual command: it briefly drops
+every active-GATT BLE connection on the host). Judge success by the connection mode
+returning to **BLE + Cloud**, not by the `connected` flag, which may not visibly blip.
+Leave it **off** unless you actually hit the Proxmox/HAOS-VM passthrough wedge — it is a
+last-resort hammer, not routine hygiene.
+
 ## Entities go `unavailable` when the BLE direct path is on
 
 **Fixed in v2.76.6 — update if you see this.** On v2.76.2–v2.76.5, the moment the
