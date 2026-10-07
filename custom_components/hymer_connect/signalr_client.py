@@ -27,7 +27,15 @@ MSG_TYPE_COMPLETION = 3
 MSG_TYPE_PING = 6
 
 # Connection health constants
-MAX_CONNECTION_AGE = 50 * 60  # 50 min — reconnect before Azure token expires (~1h)
+# Azure SignalR validates the access-token JWT only at negotiate/connect time and
+# does NOT drop an established WebSocket when that token expires. The datahub-level
+# ehgAccessToken is refreshed in-place over the open socket every UPDATE_TOKENS_INTERVAL,
+# and a genuinely dead socket is caught within KEEPALIVE_TIMEOUT by the listen-loop ping.
+# So the proactive full teardown+rebuild can be rare — it was 50 min purely to beat the
+# ~1h JWT expiry, which churned a full negotiate/subscribe burst against the EHG cloud
+# ~30×/day for no functional gain. Raised to reduce that cloud footprint; if Azure turns
+# out to drop the socket near 1h, the keepalive timeout reconnects reactively anyway.
+MAX_CONNECTION_AGE = 4 * 60 * 60  # 4 h — proactive recycle floor (was 50 min)
 STALE_DATA_TIMEOUT = 3 * 60   # 3 min — no data = connection is likely dead
 STANDBY_MAX_SILENCE = 30 * 60  # 30 min — even in standby, reconnect after this
 
@@ -134,7 +142,7 @@ class HymerSignalRClient:
         if not self._connected:
             return False
         now = time.monotonic()
-        # Reconnect before Azure SignalR token expires
+        # Proactive recycle floor — see MAX_CONNECTION_AGE rationale above
         age = now - self._connected_at
         if age > MAX_CONNECTION_AGE:
             _LOGGER.info(

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.0b5] - 2026-10-07
+
+### Changed
+
+- **The persistent cloud session is no longer torn down and rebuilt every 50 minutes, cutting the integration's EHG-cloud footprint by roughly 90 %.** A 25 h cloud-only log analysis showed the SignalR connection being proactively recycled ~30×/day on a fixed ~50 min cadence (mean measured lifetime 50.8 min) — each recycle a full `negotiate → WebSocket → UpdateTokens → 7 subscriptions → refresh` burst against the EHG datahub, with **zero** failures or backoff in between, i.e. pure clockwork churn. The only reason for the recycle was to pre-empt the Azure SignalR access-token JWT expiry (~1 h), but Azure SignalR validates that token **only at negotiate/connect time** and does not drop an already-established WebSocket when it expires; the datahub-level `ehgAccessToken` is already refreshed in-place over the open socket every 15 min (`UPDATE_TOKENS_INTERVAL`), and a genuinely dead socket is still caught within 90 s by the listen-loop keepalive (`KEEPALIVE_TIMEOUT`) and the 3 min stale-routing detector. `MAX_CONNECTION_AGE` is therefore raised from **50 min to 4 h**, reducing the proactive full reconnects (and their fresh-token fetches + subscription bursts) from ~30/day to ~6/day while leaving all reactive health checks unchanged. This also makes the traffic pattern noticeably less machine-like. Pre-release so the 4 h value can be confirmed on-vehicle — if Azure turns out to drop the socket near 1 h, it surfaces as a keepalive-timeout reconnect (reactive) rather than the age-based one, and the value can be tuned back down.
+
 ## [2.99.0b4] - 2026-10-06
 
 ### Added

@@ -144,14 +144,18 @@ connect → listen loop (receives PiaResponse messages)
                 ↔ refresh every 60s (1 msg — prod SCU to push fresh data)
                 ↔ full resubscribe every 10 min (8 msgs — reinit sensor groups)
                 ↕ UpdateTokens every 15 min (keep EHG access token valid)
-    ~50 min → proactive disconnect (before negotiate JWT expires)
+    ~4 h → proactive disconnect (recycle floor)
                 → reconnect (new negotiate → new WebSocket → new subscriptions)
 ```
 
-The connection is **proactively recycled every 50 minutes** (`MAX_CONNECTION_AGE = 50 * 60`)
-to avoid hitting the Azure SignalR JWT expiry (~1 hour). This is purely a
-**connection-level** operation — no device commands (12V, lights, etc.) are sent
-during reconnection. It produces expected log messages:
+The connection is **proactively recycled every 4 hours** (`MAX_CONNECTION_AGE = 4 * 60 * 60`).
+Azure SignalR validates the access-token JWT only at negotiate/connect time and does
+**not** drop an established WebSocket when that JWT expires (~1 h), so the recycle is a
+rare safety floor rather than a token-expiry workaround: the datahub `ehgAccessToken` is
+refreshed in-place every 15 min (`UPDATE_TOKENS_INTERVAL`) and a dead socket is caught
+within 90 s by the keepalive (`KEEPALIVE_TIMEOUT`). This is purely a **connection-level**
+operation — no device commands (12V, lights, etc.) are sent during reconnection. It
+produces expected log messages:
 
 ```
 SignalR connection lost — scheduling immediate reconnect
