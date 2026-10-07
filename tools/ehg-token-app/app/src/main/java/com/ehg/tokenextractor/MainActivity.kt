@@ -6,6 +6,7 @@ import android.bluetooth.le.*
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -61,10 +62,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var editQrToken: EditText
     private lateinit var btnStart: Button
     private lateinit var btnCopy: Button
+    private lateinit var btnShareLog: Button
     private lateinit var btnScanQr: Button
     private lateinit var txtLog: TextView
 
     private var extractedToken: String? = null
+    // Reference point for per-line elapsed-time stamps (reset at each run).
+    private var logStartMs: Long = android.os.SystemClock.elapsedRealtime()
     private var bluetoothGatt: BluetoothGatt? = null
     private val rxQueue = LinkedList<ByteArray>()
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
@@ -80,11 +84,13 @@ class MainActivity : AppCompatActivity() {
         editQrToken = findViewById(R.id.editQrToken)
         btnStart = findViewById(R.id.btnStart)
         btnCopy = findViewById(R.id.btnCopy)
+        btnShareLog = findViewById(R.id.btnShareLog)
         btnScanQr = findViewById(R.id.btnScanQr)
         txtLog = findViewById(R.id.txtLog)
 
         btnStart.setOnClickListener { startExtraction() }
         btnCopy.setOnClickListener { copyTokenToClipboard() }
+        btnShareLog.setOnClickListener { shareLog() }
         btnScanQr.setOnClickListener { scanQrCode() }
 
         requestPermissions()
@@ -128,9 +134,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun log(msg: String) {
-        Log.d(TAG, msg)
+        val elapsed = (android.os.SystemClock.elapsedRealtime() - logStartMs) / 1000.0
+        val line = String.format(Locale.US, "[%6.1fs] %s", elapsed, msg)
+        Log.d(TAG, line)
         runOnUiThread {
-            txtLog.append("\n$msg")
+            txtLog.append("\n$line")
         }
     }
 
@@ -146,6 +154,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnStart.isEnabled = false
+        logStartMs = android.os.SystemClock.elapsedRealtime()
         txtLog.text = "Starting token extraction..."
 
         lifecycleScope.launch {
@@ -523,6 +532,26 @@ class MainActivity : AppCompatActivity() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("EHG Token", token))
         Toast.makeText(this, "Token copied to clipboard!", Toast.LENGTH_LONG).show()
+    }
+
+    // Export the full on-screen log (with a device/Android/MTU header) via the
+    // Android share sheet so testers can send the complete diagnostic log — a
+    // partial end-of-run screenshot hides the step where the run actually failed.
+    private fun shareLog() {
+        val header = buildString {
+            append("EHG Token Extractor log\n")
+            append("Device: ${Build.MANUFACTURER} ${Build.MODEL}\n")
+            append("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})\n")
+            append("Negotiated MTU: $negotiatedMtu\n")
+            append("--------\n")
+        }
+        val full = header + txtLog.text.toString()
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "EHG Token Extractor log")
+            putExtra(Intent.EXTRA_TEXT, full)
+        }
+        startActivity(Intent.createChooser(send, "Share log"))
     }
 
     override fun onDestroy() {
