@@ -233,7 +233,7 @@ The EHG sensor ecosystem uses a **URN-based identification system**, not raw BLE
 |---|---|---|
 | `urn:ehg:scu:` | SCU identifier | SCU serial/model |
 | `urn:ehg:sensor:` | Sensor identifier | Sensor serial from QR code |
-| `urn:ehg:vehicle:` | Vehicle identifier | `urn:ehg:vehicle:hymer-b2-new-lp35` |
+| `urn:ehg:vehicle:` | Vehicle identifier | `urn:ehg:vehicle:<vehicle-id>` |
 
 The QR code on each sensor package encodes a `urn:ehg:sensor:...` string containing the
 sensor's serial number and type. The app parses this URN and forwards it to the SCU for

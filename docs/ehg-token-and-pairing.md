@@ -53,11 +53,11 @@ minted and refreshed automatically.
 
 | Token | `ett` | Source | Lifetime | Used for |
 | --- | --- | --- | --- | --- |
-| OAuth2 access token | — | `POST /api/v2/oauth/token` (username + password) | ~1 h | REST API calls, SignalR `UpdateTokens` `accessToken` |
+| OAuth2 access token | — | `POST <oauth-token-endpoint>` (username + password) | ~1 h | REST API calls, SignalR `UpdateTokens` `accessToken` |
 | OAuth2 refresh token | — | same endpoint | long-lived | refreshing the OAuth2 access token on a 401 |
-| SignalR negotiate JWT | — | `POST scc-appcomm/datahub/negotiate` | ~1 h | the WebSocket URL `access_token` parameter |
+| SignalR negotiate JWT | — | `POST <ehg-appcomm-host>/datahub/negotiate` | ~1 h | the WebSocket URL `access_token` parameter |
 | **EHG remote-access refresh token** | **`access-refresh`** | **BLE pairing / capture (this is the one you obtain)** | **never expires** | minting the EHG remote-access token below |
-| EHG remote-access token | `access` | `POST /api/ehg/v1/vehicles/{urn}/remoteAccessToken` | ~15–30 min | SignalR `UpdateTokens` `ehgAccessToken` — required for remote commands |
+| EHG remote-access token | `access` | `POST <remote-access-token-endpoint>` | ~15–30 min | SignalR `UpdateTokens` `ehgAccessToken` — required for remote commands |
 
 Refresh timing (managed for you):
 

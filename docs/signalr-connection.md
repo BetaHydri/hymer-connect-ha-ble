@@ -26,9 +26,14 @@ Home Assistant
             ├── ble_client.py (BLE direct path — sensor reads + BLE-first writes since v2.67.0)
             │       └── SCU in vehicle (via BLE GATT / TLS / PIA)
             └── signalr_client.py (always active* — full sensor coverage + write fallback)
-                    └── Azure SignalR Service (ehg-prod-signalr.service.signalr.net)
+                    └── Azure SignalR Service (<ehg-signalr-host>)
                             └── SCU in vehicle (via LTE)
 ```
+
+> ℹ️ **Endpoints redacted.** Concrete EHG cloud hostnames and endpoint paths appear
+> as placeholders (e.g. `<ehg-signalr-host>`, `<ehg-appcomm-host>`,
+> `<oauth-token-endpoint>`, `<remote-access-token-endpoint>`) throughout this
+> documentation; the real values live only in the integration code (`const.py`).
 
 > \* *Always active by default.* The opt-in **`cloud_on_demand`** option
 > (v2.99.0b4+, default **off**) tears the SignalR session down while BLE is
@@ -57,13 +62,13 @@ static metadata (VIN, model, URNs).
 
 The connection requires a **5-step handshake**:
 
-1. **Negotiate step 1** — `POST scc-appcomm/datahub/negotiate` (no auth headers)
+1. **Negotiate step 1** — `POST <ehg-appcomm-host>/datahub/negotiate` (no auth headers)
    Returns: Azure SignalR URL + short-lived JWT token (~1 hour)
 
 2. **Negotiate step 2** — `POST {azure_url}/negotiate` with JWT bearer
    Returns: `connectionToken` for WebSocket URL
 
-3. **WebSocket connect** — `wss://ehg-prod-signalr.service.signalr.net/client/?hub=datahub&id={connectionToken}&access_token={jwt}`
+3. **WebSocket connect** — `wss://<ehg-signalr-host>/client/?hub=datahub&id={connectionToken}&access_token={jwt}`
 
 4. **Protocol handshake** — Send `{"protocol": "json", "version": 1}`
 
@@ -86,10 +91,10 @@ The integration manages **4 different tokens** — confusing them causes silent 
 
 | Token | Source | Lifetime | Used For |
 |-------|--------|----------|----------|
-| OAuth2 access token | `POST /api/v2/oauth/token` (ROPC) | ~1 hour | REST API calls, UpdateTokens `accessToken` field |
+| OAuth2 access token | `POST <oauth-token-endpoint>` (ROPC) | ~1 hour | REST API calls, UpdateTokens `accessToken` field |
 | OAuth2 refresh token | Same endpoint | Long-lived | Refreshing OAuth2 access token on 401 |
-| SignalR negotiate JWT | `POST scc-appcomm/datahub/negotiate` | ~1 hour | WebSocket URL `access_token` parameter |
-| EHG remote access token | `POST /api/ehg/v1/vehicles/{urn}/remoteAccessToken` | ~30 min | UpdateTokens `ehgAccessToken` field — required for remote commands |
+| SignalR negotiate JWT | `POST <ehg-appcomm-host>/datahub/negotiate` | ~1 hour | WebSocket URL `access_token` parameter |
+| EHG remote access token | `POST <remote-access-token-endpoint>` | ~30 min | UpdateTokens `ehgAccessToken` field — required for remote commands |
 
 ### Token Refresh Strategy
 

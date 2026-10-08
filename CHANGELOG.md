@@ -1669,7 +1669,7 @@ Structural analysis confirms our setValues envelope matches the EHG app byte-for
 
 - **BLE pairing protocol — `pair_mobile()` in `ble_client.py`** — Implemented the full SCU mobile-device pairing ceremony over BLE/TLS, matching the EHG app's flow: send `PairMobileRequest` (activation token + confirmation token + device name) → wait for user to press ALLOW on SCU touchscreen → receive `PairMobileResponse` with `remote_access_token` and `remote_access_refresh_token` → send `PairMobileConfirmation(success=true)`. This eliminates the need for the mitmproxy token capture workflow when the HA instance (e.g. RPi4) has BLE hardware and is physically near the vehicle. The protobuf field layout was reverse-engineered by Dan Simms (`dan-simms1/hymer-connect-ha`) in the standalone `hymer_token_tool`.
 
-- **Two-step config flow with QR code activation** — The config flow now mirrors the EHG app's setup process: **Step 1** (Login) collects brand, email, password, and optional EHG refresh token. **Step 2** (Vehicle Activation) collects the QR code activation token text from the vehicle sticker and optionally the SCU Bluetooth MAC address. The QR token is resolved via `GET /api/ehg/v1/vehicles/byToken` to obtain the vehicle URN and SCU URN, which are stored in the config entry for use by the coordinator and BLE client.
+- **Two-step config flow with QR code activation** — The config flow now mirrors the EHG app's setup process: **Step 1** (Login) collects brand, email, password, and optional EHG refresh token. **Step 2** (Vehicle Activation) collects the QR code activation token text from the vehicle sticker and optionally the SCU Bluetooth MAC address. The QR token is resolved via `GET <vehicles-by-token-endpoint>` to obtain the vehicle URN and SCU URN, which are stored in the config entry for use by the coordinator and BLE client.
 
 - **Protobuf encoding/decoding for PairMobileRequest/Response** — Added minimal protobuf wire-format helpers (varint, length-delimited, string, bool fields) with no external dependency. Field numbers match the decompiled EHG app exactly: `BleProtocol(1) → Request(1/2/3/8) → User.PairMobileDevice(4) → activation_token(1), confirmation_token(2), device_name(3), wait_for_confirmation(4)`. Response decoder extracts `remote_access_token(1)`, `remote_access_refresh_token(2)`, and `confirmation_required(3)` from the `Response.mobilePair(9)` field.
 
@@ -2830,7 +2830,7 @@ Structural analysis confirms our setValues envelope matches the EHG app byte-for
 ### Added
 
 - **Real-time sensor data via SignalR** — 130+ sensors including odometer, GPS, battery, water levels, temperatures, door status, heater, fridge, alarm, and more
-- **EHG Remote Access Token refresh flow** — discovered `POST /api/ehg/v1/vehicles/{urn}/remoteAccessToken` endpoint that exchanges a long-lived refresh token for short-lived access tokens
+- **EHG Remote Access Token refresh flow** — discovered the `POST <remote-access-token-endpoint>` endpoint that exchanges a long-lived refresh token for short-lived access tokens
 - **EHG Refresh Token field** in the integration config flow (optional, required for real-time sensors)
 - **`get_remote_access_token()` method** in API client for automatic token exchange
 - **Comprehensive README** with step-by-step token extraction guide, mermaid architecture diagrams, and sequence diagrams
