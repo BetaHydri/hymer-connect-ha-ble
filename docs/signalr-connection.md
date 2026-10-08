@@ -85,7 +85,7 @@ After step 6, the SCU starts pushing `PiaResponse` messages with sensor data.
 The integration manages **4 different tokens** — confusing them causes silent failures:
 
 | Token | Source | Lifetime | Used For |
-|-------|--------|----------|----------|
+| ------- | -------- | ---------- | ---------- |
 | OAuth2 access token | `POST <oauth-token-endpoint>` (ROPC) | ~1 hour | REST API calls, UpdateTokens `accessToken` field |
 | OAuth2 refresh token | Same endpoint | Long-lived | Refreshing OAuth2 access token on 401 |
 | SignalR negotiate JWT | `POST <ehg-appcomm-host>/datahub/negotiate` | ~1 hour | WebSocket URL `access_token` parameter |
@@ -165,6 +165,7 @@ SignalR connected for urn:ehg:vehicle:...
 ### Standby Mode (12V Off)
 
 When the 12V main switch is off, the SCU enters standby:
+
 - The WebSocket stays open but no sensor data is pushed
 - The stale-data timeout (`STALE_DATA_TIMEOUT = 3 min`) is **skipped** to avoid
   unnecessary reconnections during standby
@@ -180,6 +181,7 @@ When the 12V main switch is off, the SCU enters standby:
 When 12V is toggled back ON **by the user**, the SCU reinitialises (whether this is a
 full reboot or just a reconnection is unknown) and registers a new session at Azure SignalR.
 The integration detects this via `scu_connected` transitioning `false → true` and automatically:
+
 1. Re-sends UpdateTokens (refreshes routing at the hub)
 2. Re-subscribes to all sensor data
 3. Waits 2 seconds for SCU initialisation before acting
@@ -193,7 +195,7 @@ because the hub's routing table points to the old SCU session.
 ### Trigger Sources
 
 | Trigger | Handler | Backoff | Sends commands? |
-|---------|---------|---------|----------------|
+| --------- | --------- | --------- | ---------------- |
 | WebSocket closed/error | `_on_connection_lost()` | Reset to 60s (or 5s cooldown after rapid drop) | No — connection only |
 | No WebSocket activity for 90s | Keepalive timeout in `listen()` | Reset to 60s | No — connection only |
 | Connection age > 4 h | `needs_reconnect` property | Immediate | No — connection only |
@@ -292,7 +294,7 @@ the WebSocket simply closes.
 ### Message Breakdown (v2.23.1)
 
 | Source | Frequency | Messages | Per Hour |
-|--------|-----------|----------|----------|
+| -------- | ----------- | ---------- | ---------- |
 | PIA refresh (lightweight) | Every 60s | 1 | ~60 |
 | PIA full resubscribe | Every 10 min | 7 + 1 refresh | ~48 |
 | UpdateTokens refresh | Every 15 min | 1 | ~4 |
@@ -303,7 +305,7 @@ the WebSocket simply closes.
 ### v2.23.0 — Too Little Traffic (Caused Stale Data)
 
 | Source | Frequency | Messages | Per Hour |
-|--------|-----------|----------|----------|
+| -------- | ----------- | ---------- | ---------- |
 | PIA resubscribe | Every 10 min | 7 + 1 refresh | ~48 |
 | UpdateTokens refresh | Every 15 min | 1 | ~4 |
 | Client keepalive ping | Every 30s | 1 | ~120 |
@@ -315,7 +317,7 @@ and unnecessary reconnects every ~10 min (matching the resubscribe interval).
 ### Pre-v2.23.0 — Too Much Traffic (Caused Server Disconnects)
 
 | Source | Frequency | Messages | Per Hour |
-|--------|-----------|----------|----------|
+| -------- | ----------- | ---------- | ---------- |
 | PIA resubscribe | Every 60s | 7 + 1 refresh | **~480** |
 | UpdateTokens refresh | Every 15 min | 1 | ~4 |
 | Client keepalive ping | Every 30s | 1 | ~120 |
@@ -400,7 +402,7 @@ coverage — only a short reconnect window on failover.
 The suppression gate (`_cloud_on_demand_active()`) requires **all** of:
 
 | Condition | Why |
-|-----------|-----|
+| ----------- | ----- |
 | `cloud_on_demand` option is on | Opt-in only |
 | `ble_enabled` | BLE must be a usable transport |
 | `_ble_connected` | A live BLE link must currently exist |
@@ -436,11 +438,13 @@ so the logs stay interpretable.
 ### Symptom: Connection drops and never reconnects
 
 Check HA logs for:
+
 - `"SignalR reconnect backoff: Xs remaining (attempt N/5)"` — backoff is active
 - `"OAuth2 token refreshed after consecutive failures"` — hard reset triggered
 - `"SignalR connection failed (N/5): ..."` — the actual error causing failures
 
 **Common causes:**
+
 1. **OAuth2 refresh token expired** — Re-authenticate by removing and re-adding the integration
 2. **EHG servers down** — Check if the EHG app itself works
 3. **Network issue** — Check HA''s internet connectivity
@@ -499,6 +503,7 @@ responses, but passive sensors like the fridge door (bus 37) do not update.
 
 **Solution:** Turn 12V ON, wait for `SCU reconnected (scu_connected false→true)`
 in the HA log, then test the fridge door. You should see:
+
 ```
 State change (37,2) fridge_status: 'Closed' → 'Open' (depth=4)
 ```
@@ -506,6 +511,7 @@ State change (37,2) fridge_status: 'Closed' → 'Open' (depth=4)
 ### Symptom: "Command failed after reconnect+retry"
 
 The connection is fully broken and automatic recovery failed. Actions:
+
 1. Reload the integration
 2. If reload fails, check HA logs for auth errors
 3. As last resort, remove and re-add the integration
@@ -558,7 +564,7 @@ switch/light/device commands.
 ## File Reference
 
 | File | Role |
-|------|------|
+| ------ | ------ |
 | `coordinator.py` | Connection lifecycle, reconnection backoff, command routing |
 | `signalr_client.py` | WebSocket management, PIA protocol, keepalive, listen loop |
 | `api.py` | OAuth2 auth, token refresh, SignalR negotiate, REST API |
