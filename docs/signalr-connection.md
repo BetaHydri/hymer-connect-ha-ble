@@ -30,11 +30,6 @@ Home Assistant
                             └── SCU in vehicle (via LTE)
 ```
 
-> ℹ️ **Endpoints redacted.** Concrete EHG cloud hostnames and endpoint paths appear
-> as placeholders (e.g. `<ehg-signalr-host>`, `<ehg-appcomm-host>`,
-> `<oauth-token-endpoint>`, `<remote-access-token-endpoint>`) throughout this
-> documentation; the real values live only in the integration code (`const.py`).
-
 > \* *Always active by default.* The opt-in **`cloud_on_demand`** option
 > (v2.99.0b4+, default **off**) tears the SignalR session down while BLE is
 > healthy and reconnects it only when BLE drops/degrades — see
@@ -569,4 +564,4 @@ switch/light/device commands.
 | `api.py` | OAuth2 auth, token refresh, SignalR negotiate, REST API |
 | `pia_decoder.py` | Protobuf encode/decode for PIA sensor data and commands. Depth filter (depth ≤ 3, or depth 4 for known sensors) prevents phantom values |
 | `button.py` | SCU restart button entity (Request.command.restart) |
-| `const.py` | Timing constants, API URLs, header names |
+| `const.py` | Timing constants, connection constants, header names |
