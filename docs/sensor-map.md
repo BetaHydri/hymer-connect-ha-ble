@@ -375,6 +375,7 @@ JSON int_labels take precedence over hardcoded `_INT_LABELS` in `pia_decoder.py`
 
 **Benefit**: Contributors can extend or add label mappings to any sensor by editing JSON only — no Python coding required.
 
+<a id="bus-1"></a>
 ## Bus 1 — VehicleSignal (Mercedes Sprinter chassis CAN)
 
 > **⚠️ Ignition dependency:** Bus 1 data comes from the Mercedes chassis CAN, which is
@@ -417,6 +418,7 @@ JSON int_labels take precedence over hardcoded `_INT_LABELS` in `pia_decoder.py`
 | (1, 22) | `downhill_assist` | — | — | Downhill assist active (was: high_beam) |
 | (1, 23) | `language` | — | — | Dashboard language code |
 
+<a id="bus-2"></a>
 ## Bus 2 — Schaudt EBL400 (not used by HYMER)
 
 EHG component `EBL400` (kind: habitation, "Habitation Controller 2"), 14 slots
@@ -472,6 +474,7 @@ unmapped pending on-vehicle correlation.
 | (3, 21) | `solar_charger_status` | — | — | MPPT charger status. Discovery: `1` (int) |
 | (3, 22) | `shoreline_connected` | — | — | Shore power connected. Discovery: `False` (bool) |
 
+<a id="bus-8"></a>
 ## Bus 8 — Votronic solar charger (EHG component `VotronicMPP250Duo`)
 
 The EHG app registers componentId 8 under the **generic** name `VotronicMPP250Duo`
@@ -494,6 +497,7 @@ as `voltage × current` instead of reading the raw slot (8, 7) directly.
 | (8, 6) | `solar_aes_active` | — | MPPT AES (Automatic Energy Selector) mode flag (bool). `binary_sensor`. Promoted in v2.63.8. Legacy code label: `vent_3` |
 | (8, 7) | `solar_power_raw` | W | Raw MPPT power output. Decode-only — superseded by computed `solar_power` (V×A). Renamed from `tire_pressure` in v2.63.8. |
 
+<a id="bus-11"></a>
 ## Bus 11 — Living ceiling light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -501,6 +505,7 @@ as `voltage × current` instead of reading the raw slot (8, 7) directly.
 | (11, 1) | `light_living_ceiling` | — | On/off |
 | (11, 2) | `light_living_ceiling_brightness` | % | Brightness |
 
+<a id="bus-12"></a>
 ## Bus 12 — Living ambient light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -509,6 +514,7 @@ as `voltage × current` instead of reading the raw slot (8, 7) directly.
 | (12, 2) | `light_living_ambient_brightness` | % | Brightness |
 | (12, 3) | `light_living_ambient_color_temp` | — | Color temperature |
 
+<a id="bus-13"></a>
 ## Bus 13 — Floor ambient light (HYMER BMC I 680 MY2024, confirmed 2026-07-06)
 
 EHG `LightCircuit03` (Floor). Living-area floor ambient strip. Not present on
@@ -521,6 +527,7 @@ logs. Member of the bus 24 *Wohnen* group — toggling the group also drives thi
 | (13, 1) | `light_floor_ambient` | — | On/off |
 | (13, 2) | `light_floor_ambient_brightness` | % | Brightness (dimmable; no color temp) |
 
+<a id="bus-14"></a>
 ## Bus 14 — Bedroom ceiling light (ML-T 570 CrossOver, confirmed 2026-06-01)
 
 Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery diagnostic sensors. Member of the bus 27 *Privat* group — toggling the group also drives this light.
@@ -530,6 +537,7 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 | (14, 1) | `light_bedroom_ceiling` | — | On/off |
 | (14, 2) | `light_bedroom_ceiling_brightness` | % | Brightness (0–100, dimmable; no color temp) |
 
+<a id="bus-15"></a>
 ## Bus 15 — Bedroom ambient light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -538,6 +546,7 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 | (15, 2) | `light_bedroom_ambient_brightness` | % | Brightness |
 | (15, 3) | `light_bedroom_ambient_color_temp` | — | Color temperature |
 
+<a id="bus-16"></a>
 ## Bus 16 — Night light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -545,6 +554,7 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 | (16, 1) | `light_nightlight` | — | On/off |
 | (16, 2) | `light_nightlight_brightness` | % | Brightness |
 
+<a id="bus-17"></a>
 ## Bus 17 — Shower ceiling light (HYMER BMC I 680 MY2024, confirmed 2026-07-06)
 
 EHG `LightCircuit07` (Shower lights). Not present on Grand Canyon S 600/S 700.
@@ -557,6 +567,7 @@ logs. Member of the bus 27 *Privat* group — toggling the group also drives thi
 | (17, 1) | `light_shower_ceiling` | — | On/off |
 | (17, 2) | `light_shower_ceiling_brightness` | % | Brightness (dimmable; no color temp) |
 
+<a id="bus-19"></a>
 ## Bus 19 — Bathroom ceiling light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -564,6 +575,7 @@ logs. Member of the bus 27 *Privat* group — toggling the group also drives thi
 | (19, 1) | `light_bathroom_ceiling` | — | On/off |
 | (19, 2) | `light_bathroom_ceiling_brightness` | % | Brightness |
 
+<a id="bus-21"></a>
 ## Bus 21 — Kitchen light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -575,6 +587,7 @@ logs. Member of the bus 27 *Privat* group — toggling the group also drives thi
 > No color temperature control — confirmed in the EHG app UI. Previously mapped slot 3
 > as `light_kitchen_color_temp` was removed in v2.63.7.
 
+<a id="bus-22"></a>
 ## Bus 22 — Outside LED bar (confirmed at vehicle 2026-04-23)
 
 Previously labelled as fresh water tank. Confirmed at vehicle 2026-04-23: both water tanks were empty but bus 22 showed 88%, matching LED bar brightness on bus 25. Bus 22 is the outside LED bar — same physical light as bus 25 (separate SCU component registration). Sensor entities disabled by default (bus 25 is the primary control channel).
@@ -586,6 +599,7 @@ The controllable light entity for bus 22 is keyed `light_led_bar_outside` and na
 | (22, 1) | `light_led_bar_2` | — | On/off (duplicate of bus 25). Gates the `light_led_bar_outside` light entity. |
 | (22, 2) | `light_led_bar_2_brightness` | % | Brightness (tracks bus 25 LED bar) |
 
+<a id="bus-24"></a>
 ## Bus 24 — All Wohnen light group
 
 Sending (24,1)=true toggles all living area lights (ceiling, ambient, kitchen, seating). **NOT an individual outside light** — verified 2026-04-22: toggling activates all Wohnen lights.
@@ -596,6 +610,7 @@ Sending (24,1)=true toggles all living area lights (ceiling, ambient, kitchen, s
 | (24, 2) | `light_wohnen_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
 | (24, 3) | `light_wohnen_group_night_mode` | — | EHG: `NightMode`. SCU readback = `100` (brightness percentage, not bool). Sending `bool=True` is ignored by SCU. **Not writable as a simple toggle** — may require a different write type or may not be supported on S600 LIM modules. Decode-only. Under observation. |
 
+<a id="bus-25"></a>
 ## Bus 25 — Outside LED bar (confirmed via mitmproxy 2026-04-22)
 
 Previously mislabelled as grey water. Mitmproxy capture confirmed the EHG app sends on/off + brightness commands to bus 25 when toggling the LED bar. Issue #46 resolved.
@@ -606,6 +621,7 @@ Previously mislabelled as grey water. Mitmproxy capture confirmed the EHG app se
 | (25, 2) | `light_led_bar_brightness` | % | Brightness (0-100) |
 | (25, 3) | `light_led_bar_night_mode` | — | EHG: `NightMode`. Same as bus 24 slot 3 — not writable as bool. Decode-only. Under observation. |
 
+<a id="bus-27"></a>
 ## Bus 27 — All Privat light group (discovered 2026-04-22)
 
 Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen group). Sending (27,1)=true toggles all bedroom/bath lights. **NOT the outside LED bar** — verified by user: toggling (27,1) activates all private area lights.
@@ -647,6 +663,7 @@ heading are delivered via the REST API, not PIA.
 | (30, 13) | `ShoreLineConnected` | `shoreline_connected_scu` | — | bool | r | Shore power (deprecated in EHG app; primary source is bus 3 slot 22) |
 | (30, 14) | `VehicleMovement` | `vehicle_movement` | — | bool | r | Vehicle in motion detection |
 
+<a id="bus-34"></a>
 ## Bus 34 — Thetford N4112A fridge (shared S600/S700)
 
 Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
@@ -662,6 +679,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (34, 6) | `WarningErrorInformation` | `fridge_warning` | Fridge warning/error code (int). EHG app shows generic "check manual, error code: N" for Thetford N4000 series (codes 0–13). Displayed as "Error N" by the integration. Discovery: `0` |
 | (34, 7) | `DCVoltage` | `fridge_dc_voltage` | Fridge DC supply voltage. Raw value in mV, displayed as V via `div1000` (e.g. 13000 → 13.0 V). `device_class: voltage`. |
 
+<a id="bus-37"></a>
 ## Bus 37 — VehicleInformation (EHG) / Fridge status readback (PIA)
 
 > **Note:** The EHG app metadata labels this bus as `VehicleInformation` with
@@ -676,6 +694,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (37, 1) | `VehicleType` | `fridge_mode` | Fridge operating mode on S600 PIA. Discovery: `Off` (string) |
 | (37, 2) | `VehicleBrand` | `fridge_status` | Fridge status on S600 PIA. **Not** the fridge door — door is on bus 34 slot 5. |
 
+<a id="bus-43"></a>
 ## Bus 43 — Seating overhead light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -683,6 +702,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (43, 1) | `light_seating_overhead` | — | On/off |
 | (43, 2) | `light_seating_overhead_brightness` | % | Brightness |
 
+<a id="bus-44"></a>
 ## Bus 44 — Bedroom overhead light
 
 | Slot | Sensor Name | Unit | Notes |
@@ -690,6 +710,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (44, 1) | `light_bedroom_overhead` | — | On/off |
 | (44, 2) | `light_bedroom_overhead_brightness` | % | Brightness |
 
+<a id="bus-45"></a>
 ## Bus 45 — SCU / LIM module
 
 | Slot | Sensor Name | Notes |
@@ -699,6 +720,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (45, 10) | `scu_sensor_10` | Discovery: `False` (bool) |
 | (45, 11) | `scu_firmware` | SCU firmware version string. Discovery: `1.12.0.0` |
 
+<a id="bus-49"></a>
 ## Bus 49 — Truma / LIM module
 
 | Slot | Sensor Name | Notes |
@@ -707,6 +729,7 @@ Slot labels verified against EHG app Hermes bundle (APK 2.10.14, decompiled
 | (49, 10) | `truma_status` | Truma status code |
 | (49, 11) | `truma_firmware` | Truma firmware version string |
 
+<a id="bus-58"></a>
 ## Bus 58 — Truma Combi D6E heater (shared S600/S700)
 
 EHG canonical name in parentheses where the local sensor key is a legacy
@@ -726,6 +749,7 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 | (58, 13) | `heater_shoreline_connected` (EHG: `shoreline_connected`) | — | Shoreline connected flag (bool). `r` |
 | (58, 14) | `heater_diesel_safety` (EHG: `window_switch_closed`) | — | Diesel safety interlock flag (bool). `True` = safety OK / heater can run, `False` = interlock inactive. Not a physical window contact. `r` |
 
+<a id="bus-6"></a>
 ## Bus 6 / 31 — Truma Combi E & gas Combi (metadata, unverified)
 
 > **Added v2.86.0** (read/diagnostic sensors in v2.82.0). Two more Truma Combi variants that share the **same slot layout** as the Combi D (bus 57) and Combi D6E (bus 58) — confirmed because the bus-6/31 diagnostic slots (7/10/12/13/14) line up 1:1 with bus 57. They load as full climate profiles (`truma_heater_e` / `truma_heater_g`) reusing the same driver classes, so a reported bus materialises a thermostat + boiler-mode select (+ energy select on the Combi E). **Write paths UNVERIFIED** — test controls. Observation-gated (`require_observed`), and mutually exclusive in practice (a vehicle reports one Truma bus).
@@ -737,6 +761,21 @@ misnomer kept for backwards-compatibility with existing dashboards/history.
 
 Backing readback sensors: `heater_e_*` (6,4/5/6/8/9) and `heater_g_*` (31,4/5/6/8). Slot semantics are identical to [Bus 58](#bus-58--truma-combi-d6e-heater-shared-s600s700). Enums from Dan Simms' metadata overlay (`BOILER_MODE_OPTIONS` = OFF/ECO/HOT, `HEATER_ENERGY_OPTIONS`). `heater_air_mode` (slot 11) has no enum in the catalog and is left decode-only.
 
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (6, 4) | `heater_e_fuel_type` | sensor | — | r |
+| (6, 5) | `heater_e_water_mode` | sensor | — | r |
+| (6, 6) | `heater_e_fuel_type_2` | sensor | — | r |
+| (6, 7) | `heater_e_panel_busy` | binary_sensor | — | r |
+| (6, 8) | `heater_e_setpoint` | sensor | °C | r |
+| (6, 9) | `heater_e_electric_power` | sensor | W | r |
+| (6, 10) | `heater_e_combi_error` | binary_sensor | — | r |
+| (6, 12) | `heater_e_response_error` | binary_sensor | — | r |
+| (6, 13) | `heater_e_shoreline_connected` | binary_sensor | — | r |
+| (6, 14) | `heater_e_window_switch_closed` | binary_sensor | — | r |
+
+<a id="bus-60"></a>
 ## Bus 60 — Dometic Compressor Fridge (DometicCompressorFridge)
 
 > **Vehicles:** Eriba Car 602 (2025, VW Crafter) and HYMER-brand motorhomes fitted with a Dometic compressor fridge — including the **ML-T 580**, which can be ordered with different fridges (Jos's ML-T 580 has the Dometic bus-60 unit). The fridge type follows the build order, not the model line: the ML-T 570 CrossOver uses the Thetford Compressor T2120C (bus 114), S600/S700 use Thetford absorber (bus 34/37) and BMC I 680 uses Thetford absorber (bus 32) — none of those use bus 60.
@@ -772,6 +811,7 @@ Both selects use the generic stepped/string-select driver (`HymerSteppedSelect`)
 >
 > The two readable capability flags `60,14` / `60,15` (Fan1/Fan2 available) **were** promoted to diagnostic binary sensors in v2.87.0. See `docs/ehg-app-metadata.md` for the full slot definitions.
 
+<a id="bus-66"></a>
 ## Bus 66 — Dinette pendant lamp (ML-T 570 CrossOver, confirmed 2026-06-01)
 
 Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-T 570 CrossOver by user @mcfly1969 in [#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7) via the dynamic-discovery diagnostic sensors. Member of the bus 24 *Wohnen* group — toggling the group also drives this light.
@@ -781,6 +821,7 @@ Not present on Grand Canyon S 600/S 700. Discovered and confirmed on a HYMER ML-
 | (66, 1) | `light_dinette_pendant` | — | On/off |
 | (66, 2) | `light_dinette_pendant_brightness` | % | Brightness (0–100, dimmable; no color temp) |
 
+<a id="bus-99"></a>
 ## Bus 99 — BOS LUX LiFePO4 BMS (4×80Ah)
 
 Bus 99 is the BOS LUX LiFePO4 BMS on **both** S600 and S700 — same slot layout.
@@ -876,6 +917,7 @@ diesel tank capacity (default: 93 L for Sprinter 419/519 CDI).
 Settings → Integrations → HYMER Connect → Configure → "Diesel tank capacity"
 Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI standard).
 
+<a id="bus-103"></a>
 ## Bus 103 / 106 — Vitrifrigo & Thetford T2095 compressor fridges (metadata, unverified)
 
 > **Added v2.85.0** (read/diagnostic sensors in v2.82.0). Two compressor fridges controlled via the generic stepped-select driver — the same pattern as the Dometic (bus 60) and Thetford absorber (bus 34) fridges: **FridgeOn** = slot 1 (bool), **FridgeLevel** = slot 3 (int 1–5), and on the Vitrifrigo a **mode** string on slot 2. **Write paths UNVERIFIED** — test controls. Observation-gated (`require_observed`).
@@ -887,6 +929,15 @@ Range: 30–200 L. Common Sprinter values: 71 L (314/316 CDI), 93 L (419/519 CDI
 
 Cooling-step behaviour: selecting a level writes `FridgeOn` (slot 1) = `true`, waits 500 ms, then writes the level (slot 3); **Off** writes `FridgeOn` = `false` (mirrors the [Dometic](#bus-60--dometic-compressor-fridge-dometiccompressorfridge) driver). Backing readback sensors: `fridge_vitrifrigo_*` (103,1/2/3) and `fridge_thetford_2095_*` (106,1/3). Full slot catalog: [`docs/ehg-app-metadata.md`](ehg-app-metadata.md).
 
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (103, 1) | `fridge_vitrifrigo_power` | binary_sensor | — | r |
+| (103, 2) | `fridge_vitrifrigo_mode_state` | sensor | — | r |
+| (103, 3) | `fridge_vitrifrigo_level` | sensor | — | r |
+| (103, 4) | `fridge_vitrifrigo_warning` | sensor | — | r |
+
+<a id="bus-114"></a>
 ## Bus 114 — Thetford Compressor T2120C fridge (ML-T 570 CrossOver, confirmed 2026-06-07)
 
 Not present on Grand Canyon S 600/S 700 — those use a Thetford absorber fridge on bus 34/37 instead.
@@ -932,6 +983,7 @@ See [#8 (comment)](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8#is
 | 10 | Ambient temperature sensor defective |
 | 11 | Ambient temperature shutdown |
 
+<a id="bus-116"></a>
 ## Bus 116 — DellCool Compressor Fridge (metadata, unverified)
 
 EHG component `DellCoolFridge` (kind: `fridge`). **Mapped from EHG app metadata in the shared
@@ -961,6 +1013,7 @@ Bus 116 is already mapped in the shared `base.json` (sensors above + two gated s
 
 </details>
 
+<a id="bus-74"></a>
 ## Bus 74 — SIU Smart Temperature Sensor (ML-T 570 CrossOver, confirmed 2026-06-08)
 
 First **SIU (Smart Interface Unit)** sensor bus ever mapped. The SIU is an EHG BLE gateway that
@@ -978,6 +1031,7 @@ Wohnbereich). Multiple devices on bus 74 are separated by the **auto-slot** inst
 | (74, 2) | `hss_temp{n}_humidity` | % | Humidity reading. Auto-slot `74,2#tp{n}`. User reports 32–33 % matching EHG app. |
 | (74, 3) | `hss_temp{n}_battery` | % | Sensor battery level. Auto-slot `74,3#tp{n}`. `device_class: battery`. |
 
+<a id="bus-76"></a>
 ## Bus 76 — Water tank levels (ML-T 570 CrossOver, confirmed 2026-06-08)
 
 Not present on Grand Canyon S 600/S 700 — those use bus 3 slots 8/9 (`fresh_water_level_ebl` /
@@ -990,6 +1044,7 @@ changes in real time ([#8](https://github.com/BetaHydri/hymer-connect-ha-ble/iss
 | (76, 1) | `fresh_water_level` | % | Fresh water tank level. Value decreases when water flows out. |
 | (76, 2) | `gray_water_level` | % | Grey water tank level. Value increases when drain water flows in. |
 
+<a id="bus-121"></a>
 ## Bus 121 — Victron MultiPlus 12/1600/70 (inverter/charger) — NON-FUNCTIONAL
 
 From EHG app metadata extraction (Dan, April 2026). SCU component 121 = VictronMultiplus.
@@ -1031,6 +1086,7 @@ All entities disabled by default.
 | (121, 18) | `victron_device_failure` | r | — | Device failure status |
 | (121, 19) | `victron_firmware` | r | — | Firmware version string |
 
+<a id="bus-5"></a>
 ## Bus 5 — Alde 3030 hydronic heater (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 
 First **Alde** heater mapped in this repository. Not present on Grand Canyon S 600/S 700 or
@@ -1082,6 +1138,7 @@ Confirmed but not yet exposed (from the decompiled `Alde3020` model — candidat
 
 Unmapped slots remain available as disabled `Discovered bus 5 slot N` diagnostic sensors.
 
+<a id="bus-10"></a>
 ## Bus 10 — TenHaaft satellite dish (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 
 EHG component `TenhaaftSatAntenna` (kind: `sat_antenna`). Confirmed on a HYMER BMC I 680 by
@@ -1129,6 +1186,7 @@ The satellite entities map cleanly onto stock HA cards (no custom/HACS frontend 
 - **Dish moving / parked / standby** (`binary_sensor.hymer_sat_dish_moving`, `…_sat_safe_position`, `…_sat_standby`) → an **Entities card** to see live movement/park/standby state while the dish operates.
 - When the remaining write-only commands (stop/sleep) are exposed later as buttons, a **Horizontal-stack of Button cards** is the natural layout.
 
+<a id="bus-29"></a>
 ## Bus 29 — Habitation battery (HYMER BMC I 680 MY2024, confirmed 2026-07-16)
 
 Bus 29 is present on the HYMER BMC I 680 and unused on S600/S700/ML-T. Confirmed on-vehicle by
@@ -1142,6 +1200,7 @@ battery percentage and his Home Assistant history timing.
 
 Unmapped slots remain available as disabled `Discovered bus 29 slot N` diagnostic sensors.
 
+<a id="bus-32"></a>
 ## Bus 32 — Thetford N4142E+ absorber fridge (HYMER BMC I 680 MY2024, confirmed 2026-07-11)
 
 EHG component `ThetfordN4000` family. Not present on Grand Canyon S 600/S 700 (bus 34/37) or
@@ -1168,3 +1227,627 @@ Writable controls (⚠️ **write paths UNVERIFIED on-vehicle** — test builds,
 > Slots **(32, 2)** and **(32, 3)** appear in both tables on purpose: they are the readback sensors (top table) that the two selects (bottom table) read back **and** write to — one slot with a read sensor **and** its control, not a duplicate. Same readback+control pattern as the Dometic fridge (bus 60).
 
 All decompiled bus-32 slots are now mapped: the former "not yet exposed" slots (32, 8) `error_warning_information` and (32, 10) `automatic_mode_active` were surfaced as read/diagnostic sensors in **v2.82.0** (see the slot table above).
+
+<!-- AUTO-BUS-TABLES:START -->
+
+## Appendix — auto-generated bus tables
+
+Generated directly from the live integration map (`sensor_maps/base.json` + `lights.json`). These cover mapped buses without a hand-curated section above; they list exactly the slots the integration reads/writes. The EHG app may define additional slots — see the component table in `ehg-app-metadata.md`.
+
+<a id="bus-7"></a>
+### Bus 7
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (7, 1) | `aventa_setpoint` | sensor | °C | r |
+| (7, 2) | `aventa_actual_room_temperature` | sensor | °C | r |
+| (7, 3) | `aventa_mode` | sensor | — | r |
+| (7, 4) | `aventa_fan_speed` | sensor | — | r |
+| (7, 6) | `aventa_air_con_error` | binary_sensor | — | r |
+| (7, 7) | `aventa_manual_mode` | binary_sensor | — | r |
+
+<a id="bus-9"></a>
+### Bus 9
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (9, 1) | `dometic_s10_power` | binary_sensor | — | r |
+| (9, 2) | `dometic_s10_power_mode` | sensor | — | r |
+| (9, 3) | `dometic_s10_level` | sensor | — | r |
+| (9, 4) | `dometic_s10_busy` | binary_sensor | — | r |
+| (9, 5) | `dometic_s10_door` | binary_sensor | — | r |
+| (9, 6) | `dometic_s10_temperature_state` | sensor | — | r |
+| (9, 7) | `dometic_s10_power_source` | sensor | — | r |
+| (9, 8) | `dometic_s10_warning` | sensor | — | r |
+
+<a id="bus-18"></a>
+### Bus 18
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (18, 1) | `light_shower_ambient` | binary_sensor | — | r |
+| (18, 2) | `light_shower_ambient_brightness` | sensor | % | r |
+
+<a id="bus-31"></a>
+### Bus 31
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (31, 4) | `heater_g_fuel_type` | sensor | — | r |
+| (31, 5) | `heater_g_water_mode` | sensor | — | r |
+| (31, 6) | `heater_g_fuel_type_2` | sensor | — | r |
+| (31, 7) | `heater_g_panel_busy` | binary_sensor | — | r |
+| (31, 8) | `heater_g_setpoint` | sensor | °C | r |
+| (31, 10) | `heater_g_error` | binary_sensor | — | r |
+| (31, 12) | `heater_g_response_error` | binary_sensor | — | r |
+| (31, 13) | `heater_g_shoreline_connected` | binary_sensor | — | r |
+| (31, 14) | `heater_g_window_switch_closed` | binary_sensor | — | r |
+
+<a id="bus-33"></a>
+### Bus 33
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (33, 6) | `sat_teleco_state` | sensor | — | r |
+| (33, 12) | `sat_teleco_get_alarm` | binary_sensor | — | r |
+| (33, 13) | `sat_teleco_get_alarm_code` | sensor | — | r |
+
+<a id="bus-35"></a>
+### Bus 35
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (35, 1) | `tank_philippi_blackwater_level` | sensor | % | r |
+
+<a id="bus-36"></a>
+### Bus 36
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (36, 1) | `teleco_target_temp` | sensor | — | r |
+| (36, 2) | `teleco_room_temperature` | sensor | °C | r |
+| (36, 3) | `teleco_aircon_mode` | sensor | — | r |
+| (36, 4) | `teleco_fan_mode` | sensor | — | r |
+| (36, 5) | `teleco_light_ctrl` | switch | — | rw |
+
+<a id="bus-52"></a>
+### Bus 52
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (52, 1) | `cbe_pl50_lights_ctrl` | switch | — | rw |
+| (52, 2) | `cbe_pl50_pump_ctrl` | switch | — | rw |
+| (52, 3) | `cbe_pl50_eis_ex_ctrl` | switch | — | rw |
+| (52, 4) | `cbe_pl50_multimedia_ctrl` | switch | — | rw |
+| (52, 5) | `cbe_pl50_external_light_ctrl` | switch | — | rw |
+| (52, 6) | `cbe_pl50_switched_lights_ctrl` | switch | — | rw |
+| (52, 7) | `cbe_pl50_230v_signal` | sensor | — | r |
+| (52, 8) | `cbe_pl50_ignition_signal` | sensor | — | r |
+| (52, 9) | `cbe_pl50_solar_signal` | sensor | — | r |
+| (52, 10) | `cbe_pl50_dplus_simulated` | sensor | — | r |
+| (52, 11) | `cbe_pl50_vehicle_battery_low` | sensor | — | r |
+| (52, 12) | `cbe_pl50_leisure_battery_reserve` | sensor | — | r |
+| (52, 13) | `cbe_pl50_leisure_battery_low` | sensor | — | r |
+| (52, 14) | `cbe_pl50_save_battery` | sensor | — | r |
+| (52, 15) | `cbe_pl50_remote_ctrl` | switch | — | rw |
+| (52, 16) | `cbe_pl50_230v_signal_bool` | binary_sensor | — | r |
+| (52, 17) | `cbe_pl50_ignition_signal_bool` | binary_sensor | — | r |
+
+<a id="bus-53"></a>
+### Bus 53
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (53, 1) | `cbe_water_aux_tank_type` | sensor | — | r |
+| (53, 2) | `cbe_water_waste_water_level` | sensor | % | r |
+| (53, 3) | `cbe_water_aux_level` | sensor | % | r |
+| (53, 4) | `cbe_water_fresh_water_alarm` | sensor | — | r |
+| (53, 5) | `cbe_water_waste_water_alarm` | sensor | — | r |
+| (53, 6) | `cbe_water_aux_alarm` | sensor | — | r |
+
+<a id="bus-54"></a>
+### Bus 54
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (54, 1) | `cbe_sens_internal_temperature` | sensor | °C | r |
+| (54, 2) | `cbe_sens_external_temperature` | sensor | °C | r |
+| (54, 3) | `cbe_sens_vehicle_battery_voltage` | sensor | V | r |
+
+<a id="bus-55"></a>
+### Bus 55
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (55, 1) | `cbe_batinfo_leisure_bat_current` | sensor | A | r |
+| (55, 2) | `cbe_batinfo_leisure_battery_voltage` | sensor | V | r |
+
+<a id="bus-56"></a>
+### Bus 56
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (56, 1) | `thetford_toilet_flush_tank_available` | binary_sensor | — | r |
+| (56, 2) | `thetford_toilet_tank_unit_available` | binary_sensor | — | r |
+| (56, 3) | `thetford_toilet_cartridge_unit_available` | binary_sensor | — | r |
+| (56, 4) | `thetford_toilet_ui_available` | binary_sensor | — | r |
+| (56, 5) | `thetford_toilet_discharge_ui_available` | binary_sensor | — | r |
+| (56, 6) | `thetford_toilet_dplus_status` | binary_sensor | — | r |
+| (56, 7) | `thetford_toilet_pulsing_flush_status` | binary_sensor | — | r |
+| (56, 8) | `thetford_toilet_reuse_grey_water_status` | binary_sensor | — | r |
+| (56, 9) | `thetford_toilet_grey_water_level` | sensor | % | r |
+| (56, 10) | `thetford_toilet_black_water_level` | sensor | % | r |
+| (56, 11) | `thetford_toilet_fresh_water_level` | sensor | % | r |
+| (56, 12) | `thetford_toilet_grey_cartridge_level` | sensor | % | r |
+| (56, 13) | `thetford_toilet_flush_cartridge_level` | sensor | % | r |
+| (56, 14) | `thetford_toilet_black_cartridge_level` | sensor | % | r |
+| (56, 15) | `thetford_toilet_external_bt_connected` | binary_sensor | — | r |
+| (56, 16) | `thetford_toilet_notification` | sensor | — | r |
+
+<a id="bus-57"></a>
+### Bus 57
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (57, 4) | `heater_d_fuel_type` | sensor | — | r |
+| (57, 5) | `heater_d_water_mode` | sensor | — | r |
+| (57, 6) | `heater_d_fuel_type_2` | sensor | — | r |
+| (57, 7) | `heater_d_panel_busy` | binary_sensor | — | r |
+| (57, 8) | `heater_d_setpoint` | sensor | °C | r |
+| (57, 10) | `heater_d_combi_error` | binary_sensor | — | r |
+| (57, 11) | `heater_d_operating_mode` | sensor | — | r |
+| (57, 12) | `heater_d_response_error` | binary_sensor | — | r |
+| (57, 13) | `heater_d_shoreline_connected` | binary_sensor | — | r |
+| (57, 14) | `heater_d_window_switch_closed` | binary_sensor | — | r |
+
+<a id="bus-59"></a>
+### Bus 59
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (59, 1) | `aventa_compact_setpoint` | sensor | °C | r |
+| (59, 2) | `aventa_compact_room_temp` | sensor | °C | r |
+| (59, 3) | `aventa_compact_mode` | sensor | — | r |
+| (59, 4) | `aventa_compact_fan_speed` | sensor | — | r |
+| (59, 5) | `aventa_compact_light` | binary_sensor | — | r |
+| (59, 6) | `aventa_compact_error` | binary_sensor | — | r |
+| (59, 7) | `aventa_compact_manual_mode` | binary_sensor | — | r |
+| (59, 8) | `aventa_compact_automatic_mode` | binary_sensor | — | r |
+
+<a id="bus-65"></a>
+### Bus 65
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (65, 2) | `aventa_direct_actual_room_temperature` | sensor | °C | r |
+| (65, 6) | `aventa_direct_air_con_error` | binary_sensor | — | r |
+| (65, 7) | `aventa_direct_manual_mode` | binary_sensor | — | r |
+
+<a id="bus-79"></a>
+### Bus 79
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (79, 1) | `saphir_compact_target_temp` | sensor | — | r |
+| (79, 2) | `saphir_compact_room_temperature` | sensor | °C | r |
+| (79, 3) | `saphir_compact_aircon_mode` | sensor | — | r |
+| (79, 4) | `saphir_compact_fan_mode` | sensor | — | r |
+| (79, 5) | `saphir_compact_light` | sensor | — | r |
+| (79, 6) | `saphir_compact_error` | binary_sensor | — | r |
+| (79, 7) | `saphir_compact_manual_mode` | binary_sensor | — | r |
+| (79, 8) | `saphir_compact_automatic_mode` | sensor | — | r |
+
+<a id="bus-87"></a>
+### Bus 87
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (87, 1) | `cbe_water_notank_fresh_water_level` | sensor | % | r |
+| (87, 2) | `cbe_water_notank_waste_water_level` | sensor | % | r |
+| (87, 4) | `cbe_water_notank_fresh_water_alarm` | sensor | — | r |
+| (87, 5) | `cbe_water_notank_waste_water_alarm` | sensor | — | r |
+
+<a id="bus-89"></a>
+### Bus 89
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (89, 1) | `saphir_rc_target_temp` | sensor | — | r |
+| (89, 2) | `saphir_rc_room_temperature` | sensor | °C | r |
+| (89, 3) | `saphir_rc_aircon_mode` | sensor | — | r |
+| (89, 4) | `saphir_rc_fan_mode` | sensor | — | r |
+| (89, 5) | `saphir_rc_light` | sensor | — | r |
+| (89, 6) | `saphir_rc_error` | binary_sensor | — | r |
+| (89, 7) | `saphir_rc_manual_mode` | binary_sensor | — | r |
+| (89, 8) | `saphir_rc_automatic_mode` | sensor | — | r |
+
+<a id="bus-91"></a>
+### Bus 91
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (91, 1) | `seelevel_fresh_water_level` | sensor | % | r |
+| (91, 2) | `seelevel_black_water_level` | sensor | % | r |
+| (91, 3) | `seelevel_grey_water_level` | sensor | % | r |
+| (91, 4) | `seelevel_lpg_level` | sensor | % | r |
+| (91, 5) | `seelevel_fresh_water_level_2` | sensor | % | r |
+| (91, 6) | `seelevel_black_water_level_2` | sensor | % | r |
+| (91, 7) | `seelevel_grey_water_level_2` | sensor | % | r |
+| (91, 8) | `seelevel_lpg_level_2` | sensor | % | r |
+| (91, 9) | `seelevel_sensor_failure` | binary_sensor | — | r |
+| (91, 10) | `seelevel_device_failure` | binary_sensor | — | r |
+| (91, 11) | `seelevel_firmware` | sensor | — | r |
+
+<a id="bus-92"></a>
+### Bus 92
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (92, 2) | `inverter_pd1600_device_failure` | binary_sensor | — | r |
+| (92, 3) | `inverter_pd1600_device_failure_status` | sensor | — | r |
+| (92, 4) | `inverter_pd1600_firmware` | sensor | — | r |
+
+<a id="bus-93"></a>
+### Bus 93
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (93, 1) | `light_bedroom_furniture` | binary_sensor | — | r |
+| (93, 2) | `light_bedroom_furniture_brightness` | sensor | % | r |
+
+<a id="bus-95"></a>
+### Bus 95
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (95, 1) | `airxcel_aircon_mode_front` | sensor | — | r |
+| (95, 2) | `airxcel_aircon_fan_mode_front` | sensor | — | r |
+| (95, 3) | `airxcel_aircon_fan_speed_front` | sensor | — | r |
+| (95, 4) | `airxcel_heat_temp_front` | sensor | — | r |
+| (95, 5) | `airxcel_cool_temp_front` | sensor | — | r |
+| (95, 6) | `airxcel_roof_fan_onoff_front` | sensor | — | r |
+| (95, 7) | `airxcel_roof_fan_mode_front` | sensor | — | r |
+| (95, 8) | `airxcel_fan_speed_mode_front` | sensor | — | r |
+| (95, 9) | `airxcel_roof_fan_speed_front` | sensor | — | r |
+| (95, 10) | `airxcel_airflow_front` | sensor | — | r |
+| (95, 11) | `airxcel_dome_front` | sensor | — | r |
+| (95, 12) | `airxcel_rain_sensor_onoff_front` | sensor | — | r |
+| (95, 13) | `airxcel_rain_status_front` | sensor | — | r |
+| (95, 14) | `airxcel_ambient_temperature_front` | sensor | °C | r |
+| (95, 15) | `airxcel_aircon_failure_front` | sensor | — | r |
+| (95, 16) | `airxcel_fan_failure_front` | sensor | — | r |
+| (95, 17) | `airxcel_aircon_mode_rear` | sensor | — | r |
+| (95, 18) | `airxcel_aircon_fan_mode_rear` | sensor | — | r |
+| (95, 19) | `airxcel_aircon_fan_speed_rear` | sensor | — | r |
+| (95, 20) | `airxcel_heat_temp_rear` | sensor | — | r |
+| (95, 21) | `airxcel_cool_temp_rear` | sensor | — | r |
+| (95, 22) | `airxcel_roof_fan_onoff_rear` | sensor | — | r |
+| (95, 23) | `airxcel_roof_fan_mode_rear` | sensor | — | r |
+| (95, 24) | `airxcel_fan_speed_mode_rear` | sensor | — | r |
+| (95, 25) | `airxcel_roof_fan_speed_rear` | sensor | — | r |
+| (95, 26) | `airxcel_airflow_rear` | sensor | — | r |
+| (95, 27) | `airxcel_dome_rear` | sensor | — | r |
+| (95, 28) | `airxcel_rain_sensor_onoff_rear` | sensor | — | r |
+| (95, 29) | `airxcel_rain_status_rear` | sensor | — | r |
+| (95, 30) | `airxcel_ambient_temperature_rear` | sensor | °C | r |
+| (95, 31) | `airxcel_aircon_failure_rear` | sensor | — | r |
+| (95, 32) | `airxcel_fan_failure_rear` | sensor | — | r |
+| (95, 33) | `airxcel_firmware` | sensor | — | r |
+
+<a id="bus-96"></a>
+### Bus 96
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (96, 3) | `battery_guard_low_warning` | binary_sensor | — | r |
+| (96, 4) | `battery_guard_device_failure` | sensor | — | r |
+| (96, 5) | `battery_guard_firmware` | sensor | — | r |
+
+<a id="bus-97"></a>
+### Bus 97
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (97, 1) | `cerbo_lpg_level` | sensor | % | r |
+| (97, 2) | `cerbo_lpg_level_2` | sensor | % | r |
+| (97, 3) | `cerbo_battery_voltage` | sensor | V | r |
+| (97, 4) | `cerbo_battery_current` | sensor | A | r |
+| (97, 5) | `cerbo_battery_soc` | sensor | % | r |
+| (97, 6) | `cerbo_battery_time_remaining` | sensor | — | r |
+| (97, 7) | `cerbo_solar_power` | sensor | W | r |
+| (97, 8) | `cerbo_solar_active` | binary_sensor | — | r |
+| (97, 9) | `cerbo_solar_voltage` | sensor | V | r |
+| (97, 10) | `cerbo_solar_current` | sensor | A | r |
+| (97, 11) | `cerbo_sensor_failure` | sensor | — | r |
+| (97, 12) | `cerbo_firmware` | sensor | — | r |
+
+<a id="bus-98"></a>
+### Bus 98
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (98, 11) | `power_modulus_device_failure` | sensor | — | r |
+| (98, 14) | `power_modulus_galley_light_switch` | binary_sensor | — | r |
+| (98, 35) | `power_modulus_firmware` | sensor | — | r |
+
+<a id="bus-100"></a>
+### Bus 100
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (100, 1) | `tpms_pressure_fr` | sensor | psi | r |
+| (100, 2) | `tpms_pressure_fl` | sensor | psi | r |
+| (100, 3) | `tpms_pressure_br` | sensor | psi | r |
+| (100, 4) | `tpms_pressure_bl` | sensor | psi | r |
+| (100, 5) | `tpms_pressure_status_fr` | sensor | — | r |
+| (100, 6) | `tpms_pressure_status_fl` | sensor | — | r |
+| (100, 7) | `tpms_pressure_status_br` | sensor | — | r |
+| (100, 8) | `tpms_pressure_status_bl` | sensor | — | r |
+| (100, 9) | `tpms_sensor_failure` | sensor | — | r |
+| (100, 10) | `tpms_temp_fr` | sensor | °C | r |
+| (100, 11) | `tpms_temp_fl` | sensor | °C | r |
+| (100, 12) | `tpms_temp_br` | sensor | °C | r |
+| (100, 13) | `tpms_temp_bl` | sensor | °C | r |
+| (100, 14) | `tpms_temp_status_fr` | sensor | — | r |
+| (100, 15) | `tpms_temp_status_fl` | sensor | — | r |
+| (100, 16) | `tpms_temp_status_br` | sensor | — | r |
+| (100, 17) | `tpms_temp_status_bl` | sensor | — | r |
+| (100, 18) | `tpms_pressure_spare` | sensor | psi | r |
+| (100, 19) | `tpms_pressure_status_spare` | sensor | — | r |
+| (100, 20) | `tpms_temp_spare` | sensor | °C | r |
+| (100, 21) | `tpms_temp_status_spare` | sensor | — | r |
+| (100, 22) | `tpms_firmware` | sensor | — | r |
+
+<a id="bus-101"></a>
+### Bus 101
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (101, 1) | `roof_roof_state` | sensor | — | r |
+| (101, 2) | `roof_airmat_state` | sensor | — | r |
+| (101, 3) | `roof_roof_control_enabled` | binary_sensor | — | r |
+| (101, 4) | `roof_error_code` | sensor | — | r |
+| (101, 5) | `roof_error_code_instance` | sensor | — | r |
+
+<a id="bus-102"></a>
+### Bus 102
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (102, 1) | `maxxfan_on` | binary_sensor | — | r |
+| (102, 2) | `maxxfan_dome_position` | sensor | — | r |
+| (102, 3) | `maxxfan_speed_state` | sensor | — | r |
+| (102, 4) | `maxxfan_rain_sensor` | binary_sensor | — | r |
+| (102, 5) | `maxxfan_device_failure` | binary_sensor | — | r |
+| (102, 6) | `maxxfan_air_direction` | sensor | — | r |
+| (102, 7) | `maxxfan_rear_on` | binary_sensor | — | r |
+| (102, 8) | `maxxfan_rear_dome_position` | sensor | — | r |
+| (102, 9) | `maxxfan_rear_speed_state` | sensor | — | r |
+| (102, 10) | `maxxfan_rear_air_direction` | sensor | — | r |
+| (102, 11) | `maxxfan_rear_rain_sensor` | binary_sensor | — | r |
+| (102, 12) | `maxxfan_firmware` | sensor | — | r |
+
+<a id="bus-105"></a>
+### Bus 105
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (105, 1) | `ibs_wake_up_status` | sensor | — | r |
+| (105, 2) | `ibs_low_voltage` | binary_sensor | — | r |
+| (105, 3) | `ibs_power_on` | binary_sensor | — | r |
+| (105, 4) | `ibs_engine_start` | binary_sensor | — | r |
+| (105, 5) | `ibs_sulfation` | binary_sensor | — | r |
+| (105, 6) | `ibs_battery_defect` | binary_sensor | — | r |
+| (105, 7) | `ibs_soc_upper_tolerance` | sensor | % | r |
+| (105, 8) | `ibs_soc_lower_tolerance` | sensor | % | r |
+| (105, 9) | `ibs_capacity_loss_top` | sensor | % | r |
+| (105, 10) | `ibs_capacity_loss_bottom` | sensor | % | r |
+| (105, 11) | `ibs_response_error` | binary_sensor | — | r |
+| (105, 12) | `ibs_battery_current` | sensor | A | r |
+| (105, 13) | `ibs_battery_voltage` | sensor | V | r |
+| (105, 14) | `ibs_battery_temperature` | sensor | °C | r |
+| (105, 15) | `ibs_current_autorange` | sensor | — | r |
+| (105, 16) | `ibs_error` | binary_sensor | — | r |
+| (105, 17) | `ibs_state_of_charge` | sensor | % | r |
+| (105, 18) | `ibs_state_of_health` | sensor | % | r |
+| (105, 19) | `ibs_est_voltage_drop` | sensor | V | r |
+| (105, 20) | `ibs_opt_charge_voltage` | sensor | V | r |
+| (105, 21) | `ibs_avg_internal_resistance` | sensor | mΩ | r |
+| (105, 22) | `ibs_available_capacity` | sensor | Ah | r |
+| (105, 23) | `ibs_dischargeable_capacity` | sensor | Ah | r |
+| (105, 24) | `ibs_nominal_capacity` | sensor | Ah | r |
+| (105, 25) | `ibs_recalibrated` | binary_sensor | — | r |
+| (105, 27) | `ibs_battery_table_year` | sensor | — | r |
+| (105, 28) | `ibs_battery_table_week` | sensor | — | r |
+| (105, 29) | `ibs_battery_table_variant` | sensor | — | r |
+| (105, 31) | `ibs_battery_table_valid` | binary_sensor | — | r |
+| (105, 39) | `ibs_battery_time_remaining` | sensor | min | r |
+
+<a id="bus-106"></a>
+### Bus 106
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (106, 1) | `fridge_thetford_2095_power` | binary_sensor | — | r |
+| (106, 3) | `fridge_thetford_2095_level` | sensor | — | r |
+| (106, 5) | `fridge_thetford_2095_door` | binary_sensor | — | r |
+| (106, 6) | `fridge_thetford_2095_warning` | sensor | — | r |
+| (106, 7) | `fridge_thetford_2095_supply_voltage` | sensor | V | r |
+
+<a id="bus-107"></a>
+### Bus 107
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (107, 5) | `awning_status` | sensor | — | r |
+| (107, 6) | `awning_lock` | sensor | — | r |
+| (107, 7) | `awning_position` | sensor | — | r |
+| (107, 8) | `awning_direction` | sensor | — | r |
+| (107, 9) | `awning_tilt_front` | binary_sensor | — | r |
+| (107, 10) | `awning_tilt_rear` | binary_sensor | — | r |
+
+<a id="bus-109"></a>
+### Bus 109
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (109, 1) | `switchpad_mode` | sensor | — | r |
+| (109, 2) | `switchpad_mode_status` | sensor | — | r |
+| (109, 3) | `switchpad_onboard_brightness` | sensor | — | r |
+| (109, 4) | `switchpad_away_brightness` | sensor | — | r |
+| (109, 5) | `switchpad_sleep_brightness` | sensor | — | r |
+| (109, 6) | `switchpad_device_failure` | binary_sensor | — | r |
+| (109, 7) | `switchpad_firmware` | sensor | — | r |
+
+<a id="bus-110"></a>
+### Bus 110
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (110, 2) | `ad100_shore_line` | sensor | — | r |
+| (110, 4) | `ad100_living_battery_voltage` | sensor | V | r |
+| (110, 5) | `ad100_starter_battery_voltage` | sensor | V | r |
+| (110, 6) | `ad100_fresh_water_level` | sensor | % | r |
+| (110, 7) | `ad100_waste_water_level` | sensor | % | r |
+| (110, 8) | `ad100_fresh_water_sensor_failure` | binary_sensor | — | r |
+| (110, 9) | `ad100_waste_water_sensor_failure` | binary_sensor | — | r |
+| (110, 12) | `ad100_shore_line_connected` | binary_sensor | — | r |
+| (110, 13) | `ad100_aux_status` | binary_sensor | — | r |
+| (110, 14) | `ad100_light_status` | binary_sensor | — | r |
+
+<a id="bus-111"></a>
+### Bus 111
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (111, 1) | `battery_bos_position` | sensor | — | r |
+| (111, 2) | `battery_bos_display_name` | sensor | — | r |
+| (111, 3) | `battery_bos_temperature_upper_limit` | sensor | °C | r |
+| (111, 4) | `battery_bos_temperature_lower_limit` | sensor | °C | r |
+| (111, 5) | `battery_bos_battery_state_of_charge_lower_limit` | sensor | % | r |
+| (111, 6) | `battery_bos_software_version` | sensor | — | r |
+| (111, 7) | `battery_bos_hardware_version` | sensor | — | r |
+
+<a id="bus-112"></a>
+### Bus 112
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (112, 1) | `shoreline_on` | binary_sensor | — | r |
+
+<a id="bus-117"></a>
+### Bus 117
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (117, 1) | `solar_cbe_active` | binary_sensor | — | r |
+| (117, 2) | `solar_cbe_voltage` | sensor | V | r |
+| (117, 3) | `solar_cbe_current` | sensor | A | r |
+| (117, 4) | `solar_cbe_charging_state` | sensor | — | r |
+
+<a id="bus-118"></a>
+### Bus 118
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (118, 1) | `indelb_power` | sensor | — | r |
+| (118, 2) | `indelb_power_mode` | sensor | — | r |
+| (118, 3) | `indelb_level` | sensor | — | r |
+| (118, 4) | `indelb_door_open` | binary_sensor | — | r |
+| (118, 5) | `indelb_error` | sensor | — | r |
+| (118, 6) | `indelb_firmware` | sensor | — | r |
+
+<a id="bus-122"></a>
+### Bus 122
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (122, 2) | `ad100_nopump_shore_line` | sensor | — | r |
+| (122, 3) | `ad100_nopump_living_battery_voltage` | sensor | V | r |
+| (122, 4) | `ad100_nopump_starter_battery_voltage` | sensor | V | r |
+| (122, 5) | `ad100_nopump_fresh_water_level` | sensor | % | r |
+| (122, 6) | `ad100_nopump_waste_water_level` | sensor | % | r |
+| (122, 7) | `ad100_nopump_fresh_water_sensor_failure` | binary_sensor | — | r |
+| (122, 8) | `ad100_nopump_waste_water_sensor_failure` | binary_sensor | — | r |
+| (122, 11) | `ad100_nopump_shore_line_connected` | binary_sensor | — | r |
+| (122, 12) | `ad100_nopump_aux_status` | binary_sensor | — | r |
+| (122, 13) | `ad100_nopump_light_status` | binary_sensor | — | r |
+
+<a id="bus-123"></a>
+### Bus 123
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (123, 2) | `aventa_2g_actual_room_temperature` | sensor | C | r |
+| (123, 5) | `aventa_2g_aircon_error` | binary_sensor | — | r |
+| (123, 6) | `aventa_2g_manual_mode` | binary_sensor | — | r |
+| (123, 8) | `aventa_2g_firmware` | sensor | — | r |
+
+<a id="bus-124"></a>
+### Bus 124
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (124, 1) | `timberline_water_mode` | sensor | — | r |
+| (124, 2) | `timberline_water_temperature` | sensor | °C | r |
+| (124, 3) | `timberline_water_burner` | binary_sensor | — | r |
+| (124, 4) | `timberline_water_ac_element` | binary_sensor | — | r |
+| (124, 5) | `timberline_water_ignition_failure` | binary_sensor | — | r |
+| (124, 6) | `timberline_engine_preheat_ctrl` | switch | — | rw |
+| (124, 7) | `timberline_water_hot_priority` | binary_sensor | — | r |
+| (124, 8) | `timberline_floor_heater_ctrl` | switch | — | rw |
+| (124, 9) | `timberline_floor_pump` | binary_sensor | — | r |
+| (124, 10) | `timberline_floor_temperature` | sensor | °C | r |
+| (124, 11) | `timberline_floor_target_temp` | sensor | — | r |
+| (124, 12) | `timberline_floor_hysteresis` | sensor | — | r |
+| (124, 13) | `timberline_common_device_failure` | sensor | — | r |
+
+<a id="bus-125"></a>
+### Bus 125
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (125, 1) | `timberline_furnace_mode` | sensor | — | r |
+| (125, 2) | `timberline_fan_speed` | sensor | — | r |
+| (125, 3) | `timberline_air_mode` | sensor | — | r |
+| (125, 4) | `timberline_air_target_temp` | sensor | — | r |
+| (125, 5) | `timberline_air_schedule` | sensor | — | r |
+| (125, 6) | `timberline_storage_mode_ctrl` | switch | — | rw |
+| (125, 7) | `timberline_air_day_target_temp` | sensor | — | r |
+| (125, 8) | `timberline_air_day_start_time` | sensor | — | r |
+| (125, 9) | `timberline_air_night_target_temp` | sensor | — | r |
+| (125, 10) | `timberline_air_night_start_time` | sensor | — | r |
+| (125, 11) | `timberline_zone_ambient_temperature` | sensor | °C | r |
+| (125, 12) | `timberline_circulation_pump` | sensor | — | r |
+
+<a id="bus-126"></a>
+### Bus 126
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (126, 1) | `teb310d_shore_line_connected` | binary_sensor | — | r |
+| (126, 2) | `teb310d_d_plus_state` | binary_sensor | — | r |
+| (126, 3) | `teb310d_disconnectable_loads_disarmed` | binary_sensor | — | r |
+| (126, 4) | `teb310d_not_disconnectable_load` | binary_sensor | — | r |
+| (126, 7) | `teb310d_starter_battery_voltage` | sensor | V | r |
+| (126, 8) | `teb310d_living_battery_voltage` | sensor | V | r |
+| (126, 9) | `teb310d_living_battery_current` | sensor | A | r |
+| (126, 10) | `teb310d_charger_current230_v` | sensor | A | r |
+| (126, 11) | `teb310d_fresh_water_level` | sensor | % | r |
+| (126, 12) | `teb310d_waste_water_level` | sensor | % | r |
+| (126, 13) | `teb310d_charger_version` | sensor | — | r |
+| (126, 14) | `teb310d_panel_version` | sensor | — | r |
+| (126, 15) | `teb310d_charger_model_name1` | sensor | — | r |
+| (126, 16) | `teb310d_charger_model_name2` | sensor | — | r |
+| (126, 17) | `teb310d_battery_type` | sensor | — | r |
+| (126, 18) | `teb310d_imax_out` | sensor | A | r |
+
+<a id="bus-127"></a>
+### Bus 127
+
+| Slot | Sensor Name | Platform | Unit | Mode |
+|------|------------|----------|------|------|
+| (127, 1) | `thetford_toilet_eco_black_water_level` | sensor | % | r |
+| (127, 2) | `thetford_toilet_eco_notification` | sensor | — | r |
+
+<!-- AUTO-BUS-TABLES:END -->
