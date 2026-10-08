@@ -1257,6 +1257,13 @@ class HymerConnectCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Raises:
             HomeAssistantError: All send attempts failed.
         """
+        # cloud_on_demand: reaching the cloud path means BLE did not deliver this
+        # write (disabled, disconnected, or no ACK). Restart the BLE-stability
+        # grace clock so the just-(re)connected cloud session is not torn down on
+        # the very next poll — it stays warm until BLE delivers writes cleanly
+        # again for the full grace window. No-op for cloud-only enrolments.
+        if self.cloud_on_demand and self._ble_connected:
+            self._ble_healthy_since = time.monotonic()
         for attempt in range(2):
             await self.async_ensure_signalr_healthy()
             method = getattr(self._signalr, method_name)

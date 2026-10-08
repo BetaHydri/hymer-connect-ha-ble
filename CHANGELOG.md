@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.2] - 2026-10-08
+
+A small, targeted follow-up to the opt-in **"cloud on demand"** feature from `2.99.0`. No change for cloud-only installs; restart Home Assistant after updating.
+
+### Fixed
+
+- **With "cloud on demand" enabled, a command that falls back from BLE to the cloud no longer triggers connect/teardown churn.** When BLE is healthy the cloud session is intentionally closed and the integration runs BLE-only. If a single BLE write is then not acknowledged while the link still appears connected, the command correctly reconnects the cloud on demand and is delivered — but the next poll would immediately tear that fresh session down again, so repeated write retries could ping-pong the cloud connection. The BLE-stability grace clock is now restarted whenever a write falls back to the cloud, keeping the just-reconnected session warm until BLE delivers writes cleanly again for the full grace window. Commands were never lost; this only removes the needless reconnect churn in that edge case.
+
 ## [2.99.1] - 2026-10-08
 
 Consolidates the `2.99.1b1` pre-release into a stable release; everything from `2.99.0` is included. As always after updating, **restart** Home Assistant.
