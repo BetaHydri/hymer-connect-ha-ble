@@ -450,6 +450,7 @@ EBL400 1–14 range and are most likely SCU-internal/vendor diagnostics
 (firmware / heartbeat / counters) that the EHG app filters out client-side. Left
 unmapped pending on-vehicle correlation.
 
+<a id="bus-3"></a>
 ## Bus 3 — CBE EBL402 (habitation electrics)
 
 | Slot | Sensor Name | Unit | Transform | Notes |
@@ -615,6 +616,7 @@ Discovered by `tools/discover_sensors.py`. Same structure as Bus 24 (All Wohnen 
 | (27, 2) | `light_privat_group_brightness` | % | Group brightness (sentinel: 10000 when off) |
 | (27, 3) | `light_privat_group_night_mode` | — | EHG: `NightMode`. Same as bus 24 slot 3 — not writable as bool. Decode-only. Under observation. |
 
+<a id="bus-30"></a>
 ## Bus 30 — ScuSignals (SCU telemetry, LTE, BT, GPS)
 
 > **Prerequisite:** GPS coordinates (slot 1) require the **"Find-My-RV"** service to be
