@@ -407,14 +407,14 @@ No entity IDs change for existing vehicles and no configuration migration is req
 
 ### Added
 
-- **MaxxFan roof ventilation fan support (EHG bus 102, dual front + rear).** 12 read entities (on, dome position, roof-fan-speed state, rain sensor, device-failure, air-direction, firmware — front and rear) plus **two writable roof-fan-speed selects** (`OFF`/`LOW`/`MEDIUM`/`HIGH`). The component/slot model was recovered from the decompiled EHG app (componentId 102); the enum wire values match [@dan-simms1's](https://github.com/dan-simms1/hymer-connect-ha) `MAXXFAN_SPEEDS`. Everything is **observation-gated** (`require_observed`) so the entities are created **only** on vehicles that actually report bus 102 — **existing vehicles are unaffected**. The fan-speed **write path is UNVERIFIED** (test control): it is modelled from metadata but not yet confirmed on a MaxxFan-equipped vehicle. If you have one, please report whether setting a speed works (`Command sent over BLE (…, status=1)`), so it can be marked confirmed.
+- **MaxxFan roof ventilation fan support (EHG bus 102, dual front + rear).** 12 read entities (on, dome position, roof-fan-speed state, rain sensor, device-failure, air-direction, firmware — front and rear) plus **two writable roof-fan-speed selects** (`OFF`/`LOW`/`MEDIUM`/`HIGH`). The component/slot model was recovered from the decompiled EHG app (componentId 102); the enum wire values match @dan-simms1's `MAXXFAN_SPEEDS`. Everything is **observation-gated** (`require_observed`) so the entities are created **only** on vehicles that actually report bus 102 — **existing vehicles are unaffected**. The fan-speed **write path is UNVERIFIED** (test control): it is modelled from metadata but not yet confirmed on a MaxxFan-equipped vehicle. If you have one, please report whether setting a speed works (`Command sent over BLE (…, status=1)`), so it can be marked confirmed.
 - **Garnet SeeLevel 709 tank monitor (EHG bus 91).** Read entities for primary + secondary fresh / black / grey / LPG tank levels (`%`), plus device-failure and firmware diagnostics. Read-only (no writable slots). Observation-gated.
 - **Thetford iNDUS toilet (EHG bus 56) and iNDUS toilet ECO (EHG bus 127).** Read entities for grey / black / fresh tank levels, grey / flush / black cartridge levels, availability + D+/pulsing-flush/grey-reuse statuses, and notifications. Observation-gated. (The bus-56 clock/bluetooth/diagnostic write slots are intentionally not exposed.)
 - **EHG SwitchPad control panel (EHG bus 109).** Mode-status / device-failure / firmware read entities, a writable **mode select** (`ON_BOARD_MODE`/`AWAY_MODE`/`SLEEP_MODE`) and three writable button-brightness **numbers**. Observation-gated. **Write paths UNVERIFIED.**
 - **DellCool (EHG bus 116) and Indel B (EHG bus 118) compressor fridges.** Compressor / door / warning read entities plus writable **cooling-step** selects (Off/1–5, power+level "dance" mirroring the Dometic/Thetford drivers) and **power-mode** selects (DellCool `NORMAL_MODE`/`SILENT_MODE`/`AUTO_MODE`; Indel B `NORMAL_MODE`/`NIGHT_MODE`/`TURBO_MODE`/`NIGHT_AND_TURBO_MODE`). Observation-gated. **Write paths UNVERIFIED.**
-- **Air-conditioner and modern-heater components (data-level controls).** Read sensors + writable slot-level controls (mode/fan selects, target-temperature numbers, on/off switches) for: **Teleco Telair DualClima** (EHG bus 36), **Truma Saphir Compact** (bus 79) and **Saphir Comfort RC** (bus 89), the dual-zone **Airxcel AC Gateway** (bus 95, front + rear: A/C mode, fan mode/speed, roof-fan on/off/mode/speed, airflow, dome, heat/cool target temperatures), and the **Timberline** water + zone heaters (buses 124/125: water/furnace/air-mode selects, floor/air target-temperature + hysteresis + fan-speed numbers, engine-preheat/floor-heater/storage-mode switches). All enum wire values are the SCU values from the decompiled EHG app cross-checked with [@dan-simms1's](https://github.com/dan-simms1/hymer-connect-ha) constants. Observation-gated; **write paths UNVERIFIED**. A polished **aggregated HA climate (thermostat) entity** for these A/C and heater families will follow in a separate code change; this release ships the underlying read + slot-level controls.
+- **Air-conditioner and modern-heater components (data-level controls).** Read sensors + writable slot-level controls (mode/fan selects, target-temperature numbers, on/off switches) for: **Teleco Telair DualClima** (EHG bus 36), **Truma Saphir Compact** (bus 79) and **Saphir Comfort RC** (bus 89), the dual-zone **Airxcel AC Gateway** (bus 95, front + rear: A/C mode, fan mode/speed, roof-fan on/off/mode/speed, airflow, dome, heat/cool target temperatures), and the **Timberline** water + zone heaters (buses 124/125: water/furnace/air-mode selects, floor/air target-temperature + hysteresis + fan-speed numbers, engine-preheat/floor-heater/storage-mode switches). All enum wire values are the SCU values from the decompiled EHG app cross-checked with @dan-simms1's constants. Observation-gated; **write paths UNVERIFIED**. A polished **aggregated HA climate (thermostat) entity** for these A/C and heater families will follow in a separate code change; this release ships the underlying read + slot-level controls.
 
-All component/slot models and enum wire values were recovered from the decompiled EHG app and cross-checked against [@dan-simms1's](https://github.com/dan-simms1/hymer-connect-ha) resolved constants. Every new entity is **observation-gated** — created only when your vehicle reports that bus — so **existing vehicles are unaffected** and no entity IDs change. Writable controls are marked **UNVERIFIED** (test controls) until confirmed on-vehicle. As always after a HACS update, **restart** Home Assistant.
+All component/slot models and enum wire values were recovered from the decompiled EHG app and cross-checked against @dan-simms1's resolved constants. Every new entity is **observation-gated** — created only when your vehicle reports that bus — so **existing vehicles are unaffected** and no entity IDs change. Writable controls are marked **UNVERIFIED** (test controls) until confirmed on-vehicle. As always after a HACS update, **restart** Home Assistant.
 
 ## [2.76.8] - 2026-08-25
 
@@ -686,7 +686,7 @@ All new entities are read-only and metadata-derived (decompiled EHG app + `tools
 
 ### Credit
 
-- Root-cause diagnosis and the original on-vehicle proof (Grand Canyon S 700, SCU fw 1.49.7) by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha), PR #17). Thank you.
+- Root-cause diagnosis and the original on-vehicle proof (Grand Canyon S 700, SCU fw 1.49.7) by **Dan Simms** (dan-simms1/hymer-connect-ha, PR #17). Thank you.
 
 ## [2.66.2] - 2026-08-22
 
@@ -698,7 +698,7 @@ All new entities are read-only and metadata-derived (decompiled EHG app + `tools
 
 ### Credit
 
-- The `send_pia_command` observation (that correcting it also fixes the subscription path) is from **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha), PR #17). Thank you.
+- The `send_pia_command` observation (that correcting it also fixes the subscription path) is from **Dan Simms** (dan-simms1/hymer-connect-ha, PR #17). Thank you.
 
 ## [2.66.1] - 2026-08-22
 
@@ -720,7 +720,7 @@ All new entities are read-only and metadata-derived (decompiled EHG app + `tools
 
 ### Credit
 
-- Root-cause diagnosis and on-vehicle proof (Grand Canyon S 700, SCU firmware 1.49.7, cloud offline, `status=1 SUCCESS`) by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha)). The field-1-vs-field-2 envelope asymmetry and the write-with-response requirement are his findings; this release implements them as an opt-in path in the upstream integration. Thank you.
+- Root-cause diagnosis and on-vehicle proof (Grand Canyon S 700, SCU firmware 1.49.7, cloud offline, `status=1 SUCCESS`) by **Dan Simms** (dan-simms1/hymer-connect-ha). The field-1-vs-field-2 envelope asymmetry and the write-with-response requirement are his findings; this release implements them as an opt-in path in the upstream integration. Thank you.
 
 ## [2.65.18] - 2026-08-19
 

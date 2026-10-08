@@ -109,7 +109,7 @@ flowchart LR
 
 > ℹ️ **Writes go over BLE first with automatic cloud fallback (v2.67.0+, on by default).** The earlier v2.62.24
 > conclusion that SCU firmware silently drops BLE `setValues` writes turned out to be a **client-side encoding bug**,
-> not a firmware limit — root cause found by **Dan Simms** ([dan-simms1/hymer-connect-ha](https://github.com/dan-simms1/hymer-connect-ha)):
+> not a firmware limit — root cause found by **Dan Simms** (dan-simms1/hymer-connect-ha):
 > commands were wrapped in the wrong protobuf field over BLE, so the SCU parsed them as responses and ignored them.
 > **v2.66.0** corrected the encoding, **v2.66.2** applied the same fix to the BLE subscription path, and **v2.67.0**
 > turns the local BLE command path **on by default**. When BLE is connected, writes go over BLE first and **fall back
@@ -783,7 +783,7 @@ in [**docs/contributing-overlays.md**](docs/contributing-overlays.md).
 
 Big thanks to everyone who contributed sensor mappings, debugging time, or APK metadata:
 
-- [@dan-simms1](https://github.com/dan-simms1) — corrected Mercedes bus 1 chassis sensor labels on Grand Canyon S700 ([#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) and built the upstream [EHG runtime-metadata extractor](https://github.com/dan-simms1/hymer-connect-ha) that powers the brand-overlay bootstrap.
+- [@dan-simms1](https://github.com/dan-simms1) — corrected Mercedes bus 1 chassis sensor labels on Grand Canyon S700 ([#37](https://github.com/BetaHydri/hymer-connect-ha/issues/37)) and built the upstream EHG runtime-metadata extractor that powers the brand-overlay bootstrap (his repository is no longer public).
 - [@mvondemhagen](https://github.com/mvondemhagen) — Dometic compressor fridge mapping (bus 60) on Eriba Car 602 ([#54](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/54)).
 - [@mcfly1969](https://github.com/mcfly1969) — first HYMER ML-T 570 CrossOver mappings (bus 14 bedroom ceiling, bus 66 dinette pendant, **bus 114 Thetford Compressor T2120C fridge**), discovered via the dynamic-discovery diagnostic sensors and confirmed at the vehicle ([#7](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/7), [#8](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/8)).
 - [@FrankHae](https://github.com/FrankHae) — first HYMER **BMC I 680 (MY2024)** mappings and the **first Alde heater** in the project: bus 13 (floor ambient) and bus 17 (shower ceiling) lights, plus the **Alde 3030** heater (bus 5), **TenHaaft satellite dish** (bus 10) and **Thetford N4142E+ fridge** (bus 32) ([#9](https://github.com/BetaHydri/hymer-connect-ha-ble/issues/9)).

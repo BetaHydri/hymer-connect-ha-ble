@@ -37,7 +37,7 @@ If you have a different EHG vehicle and want to help expand compatibility:
 
 If your brand isn't a HYMER Grand Canyon S 600/S 700, you can **generate a starting `sensor_maps/<brand>.json`** instead of writing it by hand. This repo ships [`../tools/convert_dan_metadata.py`](../tools/convert_dan_metadata.py) ([docs](../tools/README.md)). It is a **two-step pipeline** — the converter only consumes input, it does not extract from an APK itself:
 
-1. **First run the upstream extractor** to produce a *local* runtime-metadata directory. The extractor is part of [**HYMER Connect Metadata Edition**](https://github.com/dan-simms1/hymer-connect-ha) by [@dan-simms1](https://github.com/dan-simms1) (see its `scripts/prepare_runtime_metadata.py`). You supply your own EHG APK; nothing APK-derived is committed.
+1. **First run the upstream extractor** to produce a *local* runtime-metadata directory. The extractor is part of **HYMER Connect Metadata Edition** by [@dan-simms1](https://github.com/dan-simms1) (see its `scripts/prepare_runtime_metadata.py`). You supply your own EHG APK; nothing APK-derived is committed.
 2. **Then convert it** with `convert_dan_metadata.py convert --input ... --output sensor_maps/<brand>.json --brand <brand>`. The output is a **starting point**: read-only sensors and clearly-defined switches/lights are auto-emitted; climate/fridge/boiler/heater are *not* (a `_climate_templates_required` marker is written for hand-porting from the shared `base.json`). Review, and if the mapping is a fixed EHG component (the common case) fold it into `base.json` / `lights.json` following those conventions; test, then open a PR.
 
 ### Option 1: Run the Sensor Discovery Tool (recommended)
