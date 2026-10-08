@@ -807,6 +807,14 @@ This is an **independent, community-built, open-source** project. It is **not af
 authorized by, or endorsed by the Erwin Hymer Group (EHG)**. All product and brand names belong to
 their respective owners and are used here for identification only.
 
+**Who this is for.** This integration is aimed at owners of EHG motorhomes and caravans who have the
+technical confidence to run it in their own vehicle and who are willing to work with Home Assistant.
+Our goal is simply to offer an **optional alternative** for controlling your motorhome more
+conveniently and, where possible, more intelligently. It assumes you are comfortable setting up and
+maintaining a Home Assistant instance yourself. If that is not for you, we recommend staying with
+EHG's **official app as your primary tool** — this project is meant to complement that choice, not
+replace it.
+
 **A heads-up about EHG's terms of use.** In October 2026 some users reported receiving emails from
 EHG noting that third-party integrations fall outside its intended, tested functionality and may not
 be covered by its terms of use, and asking them to use EHG's own apps. We can't speak for EHG — we
