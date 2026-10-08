@@ -227,6 +227,29 @@ class HymerSignalRClient:
         """Return the latest sensor data."""
         return self._sensor_data
 
+    def _schedule_background_task(self, coro: Any, *, name: str) -> None:
+        """Schedule a background task with HA-safe task naming and logging.
+
+        This is intentionally narrow — it only standardises task creation and
+        exception logging without changing the underlying SignalR behaviour.
+        """
+        try:
+            task = asyncio.create_task(coro, name=name)
+        except RuntimeError:
+            _LOGGER.warning("Failed to schedule background task %s", name)
+            return
+
+        def _done_callback(done: asyncio.Task) -> None:
+            if done.cancelled():
+                return
+            exc = done.exception()
+            if exc is not None:
+                _LOGGER.warning(
+                    "Background task %s failed", name, exc_info=exc
+                )
+
+        task.add_done_callback(_done_callback)
+
     async def connect(self) -> None:
         """Establish the SignalR WebSocket connection."""
         # Step 1: Negotiate with scc-appcomm to get Azure SignalR URL + token
@@ -659,8 +682,9 @@ class HymerSignalRClient:
                                 "re-sending UpdateTokens + resubscribe",
                                 standby_secs,
                             )
-                            asyncio.ensure_future(
-                                self._refresh_tokens_and_resubscribe(resubscribe=True)
+                            self._schedule_background_task(
+                                self._refresh_tokens_and_resubscribe(resubscribe=True),
+                                name=f"hymer-signalr-resubscribe-{self._vehicle_urn or 'unknown'}",
                             )
                     elif scu_now is False and not self._scu_was_disconnected:
                         self._scu_was_disconnected = True
@@ -669,7 +693,10 @@ class HymerSignalRClient:
                             "SCU entered standby (scu_connected true→false) — "
                             "refreshing UpdateTokens only (no resubscribe)"
                         )
-                        asyncio.ensure_future(self._refresh_tokens_and_resubscribe(resubscribe=False))
+                        self._schedule_background_task(
+                            self._refresh_tokens_and_resubscribe(resubscribe=False),
+                            name=f"hymer-signalr-standby-refresh-{self._vehicle_urn or 'unknown'}",
+                        )
                     elif scu_now is False:
                         _LOGGER.info("SCU disconnected (scu_connected=false)")
 
@@ -883,7 +910,10 @@ class HymerSignalRClient:
     async def start(self) -> None:
         """Connect and start listening in the background."""
         await self.connect()
-        self._task = asyncio.ensure_future(self.listen())
+        self._task = asyncio.create_task(
+            self.listen(),
+            name=f"hymer-signalr-listen-{self._vehicle_urn or 'unknown'}",
+        )
 
     async def stop(self) -> None:
         """Stop listening and close the WebSocket."""

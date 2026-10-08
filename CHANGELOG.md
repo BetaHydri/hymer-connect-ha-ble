@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.99.1b1] - 2026-10-08
+
+### Changed
+
+- **Pre-release hardening for Home Assistant OS runtime safety.** This beta keeps the proven SignalR reconnect and standby strategy intact while tightening task handling and failure reporting: background tasks are created with explicit names and logged consistently, reducing the chance of hidden or orphaned async work without changing the connection policy itself. This is intentionally a minimal HA-safe hardening pass, not a change in the reconnect strategy.
+
+### Fixed
+
+- **Task lifecycle is more explicit for HA's asyncio runtime.** Background tasks scheduled for SignalR token refresh and resubscribe now use explicit task creation and consistent callback logging, which makes HA startup/shutdown diagnostics more predictable without affecting the actual transport logic.
+
 ## [2.99.0] - 2026-10-07
 
 Consolidates the `2.99.0b1`–`2.99.0b5` pre-releases into a stable release; everything from `2.98.0` is included. As always after updating, **restart** Home Assistant.
