@@ -420,10 +420,28 @@ JSON int_labels take precedence over hardcoded `_INT_LABELS` in `pia_decoder.py`
 ## Bus 2 — Schaudt EBL400 (not used by HYMER)
 
 EHG component `EBL400` (kind: habitation, "Habitation Controller 2"), 14 slots
-(`main_switch`, `power_source`, `water_pump`, living/starter batteries, fresh/waste
-water levels, shoreline — full slot table in
-[`ehg-app-metadata.md`](ehg-app-metadata.md)). HYMER vehicles use the **CBE EBL402
-on bus 3** instead, so bus 2 is **not mapped** and has no entities.
+(`main_switch`, `power_source`, `water_pump`, living/starter batteries,
+fresh/waste water levels, shoreline). HYMER vehicles use the **CBE EBL402 on bus
+3** instead, so bus 2 is not mapped to HA entities. The raw EBL400 slot layout is
+nevertheless known and verified from the app metadata and kept here as the
+canonical reference for that generic controller.
+
+| Slot | Sensor Name | Unit | Transform | Notes |
+|------|------------|------|-----------|-------|
+| (2, 1) | `main_switch` | — | — | 12V main switch / habitation master |
+| (2, 2) | `power_source` | — | — | Battery / mains / solar source |
+| (2, 3) | `water_pump` | — | — | Water pump state |
+| (2, 4) | `charge_phase` | — | — | Bulk / absorption / float / idle |
+| (2, 5) | `living_battery_voltage` | V | — | Leisure battery voltage |
+| (2, 6) | `living_battery_current` | A | — | Leisure battery current |
+| (2, 7) | `starter_battery_voltage` | V | — | Starter battery voltage |
+| (2, 8) | `fresh_water_level` | % | — | Fresh-water tank level |
+| (2, 9) | `waste_water_level` | % | — | Grey / waste-water tank level |
+| (2, 10) | `living_battery_capacity` | Ah | — | Configured battery capacity |
+| (2, 11) | `battery_type` | — | — | AGM / lithium |
+| (2, 12) | `fresh_water_sensor_failure` | — | — | Fresh-water sensor failure bit |
+| (2, 13) | `waste_water_sensor_failure` | — | — | Waste-water sensor failure bit |
+| (2, 14) | `shoreline_connected` | — | — | Shore power connected |
 
 Some S 600 units still surface three disabled diagnostic sensors on bus 2 with
 out-of-range slot IDs — `discovered_bus_2_slot_18`, `discovered_bus_2_slot_768`
